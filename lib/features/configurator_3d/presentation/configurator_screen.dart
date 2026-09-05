@@ -107,7 +107,25 @@ class _ConfiguratorScreenState extends State<ConfiguratorScreen> {
             onPressed: state.canRedo ? () => _controller.redo() : null,
             color: state.canRedo ? AppTheme.textPrimary : AppTheme.textMuted,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
+          // Mobile Options Sidebar Trigger Button
+          if (!isDesktop)
+            Builder(
+              builder: (innerContext) => Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: FilledButton.tonalIcon(
+                  onPressed: () => Scaffold.of(innerContext).openEndDrawer(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.primary.withOpacity(0.18),
+                    foregroundColor: AppTheme.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.tune_rounded, size: 18),
+                  label: const Text('Options', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                ),
+              ),
+            ),
           // Primary Save Action
           Padding(
             padding: const EdgeInsets.only(right: 16),
@@ -116,7 +134,7 @@ class _ConfiguratorScreenState extends State<ConfiguratorScreen> {
               style: FilledButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: AppTheme.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               icon: const Icon(Icons.save_rounded, size: 18),
@@ -124,6 +142,51 @@ class _ConfiguratorScreenState extends State<ConfiguratorScreen> {
             ),
           ),
         ],
+      ),
+      endDrawer: Drawer(
+        width: MediaQuery.of(context).size.width > 500
+            ? 420
+            : MediaQuery.of(context).size.width * 0.90,
+        backgroundColor: AppTheme.surface,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: const BoxDecoration(
+                  color: AppTheme.surfaceElevated,
+                  border: Border(bottom: BorderSide(color: AppTheme.surfaceBorder)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.tune_rounded, color: AppTheme.primary, size: 22),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Product Options',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: AppTheme.textPrimary),
+                      tooltip: 'Close Sidebar',
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: LiveEditPanel(
+                  state: state,
+                  controller: _controller,
+                  onSave: () {
+                    Navigator.of(context).pop();
+                    _handleSave();
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
       body: isDesktop ? _buildDesktopLayout(state) : _buildMobileLayout(state),
     );
@@ -188,34 +251,32 @@ class _ConfiguratorScreenState extends State<ConfiguratorScreen> {
   Widget _buildMobileLayout(ConfiguratorState state) {
     return Column(
       children: [
-        // 3D VIEWER & CONTROLS (Top half)
+        // Full Viewport 3D Model on Mobile with Floating Options Button
         Expanded(
-          flex: 5,
-          child: Column(
+          child: Stack(
             children: [
-              Expanded(
+              Positioned.fill(
                 child: Product3DViewer(
                   configuration: state.config,
                   bridge: _bridge,
                   autoRotate: state.autoRotate,
                 ),
               ),
-              Container(
-                height: 50,
-                decoration: const BoxDecoration(
-                  color: AppTheme.surface,
-                  border: Border(
-                    top: BorderSide(color: AppTheme.surfaceBorder, width: 1),
-                  ),
-                ),
-                child: Center(
-                  child: CameraHUD(
-                    onPresetSelected: (preset) => _controller.setCameraPreset(preset),
-                    onResetView: () => _controller.resetView(),
-                    onToggleAutoRotate: () => _controller.toggleAutoRotate(),
-                    onToggleDimensions: () => _controller.toggleDimensions(),
-                    isAutoRotateActive: state.autoRotate,
-                    areDimensionsActive: state.config.showDimensions,
+              // Floating Sidebar Button on mobile to easily open customization options
+              Positioned(
+                right: 16,
+                bottom: 16,
+                child: Builder(
+                  builder: (innerContext) => FloatingActionButton.extended(
+                    onPressed: () => Scaffold.of(innerContext).openEndDrawer(),
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 6,
+                    icon: const Icon(Icons.tune_rounded),
+                    label: const Text(
+                      'Options',
+                      style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.3),
+                    ),
                   ),
                 ),
               ),
@@ -223,15 +284,24 @@ class _ConfiguratorScreenState extends State<ConfiguratorScreen> {
           ),
         ),
 
-        Container(height: 1, color: AppTheme.surfaceBorder),
-
-        // CONTROLS (Bottom half)
-        Expanded(
-          flex: 5,
-          child: LiveEditPanel(
-            state: state,
-            controller: _controller,
-            onSave: _handleSave,
+        // Bottom Viewport Controls Dock (Camera HUD)
+        Container(
+          height: 52,
+          decoration: const BoxDecoration(
+            color: AppTheme.surface,
+            border: Border(
+              top: BorderSide(color: AppTheme.surfaceBorder, width: 1),
+            ),
+          ),
+          child: Center(
+            child: CameraHUD(
+              onPresetSelected: (preset) => _controller.setCameraPreset(preset),
+              onResetView: () => _controller.resetView(),
+              onToggleAutoRotate: () => _controller.toggleAutoRotate(),
+              onToggleDimensions: () => _controller.toggleDimensions(),
+              isAutoRotateActive: state.autoRotate,
+              areDimensionsActive: state.config.showDimensions,
+            ),
           ),
         ),
       ],
