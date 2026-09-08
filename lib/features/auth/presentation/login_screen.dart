@@ -76,7 +76,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Factory operations, quotations and production — in one place.',
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
               ),
               const SizedBox(height: AppSpacing.xl),
               TextFormField(
@@ -104,21 +104,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  InkWell(
-                    onTap: () => setState(() => _rememberMe = !_rememberMe),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Checkbox(value: _rememberMe, onChanged: (v) => setState(() => _rememberMe = v ?? true)),
-                        const Text('Remember me'),
-                      ],
+                  Flexible(
+                    child: InkWell(
+                      onTap: () => setState(() => _rememberMe = !_rememberMe),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Checkbox(
+                            value: _rememberMe,
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            onChanged: (v) => setState(() => _rememberMe = v ?? true),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          const Flexible(
+                            child: Text('Remember me', overflow: TextOverflow.ellipsis),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   TextButton(
                     onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Contact your administrator to reset your password.')),
                     ),
-                    child: const Text('Forgot password?'),
+                    child: const Text('Forgot password?', overflow: TextOverflow.ellipsis),
                   ),
                 ],
               ),
@@ -215,7 +225,7 @@ class _BrandHero extends StatelessWidget {
             width: 380,
             child: Text(
               'Configure, price and manufacture doors and windows — from first sketch to production floor.',
-              style: TextStyle(color: AppColors.textOnDark.withOpacity(0.85), fontSize: 16, height: 1.5),
+              style: TextStyle(color: AppColors.textOnDark.withValues(alpha: 0.85), fontSize: 16, height: 1.5),
             ),
           ),
         ],

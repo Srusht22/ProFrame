@@ -6,7 +6,6 @@ import '../../../core/di/providers.dart';
 import '../../../core/routing/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../domain/configuration/config_enums.dart';
 import '../../../domain/entities/project.dart';
 import '../../../shared/providers/configuration_notifier.dart';
 import '../../../shared/providers/customer_notifier.dart';
@@ -15,6 +14,7 @@ import '../../../shared/providers/quotation_notifier.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/responsive_header_row.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../quotations/presentation/widgets/create_quotation_sheet.dart';
 import 'widgets/project_form_sheet.dart';
@@ -25,16 +25,16 @@ class ProjectDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final projects = ref.watch(projectNotifierProvider).valueOrNull ?? const [];
+    final projects = ref.watch(projectNotifierProvider).value ?? const [];
     final project = projects.firstWhereOrNull((p) => p.id == projectId);
     if (project == null) {
       return const Scaffold(body: EmptyState(icon: Icons.folder_off_outlined, title: 'Project not found', message: ''));
     }
-    final customer = (ref.watch(customerNotifierProvider).valueOrNull ?? const [])
+    final customer = (ref.watch(customerNotifierProvider).value ?? const [])
         .firstWhereOrNull((c) => c.id == project.customerId);
     final items = ref.watch(configurationsByProjectProvider(projectId));
     final quotations =
-        (ref.watch(quotationNotifierProvider).valueOrNull ?? const []).where((q) => q.projectId == projectId).toList();
+        (ref.watch(quotationNotifierProvider).value ?? const []).where((q) => q.projectId == projectId).toList();
     final pricingEngine = ref.watch(pricingEngineProvider);
 
     return Scaffold(
@@ -106,28 +106,22 @@ class ProjectDetailScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Configured items (${items.length})', style: Theme.of(context).textTheme.titleMedium),
-              Row(
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () => context.push(
-                      '${AppRoutes.configuratorNew}?projectId=$projectId&category=door',
-                    ),
-                    icon: const Icon(Icons.door_front_door_outlined, size: 18),
-                    label: const Text('Add door'),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  OutlinedButton.icon(
-                    onPressed: () => context.push(
-                      '${AppRoutes.configuratorNew}?projectId=$projectId&category=window',
-                    ),
-                    icon: const Icon(Icons.window_outlined, size: 18),
-                    label: const Text('Add window'),
-                  ),
-                ],
+          ResponsiveHeaderRow(
+            title: 'Configured items (${items.length})',
+            actions: [
+              OutlinedButton.icon(
+                onPressed: () => context.push(
+                  '${AppRoutes.configuratorNew}?projectId=$projectId&category=door',
+                ),
+                icon: const Icon(Icons.door_front_door_outlined, size: 18),
+                label: const Text('Add door'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => context.push(
+                  '${AppRoutes.configuratorNew}?projectId=$projectId&category=window',
+                ),
+                icon: const Icon(Icons.window_outlined, size: 18),
+                label: const Text('Add window'),
               ),
             ],
           ),
@@ -152,10 +146,9 @@ class ProjectDetailScreen extends ConsumerWidget {
                 ),
               ),
           const SizedBox(height: AppSpacing.lg),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Quotations (${quotations.length})', style: Theme.of(context).textTheme.titleMedium),
+          ResponsiveHeaderRow(
+            title: 'Quotations (${quotations.length})',
+            actions: [
               if (items.isNotEmpty)
                 FilledButton.icon(
                   onPressed: () => showCreateQuotationSheet(context, ref, project: project, items: items),
@@ -198,7 +191,7 @@ class _InfoLine extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 17, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+          Icon(icon, size: 17, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
           const SizedBox(width: AppSpacing.sm),
           Expanded(child: Text(text)),
         ],

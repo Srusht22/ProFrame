@@ -46,8 +46,8 @@ class TechnicalDrawingPainter extends CustomPainter {
       ..color = frameColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = math.max(2, config.frame.frameThicknessMm * scale * 0.4);
-    final fillGlass = Paint()..color = AppColors.info.withOpacity(0.16);
-    final fillSolid = Paint()..color = frameColor.withOpacity(0.18);
+    final fillGlass = Paint()..color = AppColors.info.withValues(alpha: 0.16);
+    final fillSolid = Paint()..color = frameColor.withValues(alpha: 0.18);
     final divider = Paint()
       ..color = frameColor
       ..style = PaintingStyle.stroke
@@ -109,7 +109,7 @@ class TechnicalDrawingPainter extends CustomPainter {
     }
 
     final swingPaint = Paint()
-      ..color = AppColors.brandDarkGreen.withOpacity(0.55)
+      ..color = AppColors.brandDarkGreen.withValues(alpha: 0.55)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.4;
 
@@ -141,7 +141,7 @@ class TechnicalDrawingPainter extends CustomPainter {
 
   void _paintWindowOperation(Canvas canvas, Rect inner, int sections) {
     final arrowPaint = Paint()
-      ..color = AppColors.brandDarkGreen.withOpacity(0.6)
+      ..color = AppColors.brandDarkGreen.withValues(alpha: 0.6)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.6;
     final step = inner.width / sections;
@@ -185,7 +185,7 @@ class TechnicalDrawingPainter extends CustomPainter {
     final linePaint = Paint()
       ..color = AppColors.textSecondary
       ..strokeWidth = 1;
-    final textStyle = const TextStyle(color: AppColors.textPrimary, fontSize: 11, fontWeight: FontWeight.w600);
+    const textStyle = TextStyle(color: AppColors.textPrimary, fontSize: 11, fontWeight: FontWeight.w600);
 
     void drawText(String text, Offset center, {bool vertical = false}) {
       final tp = TextPainter(text: TextSpan(text: text, style: textStyle), textDirection: TextDirection.ltr)..layout();

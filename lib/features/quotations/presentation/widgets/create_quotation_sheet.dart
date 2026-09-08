@@ -59,7 +59,7 @@ class _CreateQuotationSheetState extends ConsumerState<_CreateQuotationSheet> {
     }
     setState(() => _saving = true);
     final pricingEngine = ref.read(pricingEngineProvider);
-    final settings = ref.read(settingsNotifierProvider).valueOrNull;
+    final settings = ref.read(settingsNotifierProvider).value;
     final currency = settings?.currency;
     final user = ref.read(currentUserProvider);
     final now = DateTime.now();

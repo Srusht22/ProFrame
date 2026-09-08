@@ -16,7 +16,7 @@ class ConfigurationNotifier extends AsyncNotifier<List<ProductConfiguration>> {
 
   Future<void> save(ProductConfiguration configuration, {required bool isNew}) async {
     await ref.read(appRepositoriesProvider).configurations.save(configuration);
-    final list = [...state.valueOrNull ?? const <ProductConfiguration>[]];
+    final list = [...state.value ?? const <ProductConfiguration>[]];
     final index = list.indexWhere((c) => c.id == configuration.id);
     if (index >= 0) {
       list[index] = configuration;
@@ -35,7 +35,7 @@ class ConfigurationNotifier extends AsyncNotifier<List<ProductConfiguration>> {
 
   Future<void> delete(ProductConfiguration configuration) async {
     await ref.read(appRepositoriesProvider).configurations.delete(configuration.id);
-    state = AsyncData((state.valueOrNull ?? const []).where((c) => c.id != configuration.id).toList());
+    state = AsyncData((state.value ?? const []).where((c) => c.id != configuration.id).toList());
     await ref.read(auditLogNotifierProvider.notifier).log(
           action: AuditAction.delete,
           entityType: 'ProductConfiguration',
@@ -47,7 +47,7 @@ class ConfigurationNotifier extends AsyncNotifier<List<ProductConfiguration>> {
 
   Future<ProductConfiguration> duplicate(ProductConfiguration configuration) async {
     final copy = await ref.read(appRepositoriesProvider).configurations.duplicate(configuration.id);
-    state = AsyncData([...state.valueOrNull ?? const [], copy]);
+    state = AsyncData([...state.value ?? const [], copy]);
     return copy;
   }
 }
@@ -59,7 +59,7 @@ final configurationNotifierProvider =
 
 final configurationsByProjectProvider = Provider.family<List<ProductConfiguration>, String>(
   (ref, projectId) {
-    final all = ref.watch(configurationNotifierProvider).valueOrNull ?? const [];
+    final all = ref.watch(configurationNotifierProvider).value ?? const [];
     return all.where((c) => c.projectId == projectId).toList();
   },
 );

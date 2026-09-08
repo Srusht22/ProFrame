@@ -24,7 +24,7 @@ class ManufacturingNotifier extends AsyncNotifier<List<ManufacturingOrder>> {
       updatedAt: DateTime.now(),
     );
     await ref.read(appRepositoriesProvider).manufacturing.save(mo);
-    state = AsyncData([...state.valueOrNull ?? const [], mo]);
+    state = AsyncData([...state.value ?? const [], mo]);
     return mo;
   }
 
@@ -34,7 +34,7 @@ class ManufacturingNotifier extends AsyncNotifier<List<ManufacturingOrder>> {
     final updated = mo.copyWith(stage: next);
     await ref.read(appRepositoriesProvider).manufacturing.save(updated);
     state = AsyncData([
-      for (final m in state.valueOrNull ?? const <ManufacturingOrder>[])
+      for (final m in state.value ?? const <ManufacturingOrder>[])
         if (m.id == mo.id) updated else m,
     ]);
     if (next == ManufacturingStage.completed) {
@@ -55,7 +55,7 @@ class ManufacturingNotifier extends AsyncNotifier<List<ManufacturingOrder>> {
     final updated = mo.copyWith(qcChecklist: updatedChecklist);
     await ref.read(appRepositoriesProvider).manufacturing.save(updated);
     state = AsyncData([
-      for (final m in state.valueOrNull ?? const <ManufacturingOrder>[])
+      for (final m in state.value ?? const <ManufacturingOrder>[])
         if (m.id == mo.id) updated else m,
     ]);
     if (result == QcResult.fail) {
@@ -74,7 +74,7 @@ final manufacturingNotifierProvider = AsyncNotifierProvider<ManufacturingNotifie
 );
 
 final manufacturingByOrderProvider = Provider.family<ManufacturingOrder?, String>((ref, orderId) {
-  final all = ref.watch(manufacturingNotifierProvider).valueOrNull ?? const [];
+  final all = ref.watch(manufacturingNotifierProvider).value ?? const [];
   for (final m in all) {
     if (m.orderId == orderId) return m;
   }

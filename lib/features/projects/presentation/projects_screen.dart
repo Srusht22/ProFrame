@@ -26,7 +26,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
   @override
   Widget build(BuildContext context) {
     final projectsAsync = ref.watch(projectNotifierProvider);
-    final customers = ref.watch(customerNotifierProvider).valueOrNull ?? const [];
+    final customers = ref.watch(customerNotifierProvider).value ?? const [];
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -90,7 +90,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                 }
                 return ListView.separated(
                   itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.xs),
+                  separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.xs),
                   itemBuilder: (context, index) {
                     final project = filtered[index];
                     final customerName =

@@ -8,8 +8,11 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
     return ref.watch(appRepositoriesProvider).settings.get();
   }
 
-  Future<void> update(AppSettings Function(AppSettings current) updater) async {
-    final current = state.valueOrNull ?? const AppSettings();
+  /// Applies [updater] to the current settings and persists the result.
+  /// Named `edit` rather than `update` because `AsyncNotifier` already
+  /// declares an `update` method with a different signature.
+  Future<void> edit(AppSettings Function(AppSettings current) updater) async {
+    final current = state.value ?? const AppSettings();
     final updated = updater(current);
     state = AsyncData(updated);
     await ref.read(appRepositoriesProvider).settings.save(updated);

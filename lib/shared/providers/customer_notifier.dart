@@ -13,7 +13,7 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
 
   Future<void> save(Customer customer, {required bool isNew}) async {
     await ref.read(appRepositoriesProvider).customers.save(customer);
-    final list = [...state.valueOrNull ?? const <Customer>[]];
+    final list = [...state.value ?? const <Customer>[]];
     final index = list.indexWhere((c) => c.id == customer.id);
     if (index >= 0) {
       list[index] = customer;
@@ -32,7 +32,7 @@ class CustomerNotifier extends AsyncNotifier<List<Customer>> {
 
   Future<void> delete(Customer customer) async {
     await ref.read(appRepositoriesProvider).customers.delete(customer.id);
-    state = AsyncData((state.valueOrNull ?? const []).where((c) => c.id != customer.id).toList());
+    state = AsyncData((state.value ?? const []).where((c) => c.id != customer.id).toList());
     await ref.read(auditLogNotifierProvider.notifier).log(
           action: AuditAction.delete,
           entityType: 'Customer',

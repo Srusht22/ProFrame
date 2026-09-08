@@ -51,7 +51,7 @@ class Designer2DViewState extends State<Designer2DView> {
                 onPressed: _resetView,
               ),
               const Spacer(),
-              Text('${widget.config.formattedDimensions()}', style: Theme.of(context).textTheme.bodySmall),
+              Text(widget.config.formattedDimensions(), style: Theme.of(context).textTheme.bodySmall),
             ],
           ),
         ),

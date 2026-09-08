@@ -45,7 +45,7 @@ static mock and no price is hard-coded in a widget.
 | Settings (company profile, pricing rules editor, users/roles) | ✅ |
 | Reports (revenue, funnel, top customers) | ✅ |
 | Localization (EN / AR / CKB, RTL) | ⚠️ core UI + nav fully translated; see §9 |
-| Tests | ✅ pricing/validation/manufacturing engines + serialization + 1 widget test |
+| Tests | ✅ 41 passing: engines, serialization, widget + full app boot/navigation/configurator/quote-to-order flows |
 | Backend | Local-only (see §5) — repository interfaces are backend-ready |
 
 Given the scope of the original brief (an 80-section enterprise spec), a
@@ -282,8 +282,11 @@ flutter pub get         # also runs `flutter gen-l10n` (flutter.generate: true
 flutter run              # pick a device: Android / iOS / macOS / Windows / Linux / Chrome
 ```
 
-Requires **Flutter ≥ 3.24 / Dart ≥ 3.5** (uses `CardThemeData`/
-`DialogThemeData` and `WidgetState*`, both introduced around that release).
+Requires **Flutter ≥ 3.44 / Dart ≥ 3.12**.
+
+**Verified on Flutter 3.47.2 / Dart 3.13.2:** `flutter analyze` reports no
+issues, all 41 tests pass, and `flutter build web --release` succeeds
+(including the wasm dry run).
 
 ### Building
 
@@ -298,19 +301,45 @@ macOS/Linux desktop scaffolding isn't included yet — run
 `flutter create --platforms=macos,linux .` once to add it (nothing in
 `lib/` is Windows-specific, so both should build immediately after).
 
+**Android toolchain:** `android/` targets Gradle 9.3.1, AGP 9.1.0, Kotlin
+2.4.0 and Java 17, matching what current Flutter generates. (Anything
+older than Gradle 8.14 / AGP 8.11.1 / Kotlin 2.2.20 is rejected outright by
+Flutter's Gradle dependency-version check, which is worth knowing if you
+ever hand-edit these files.) A JDK 17+ is required — JDK 21 is what this
+was validated against.
+
 ### Testing
 
 ```bash
 flutter test
 ```
 
-`test/domain/` covers the pricing engine (exact-arithmetic cases with a
-zeroed rate table, plus formula/invariant checks — the spec explicitly
+**Unit tests** (`test/domain/`) — the pricing engine (exact-arithmetic
+cases against a zeroed rate table, plus formula/invariant checks: the spec
 asks for strong pricing coverage), the validation engine, the
 manufacturing engine's BOM/cutting-list generation, unit conversion, and
-`ProductConfiguration` JSON round-tripping. `test/widget/` has a
-`PriceBreakdownView` rendering test as the pattern for further widget
-tests (configurator step widgets, forms).
+`ProductConfiguration` JSON round-tripping.
+
+**Widget test** (`test/widget/`) — `PriceBreakdownView` rendering.
+
+**Integration-style tests** — these boot the *real* app (real repositories,
+real router, seeded demo data, an in-memory store swapped in via a
+`ProviderScope` override) and drive it like a user:
+
+| File | What it proves |
+|---|---|
+| `app_smoke_test.dart` | App boots to login, signs in, lands on the dashboard |
+| `app_navigation_smoke_test.dart` | Every rail destination + all four Settings tabs + project detail render without layout/state errors |
+| `configurator_flow_test.dart` | Phone layout (drawer nav) and the wizard end to end: a width typed in step 2 flows through to the summary price, BOM and cutting list |
+| `quotation_to_order_flow_test.dart` | Quotation created from project items → sent → accepted → converted to an order → manufacturing order opened |
+
+These run at both desktop (1600×1200) and phone (420×950) viewports, so
+Flutter's overflow assertions act as a responsive-layout regression suite —
+they caught (and now guard against) four real overflow bugs.
+
+The configurator's desktop 3-pane layout is exercised manually rather than
+in widget tests, because its centre pane embeds the WebView-backed 3D
+viewer, which has no implementation in the headless test harness.
 
 ---
 

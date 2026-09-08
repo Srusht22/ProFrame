@@ -31,7 +31,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoutes.dashboard,
     refreshListenable: _AuthRefreshNotifier(ref),
     redirect: (context, state) {
-      final isLoggedIn = ref.read(authNotifierProvider).valueOrNull != null;
+      final isLoggedIn = ref.read(authNotifierProvider).value != null;
       final isLoggingIn = state.matchedLocation == AppRoutes.login;
       if (!isLoggedIn && !isLoggingIn) return AppRoutes.login;
       if (isLoggedIn && isLoggingIn) return AppRoutes.dashboard;
@@ -99,6 +99,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 /// of waiting for the next navigation event.
 class _AuthRefreshNotifier extends ChangeNotifier {
   _AuthRefreshNotifier(Ref ref) {
-    ref.listen(authNotifierProvider, (_, __) => notifyListeners());
+    ref.listen(authNotifierProvider, (_, _) => notifyListeners());
   }
 }

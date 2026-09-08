@@ -34,7 +34,7 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
   bool _converting = false;
 
   Future<Uint8List> _buildPdf(Quotation quotation, Customer customer, Project project) async {
-    final settings = ref.read(settingsNotifierProvider).valueOrNull;
+    final settings = ref.read(settingsNotifierProvider).value;
     return const QuotationPdfService().build(
       quotation: quotation,
       customer: customer,
@@ -53,13 +53,13 @@ class _QuotationDetailScreenState extends ConsumerState<QuotationDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final quotations = ref.watch(quotationNotifierProvider).valueOrNull ?? const <Quotation>[];
+    final quotations = ref.watch(quotationNotifierProvider).value ?? const <Quotation>[];
     final quotation = quotations.firstWhereOrNull((q) => q.id == widget.quotationId);
     if (quotation == null) {
       return const Scaffold(body: EmptyState(icon: Icons.description_outlined, title: 'Quotation not found', message: ''));
     }
-    final customer = (ref.watch(customerNotifierProvider).valueOrNull ?? const []).firstWhereOrNull((c) => c.id == quotation.customerId);
-    final project = (ref.watch(projectNotifierProvider).valueOrNull ?? const []).firstWhereOrNull((p) => p.id == quotation.projectId);
+    final customer = (ref.watch(customerNotifierProvider).value ?? const []).firstWhereOrNull((c) => c.id == quotation.customerId);
+    final project = (ref.watch(projectNotifierProvider).value ?? const []).firstWhereOrNull((p) => p.id == quotation.projectId);
 
     return Scaffold(
       appBar: AppBar(

@@ -9,9 +9,8 @@ class LocalQuotationRepository implements QuotationRepository {
   final SequenceCounter _sequence;
   final String _prefix;
 
-  LocalQuotationRepository(IKeyValueStore keyValueStore, {String prefix = 'Q'})
-      : _prefix = prefix,
-        _sequence = SequenceCounter(keyValueStore),
+  LocalQuotationRepository(IKeyValueStore keyValueStore, {this._prefix = 'Q'})
+      : _sequence = SequenceCounter(keyValueStore),
         _store = JsonCollectionStore<Quotation>(
           keyValueStore: keyValueStore,
           collectionKey: 'quotations',

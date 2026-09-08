@@ -35,7 +35,7 @@ class AuditLogNotifier extends AsyncNotifier<List<AuditLogEntry>> {
       timestamp: DateTime.now(),
     );
     await ref.read(appRepositoriesProvider).auditLog.append(entry);
-    state = AsyncData([entry, ...state.valueOrNull ?? const []]);
+    state = AsyncData([entry, ...state.value ?? const []]);
   }
 }
 

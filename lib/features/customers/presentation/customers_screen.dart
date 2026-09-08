@@ -76,7 +76,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                 }
                 return ListView.separated(
                   itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.xs),
+                  separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.xs),
                   itemBuilder: (context, index) => _CustomerTile(customer: filtered[index]),
                 );
               },

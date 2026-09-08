@@ -134,7 +134,7 @@ class ManufacturingEngine {
       final panelRate = rules.panelPricePerSqm[config.panel.type] ?? rules.panelPricePerSqm.values.first;
       lines.add(BomLine(
         partNumber: 'PNL-${config.panel.type.name.toUpperCase()}',
-        description: '${config.panel.type.label}',
+        description: config.panel.type.label,
         quantity: areaM2,
         unit: 'm²',
         unitPrice: panelRate,

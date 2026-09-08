@@ -38,7 +38,7 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
   }
 
   Future<void> _save() async {
-    await ref.read(settingsNotifierProvider.notifier).update((current) => current.copyWith(pricingRules: _rules));
+    await ref.read(settingsNotifierProvider.notifier).edit((current) => current.copyWith(pricingRules: _rules));
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pricing rules saved.')));
   }
 

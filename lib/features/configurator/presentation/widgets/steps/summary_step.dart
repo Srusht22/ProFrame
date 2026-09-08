@@ -51,7 +51,7 @@ class SummaryStep extends StatelessWidget {
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.xs,
             children: [
-              _SummaryChip('${config.productTypeLabel}'),
+              _SummaryChip(config.productTypeLabel),
               _SummaryChip(config.formattedDimensions()),
               _SummaryChip('Qty ${config.quantity}'),
               _SummaryChip(config.frame.material.label),
@@ -98,9 +98,9 @@ class _IssueBanner extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.09),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

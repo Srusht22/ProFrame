@@ -18,9 +18,9 @@ class ReportsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final quotations = ref.watch(quotationNotifierProvider).valueOrNull ?? const <Quotation>[];
-    final orders = ref.watch(orderNotifierProvider).valueOrNull ?? const <Order>[];
-    final customers = ref.watch(customerNotifierProvider).valueOrNull ?? const <Customer>[];
+    final quotations = ref.watch(quotationNotifierProvider).value ?? const <Quotation>[];
+    final orders = ref.watch(orderNotifierProvider).value ?? const <Order>[];
+    final customers = ref.watch(customerNotifierProvider).value ?? const <Customer>[];
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -86,7 +86,7 @@ class _RevenueChart extends StatelessWidget {
                   color: AppColors.brandDarkGreen,
                   barWidth: 2.6,
                   dotData: const FlDotData(show: false),
-                  belowBarData: BarAreaData(show: true, color: AppColors.brandCream.withOpacity(0.35)),
+                  belowBarData: BarAreaData(show: true, color: AppColors.brandCream.withValues(alpha: 0.35)),
                 ),
               ],
             ),
@@ -106,7 +106,7 @@ class _QuotationFunnel extends StatelessWidget {
     final counts = {
       for (final status in QuotationStatus.values) status: quotations.where((q) => q.status == status).length,
     };
-    final total = quotations.length == 0 ? 1 : quotations.length;
+    final total = quotations.isEmpty ? 1 : quotations.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

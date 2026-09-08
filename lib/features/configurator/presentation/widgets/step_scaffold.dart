@@ -20,7 +20,7 @@ class StepScaffold extends StatelessWidget {
         Text(title, style: theme.textTheme.headlineSmall),
         if (helperText != null) ...[
           const SizedBox(height: 4),
-          Text(helperText!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6))),
+          Text(helperText!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
         ],
         const SizedBox(height: AppSpacing.lg),
         ...children,

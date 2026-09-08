@@ -27,12 +27,12 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final customers = ref.watch(customerNotifierProvider).valueOrNull ?? const [];
-    final projects = ref.watch(projectNotifierProvider).valueOrNull ?? const [];
-    final quotations = ref.watch(quotationNotifierProvider).valueOrNull ?? const [];
-    final orders = ref.watch(orderNotifierProvider).valueOrNull ?? const [];
-    final manufacturingOrders = ref.watch(manufacturingNotifierProvider).valueOrNull ?? const [];
-    final configurations = ref.watch(configurationNotifierProvider).valueOrNull ?? const [];
+    final customers = ref.watch(customerNotifierProvider).value ?? const [];
+    final projects = ref.watch(projectNotifierProvider).value ?? const [];
+    final quotations = ref.watch(quotationNotifierProvider).value ?? const [];
+    final orders = ref.watch(orderNotifierProvider).value ?? const [];
+    final manufacturingOrders = ref.watch(manufacturingNotifierProvider).value ?? const [];
+    final configurations = ref.watch(configurationNotifierProvider).value ?? const [];
 
     final activeProjects = projects.where((p) =>
         p.status != ProjectStatus.completed && p.status != ProjectStatus.cancelled).length;
@@ -87,7 +87,7 @@ class DashboardScreen extends ConsumerWidget {
           style: Theme.of(context)
               .textTheme
               .bodyMedium
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
         ),
         const SizedBox(height: AppSpacing.lg),
         GridView.count(
@@ -161,7 +161,7 @@ class _StatCard extends StatelessWidget {
           Container(
             width: 42,
             height: 42,
-            decoration: BoxDecoration(color: data.color.withOpacity(0.12), borderRadius: BorderRadius.circular(11)),
+            decoration: BoxDecoration(color: data.color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(11)),
             child: Icon(data.icon, color: data.color, size: 21),
           ),
           const SizedBox(width: AppSpacing.sm),

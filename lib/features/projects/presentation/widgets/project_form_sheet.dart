@@ -82,7 +82,7 @@ class _ProjectFormSheetState extends ConsumerState<_ProjectFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final customers = ref.watch(customerNotifierProvider).valueOrNull ?? const <Customer>[];
+    final customers = ref.watch(customerNotifierProvider).value ?? const <Customer>[];
     final isEdit = widget.existing != null;
     return Padding(
       padding: EdgeInsets.only(
@@ -107,7 +107,7 @@ class _ProjectFormSheetState extends ConsumerState<_ProjectFormSheet> {
               ),
               const SizedBox(height: AppSpacing.sm),
               DropdownButtonFormField<String>(
-                value: _customerId,
+                initialValue: _customerId,
                 decoration: const InputDecoration(labelText: 'Customer'),
                 items: [
                   for (final c in customers) DropdownMenuItem(value: c.id, child: Text(c.fullName)),
@@ -116,7 +116,7 @@ class _ProjectFormSheetState extends ConsumerState<_ProjectFormSheet> {
               ),
               const SizedBox(height: AppSpacing.sm),
               DropdownButtonFormField<ProjectType>(
-                value: _type,
+                initialValue: _type,
                 decoration: const InputDecoration(labelText: 'Project type'),
                 items: [
                   for (final t in ProjectType.values) DropdownMenuItem(value: t, child: Text(t.label)),

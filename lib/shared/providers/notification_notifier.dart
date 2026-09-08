@@ -24,13 +24,13 @@ class NotificationNotifier extends AsyncNotifier<List<AppNotification>> {
       createdAt: DateTime.now(),
     );
     await ref.read(appRepositoriesProvider).notifications.add(notification);
-    state = AsyncData([notification, ...state.valueOrNull ?? const []]);
+    state = AsyncData([notification, ...state.value ?? const []]);
   }
 
   Future<void> markRead(String id) async {
     await ref.read(appRepositoriesProvider).notifications.markRead(id);
     state = AsyncData([
-      for (final n in state.valueOrNull ?? const <AppNotification>[])
+      for (final n in state.value ?? const <AppNotification>[])
         if (n.id == id) n.copyWith(isRead: true) else n,
     ]);
   }
@@ -38,7 +38,7 @@ class NotificationNotifier extends AsyncNotifier<List<AppNotification>> {
   Future<void> markAllRead() async {
     await ref.read(appRepositoriesProvider).notifications.markAllRead();
     state = AsyncData([
-      for (final n in state.valueOrNull ?? const <AppNotification>[]) n.copyWith(isRead: true),
+      for (final n in state.value ?? const <AppNotification>[]) n.copyWith(isRead: true),
     ]);
   }
 }
@@ -48,6 +48,6 @@ final notificationNotifierProvider = AsyncNotifierProvider<NotificationNotifier,
 );
 
 final unreadNotificationCountProvider = Provider<int>((ref) {
-  final list = ref.watch(notificationNotifierProvider).valueOrNull ?? const [];
+  final list = ref.watch(notificationNotifierProvider).value ?? const [];
   return list.where((n) => !n.isRead).length;
 });

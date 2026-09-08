@@ -74,7 +74,7 @@ class _ReadyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
-    final settings = ref.watch(settingsNotifierProvider).valueOrNull ?? const AppSettings();
+    final settings = ref.watch(settingsNotifierProvider).value ?? const AppSettings();
 
     return MaterialApp.router(
       title: 'ProFrame',

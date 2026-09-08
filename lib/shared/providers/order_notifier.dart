@@ -3,7 +3,6 @@ import '../../core/di/providers.dart';
 import '../../core/utils/id_generator.dart';
 import '../../domain/entities/app_notification.dart';
 import '../../domain/entities/audit_log_entry.dart';
-import '../../domain/entities/manufacturing_order.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/entities/quotation.dart';
 import 'audit_log_notifier.dart';
@@ -30,7 +29,7 @@ class OrderNotifier extends AsyncNotifier<List<Order>> {
       createdByUserId: user?.id ?? 'system',
     );
     await ref.read(appRepositoriesProvider).orders.save(order);
-    state = AsyncData([...state.valueOrNull ?? const [], order]);
+    state = AsyncData([...state.value ?? const [], order]);
 
     if (quotation.status != QuotationStatus.accepted) {
       await ref.read(quotationNotifierProvider.notifier).updateStatus(quotation, QuotationStatus.accepted);
@@ -58,7 +57,7 @@ class OrderNotifier extends AsyncNotifier<List<Order>> {
     final updated = order.copyWith(status: status);
     await ref.read(appRepositoriesProvider).orders.save(updated);
     state = AsyncData([
-      for (final o in state.valueOrNull ?? const <Order>[])
+      for (final o in state.value ?? const <Order>[])
         if (o.id == order.id) updated else o,
     ]);
     await ref.read(auditLogNotifierProvider.notifier).log(

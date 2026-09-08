@@ -40,7 +40,7 @@ class ExportService {
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/$filename');
     await file.writeAsString(content);
-    await Share.shareXFiles([XFile(file.path)], text: filename);
+    await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: filename));
   }
 
   String _slug(String input) {

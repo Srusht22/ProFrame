@@ -23,7 +23,7 @@ class PriceBreakdownView extends StatelessWidget {
               label,
               style: bold
                   ? theme.textTheme.titleMedium
-                  : theme.textTheme.bodyMedium?.copyWith(color: muted ? theme.colorScheme.onSurface.withOpacity(0.6) : null),
+                  : theme.textTheme.bodyMedium?.copyWith(color: muted ? theme.colorScheme.onSurface.withValues(alpha: 0.6) : null),
             ),
             Text(
               breakdown.currency.format(amount),
@@ -53,7 +53,7 @@ class PriceBreakdownView extends StatelessWidget {
                       Text(line.label, style: theme.textTheme.bodyMedium),
                       if (line.description != null)
                         Text(line.description!,
-                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.55))),
+                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.55))),
                     ],
                   ),
                 ),

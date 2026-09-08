@@ -16,7 +16,7 @@ class ManufacturingScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final moAsync = ref.watch(manufacturingNotifierProvider);
-    final orders = ref.watch(orderNotifierProvider).valueOrNull ?? const [];
+    final orders = ref.watch(orderNotifierProvider).value ?? const [];
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -39,7 +39,7 @@ class ManufacturingScreen extends ConsumerWidget {
                 final sorted = [...list]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
                 return ListView.separated(
                   itemCount: sorted.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.xs),
+                  separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.xs),
                   itemBuilder: (context, index) {
                     final mo = sorted[index];
                     final order = orders.where((o) => o.id == mo.orderId).toList();

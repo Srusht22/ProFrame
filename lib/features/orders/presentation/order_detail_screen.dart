@@ -20,13 +20,13 @@ class OrderDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final orders = ref.watch(orderNotifierProvider).valueOrNull ?? const <Order>[];
+    final orders = ref.watch(orderNotifierProvider).value ?? const <Order>[];
     final order = orders.firstWhereOrNull((o) => o.id == orderId);
     if (order == null) {
       return const Scaffold(body: EmptyState(icon: Icons.local_shipping_outlined, title: 'Order not found', message: ''));
     }
-    final customer = (ref.watch(customerNotifierProvider).valueOrNull ?? const []).firstWhereOrNull((c) => c.id == order.customerId);
-    final project = (ref.watch(projectNotifierProvider).valueOrNull ?? const []).firstWhereOrNull((p) => p.id == order.projectId);
+    final customer = (ref.watch(customerNotifierProvider).value ?? const []).firstWhereOrNull((c) => c.id == order.customerId);
+    final project = (ref.watch(projectNotifierProvider).value ?? const []).firstWhereOrNull((p) => p.id == order.projectId);
     final manufacturingOrder = ref.watch(manufacturingByOrderProvider(order.id));
 
     final currentIndex = OrderStatus.progressionOrder.indexOf(order.status);
@@ -142,7 +142,7 @@ class _StageRow extends StatelessWidget {
           Column(
             children: [
               Icon(done ? Icons.check_circle_rounded : Icons.circle_outlined, color: color, size: 20),
-              if (!isLast) Expanded(child: Container(width: 2, color: color.withOpacity(done ? 1 : 0.4))),
+              if (!isLast) Expanded(child: Container(width: 2, color: color.withValues(alpha: done ? 1 : 0.4))),
             ],
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -150,7 +150,7 @@ class _StageRow extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: AppSpacing.md),
             child: Text(
               label,
-              style: TextStyle(fontWeight: done ? FontWeight.w700 : FontWeight.w400, color: done ? null : Theme.of(context).colorScheme.onSurface.withOpacity(0.55)),
+              style: TextStyle(fontWeight: done ? FontWeight.w700 : FontWeight.w400, color: done ? null : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55)),
             ),
           ),
         ],

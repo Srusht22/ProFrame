@@ -21,7 +21,7 @@ class UserNotifier extends AsyncNotifier<List<AppUser>> {
     );
     await ref.read(appRepositoriesProvider).users.save(updated);
     state = AsyncData([
-      for (final u in state.valueOrNull ?? const <AppUser>[])
+      for (final u in state.value ?? const <AppUser>[])
         if (u.id == user.id) updated else u,
     ]);
   }

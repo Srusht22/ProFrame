@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/di/providers.dart';
 import '../../core/routing/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -205,8 +204,13 @@ class _Brand extends StatelessWidget {
           ),
           if (extended) ...[
             const SizedBox(width: AppSpacing.sm),
-            const Text('ProFrame',
-                style: TextStyle(color: AppColors.brandCream, fontWeight: FontWeight.w700, fontSize: 17)),
+            const Flexible(
+              child: Text(
+                'ProFrame',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: AppColors.brandCream, fontWeight: FontWeight.w700, fontSize: 17),
+              ),
+            ),
           ],
         ],
       ),
@@ -328,7 +332,7 @@ class _NavDrawer extends ConsumerWidget {
                         ),
                       ),
                       selected: i == selectedIndex,
-                      selectedTileColor: Colors.white.withOpacity(0.08),
+                      selectedTileColor: Colors.white.withValues(alpha: 0.08),
                       onTap: () {
                         Navigator.of(context).pop();
                         context.go(items[i].route);
@@ -338,7 +342,7 @@ class _NavDrawer extends ConsumerWidget {
               ),
             ),
             const Divider(color: Colors.white24, height: 1),
-            _UserFooter(extended: true),
+            const _UserFooter(extended: true),
           ],
         ),
       ),

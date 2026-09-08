@@ -16,7 +16,8 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
     required String password,
     bool rememberMe = false,
   }) async {
-    state = const AsyncLoading<AppUser?>().copyWithPrevious(state);
+    // The login screen owns its own submitting spinner, so the provider only
+    // publishes the settled result (signed-in user, or null on failure).
     final user = await ref.read(appRepositoriesProvider).auth.login(
           email: email,
           password: password,
@@ -38,7 +39,7 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
   }
 
   Future<void> logout() async {
-    final user = state.valueOrNull;
+    final user = state.value;
     await ref.read(appRepositoriesProvider).auth.logout();
     state = const AsyncData(null);
     if (user != null) {
@@ -57,7 +58,7 @@ final authNotifierProvider = AsyncNotifierProvider<AuthNotifier, AppUser?>(AuthN
 
 /// Synchronous convenience accessor — null while loading/unauthenticated.
 final currentUserProvider = Provider<AppUser?>((ref) {
-  return ref.watch(authNotifierProvider).valueOrNull;
+  return ref.watch(authNotifierProvider).value;
 });
 
 final hasPermissionProvider = Provider.family<bool, Permission>((ref, permission) {

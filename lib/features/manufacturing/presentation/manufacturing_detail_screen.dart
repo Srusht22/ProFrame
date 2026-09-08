@@ -15,12 +15,12 @@ class ManufacturingDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final list = ref.watch(manufacturingNotifierProvider).valueOrNull ?? const <ManufacturingOrder>[];
+    final list = ref.watch(manufacturingNotifierProvider).value ?? const <ManufacturingOrder>[];
     final mo = list.firstWhereOrNull((m) => m.id == manufacturingOrderId);
     if (mo == null) {
       return const Scaffold(body: EmptyState(icon: Icons.precision_manufacturing_outlined, title: 'Not found', message: ''));
     }
-    final order = (ref.watch(orderNotifierProvider).valueOrNull ?? const []).firstWhereOrNull((o) => o.id == mo.orderId);
+    final order = (ref.watch(orderNotifierProvider).value ?? const []).firstWhereOrNull((o) => o.id == mo.orderId);
     final nextStage = mo.stage.next;
 
     return Scaffold(
@@ -51,7 +51,7 @@ class ManufacturingDetailScreen extends ConsumerWidget {
               for (final stage in ManufacturingStage.values)
                 Chip(
                   label: Text(stage.label),
-                  backgroundColor: stage.index <= mo.stage.index ? AppColors.brandDarkGreen.withOpacity(0.12) : null,
+                  backgroundColor: stage.index <= mo.stage.index ? AppColors.brandDarkGreen.withValues(alpha: 0.12) : null,
                   labelStyle: TextStyle(
                     color: stage.index <= mo.stage.index ? AppColors.brandDarkGreen : null,
                     fontWeight: stage == mo.stage ? FontWeight.w700 : FontWeight.w400,

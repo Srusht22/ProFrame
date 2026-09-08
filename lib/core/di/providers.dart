@@ -36,6 +36,6 @@ final manufacturingEngineProvider = Provider<ManufacturingEngine>((ref) {
 /// Rebuilds whenever pricing rules change in Settings, so every screen
 /// reading price always reflects the latest admin-configured rates.
 final pricingEngineProvider = Provider<PricingEngine>((ref) {
-  final settings = ref.watch(settingsNotifierProvider).valueOrNull;
+  final settings = ref.watch(settingsNotifierProvider).value;
   return PricingEngine(settings?.pricingRules ?? const PricingRules());
 });

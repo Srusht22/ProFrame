@@ -25,7 +25,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   @override
   Widget build(BuildContext context) {
     final ordersAsync = ref.watch(orderNotifierProvider);
-    final customers = ref.watch(customerNotifierProvider).valueOrNull ?? const <Customer>[];
+    final customers = ref.watch(customerNotifierProvider).value ?? const <Customer>[];
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -71,7 +71,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                 final sorted = [...filtered]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
                 return ListView.separated(
                   itemCount: sorted.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.xs),
+                  separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.xs),
                   itemBuilder: (context, index) {
                     final o = sorted[index];
                     final customer = customers.where((c) => c.id == o.customerId).toList();

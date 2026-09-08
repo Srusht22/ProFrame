@@ -28,7 +28,7 @@ class PreferencesTab extends ConsumerWidget {
                 ButtonSegment(value: AppThemeMode.system, label: Text('System'), icon: Icon(Icons.brightness_auto_outlined)),
               ],
               selected: {settings.themeMode},
-              onSelectionChanged: (s) => notifier.update((c) => c.copyWith(themeMode: s.first)),
+              onSelectionChanged: (s) => notifier.edit((c) => c.copyWith(themeMode: s.first)),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text('Language', style: Theme.of(context).textTheme.titleSmall),
@@ -36,19 +36,19 @@ class PreferencesTab extends ConsumerWidget {
             SegmentedButton<AppLocale>(
               segments: [for (final l in AppLocale.values) ButtonSegment(value: l, label: Text(l.label))],
               selected: {settings.locale},
-              onSelectionChanged: (s) => notifier.update((c) => c.copyWith(locale: s.first)),
+              onSelectionChanged: (s) => notifier.edit((c) => c.copyWith(locale: s.first)),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text('Currency', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: AppSpacing.sm),
             DropdownButtonFormField<String>(
-              value: settings.currency.code,
+              initialValue: settings.currency.code,
               items: [
                 for (final c in AppCurrency.builtIns) DropdownMenuItem(value: c.code, child: Text('${c.label} (${c.code})')),
               ],
               onChanged: (code) {
                 final currency = AppCurrency.builtIns.firstWhere((c) => c.code == code, orElse: () => AppCurrency.usd);
-                notifier.update((c) => c.copyWith(currency: currency, pricingRules: c.pricingRules.copyWith(currency: currency)));
+                notifier.edit((c) => c.copyWith(currency: currency, pricingRules: c.pricingRules.copyWith(currency: currency)));
               },
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -59,7 +59,7 @@ class PreferencesTab extends ConsumerWidget {
                 child: TextFormField(
                   initialValue: settings.quoteNumberPrefix,
                   decoration: const InputDecoration(labelText: 'Quote prefix'),
-                  onChanged: (v) => notifier.update((c) => c.copyWith(quoteNumberPrefix: v)),
+                  onChanged: (v) => notifier.edit((c) => c.copyWith(quoteNumberPrefix: v)),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -67,7 +67,7 @@ class PreferencesTab extends ConsumerWidget {
                 child: TextFormField(
                   initialValue: settings.orderNumberPrefix,
                   decoration: const InputDecoration(labelText: 'Order prefix'),
-                  onChanged: (v) => notifier.update((c) => c.copyWith(orderNumberPrefix: v)),
+                  onChanged: (v) => notifier.edit((c) => c.copyWith(orderNumberPrefix: v)),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -75,7 +75,7 @@ class PreferencesTab extends ConsumerWidget {
                 child: TextFormField(
                   initialValue: settings.projectNumberPrefix,
                   decoration: const InputDecoration(labelText: 'Project prefix'),
-                  onChanged: (v) => notifier.update((c) => c.copyWith(projectNumberPrefix: v)),
+                  onChanged: (v) => notifier.edit((c) => c.copyWith(projectNumberPrefix: v)),
                 ),
               ),
             ]),
@@ -88,7 +88,7 @@ class PreferencesTab extends ConsumerWidget {
                 keyboardType: TextInputType.number,
                 onChanged: (v) {
                   final parsed = int.tryParse(v);
-                  if (parsed != null) notifier.update((c) => c.copyWith(quoteValidityDays: parsed));
+                  if (parsed != null) notifier.edit((c) => c.copyWith(quoteValidityDays: parsed));
                 },
               ),
             ),

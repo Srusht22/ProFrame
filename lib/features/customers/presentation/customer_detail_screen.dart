@@ -20,21 +20,21 @@ class CustomerDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final customers = ref.watch(customerNotifierProvider).valueOrNull ?? const [];
+    final customers = ref.watch(customerNotifierProvider).value ?? const [];
     final customer = customers.where((c) => c.id == customerId).firstOrNull;
 
     if (customer == null) {
       return const Scaffold(body: EmptyState(icon: Icons.person_off_rounded, title: 'Customer not found', message: ''));
     }
 
-    final projects = (ref.watch(projectNotifierProvider).valueOrNull ?? const [])
+    final projects = (ref.watch(projectNotifierProvider).value ?? const [])
         .where((p) => p.customerId == customerId)
         .toList();
-    final quotations = (ref.watch(quotationNotifierProvider).valueOrNull ?? const [])
+    final quotations = (ref.watch(quotationNotifierProvider).value ?? const [])
         .where((q) => q.customerId == customerId)
         .toList();
     final orders =
-        (ref.watch(orderNotifierProvider).valueOrNull ?? const []).where((o) => o.customerId == customerId).toList();
+        (ref.watch(orderNotifierProvider).value ?? const []).where((o) => o.customerId == customerId).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -146,7 +146,7 @@ class _InfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+          Icon(icon, size: 18, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
           const SizedBox(width: AppSpacing.sm),
           Expanded(child: Text(text)),
         ],

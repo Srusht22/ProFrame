@@ -54,13 +54,13 @@ class QuotationPdfService {
           pw.Align(alignment: pw.Alignment.centerRight, child: _totalsBlock(quotation)),
           pw.SizedBox(height: 20),
           if (quotation.notes != null && quotation.notes!.isNotEmpty) ...[
-            pw.Text('Notes', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11, color: _pdfDarkGreen)),
+            pw.Text('Notes', style: const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11, color: _pdfDarkGreen)),
             pw.SizedBox(height: 4),
             pw.Text(quotation.notes!, style: const pw.TextStyle(fontSize: 9.5)),
             pw.SizedBox(height: 16),
           ],
           pw.Text('Terms & Conditions',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11, color: _pdfDarkGreen)),
+              style: const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11, color: _pdfDarkGreen)),
           pw.SizedBox(height: 4),
           pw.Text(quotation.termsAndConditions, style: const pw.TextStyle(fontSize: 9, color: _pdfMuted)),
           pw.SizedBox(height: 28),
@@ -83,7 +83,7 @@ class QuotationPdfService {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text(company.name,
-                    style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: _pdfDarkGreen)),
+                    style: const pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: _pdfDarkGreen)),
                 if (company.address.isNotEmpty)
                   pw.Text(company.address, style: const pw.TextStyle(fontSize: 8.5, color: _pdfMuted)),
                 pw.Text(
@@ -98,7 +98,7 @@ class QuotationPdfService {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
                 children: [
-                  pw.Text('QUOTATION', style: pw.TextStyle(color: _pdfCream, fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                  pw.Text('QUOTATION', style: const pw.TextStyle(color: _pdfCream, fontSize: 12, fontWeight: pw.FontWeight.bold)),
                   pw.Text(quotation.quoteNumber, style: const pw.TextStyle(color: PdfColors.white, fontSize: 9.5)),
                 ],
               ),
@@ -139,7 +139,7 @@ class QuotationPdfService {
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text(title, style: pw.TextStyle(fontSize: 8.5, color: _pdfDarkGreen, fontWeight: pw.FontWeight.bold)),
+              pw.Text(title, style: const pw.TextStyle(fontSize: 8.5, color: _pdfDarkGreen, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 4),
               for (final line in lines.where((l) => l.isNotEmpty))
                 pw.Padding(padding: const pw.EdgeInsets.only(top: 1.5), child: pw.Text(line, style: const pw.TextStyle(fontSize: 9.5))),
@@ -168,9 +168,9 @@ class QuotationPdfService {
   pw.Widget _itemsTable(Quotation quotation) {
     final headers = ['#', 'Item', 'Dimensions', 'Qty', 'Unit price', 'Line total'];
     return pw.Table(
-      border: pw.TableBorder(
-        horizontalInside: const pw.BorderSide(color: _pdfBorder, width: 0.6),
-        bottom: const pw.BorderSide(color: _pdfBorder, width: 0.6),
+      border: const pw.TableBorder(
+        horizontalInside: pw.BorderSide(color: _pdfBorder, width: 0.6),
+        bottom: pw.BorderSide(color: _pdfBorder, width: 0.6),
       ),
       columnWidths: const {
         0: pw.FlexColumnWidth(0.4),
@@ -188,7 +188,7 @@ class QuotationPdfService {
               pw.Padding(
                 padding: const pw.EdgeInsets.symmetric(vertical: 7, horizontal: 5),
                 child: pw.Text(h,
-                    style: pw.TextStyle(color: _pdfCream, fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
+                    style: const pw.TextStyle(color: _pdfCream, fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
               ),
           ],
         ),

@@ -60,7 +60,7 @@ class ValidationEngine {
         : ProductLimits.forWindow(config.windowType ?? WindowType.custom);
   }
 
-  static final List<ValidationRule> defaultRules = [
+  static const List<ValidationRule> defaultRules = [
     _dimensionRangeRule,
     _frameDepthRule,
     _sectionCountRule,

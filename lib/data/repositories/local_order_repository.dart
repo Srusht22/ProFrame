@@ -9,9 +9,8 @@ class LocalOrderRepository implements OrderRepository {
   final SequenceCounter _sequence;
   final String _prefix;
 
-  LocalOrderRepository(IKeyValueStore keyValueStore, {String prefix = 'ORD'})
-      : _prefix = prefix,
-        _sequence = SequenceCounter(keyValueStore),
+  LocalOrderRepository(IKeyValueStore keyValueStore, {this._prefix = 'ORD'})
+      : _sequence = SequenceCounter(keyValueStore),
         _store = JsonCollectionStore<Order>(
           keyValueStore: keyValueStore,
           collectionKey: 'orders',

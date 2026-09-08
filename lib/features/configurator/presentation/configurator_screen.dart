@@ -108,7 +108,7 @@ class _ConfiguratorEditorState extends ConsumerState<_ConfiguratorEditor> {
     await ref.read(configurationNotifierProvider.notifier).save(_config, isNew: isNew);
 
     if (widget.projectId != null) {
-      final project = ref.read(projectNotifierProvider).valueOrNull?.firstWhereOrNull((p) => p.id == widget.projectId);
+      final project = ref.read(projectNotifierProvider).value?.firstWhereOrNull((p) => p.id == widget.projectId);
       if (project != null && !project.configurationIds.contains(_config.id)) {
         await ref.read(projectNotifierProvider.notifier).save(
               project.copyWith(configurationIds: [...project.configurationIds, _config.id]),
@@ -243,28 +243,56 @@ class _ConfiguratorEditorState extends ConsumerState<_ConfiguratorEditor> {
         color: Theme.of(context).scaffoldBackgroundColor,
         border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
       ),
-      child: Row(
-        children: [
-          Text(
-            _stepTitles[_stepIndex],
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const Spacer(),
-          if (_stepIndex > 0)
-            OutlinedButton(
-              onPressed: () => setState(() => _stepIndex--),
-              child: const Text('Back'),
-            ),
-          const SizedBox(width: AppSpacing.sm),
-          FilledButton(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final backButton = _stepIndex > 0
+              ? OutlinedButton(
+                  onPressed: () => setState(() => _stepIndex--),
+                  child: const Text('Back'),
+                )
+              : null;
+          final nextButton = FilledButton(
             onPressed: _saving
                 ? null
                 : isLast
                     ? (validation.isValid ? _save : null)
                     : () => setState(() => _stepIndex++),
-            child: Text(_saving ? 'Saving…' : (isLast ? 'Save configuration' : 'Next')),
-          ),
-        ],
+            child: Text(
+              _saving ? 'Saving…' : (isLast ? 'Save configuration' : 'Next'),
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
+
+          // On phones the step label is dropped so the two actions always
+          // fit — a "Save configuration" button pushed off-screen would be
+          // unreachable.
+          if (constraints.maxWidth < 480) {
+            return Row(
+              children: [
+                if (backButton != null) ...[
+                  Expanded(child: backButton),
+                  const SizedBox(width: AppSpacing.sm),
+                ],
+                Expanded(flex: 2, child: nextButton),
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Flexible(
+                child: Text(
+                  _stepTitles[_stepIndex],
+                  style: Theme.of(context).textTheme.bodySmall,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Spacer(),
+              if (backButton != null) ...[backButton, const SizedBox(width: AppSpacing.sm)],
+              nextButton,
+            ],
+          );
+        },
       ),
     );
   }

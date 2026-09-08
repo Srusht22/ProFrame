@@ -15,7 +15,7 @@ class ProjectNotifier extends AsyncNotifier<List<Project>> {
 
   Future<void> save(Project project, {required bool isNew}) async {
     await ref.read(appRepositoriesProvider).projects.save(project);
-    final list = [...state.valueOrNull ?? const <Project>[]];
+    final list = [...state.value ?? const <Project>[]];
     final index = list.indexWhere((p) => p.id == project.id);
     if (index >= 0) {
       list[index] = project;
@@ -49,7 +49,7 @@ class ProjectNotifier extends AsyncNotifier<List<Project>> {
 
   Future<void> delete(Project project) async {
     await ref.read(appRepositoriesProvider).projects.delete(project.id);
-    state = AsyncData((state.valueOrNull ?? const []).where((p) => p.id != project.id).toList());
+    state = AsyncData((state.value ?? const []).where((p) => p.id != project.id).toList());
     await ref.read(auditLogNotifierProvider.notifier).log(
           action: AuditAction.delete,
           entityType: 'Project',

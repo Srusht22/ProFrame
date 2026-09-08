@@ -30,7 +30,7 @@ class ErrorState extends StatelessWidget {
               width: 320,
               child: Text(
                 message ?? "We couldn't load this data. Please try again.",
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.65)),
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.65)),
                 textAlign: TextAlign.center,
               ),
             ),

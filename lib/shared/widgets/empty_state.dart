@@ -33,7 +33,7 @@ class EmptyState extends StatelessWidget {
                 color: theme.colorScheme.surfaceContainerHighest,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 32, color: theme.colorScheme.onSurface.withOpacity(0.45)),
+              child: Icon(icon, size: 32, color: theme.colorScheme.onSurface.withValues(alpha: 0.45)),
             ),
             const SizedBox(height: AppSpacing.md),
             Text(title, style: theme.textTheme.titleLarge, textAlign: TextAlign.center),
@@ -42,7 +42,7 @@ class EmptyState extends StatelessWidget {
               width: 320,
               child: Text(
                 message,
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.65)),
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.65)),
                 textAlign: TextAlign.center,
               ),
             ),

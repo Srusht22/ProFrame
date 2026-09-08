@@ -36,7 +36,7 @@ class AppTheme {
       scaffoldBackground: AppColors.neutralOffWhite,
       surface: AppColors.neutralWhite,
       border: AppColors.neutralBorder,
-      elevatedShadow: Colors.black.withOpacity(0.06),
+      elevatedShadow: Colors.black.withValues(alpha: 0.06),
     );
   }
 
@@ -63,7 +63,7 @@ class AppTheme {
       scaffoldBackground: AppColors.darkBackground,
       surface: AppColors.darkSurface,
       border: AppColors.darkBorder,
-      elevatedShadow: Colors.black.withOpacity(0.35),
+      elevatedShadow: Colors.black.withValues(alpha: 0.35),
     );
   }
 
@@ -107,7 +107,7 @@ class AppTheme {
         backgroundColor: AppColors.brandDarkGreen,
         selectedIconTheme: const IconThemeData(color: AppColors.brandCream),
         unselectedIconTheme: IconThemeData(
-          color: AppColors.textOnDarkMuted.withOpacity(0.85),
+          color: AppColors.textOnDarkMuted.withValues(alpha: 0.85),
         ),
         selectedLabelTextStyle: const TextStyle(
           color: AppColors.brandCream,
@@ -115,14 +115,14 @@ class AppTheme {
           fontSize: 12,
         ),
         unselectedLabelTextStyle: TextStyle(
-          color: AppColors.textOnDarkMuted.withOpacity(0.85),
+          color: AppColors.textOnDarkMuted.withValues(alpha: 0.85),
           fontSize: 12,
         ),
-        indicatorColor: Colors.white.withOpacity(0.10),
+        indicatorColor: Colors.white.withValues(alpha: 0.10),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppColors.brandDarkGreen,
-        indicatorColor: Colors.white.withOpacity(0.14),
+        indicatorColor: Colors.white.withValues(alpha: 0.14),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return TextStyle(
@@ -206,8 +206,8 @@ class AppTheme {
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: const BorderSide(color: AppColors.error, width: 1.4),
         ),
-        labelStyle: textTheme.bodyMedium?.copyWith(color: scheme.onSurface.withOpacity(0.65)),
-        hintStyle: textTheme.bodyMedium?.copyWith(color: scheme.onSurface.withOpacity(0.45)),
+        labelStyle: textTheme.bodyMedium?.copyWith(color: scheme.onSurface.withValues(alpha: 0.65)),
+        hintStyle: textTheme.bodyMedium?.copyWith(color: scheme.onSurface.withValues(alpha: 0.45)),
         floatingLabelBehavior: FloatingLabelBehavior.auto,
       ),
       chipTheme: ChipThemeData(

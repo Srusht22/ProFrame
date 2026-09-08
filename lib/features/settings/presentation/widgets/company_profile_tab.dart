@@ -66,7 +66,7 @@ class _CompanyFormState extends ConsumerState<_CompanyForm> {
   }
 
   Future<void> _save() async {
-    await ref.read(settingsNotifierProvider.notifier).update(
+    await ref.read(settingsNotifierProvider.notifier).edit(
           (current) => current.copyWith(
             company: current.company.copyWith(
               name: _name.text,

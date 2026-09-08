@@ -14,7 +14,7 @@ class InventoryNotifier extends AsyncNotifier<List<InventoryItem>> {
     await ref.read(appRepositoriesProvider).inventory.adjustStock(item.id, delta);
     final updated = item.copyWith(currentStock: item.currentStock + delta, updatedAt: DateTime.now());
     state = AsyncData([
-      for (final i in state.valueOrNull ?? const <InventoryItem>[])
+      for (final i in state.value ?? const <InventoryItem>[])
         if (i.id == item.id) updated else i,
     ]);
     if (updated.isBelowMinimum) {
@@ -30,7 +30,7 @@ class InventoryNotifier extends AsyncNotifier<List<InventoryItem>> {
 
   Future<void> save(InventoryItem item) async {
     await ref.read(appRepositoriesProvider).inventory.save(item);
-    final list = [...state.valueOrNull ?? const <InventoryItem>[]];
+    final list = [...state.value ?? const <InventoryItem>[]];
     final index = list.indexWhere((i) => i.id == item.id);
     if (index >= 0) {
       list[index] = item;
@@ -46,6 +46,6 @@ final inventoryNotifierProvider = AsyncNotifierProvider<InventoryNotifier, List<
 );
 
 final lowStockCountProvider = Provider<int>((ref) {
-  final list = ref.watch(inventoryNotifierProvider).valueOrNull ?? const [];
+  final list = ref.watch(inventoryNotifierProvider).value ?? const [];
   return list.where((i) => i.isBelowMinimum).length;
 });

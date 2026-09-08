@@ -17,7 +17,7 @@ class QuotationNotifier extends AsyncNotifier<List<Quotation>> {
 
   Future<void> save(Quotation quotation, {required bool isNew}) async {
     await ref.read(appRepositoriesProvider).quotations.save(quotation);
-    final list = [...state.valueOrNull ?? const <Quotation>[]];
+    final list = [...state.value ?? const <Quotation>[]];
     final index = list.indexWhere((q) => q.id == quotation.id);
     if (index >= 0) {
       list[index] = quotation;

@@ -9,9 +9,8 @@ class LocalProjectRepository implements ProjectRepository {
   final SequenceCounter _sequence;
   final String _prefix;
 
-  LocalProjectRepository(IKeyValueStore keyValueStore, {String prefix = 'PRJ'})
-      : _prefix = prefix,
-        _sequence = SequenceCounter(keyValueStore),
+  LocalProjectRepository(IKeyValueStore keyValueStore, {this._prefix = 'PRJ'})
+      : _sequence = SequenceCounter(keyValueStore),
         _store = JsonCollectionStore<Project>(
           keyValueStore: keyValueStore,
           collectionKey: 'projects',

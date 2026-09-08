@@ -25,7 +25,7 @@ class _QuotationsScreenState extends ConsumerState<QuotationsScreen> {
   @override
   Widget build(BuildContext context) {
     final quotationsAsync = ref.watch(quotationNotifierProvider);
-    final customers = ref.watch(customerNotifierProvider).valueOrNull ?? const <Customer>[];
+    final customers = ref.watch(customerNotifierProvider).value ?? const <Customer>[];
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -85,7 +85,7 @@ class _QuotationsScreenState extends ConsumerState<QuotationsScreen> {
                 final sorted = [...filtered]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
                 return ListView.separated(
                   itemCount: sorted.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.xs),
+                  separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.xs),
                   itemBuilder: (context, index) {
                     final q = sorted[index];
                     final customer = customers.where((c) => c.id == q.customerId).toList();

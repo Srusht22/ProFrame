@@ -34,11 +34,11 @@ class NotificationsScreen extends ConsumerWidget {
           return ListView.separated(
             padding: const EdgeInsets.all(AppSpacing.md),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.xxs),
+            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.xxs),
             itemBuilder: (context, index) {
               final n = items[index];
               return Card(
-                color: n.isRead ? null : AppColors.brandCream.withOpacity(0.25),
+                color: n.isRead ? null : AppColors.brandCream.withValues(alpha: 0.25),
                 child: ListTile(
                   leading: Icon(_iconFor(n.type), color: AppColors.brandDarkGreen),
                   title: Text(n.title, style: TextStyle(fontWeight: n.isRead ? FontWeight.w500 : FontWeight.w700)),

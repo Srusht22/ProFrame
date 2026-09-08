@@ -63,7 +63,7 @@ class AppTypography {
       bodySmall: TextStyle(
         fontSize: 12.5,
         height: 1.4,
-        color: onSurface.withOpacity(0.72),
+        color: onSurface.withValues(alpha: 0.72),
       ),
       labelLarge: TextStyle(
         fontSize: 14,
@@ -81,7 +81,7 @@ class AppTypography {
         fontSize: 11,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.6,
-        color: onSurface.withOpacity(0.65),
+        color: onSurface.withValues(alpha: 0.65),
       ),
     );
   }

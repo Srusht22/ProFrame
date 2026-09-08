@@ -93,9 +93,11 @@ class _DimensionsStepState extends State<DimensionsStep> {
             children: [
               const Icon(Icons.straighten_rounded, size: 18),
               const SizedBox(width: AppSpacing.sm),
-              Text(
-                'Finished size: ${widget.config.formattedDimensions(_unit)} · Area: ${widget.config.areaM2.toStringAsFixed(2)} m²',
-                style: Theme.of(context).textTheme.bodyMedium,
+              Expanded(
+                child: Text(
+                  'Finished size: ${widget.config.formattedDimensions(_unit)} · Area: ${widget.config.areaM2.toStringAsFixed(2)} m²',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               ),
             ],
           ),

@@ -50,7 +50,7 @@ class InventoryScreen extends ConsumerWidget {
                     Expanded(
                       child: ListView.separated(
                         itemCount: items.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.xs),
+                        separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.xs),
                         itemBuilder: (context, index) => _InventoryTile(item: items[index]),
                       ),
                     ),
