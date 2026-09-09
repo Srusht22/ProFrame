@@ -88,6 +88,9 @@ class MillimetreField extends StatefulWidget {
   final String? helper;
   final bool enabled;
 
+  /// Position fields legitimately sit at 0; size fields never do.
+  final bool allowZero;
+
   const MillimetreField({
     super.key,
     required this.label,
@@ -95,6 +98,7 @@ class MillimetreField extends StatefulWidget {
     required this.onChanged,
     this.helper,
     this.enabled = true,
+    this.allowZero = false,
   });
 
   @override
@@ -123,8 +127,8 @@ class _MillimetreFieldState extends State<MillimetreField> {
   }
 
   void _commit() {
-    final parsed = double.tryParse(_controller.text.trim());
-    if (parsed == null || parsed <= 0) {
+    final parsed = double.tryParse(_controller.text.trim().replaceAll(',', '.'));
+    if (parsed == null || (widget.allowZero ? parsed < 0 : parsed <= 0)) {
       _controller.text = widget.value.round().toString();
       return;
     }

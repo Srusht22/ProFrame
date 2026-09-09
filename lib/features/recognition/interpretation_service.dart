@@ -80,7 +80,7 @@ class InterpretationService {
       id: modelId,
       material: carryOver?.material ?? FrameMaterial.aluminium,
       finish: carryOver?.finish ?? FrameFinish.naturalAnodised,
-      glass: carryOver?.layout.allCells.first.glass ?? GlassType.clearDouble,
+      glass: carryOver?.leafRegions.firstOrNull?.glass ?? GlassType.clearDouble,
     );
 
     final report = buildReport(

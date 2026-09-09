@@ -7,13 +7,14 @@ import '../../../shared/models/design_document.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../../../shared/widgets/responsive.dart';
 import '../../export/export_service.dart';
+import '../../geometry/region_editor.dart';
 import '../../pricing/pricing_engine.dart';
 import '../../pricing/widgets/price_breakdown_view.dart';
 import '../../../core/services/providers.dart';
 import '../../rendering/widgets/model_3d_panel.dart';
 import '../../rendering/widgets/technical_drawing_view.dart';
 import '../state/design_session.dart';
-import '../widgets/structure_editor.dart';
+import '../widgets/region_properties_panel.dart';
 import '../widgets/version_history_sheet.dart';
 
 enum _ViewMode { drawing, model }
@@ -96,7 +97,7 @@ class _DesignScreenState extends ConsumerState<DesignScreen> {
       session: session,
     );
 
-    final structure = StructureEditor(model: model);
+    final structure = RegionPropertiesPanel(model: model);
     final price = PriceBreakdownView(model: model);
 
     return Scaffold(
@@ -286,14 +287,37 @@ class _Viewer extends ConsumerWidget {
           child: mode == _ViewMode.drawing
               ? TechnicalDrawingView(
                   model: model,
-                  highlightCellPath: session.selectedCellPath,
+                  selectedRegionId: session.selectedRegionId,
+                  onSelect: notifier.selectRegion,
+                  // A drag is one undo step: history is recorded once at the
+                  // start, then the moves fold into it.
+                  onDragStart: (target) {
+                    notifier
+                      ..selectRegion(target.regionId)
+                      ..beginInteraction()
+                      ..updateModel(model);
+                  },
+                  onDragUpdate: (target, positionMm) {
+                    final current = ref.read(designSessionProvider).model;
+                    if (current == null) return;
+                    notifier.updateModel(
+                      RegionEditor.dragEdge(
+                        current,
+                        target.regionId,
+                        target.edge,
+                        positionMm,
+                      ),
+                      recordHistory: false,
+                    );
+                  },
+                  onDragEnd: notifier.endInteraction,
                 )
               : Model3DPanel(
                   model: model,
                   style: session.renderStyle,
                   showDimensions: session.showDimensions,
                   autoRotate: session.autoRotate,
-                  highlightCellPath: session.selectedCellPath,
+                  highlightCellPath: session.selectedRegionId,
                   onStyleChanged: notifier.setRenderStyle,
                   onToggleDimensions: notifier.toggleDimensions,
                   onToggleAutoRotate: notifier.toggleAutoRotate,

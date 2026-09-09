@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/features/pricing/pricing_engine.dart';
 import 'package:proframe/features/pricing/pricing_rules.dart';
+import 'package:proframe/core/utilities/geometry_math.dart';
+import 'package:proframe/shared/models/design_region.dart';
 import 'package:proframe/shared/models/materials.dart';
 import 'package:proframe/shared/models/opening_model.dart';
 
@@ -11,7 +13,7 @@ OpeningModel window() => OpeningModel(
       kind: OpeningKind.window,
       widthMm: 1500,
       heightMm: 1400,
-      layout: OpeningLayout.single(const LayoutCell(id: 'c0')),
+      regions: [DesignRegion(id: 'c0', rect: Box2.fromLTWH(0, 0, 1500, 1400))],
     );
 
 void main() {

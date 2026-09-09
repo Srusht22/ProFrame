@@ -52,7 +52,7 @@ class VersionHistorySheet extends ConsumerWidget {
         final current = design.model;
         final changed = version.model.widthMm != current.widthMm ||
             version.model.heightMm != current.heightMm ||
-            version.model.layout.allCells.length != current.layout.allCells.length;
+            version.model.leafRegions.length != current.leafRegions.length;
 
         return AppCard(
           padding: const EdgeInsets.all(AppSpacing.sm),
@@ -72,7 +72,7 @@ class VersionHistorySheet extends ConsumerWidget {
                     Text(
                       '${version.model.widthMm.round()} × '
                       '${version.model.heightMm.round()} mm · '
-                      '${version.model.layout.allCells.length} sections',
+                      '${version.model.leafRegions.length} sections',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     Text(

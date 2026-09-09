@@ -12,6 +12,7 @@ import '../../core/errors/app_exception.dart';
 import '../../shared/models/design_document.dart';
 import '../../shared/models/materials.dart';
 import '../../shared/models/opening_model.dart';
+import '../geometry/region_solver.dart';
 import '../pricing/pricing_engine.dart';
 import '../rendering/painters/technical_drawing_painter.dart';
 import 'file_saver.dart';
@@ -52,7 +53,7 @@ class ExportService {
     PriceBreakdown? price,
   }) async {
     final model = design.model;
-    final solved = OpeningSolver.solve(model);
+    final solved = RegionSolver.solve(model);
     final drawing = await renderDrawingPng(model, width: 1400, height: 1000, pixelRatio: 2);
     final image = pw.MemoryImage(drawing);
     final document = pw.Document(title: design.name);
@@ -120,7 +121,7 @@ class ExportService {
                           ['Frame', '${model.material.label} · ${model.finish.label}'],
                           ['Frame depth', '${model.material.frameDepthMm.round()} mm'],
                           ['Sections', '${solved.leaves.length}'],
-                          ['Opening leaves', '${model.operableCellCount}'],
+                          ['Opening leaves', '${model.operableCount}'],
                           ['Glass area', '${solved.totalGlassAreaM2.toStringAsFixed(2)} m²'],
                         ]),
                         pw.SizedBox(height: 10),
@@ -128,7 +129,7 @@ class ExportService {
                         _pdfTable([
                           for (final cell in solved.leaves)
                             [
-                              'R${cell.rowIndex + 1}.C${cell.columnIndex + 1}',
+                              cell.spec.label ?? cell.id,
                               '${cell.aperture.width.round()} × ${cell.aperture.height.round()} mm'
                                   ' · ${cell.spec.operation.label}',
                             ],

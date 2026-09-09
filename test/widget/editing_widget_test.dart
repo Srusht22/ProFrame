@@ -224,7 +224,7 @@ void main() {
       expect(find.byType(DesignScreen), findsOneWidget);
       final model = container.read(designSessionProvider).model!;
       expect(model.kind, OpeningKind.door);
-      expect(model.operableCellCount, 2);
+      expect(model.operableCount, 2);
 
       final saved = await container.read(designLibraryProviderForTest).loadAll();
       expect(saved, hasLength(1));

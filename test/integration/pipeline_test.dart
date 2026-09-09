@@ -3,6 +3,7 @@ import 'package:proframe/core/services/key_value_store.dart';
 import 'package:proframe/features/pricing/pricing_engine.dart';
 import 'package:proframe/features/projects/design_repository.dart';
 import 'package:proframe/features/recognition/interpretation_service.dart';
+import 'package:proframe/features/geometry/region_solver.dart';
 import 'package:proframe/features/rendering/three_d/scene_builder.dart';
 import 'package:proframe/shared/models/design_document.dart';
 import 'package:proframe/shared/models/interpretation.dart';
@@ -24,9 +25,9 @@ void main() {
 
       expect(model.widthMm, 1200);
       expect(model.heightMm, 800);
-      expect(model.layout.rows.single.cells, hasLength(2));
-      expect(model.layout.allCells.first.operation, CellOperation.casementLeft);
-      expect(model.layout.allCells.last.operation, CellOperation.fixed);
+      expect(model.regions, hasLength(2));
+      expect(model.regions.first.operation, CellOperation.casementLeft);
+      expect(model.regions.last.operation, CellOperation.fixed);
     });
 
     test('the proportions of the drawing survive into millimetres', () async {
@@ -34,12 +35,12 @@ void main() {
         sketch: twoPanelWindowSketch(),
         kind: OpeningKind.window,
       );
-      final solved = OpeningSolver.solve(result.model);
+      final solved = RegionSolver.solve(result.model);
 
       // The mullion was drawn dead centre, so the two sections must match.
       expect(
-        solved.topCells[0].aperture.width,
-        closeTo(solved.topCells[1].aperture.width, 1),
+        solved.topRegions[0].aperture.width,
+        closeTo(solved.topRegions[1].aperture.width, 1),
       );
     });
 
@@ -153,7 +154,7 @@ void main() {
       expect(reloaded.name, 'Kitchen window');
       expect(reloaded.sketch.strokes.length, design.sketch.strokes.length);
       expect(reloaded.model.widthMm, 1200);
-      expect(reloaded.model.layout.allCells.length, 2);
+      expect(reloaded.model.allRegions.length, 2);
       expect(reloaded.calibration.pxPerMm, closeTo(0.5, 0.001));
     });
 

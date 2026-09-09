@@ -1,8 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/features/pricing/pricing_engine.dart';
 import 'package:proframe/features/projects/design_templates.dart';
+import 'package:proframe/features/geometry/design_validator.dart';
+import 'package:proframe/features/geometry/region_solver.dart';
 import 'package:proframe/features/rendering/three_d/scene_builder.dart';
-import 'package:proframe/shared/models/materials.dart';
 import 'package:proframe/shared/models/opening_model.dart';
 import 'package:proframe/shared/models/scene_3d.dart';
 
@@ -16,7 +17,7 @@ void main() {
     for (final template in designTemplates) {
       test('${template.name} solves, renders and prices cleanly', () {
         final model = template.build('t');
-        final solved = OpeningSolver.solve(model);
+        final solved = RegionSolver.solve(model);
         final scene = const SceneBuilder().build(model);
         final price = const PricingEngine().price(model);
 
@@ -25,26 +26,22 @@ void main() {
         expect(scene.parts.length, greaterThan(4));
         expect(price.total, greaterThan(0));
         expect(
-          model.validate(),
+          const DesignValidator().validate(model),
           isEmpty,
           reason: '${template.name} should not ship with manufacturing warnings',
         );
 
-        // Sections must exactly fill the frame, as for any other model.
-        final row = solved.topCells.where((c) => c.rowIndex == 0).toList();
-        final widths = row.fold<double>(0, (sum, c) => sum + c.aperture.width);
-        final bars = (row.length - 1) * model.material.mullionFaceMm;
-        expect(
-          widths + bars + 2 * model.material.frameFaceMm,
-          closeTo(model.widthMm, 0.001),
-        );
+        // The sections cover the product exactly — nothing left unassigned.
+        final covered = model.regions
+            .fold<double>(0, (sum, r) => sum + r.rect.width * r.rect.height);
+        expect(covered, closeTo(model.widthMm * model.heightMm, 1));
       });
     }
   });
 
   test('cell ids are unique inside a template, so edits address one section', () {
     for (final template in designTemplates) {
-      final ids = template.build('t').layout.allCells.map((c) => c.id).toList();
+      final ids = template.build('t').allRegions.map((r) => r.id).toList();
       expect(ids.toSet(), hasLength(ids.length), reason: template.name);
     }
   });
@@ -52,7 +49,7 @@ void main() {
   test('the glass-over-panel door really has two sections in one leaf', () {
     final model =
         designTemplates.firstWhere((t) => t.id == 'door-glass-panel').build('t');
-    final solved = OpeningSolver.solve(model);
+    final solved = RegionSolver.solve(model);
     final scene = const SceneBuilder().build(model);
 
     expect(solved.leaves, hasLength(2));
@@ -67,7 +64,7 @@ void main() {
     final model = designTemplates.firstWhere((t) => t.id == 'double-door').build('t');
     final scene = const SceneBuilder().build(model);
 
-    expect(model.operableCellCount, 2);
+    expect(model.operableCount, 2);
     expect(scene.partsWithRole(PartRole.lockCylinder), hasLength(1));
   });
 
@@ -75,8 +72,10 @@ void main() {
     final model =
         designTemplates.firstWhere((t) => t.id == 'sliding-two-panel').build('t');
     final scene = const SceneBuilder().build(model);
-    final left = scene.partsForCell('r0.c0').firstWhere((p) => p.role == PartRole.glass);
-    final right = scene.partsForCell('r0.c1').firstWhere((p) => p.role == PartRole.glass);
+    final panes = scene.partsWithRole(PartRole.glass);
+    expect(panes, hasLength(2));
+    final left = panes.first;
+    final right = panes.last;
 
     expect(left.center.z, isNot(right.center.z));
     expect(scene.partsWithRole(PartRole.hinge), isEmpty);

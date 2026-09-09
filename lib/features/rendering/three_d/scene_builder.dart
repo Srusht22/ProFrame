@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import '../../../core/utilities/geometry_math.dart';
 import '../../../shared/models/materials.dart';
 import '../../../shared/models/opening_model.dart';
+import '../../geometry/region_solver.dart';
 import '../../../shared/models/scene_3d.dart';
 
 /// Turns the parametric model into an explicit 3D assembly.
@@ -23,12 +24,12 @@ class SceneBuilder {
   const SceneBuilder();
 
   Scene3D build(OpeningModel model, {RenderStyle style = RenderStyle.realistic}) {
-    final solved = OpeningSolver.solve(model);
+    final solved = RegionSolver.solve(model);
     final parts = <ScenePart>[];
     final materials = <String, SceneMaterial>{};
 
-    final frameDepth = model.material.frameDepthMm;
-    final frameFace = model.material.frameFaceMm;
+    final frameDepth = model.frameDepthMm;
+    final frameFace = model.frameFaceMm;
     final w = model.widthMm;
     final h = model.heightMm;
 
@@ -89,7 +90,7 @@ class SceneBuilder {
     }
     // Sashes exist on parent cells too (a divided door leaf still has a leaf
     // frame around its sub-sections).
-    for (final cell in solved.allCells.where((c) => !c.isLeaf && c.hasSash)) {
+    for (final cell in solved.allRegions.where((c) => !c.isLeaf && c.hasSash)) {
       _buildSashFrame(model, cell, parts);
       _buildHardware(model, cell, parts);
     }
@@ -143,7 +144,7 @@ class SceneBuilder {
 
   void _buildCell(
     OpeningModel model,
-    SolvedCell cell,
+    SolvedRegion cell,
     List<ScenePart> parts,
     Map<String, SceneMaterial> materials,
   ) {
@@ -161,24 +162,24 @@ class SceneBuilder {
         final key = 'glass.${cell.spec.glass.name}';
         materials.putIfAbsent(key, () => _glassMaterial(cell.spec.glass));
         parts.add(_box(
-          id: 'glass.${cell.path}',
+          id: 'glass.${cell.id}',
           role: PartRole.glass,
-          sizeMm: Vec3(rect.width, rect.height, cell.spec.glass.thicknessMm),
+          sizeMm: Vec3(rect.width, rect.height, cell.spec.infillThicknessMm),
           centre: _toScene(model, rect.center, zOffset),
           materialKey: key,
-          cellPath: cell.path,
+          cellPath: cell.id,
         ));
         _buildBeads(model, cell, parts, zOffset);
       case CellInfill.panel:
         final key = 'panel.${cell.spec.panel.name}';
         materials.putIfAbsent(key, () => _panelMaterial(model, cell.spec.panel));
         parts.add(_box(
-          id: 'panel.${cell.path}',
+          id: 'panel.${cell.id}',
           role: PartRole.panel,
-          sizeMm: Vec3(rect.width, rect.height, cell.spec.panel.thicknessMm),
+          sizeMm: Vec3(rect.width, rect.height, cell.spec.infillThicknessMm),
           centre: _toScene(model, rect.center, zOffset),
           materialKey: key,
-          cellPath: cell.path,
+          cellPath: cell.id,
         ));
         _buildBeads(model, cell, parts, zOffset);
       case CellInfill.louvre:
@@ -190,13 +191,13 @@ class SceneBuilder {
         for (var i = 0; i < count; i++) {
           final y = rect.top + spacing * (i + 0.5);
           parts.add(_box(
-            id: 'louvre.${cell.path}.$i',
+            id: 'louvre.${cell.id}.$i',
             role: PartRole.louvreBlade,
             sizeMm: Vec3(rect.width, spacing * 0.8, 14),
             centre: _toScene(model, Vec2(rect.center.x, y), zOffset),
             rotationDeg: const Vec3(-22, 0, 0),
             materialKey: key,
-            cellPath: cell.path,
+            cellPath: cell.id,
           ));
         }
       case CellInfill.mesh:
@@ -210,12 +211,12 @@ class SceneBuilder {
           ),
         );
         parts.add(_box(
-          id: 'mesh.${cell.path}',
+          id: 'mesh.${cell.id}',
           role: PartRole.mesh,
           sizeMm: Vec3(rect.width, rect.height, 2),
-          centre: _toScene(model, rect.center, zOffset + model.material.frameDepthMm / 2 - 6),
+          centre: _toScene(model, rect.center, zOffset + model.frameDepthMm / 2 - 6),
           materialKey: 'mesh',
-          cellPath: cell.path,
+          cellPath: cell.id,
         ));
       case CellInfill.open:
         break;
@@ -232,107 +233,107 @@ class SceneBuilder {
         ),
       );
       parts.add(_box(
-        id: 'mesh.${cell.path}.add',
+        id: 'mesh.${cell.id}.add',
         role: PartRole.mesh,
         sizeMm: Vec3(cell.aperture.width, cell.aperture.height, 2),
-        centre: _toScene(model, cell.aperture.center, -model.material.frameDepthMm / 2 + 4),
+        centre: _toScene(model, cell.aperture.center, -model.frameDepthMm / 2 + 4),
         materialKey: 'mesh',
-        cellPath: cell.path,
+        cellPath: cell.id,
       ));
     }
   }
 
   /// Four sash members — two stiles and two rails — exactly like the real
   /// profile, never a single slab.
-  void _buildSashFrame(OpeningModel model, SolvedCell cell, List<ScenePart> parts) {
-    final face = model.material.sashFaceMm;
-    final depth = model.material.sashDepthMm;
+  void _buildSashFrame(OpeningModel model, SolvedRegion cell, List<ScenePart> parts) {
+    final face = model.sashFaceMm;
+    final depth = model.sashDepthMm;
     final rect = cell.sashRect;
     final z = _sashZOffset(model, cell);
 
     parts.add(_box(
-      id: 'sash.${cell.path}.top',
+      id: 'sash.${cell.id}.top',
       role: PartRole.sashRail,
       sizeMm: Vec3(rect.width, face, depth),
       centre: _toScene(model, Vec2(rect.center.x, rect.top + face / 2), z),
       materialKey: 'frame',
-      cellPath: cell.path,
+      cellPath: cell.id,
     ));
     parts.add(_box(
-      id: 'sash.${cell.path}.bottom',
+      id: 'sash.${cell.id}.bottom',
       role: PartRole.sashRail,
       sizeMm: Vec3(rect.width, face, depth),
       centre: _toScene(model, Vec2(rect.center.x, rect.bottom - face / 2), z),
       materialKey: 'frame',
-      cellPath: cell.path,
+      cellPath: cell.id,
     ));
     final stileHeight = math.max(rect.height - 2 * face, 1.0);
     parts.add(_box(
-      id: 'sash.${cell.path}.left',
+      id: 'sash.${cell.id}.left',
       role: PartRole.sashStile,
       sizeMm: Vec3(face, stileHeight, depth),
       centre: _toScene(model, Vec2(rect.left + face / 2, rect.center.y), z),
       materialKey: 'frame',
-      cellPath: cell.path,
+      cellPath: cell.id,
     ));
     parts.add(_box(
-      id: 'sash.${cell.path}.right',
+      id: 'sash.${cell.id}.right',
       role: PartRole.sashStile,
       sizeMm: Vec3(face, stileHeight, depth),
       centre: _toScene(model, Vec2(rect.right - face / 2, rect.center.y), z),
       materialKey: 'frame',
-      cellPath: cell.path,
+      cellPath: cell.id,
     ));
   }
 
-  void _buildBeads(OpeningModel model, SolvedCell cell, List<ScenePart> parts, double z) {
+  void _buildBeads(OpeningModel model, SolvedRegion cell, List<ScenePart> parts, double z) {
     final rect = cell.glazingRect;
-    final bead = OpeningSolver.glazingBeadMm;
-    final zBead = z + model.material.frameDepthMm / 2 - beadDepthMm / 2 - 4;
+    final bead = model.glazingBeadMm;
+    final zBead = z + model.frameDepthMm / 2 - beadDepthMm / 2 - 4;
     final horizontalWidth = rect.width + 2 * bead;
 
     parts
       ..add(_box(
-        id: 'bead.${cell.path}.top',
+        id: 'bead.${cell.id}.top',
         role: PartRole.glazingBead,
         sizeMm: Vec3(horizontalWidth, bead, beadDepthMm),
         centre: _toScene(model, Vec2(rect.center.x, rect.top - bead / 2), zBead),
         materialKey: 'bead',
-        cellPath: cell.path,
+        cellPath: cell.id,
       ))
       ..add(_box(
-        id: 'bead.${cell.path}.bottom',
+        id: 'bead.${cell.id}.bottom',
         role: PartRole.glazingBead,
         sizeMm: Vec3(horizontalWidth, bead, beadDepthMm),
         centre: _toScene(model, Vec2(rect.center.x, rect.bottom + bead / 2), zBead),
         materialKey: 'bead',
-        cellPath: cell.path,
+        cellPath: cell.id,
       ))
       ..add(_box(
-        id: 'bead.${cell.path}.left',
+        id: 'bead.${cell.id}.left',
         role: PartRole.glazingBead,
         sizeMm: Vec3(bead, rect.height, beadDepthMm),
         centre: _toScene(model, Vec2(rect.left - bead / 2, rect.center.y), zBead),
         materialKey: 'bead',
-        cellPath: cell.path,
+        cellPath: cell.id,
       ))
       ..add(_box(
-        id: 'bead.${cell.path}.right',
+        id: 'bead.${cell.id}.right',
         role: PartRole.glazingBead,
         sizeMm: Vec3(bead, rect.height, beadDepthMm),
         centre: _toScene(model, Vec2(rect.right + bead / 2, rect.center.y), zBead),
         materialKey: 'bead',
-        cellPath: cell.path,
+        cellPath: cell.id,
       ));
   }
 
-  void _buildHardware(OpeningModel model, SolvedCell cell, List<ScenePart> parts) {
+  void _buildHardware(OpeningModel model, SolvedRegion cell, List<ScenePart> parts) {
     final operation = cell.spec.operation;
     if (!operation.isOperable) return;
 
     final rect = cell.sashRect;
     final z = _sashZOffset(model, cell);
-    final frameDepth = model.material.frameDepthMm;
+    final frameDepth = model.frameDepthMm;
     final hingeSide = operation.hingeSide;
 
     // Hinges — count follows leaf height, the way a fabricator specifies them.
@@ -368,14 +369,14 @@ class SceneBuilder {
             ? frameDepth / 2 - hingeRadiusMm
             : -frameDepth / 2 + hingeRadiusMm;
         parts.add(ScenePart(
-          id: 'hinge.${cell.path}.$i',
+          id: 'hinge.${cell.id}.$i',
           role: PartRole.hinge,
           shape: PartShape.cylinder,
           size: Vec3(hingeRadiusMm, hingeLengthMm, hingeRadiusMm),
           center: _toScene(model, position, zHinge),
           rotationDeg: rotation,
           materialKey: 'hardware',
-          cellPath: cell.path,
+          cellPath: cell.id,
         ));
       }
     }
@@ -383,9 +384,13 @@ class SceneBuilder {
     if (cell.spec.handle == HandleStyle.none) return;
 
     // Handle sits opposite the hinges, at working height.
-    final handleY = operation.isDoorLeaf
-        ? math.min(model.heightMm - doorHandleHeightMm, rect.bottom - 120)
-        : rect.center.y;
+    // A height the user asked for wins over the convention.
+    final requested = cell.spec.handleHeightMm;
+    final handleY = requested != null
+        ? model.heightMm - requested
+        : (operation.isDoorLeaf
+            ? math.min(model.heightMm - doorHandleHeightMm, rect.bottom - 120)
+            : rect.center.y);
     final onLeft = hingeSide == HingeSide.right;
     final handleX = operation.isSliding
         ? (operation == CellOperation.slidingLeft ? rect.right - 60 : rect.left + 60)
@@ -393,55 +398,55 @@ class SceneBuilder {
     final zHandle = z - frameDepth / 2 - 14;
 
     parts.add(ScenePart(
-      id: 'handle.${cell.path}.rose',
+      id: 'handle.${cell.id}.rose',
       role: PartRole.handleRose,
       shape: PartShape.cylinder,
       size: const Vec3(26, 14, 26),
       center: _toScene(model, Vec2(handleX, handleY), zHandle),
       rotationDeg: const Vec3(90, 0, 0),
       materialKey: 'hardware',
-      cellPath: cell.path,
+      cellPath: cell.id,
     ));
 
     switch (cell.spec.handle) {
       case HandleStyle.lever:
         final direction = onLeft ? 1.0 : -1.0;
         parts.add(_box(
-          id: 'handle.${cell.path}.lever',
+          id: 'handle.${cell.id}.lever',
           role: PartRole.handle,
           sizeMm: const Vec3(120, 20, 20),
           centre: _toScene(model, Vec2(handleX + direction * 60, handleY), zHandle - 12),
           materialKey: 'hardware',
-          cellPath: cell.path,
+          cellPath: cell.id,
         ));
       case HandleStyle.pullBar:
         parts.add(_box(
-          id: 'handle.${cell.path}.bar',
+          id: 'handle.${cell.id}.bar',
           role: PartRole.handle,
           sizeMm: Vec3(28, math.min(rect.height * 0.55, 900), 28),
           centre: _toScene(model, Vec2(handleX, rect.center.y), zHandle - 14),
           materialKey: 'hardware',
-          cellPath: cell.path,
+          cellPath: cell.id,
         ));
       case HandleStyle.knob:
         parts.add(ScenePart(
-          id: 'handle.${cell.path}.knob',
+          id: 'handle.${cell.id}.knob',
           role: PartRole.handle,
           shape: PartShape.cylinder,
           size: const Vec3(28, 46, 28),
           center: _toScene(model, Vec2(handleX, handleY), zHandle - 24),
           rotationDeg: const Vec3(90, 0, 0),
           materialKey: 'hardware',
-          cellPath: cell.path,
+          cellPath: cell.id,
         ));
       case HandleStyle.cremone:
         parts.add(_box(
-          id: 'handle.${cell.path}.cremone',
+          id: 'handle.${cell.id}.cremone',
           role: PartRole.handle,
-          sizeMm: Vec3(22, rect.height - 2 * model.material.sashFaceMm, 22),
+          sizeMm: Vec3(22, rect.height - 2 * model.sashFaceMm, 22),
           centre: _toScene(model, Vec2(handleX, rect.center.y), zHandle - 10),
           materialKey: 'hardware',
-          cellPath: cell.path,
+          cellPath: cell.id,
         ));
       case HandleStyle.none:
         break;
@@ -449,38 +454,30 @@ class SceneBuilder {
 
     if (cell.spec.hasLock) {
       parts.add(ScenePart(
-        id: 'lock.${cell.path}',
+        id: 'lock.${cell.id}',
         role: PartRole.lockCylinder,
         shape: PartShape.cylinder,
         size: const Vec3(14, 22, 14),
         center: _toScene(model, Vec2(handleX, handleY + 120), zHandle + 4),
         rotationDeg: const Vec3(90, 0, 0),
         materialKey: 'hardware',
-        cellPath: cell.path,
+        cellPath: cell.id,
       ));
     }
   }
 
   /// Number of hinges a leaf of this height needs.
-  static int hingeCountFor(double leafHeightMm, {bool isDoor = false}) {
-    if (isDoor) {
-      if (leafHeightMm <= 2100) return 3;
-      if (leafHeightMm <= 2600) return 4;
-      return 5;
-    }
-    if (leafHeightMm <= 900) return 2;
-    if (leafHeightMm <= 1600) return 3;
-    return 4;
-  }
+  static int hingeCountFor(double leafHeightMm, {bool isDoor = false}) =>
+      hingeCountForLeaf(leafHeightMm, isDoor: isDoor);
 
   /// Where a leaf sits through the depth of the frame. Outward-opening leaves
   /// sit towards the outside, inward-opening ones towards the inside, and
   /// sliding leaves sit in separate tracks so they visibly overlap.
-  double _sashZOffset(OpeningModel model, SolvedCell cell) {
+  double _sashZOffset(OpeningModel model, SolvedRegion cell) {
     final operation = cell.spec.operation;
     if (!operation.isOperable) return 0;
-    final frameDepth = model.material.frameDepthMm;
-    final sashDepth = model.material.sashDepthMm;
+    final frameDepth = model.frameDepthMm;
+    final sashDepth = model.sashDepthMm;
     final travel = (frameDepth - sashDepth) / 2;
     if (operation.isSliding) {
       return operation == CellOperation.slidingLeft ? travel : -travel;
@@ -491,7 +488,7 @@ class SceneBuilder {
   List<SceneDimension> _dimensions(OpeningModel model) {
     final halfW = model.widthMm / 2;
     final halfH = model.heightMm / 2;
-    final z = model.material.frameDepthMm / 2 + 120;
+    final z = model.frameDepthMm / 2 + 120;
     return [
       SceneDimension(
         label: '${model.widthMm.round()} mm',
@@ -504,9 +501,9 @@ class SceneBuilder {
         to: Vec3(halfW + 90, halfH, z),
       ),
       SceneDimension(
-        label: '${model.material.frameDepthMm.round()} mm deep',
-        from: Vec3(-halfW - 90, halfH, -model.material.frameDepthMm / 2),
-        to: Vec3(-halfW - 90, halfH, model.material.frameDepthMm / 2),
+        label: '${model.frameDepthMm.round()} mm deep',
+        from: Vec3(-halfW - 90, halfH, -model.frameDepthMm / 2),
+        to: Vec3(-halfW - 90, halfH, model.frameDepthMm / 2),
       ),
     ];
   }

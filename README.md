@@ -12,6 +12,32 @@ technical drawing and a real, dimensioned 3D model of the actual door or window.
 DRAW  ──▶  UNDERSTAND  ──▶  GENERATE  ──▶  EDIT  ──▶  VISUALISE
 ```
 
+## The rule everything else follows
+
+> **The user creates the design. The application does not create the design for
+> the user.**
+
+The app never redesigns, simplifies, beautifies, normalises or "corrects"
+anything. It does not equalise sections, centre openings, square things up,
+round sizes to tidy numbers, force symmetry, or improve proportions because they
+would look better. A customer who asks for a deliberately lopsided window gets a
+deliberately lopsided window.
+
+When something is genuinely a problem to build, the app **says so and offers a
+fix** — *Keep my design* / *Modify* / *Show the recommendation* — and the design
+only changes if the user picks one.
+
+The order of authority, never reversed:
+
+```
+the user's explicit instruction
+        ↓  the exact dimensions they gave
+        ↓  what they drew
+        ↓  geometric constraints (sections must add up)
+        ↓  manufacturing validation (reports, never edits)
+        ↓  suggestions (offered, never applied)
+```
+
 ---
 
 ## The pipeline
@@ -32,9 +58,10 @@ Geometric structure    features/recognition    GeometryStructure — outline, ba
       │                                        mullions, sections, opening marks
       ▼
 Parametric model       shared/models           OpeningModel — the one source of truth
-      │                                        (rows × cells, materials, hardware)
+      │                                        (free-form sections at exact mm
+      │                                         positions, materials, hardware)
       ▼
-Solved geometry        OpeningSolver           every bar, sash and pane in millimetres
+Solved geometry        RegionSolver            every bar, sash and pane in millimetres
       │
       ├──▶ 2D technical drawing   features/rendering/painters
       ├──▶ 3D assembly            features/rendering/three_d  (SceneBuilder → Scene3D)
@@ -44,6 +71,37 @@ Solved geometry        OpeningSolver           every bar, sash and pane in milli
 Because the drawing, the 3D view and the price are all derived from
 `OpeningModel`, they can never disagree with each other. Change the width in the
 editor and all three update from the same edit.
+
+### Sections are free-form, not a grid
+
+`OpeningModel` holds a list of `DesignRegion`s — plain rectangles at exact
+millimetre positions in the product's own coordinate space, nestable for a leaf
+that holds glass over a panel. **It is deliberately not rows and columns.**
+
+That distinction is the whole point. Asked for a 400 × 400 opening in the
+top-right corner, a grid would have to push a mullion and a transom right
+through the rest of the design. Free-form sections just put a rectangle there:
+
+```
+┌────────┬───────────────────┬────────┐
+│        │   upper glass     │ 400 ×  │   the corner opening does NOT
+│  side  ├───────────────────┴────400─┤   divide the sections below it
+│  vent  │        glass              │
+│  400   ├───────────────────────────┤
+│  full  │        panel              │
+└────────┴───────────────────────────┘
+   400  +          1600            = 2000 mm exactly
+```
+
+Whatever area no section claims becomes structure. `RegionSolver` cuts the
+leftover on every section edge, drops the covered parts and merges what remains
+into real profile boxes — which is how the L of frame around that corner opening
+appears by itself, correct in both the drawing and the 3D model.
+
+Each section's aperture takes the frame's face on an edge that sits on the
+outside of the product, and half a bar on an edge shared with a neighbour. That
+is why sections specified as 400 + 1600 in a 2000 mm product still add up to
+exactly 2000 mm.
 
 ---
 
@@ -96,6 +154,48 @@ editor and all three update from the same edit.
 - Camera presets (front, back, left, right, top, perspective), a Realistic /
   Technical view switch, 3D dimensions and auto-rotate.
 
+**Editing — every part of it, two ways**
+
+Both routes make the identical edit, because both call the same operation.
+
+- **Drag it.** Tap any section in the technical drawing to select it; drag any
+  internal boundary to move it. Every section sharing that boundary moves with
+  it, so the totals still add up, and the drag stops at the point where a
+  neighbour would become too small to build rather than collapsing it.
+- **Type it.** Width, height, distance from the left, distance from the top,
+  and a one-tap anchor to any corner or side. Plus opening type, swing, infill,
+  glass, panel, handle, handle height above the floor, lock, mesh — and divide
+  across, down, or into panes within a leaf.
+- **Place an opening.** Give a size and a corner: it lands at exactly that size
+  in exactly that place, and the section it lands in keeps the area around it as
+  real sections. Nothing else in the design moves.
+- **Set the profile itself.** Frame face and depth, sash face and depth, mullion
+  and transom face, glazing bead, and the infill thickness of any section. Each
+  one follows the chosen material until it is pinned, and a pinned value reaches
+  the drawing, the 3D model and the price alike. One tap hands it back to the
+  material.
+
+**Say what you want**
+
+Describe a change in plain words and the geometry follows:
+
+| You say | What happens |
+| --- | --- |
+| `Make the upper half glass and the lower half panel` | splits into two sections |
+| `Make the glass 70%` | moves the shared boundary; the panel becomes 30% |
+| `Put a 40 by 40 cm opening at the top-right` | exactly 400 × 400 mm, in that corner |
+| `On the left side make an opening 40 cm wide and full height` | 400 × the full height |
+| `Make the left section 40 cm wide` | the neighbour takes up the difference |
+| `Make the left section full height` | takes the space it needs |
+| `Make the right panel sliding` / `Keep the centre panel fixed` | changes how it opens |
+| `Put the handle 100 cm from the floor` | exact handle height |
+| `Make the left section 30 cm wider than the right section` | solved so the total holds |
+| `Move this to the top-right` | re-anchors the selected section |
+
+If a sentence is not on that list, the app says it did not understand and
+changes nothing. If a phrase could mean two different sections, it says which
+ones and asks — it never picks one.
+
 **Everything else**
 - Start from scratch or from a template — fixed light, single casement,
   casement + fixed, transom over two sashes, two-panel slider, single door,
@@ -121,6 +221,13 @@ editor and all three update from the same edit.
 
 Per the "do not fake features" rule, these are stated plainly:
 
+- **The instruction parser is not a language model.** It is a deterministic
+  parser for the documented phrasings in the table above — it runs offline,
+  always does the same thing for the same words, and every phrase it accepts is
+  covered by a test. It does not paraphrase, infer or approximate, because a
+  wrong guess here silently changes a product somebody is going to build.
+  `InstructionParser` is a plain class, so a model-backed implementation can
+  replace it without anything downstream changing.
 - **Handwriting is not read automatically.** Recognising handwritten digits
   reliably enough to size a manufactured product needs a trained model, and a
   misread `1100` as `1400` is a scrapped frame. So the app asks for the number
@@ -160,15 +267,16 @@ lib/
     recognition/  stroke → primitive, snapping, structure interpretation,
                   handwriting seam, interpretation service
     dimensions/   scale calibration, dimension resolution, measurement dialogs
-    geometry/     structure → parametric model, structured model edits
+    geometry/     free-form region model, solver, editor, validator,
+                  selector and the instruction parser
     configurator/ session state, interpretation screen, structure editor
     rendering/    2D technical painter, Dart SceneBuilder, three.js bridge/viewer
     pricing/      rates, geometry-driven pricing engine, breakdown UI
     projects/     design library, repository, home screen
     export/       PNG / PDF / project file, cross-platform save & share
   shared/
-    models/       Sketch, primitives, GeometryStructure, OpeningModel, Scene3D,
-                  materials, calibration, DesignDocument
+    models/       Sketch, primitives, GeometryStructure, DesignRegion,
+                  OpeningModel, Scene3D, materials, calibration, DesignDocument
     widgets/      responsive helpers and shared UI
 assets/web_3d/    three.js r128 + OrbitControls + opening_engine.js
 ```
@@ -207,19 +315,33 @@ Verification:
 
 ```bash
 flutter analyze              # no issues
-flutter test                 # 159 tests
+flutter test                 # 209 tests
 flutter build web --release
 ```
 
 The test suite covers the recogniser (straightening, shapes, roles), structure
 interpretation (mullions, transoms, hinge sides, sliding, ambiguity), dimensions
-(calibration, measured vs derived, suggestions), the solver (proportions, pinned
-sizes, nesting), the 3D assembly (part composition, proportions, hardware
-placement, updates when the model changes), pricing (geometry-driven, consistent
-with the 3D hardware counts, rates editable and damage-tolerant), every template
-(solves, renders, prices and carries no manufacturing warnings), export,
-persistence, the editing interactions, and the end-to-end pipeline from a
-hand-drawn sketch to a priced 3D model.
+(calibration, measured vs derived, suggestions), the region solver, the editing
+operations, the instruction parser, the 3D assembly (part composition,
+proportions, hardware placement, updates when the model changes), pricing
+(geometry-driven, consistent with the 3D hardware counts, rates editable and
+damage-tolerant), every template, export, persistence, the editing interactions,
+and the end-to-end pipeline from a hand-drawn sketch to a priced 3D model.
+
+A whole group exists purely to prove the app does not redesign anything:
+
+- the worked example from the brief reproduces exactly — a 400 mm full-height
+  side vent, a 400 × 400 corner opening, and the sections between them
+- a corner opening does not divide the sections below it
+- a deliberately lopsided design is not equalised, and an off-centre opening is
+  not moved to the middle
+- dragging a boundary conserves the total and stops at the buildable minimum
+  rather than collapsing a neighbour
+- typing a size and dragging the same boundary produce identical geometry
+- the validator reports overlaps, gaps and over-wide leaves without touching the
+  design, and its suggested fix only applies when it is asked for
+- the spoken instructions from the brief, run in order, produce the same
+  geometry as authoring it by hand
 
 ---
 

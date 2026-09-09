@@ -10,7 +10,7 @@ import '../../../shared/models/interpretation.dart';
 import '../../../shared/models/opening_model.dart';
 import '../../../shared/models/scene_3d.dart';
 import '../../../shared/models/sketch.dart';
-import '../../geometry/model_editor.dart';
+import '../../geometry/region_editor.dart';
 import '../../projects/design_library.dart';
 import '../../recognition/interpretation_service.dart';
 
@@ -20,7 +20,7 @@ class DesignSession {
   final InterpretationResult? interpretation;
   final bool isInterpreting;
   final bool isDirty;
-  final String? selectedCellPath;
+  final String? selectedRegionId;
   final RenderStyle renderStyle;
   final bool showDimensions;
   final bool autoRotate;
@@ -31,7 +31,7 @@ class DesignSession {
     this.interpretation,
     this.isInterpreting = false,
     this.isDirty = false,
-    this.selectedCellPath,
+    this.selectedRegionId,
     this.renderStyle = RenderStyle.realistic,
     this.showDimensions = false,
     this.autoRotate = false,
@@ -49,7 +49,7 @@ class DesignSession {
     bool clearInterpretation = false,
     bool? isInterpreting,
     bool? isDirty,
-    String? selectedCellPath,
+    String? selectedRegionId,
     bool clearSelection = false,
     RenderStyle? renderStyle,
     bool? showDimensions,
@@ -63,7 +63,7 @@ class DesignSession {
             clearInterpretation ? null : (interpretation ?? this.interpretation),
         isInterpreting: isInterpreting ?? this.isInterpreting,
         isDirty: isDirty ?? this.isDirty,
-        selectedCellPath: clearSelection ? null : (selectedCellPath ?? this.selectedCellPath),
+        selectedRegionId: clearSelection ? null : (selectedRegionId ?? this.selectedRegionId),
         renderStyle: renderStyle ?? this.renderStyle,
         showDimensions: showDimensions ?? this.showDimensions,
         autoRotate: autoRotate ?? this.autoRotate,
@@ -163,9 +163,15 @@ class DesignSessionNotifier extends Notifier<DesignSession> {
 
     switch (payload['kind']) {
       case 'width':
-        model = ModelEditor.setSize(model, widthMm: (payload['valueMm'] as num?)?.toDouble());
+        model = RegionEditor.setOverallSize(
+          model,
+          widthMm: (payload['valueMm'] as num?)?.toDouble(),
+        );
       case 'height':
-        model = ModelEditor.setSize(model, heightMm: (payload['valueMm'] as num?)?.toDouble());
+        model = RegionEditor.setOverallSize(
+          model,
+          heightMm: (payload['valueMm'] as num?)?.toDouble(),
+        );
       case 'operation':
         final cellId = payload['cellId'] as String?;
         final name = payload['operation'] as String?;
@@ -174,7 +180,7 @@ class DesignSessionNotifier extends Notifier<DesignSession> {
           (o) => o.name == name,
           orElse: () => CellOperation.fixed,
         );
-        model = ModelEditor.setCellOperation(model, cellId, operation);
+        model = RegionEditor.setOperation(model, cellId, operation);
       default:
         return;
     }
@@ -188,13 +194,22 @@ class DesignSessionNotifier extends Notifier<DesignSession> {
         _ => null,
       };
 
-  /// Replaces the model, keeping model-level undo history (§45).
-  void updateModel(OpeningModel model, {String? resolvedItemId}) {
+  /// Replaces the model, keeping model-level undo history.
+  ///
+  /// [recordHistory] is false while a boundary is being dragged, so the whole
+  /// drag is a single undo step instead of one per pointer move.
+  void updateModel(
+    OpeningModel model, {
+    String? resolvedItemId,
+    bool recordHistory = true,
+  }) {
     final document = state.document;
     if (document == null) return;
-    _modelUndo.add(document.model);
-    if (_modelUndo.length > AppConstants.maxUndoSteps) _modelUndo.removeAt(0);
-    _modelRedo.clear();
+    if (recordHistory) {
+      _modelUndo.add(document.model);
+      if (_modelUndo.length > AppConstants.maxUndoSteps) _modelUndo.removeAt(0);
+      _modelRedo.clear();
+    }
 
     final interpretation = resolvedItemId == null
         ? state.interpretation
@@ -247,10 +262,19 @@ class DesignSessionNotifier extends Notifier<DesignSession> {
     );
   }
 
-  void selectCell(String? path) =>
-      state = path == null
+  void selectRegion(String? id) =>
+      state = id == null
           ? state.copyWith(clearSelection: true)
-          : state.copyWith(selectedCellPath: path);
+          : state.copyWith(selectedRegionId: id);
+
+  /// Marks the start of a drag so everything that follows folds into one undo
+  /// step, and the drag can be abandoned cleanly.
+  void beginInteraction() => _dragging = true;
+
+  void endInteraction() => _dragging = false;
+
+  bool _dragging = false;
+  bool get isDragging => _dragging;
 
   void setRenderStyle(RenderStyle style) => state = state.copyWith(renderStyle: style);
 

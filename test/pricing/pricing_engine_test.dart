@@ -1,8 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:proframe/features/geometry/model_editor.dart';
+import 'package:proframe/core/utilities/geometry_math.dart';
+import 'package:proframe/features/geometry/region_solver.dart';
+import 'package:proframe/features/rendering/three_d/scene_builder.dart';
+import 'package:proframe/features/geometry/region_editor.dart';
+import 'package:proframe/shared/models/design_region.dart';
 import 'package:proframe/features/pricing/pricing_engine.dart';
 import 'package:proframe/features/pricing/pricing_rules.dart';
-import 'package:proframe/features/rendering/three_d/scene_builder.dart';
 import 'package:proframe/shared/models/materials.dart';
 import 'package:proframe/shared/models/opening_model.dart';
 import 'package:proframe/shared/models/scene_3d.dart';
@@ -14,7 +17,7 @@ OpeningModel window({double width = 1500, double height = 1400}) => OpeningModel
       kind: OpeningKind.window,
       widthMm: width,
       heightMm: height,
-      layout: OpeningLayout.single(const LayoutCell(id: 'c0')),
+      regions: [DesignRegion(id: 'c0', rect: Box2.fromLTWH(0, 0, width, height))],
     );
 
 void main() {
@@ -29,7 +32,7 @@ void main() {
 
     test('glass is charged on the area that is actually glazed', () {
       final model = window();
-      final solved = OpeningSolver.solve(model);
+      final solved = RegionSolver.solve(model);
       final breakdown = engine.price(model);
       final glass = breakdown.materials.firstWhere((l) => l.label.contains('double'));
 
@@ -46,7 +49,7 @@ void main() {
 
     test('adding a mullion adds a bar line and raises the price', () {
       final plain = engine.price(window());
-      final divided = engine.price(ModelEditor.addMullion(window(), 0));
+      final divided = engine.price(RegionEditor.divide(window(), 'c0', axis: Axis2.vertical));
 
       expect(plain.materials.any((l) => l.label.contains('Mullions')), isFalse);
       expect(divided.materials.any((l) => l.label.contains('Mullions')), isTrue);
@@ -56,7 +59,7 @@ void main() {
     test('making a section open adds sash profile, hinges, a handle and seals', () {
       final fixed = engine.price(window());
       final opening = engine.price(
-        ModelEditor.setCellOperation(window(), 'c0', CellOperation.casementRight),
+        RegionEditor.setOperation(window(), 'c0', CellOperation.casementRight),
       );
 
       expect(fixed.hardware, isEmpty);
@@ -68,7 +71,7 @@ void main() {
     });
 
     test('the hinge count charged matches the hinge count modelled in 3D', () {
-      final model = ModelEditor.setCellOperation(
+      final model = RegionEditor.setOperation(
         window(height: 2000),
         'c0',
         CellOperation.casementRight,
@@ -83,7 +86,7 @@ void main() {
     test('a more expensive glass raises only the glazing line', () {
       final clear = engine.price(window());
       final lowE = engine.price(
-        ModelEditor.updateCell(window(), 'c0', (c) => c.copyWith(glass: GlassType.lowE)),
+        RegionEditor.update(window(), 'c0', (c) => c.copyWith(glass: GlassType.lowE)),
       );
 
       expect(lowE.total, greaterThan(clear.total));
@@ -100,7 +103,7 @@ void main() {
 
     test('a sliding leaf is charged track, not hinges', () {
       final breakdown = engine.price(
-        ModelEditor.setCellOperation(window(), 'c0', CellOperation.slidingLeft),
+        RegionEditor.setOperation(window(), 'c0', CellOperation.slidingLeft),
       );
 
       expect(breakdown.hardware.any((l) => l.label == 'Sliding track'), isTrue);

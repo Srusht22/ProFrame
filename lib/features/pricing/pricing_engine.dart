@@ -1,6 +1,6 @@
 import '../../shared/models/materials.dart';
 import '../../shared/models/opening_model.dart';
-import '../rendering/three_d/scene_builder.dart';
+import '../geometry/region_solver.dart';
 import 'pricing_rules.dart';
 
 class PriceLine {
@@ -57,13 +57,13 @@ class PricingEngine {
   const PricingEngine({this.rules = const PricingRules()});
 
   PriceBreakdown price(OpeningModel model) {
-    final solved = OpeningSolver.solve(model);
+    final solved = RegionSolver.solve(model);
     final material = model.material;
 
     final materials = <PriceLine>[
       PriceLine(
         label: 'Outer frame profile',
-        detail: '${material.label} ${material.frameFaceMm.round()} mm face',
+        detail: '${material.label} ${model.frameFaceMm.round()} mm face',
         quantity: _round(solved.framePerimeterM),
         unit: 'm',
         rate: rules.framePerMetre[material] ?? 0,
@@ -79,8 +79,8 @@ class PricingEngine {
       if (solved.sashPerimeterM > 0)
         PriceLine(
           label: 'Sash / leaf profile',
-          detail: '${model.operableCellCount} opening '
-              '${model.operableCellCount == 1 ? 'leaf' : 'leaves'}',
+          detail: '${model.operableCount} opening '
+              '${model.operableCount == 1 ? 'leaf' : 'leaves'}',
           quantity: _round(solved.sashPerimeterM),
           unit: 'm',
           rate: rules.sashPerMetre[material] ?? 0,
@@ -149,7 +149,7 @@ class PricingEngine {
     var locks = 0;
     var trackLength = 0.0;
     var sealLength = 0.0;
-    for (final cell in solved.allCells) {
+    for (final cell in solved.allRegions) {
       final operation = cell.spec.operation;
       if (!operation.isOperable) continue;
       sealLength += 2 * (cell.sashRect.width + cell.sashRect.height) / 1000;
@@ -159,7 +159,7 @@ class PricingEngine {
         final span = operation.hingeSide == HingeSide.top || operation.hingeSide == HingeSide.bottom
             ? cell.sashRect.width
             : cell.sashRect.height;
-        hinges += SceneBuilder.hingeCountFor(span, isDoor: operation.isDoorLeaf);
+        hinges += hingeCountForLeaf(span, isDoor: operation.isDoorLeaf);
       }
       if (cell.spec.handle != HandleStyle.none) handles++;
       if (cell.spec.hasLock) locks++;

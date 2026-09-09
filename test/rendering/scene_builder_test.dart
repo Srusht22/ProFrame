@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:proframe/features/geometry/model_editor.dart';
+import 'package:proframe/core/utilities/geometry_math.dart';
+import 'package:proframe/features/geometry/region_editor.dart';
+import 'package:proframe/shared/models/design_region.dart';
 import 'package:proframe/features/rendering/three_d/scene_builder.dart';
 import 'package:proframe/shared/models/materials.dart';
 import 'package:proframe/shared/models/opening_model.dart';
@@ -12,14 +14,14 @@ OpeningModel casementWindow({
   double height = 1400,
   CellOperation operation = CellOperation.casementRight,
 }) =>
-    ModelEditor.setCellOperation(
+    RegionEditor.setOperation(
       OpeningModel(
         id: 'w',
         kind: OpeningKind.window,
         widthMm: width,
         heightMm: height,
         hasSill: true,
-        layout: OpeningLayout.single(const LayoutCell(id: 'c0')),
+        regions: [DesignRegion(id: 'c0', rect: Box2.fromLTWH(0, 0, width, height))],
       ),
       'c0',
       operation,
@@ -58,8 +60,8 @@ void main() {
 
     test('a window with three sections produces three panes and two mullions', () {
       var model = casementWindow();
-      model = ModelEditor.addMullion(model, 0);
-      model = ModelEditor.addMullion(model, 0);
+      model = RegionEditor.divide(model, 'c0', axis: Axis2.vertical);
+      model = RegionEditor.divide(model, 'c0', axis: Axis2.vertical);
       final scene = builder.build(model);
 
       expect(scene.glassCount, 3);
@@ -198,26 +200,32 @@ void main() {
 
     test('two sliding leaves sit in different tracks so they can pass', () {
       var model = casementWindow(operation: CellOperation.slidingLeft);
-      model = ModelEditor.addMullion(model, 0);
-      model = ModelEditor.setCellOperation(model, 'r0.c1', CellOperation.slidingRight);
+      model = RegionEditor.divide(model, 'c0', axis: Axis2.vertical);
+      final rightId = model.regions
+          .reduce((a, b) => a.rect.left > b.rect.left ? a : b)
+          .id;
+      model = RegionEditor.setOperation(model, rightId, CellOperation.slidingRight);
       final scene = builder.build(model);
 
-      final left = scene.partsForCell('r0.c0').firstWhere((p) => p.role == PartRole.glass);
-      final right = scene.partsForCell('r0.c1').firstWhere((p) => p.role == PartRole.glass);
-
-      expect(left.center.z, isNot(right.center.z));
+      final panes = scene.partsWithRole(PartRole.glass);
+      expect(panes, hasLength(2));
+      expect(
+        panes.first.center.z,
+        isNot(panes.last.center.z),
+        reason: 'leaves in the same plane could not pass each other',
+      );
     });
 
     test('an outward leaf sits further out than an inward one', () {
       final outward = builder.build(
-        ModelEditor.updateCell(
+        RegionEditor.update(
           casementWindow(),
           'c0',
           (c) => c.copyWith(swing: SwingDirection.outward),
         ),
       );
       final inward = builder.build(
-        ModelEditor.updateCell(
+        RegionEditor.update(
           casementWindow(),
           'c0',
           (c) => c.copyWith(swing: SwingDirection.inward),
@@ -246,7 +254,7 @@ void main() {
 
     test('adding a division adds real parts', () {
       final before = builder.build(casementWindow());
-      final after = builder.build(ModelEditor.addMullion(casementWindow(), 0));
+      final after = builder.build(RegionEditor.divide(casementWindow(), 'c0', axis: Axis2.vertical));
 
       expect(after.parts.length, greaterThan(before.parts.length));
     });
@@ -254,7 +262,7 @@ void main() {
     test('switching to a panel replaces the glass with a solid infill', () {
       final glazed = builder.build(casementWindow());
       final panelled = builder.build(
-        ModelEditor.updateCell(
+        RegionEditor.update(
           casementWindow(),
           'c0',
           (c) => c.copyWith(infill: CellInfill.panel),

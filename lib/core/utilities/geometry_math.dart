@@ -76,6 +76,10 @@ class Box2 {
     return Box2(l, t, r, b);
   }
 
+  /// Left/top plus a width and height — the way a section is specified.
+  factory Box2.fromLTWH(double left, double top, double width, double height) =>
+      Box2(left, top, left + width, top + height);
+
   factory Box2.fromCorners(Vec2 a, Vec2 b) => Box2(
         math.min(a.x, b.x),
         math.min(a.y, b.y),
@@ -98,6 +102,30 @@ class Box2 {
 
   Box2 inflate(double amount) =>
       Box2(left - amount, top - amount, right + amount, bottom + amount);
+
+  /// Shrinks each edge independently — the four insets a section gets from the
+  /// frame or from the bars around it.
+  Box2 deflateEdges({
+    double left = 0,
+    double top = 0,
+    double right = 0,
+    double bottom = 0,
+  }) =>
+      Box2(this.left + left, this.top + top, this.right - right, this.bottom - bottom);
+
+  bool get isEmpty => width <= 0 || height <= 0;
+
+  /// The overlapping area of two boxes, or null when they do not overlap.
+  Box2? intersect(Box2 other) {
+    final l = math.max(left, other.left);
+    final t = math.max(top, other.top);
+    final r = math.min(right, other.right);
+    final b = math.min(bottom, other.bottom);
+    if (r <= l || b <= t) return null;
+    return Box2(l, t, r, b);
+  }
+
+  bool overlaps(Box2 other) => intersect(other) != null;
 
   Box2 union(Box2 other) => Box2(
         math.min(left, other.left),
@@ -125,6 +153,22 @@ class Box2 {
         (json['top'] as num).toDouble(),
         (json['right'] as num).toDouble(),
         (json['bottom'] as num).toDouble(),
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is Box2 &&
+      (other.left - left).abs() < 1e-9 &&
+      (other.top - top).abs() < 1e-9 &&
+      (other.right - right).abs() < 1e-9 &&
+      (other.bottom - bottom).abs() < 1e-9;
+
+  @override
+  int get hashCode => Object.hash(
+        (left * 1e6).round(),
+        (top * 1e6).round(),
+        (right * 1e6).round(),
+        (bottom * 1e6).round(),
       );
 
   @override
@@ -224,6 +268,44 @@ class GeometryMath {
         result.add(part);
         used += part;
       }
+    }
+    return result;
+  }
+
+  /// Splits [total] honouring any pinned millimetre sizes and sharing what is
+  /// left across the remaining shares. The parts always sum back to [total].
+  static List<double> distributeWithFixed({
+    required double total,
+    required List<double?> fixed,
+    required List<double> shares,
+  }) {
+    final result = List<double>.filled(fixed.length, 0);
+    var remaining = total;
+    final flexible = <int>[];
+
+    for (var i = 0; i < fixed.length; i++) {
+      final f = fixed[i];
+      if (f != null && f > 0) {
+        result[i] = math.min(f, math.max(remaining, 0));
+        remaining -= result[i];
+      } else {
+        flexible.add(i);
+      }
+    }
+
+    if (flexible.isEmpty) {
+      if (result.isNotEmpty && remaining.abs() > 1e-9) {
+        result[result.length - 1] += remaining;
+      }
+      return result;
+    }
+
+    final parts = distribute(
+      math.max(remaining, 0),
+      flexible.map((i) => shares[i] <= 0 ? 1.0 : shares[i]).toList(),
+    );
+    for (var k = 0; k < flexible.length; k++) {
+      result[flexible[k]] = parts[k];
     }
     return result;
   }

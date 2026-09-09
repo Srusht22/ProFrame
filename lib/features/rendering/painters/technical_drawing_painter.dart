@@ -7,25 +7,86 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utilities/geometry_math.dart';
 import '../../../shared/models/materials.dart';
 import '../../../shared/models/opening_model.dart';
+import '../../geometry/region_solver.dart';
+
+/// Maps between millimetres on the product and pixels on the canvas.
+///
+/// The painter and the interactive layer share one projection, so what is drawn
+/// and what can be tapped or dragged can never drift apart.
+class DrawingProjection {
+  final double scale;
+  final Offset origin;
+  final Size canvasSize;
+
+  const DrawingProjection({
+    required this.scale,
+    required this.origin,
+    required this.canvasSize,
+  });
+
+  static const EdgeInsets dimensionedPadding = EdgeInsets.fromLTRB(64, 52, 64, 64);
+  static const EdgeInsets plainPadding = EdgeInsets.all(10);
+
+  factory DrawingProjection.fit(
+    Size size,
+    OpeningModel model, {
+    EdgeInsets padding = dimensionedPadding,
+  }) {
+    final availableWidth = math.max(size.width - padding.horizontal, 1.0);
+    final availableHeight = math.max(size.height - padding.vertical, 1.0);
+    final scale = math.min(
+      availableWidth / math.max(model.widthMm, 1),
+      availableHeight / math.max(model.heightMm, 1),
+    );
+    final drawnWidth = model.widthMm * scale;
+    final drawnHeight = model.heightMm * scale;
+    return DrawingProjection(
+      scale: scale,
+      origin: Offset(
+        padding.left + (availableWidth - drawnWidth) / 2,
+        padding.top + (availableHeight - drawnHeight) / 2,
+      ),
+      canvasSize: size,
+    );
+  }
+
+  Offset toCanvas(double xMm, double yMm) =>
+      Offset(origin.dx + xMm * scale, origin.dy + yMm * scale);
+
+  Rect rectOf(Box2 box) =>
+      Rect.fromPoints(toCanvas(box.left, box.top), toCanvas(box.right, box.bottom));
+
+  /// Canvas pixels back to millimetres — what a tap or a drag means.
+  Vec2 toModel(Offset canvasPoint) => Vec2(
+        (canvasPoint.dx - origin.dx) / scale,
+        (canvasPoint.dy - origin.dy) / scale,
+      );
+
+  double toMm(double pixels) => pixels / scale;
+}
 
 /// Draws the elevation the way a fabrication drawing looks: profiles as double
-/// lines, glass hatched, opening direction shown with the standard symbols,
-/// and dimension chains around the outside (§18).
+/// lines, glass hatched, opening direction with the standard symbols, and the
+/// dimensions around the outside.
 ///
-/// It draws from the solved parametric model, so it always agrees with the 3D
-/// view and the price.
+/// It draws whatever the model says, including deliberately unequal sections.
+/// Nothing here tidies a design up for presentation.
 class TechnicalDrawingPainter extends CustomPainter {
   final OpeningModel model;
   final bool showDimensions;
   final bool showLabels;
-  final String? highlightCellPath;
+  final String? highlightRegionId;
+
+  /// Boundaries the user can drag, drawn as grab handles.
+  final bool showHandles;
   final double margin;
 
   TechnicalDrawingPainter({
     required this.model,
     this.showDimensions = true,
     this.showLabels = true,
-    this.highlightCellPath,
+    this.highlightRegionId,
+    this.showHandles = false,
     this.margin = 0,
   });
 
@@ -34,36 +95,21 @@ class TechnicalDrawingPainter extends CustomPainter {
   static const Color _glass = Color(0xFFD7E6E4);
   static const Color _profile = Color(0xFFF2F1EA);
 
+  DrawingProjection projectionFor(Size size) => DrawingProjection.fit(
+        size,
+        model,
+        padding: margin > 0
+            ? EdgeInsets.all(margin)
+            : (showDimensions
+                ? DrawingProjection.dimensionedPadding
+                : DrawingProjection.plainPadding),
+      );
+
   @override
   void paint(Canvas canvas, Size size) {
-    final solved = OpeningSolver.solve(model);
-    final pad = margin > 0
-        ? EdgeInsets.all(margin)
-        : (showDimensions
-            ? const EdgeInsets.fromLTRB(64, 52, 64, 64)
-            : const EdgeInsets.all(10));
-
-    final available = Size(
-      math.max(size.width - pad.horizontal, 1),
-      math.max(size.height - pad.vertical, 1),
-    );
-    final scale = math.min(
-      available.width / model.widthMm,
-      available.height / model.heightMm,
-    );
-    final drawnWidth = model.widthMm * scale;
-    final drawnHeight = model.heightMm * scale;
-    final origin = Offset(
-      pad.left + (available.width - drawnWidth) / 2,
-      pad.top + (available.height - drawnHeight) / 2,
-    );
-
-    Offset toCanvas(double x, double y) =>
-        Offset(origin.dx + x * scale, origin.dy + y * scale);
-    Rect rectOf(Box2 box) => Rect.fromPoints(
-          toCanvas(box.left, box.top),
-          toCanvas(box.right, box.bottom),
-        );
+    final solved = RegionSolver.solve(model);
+    final projection = projectionFor(size);
+    Rect rectOf(Box2 box) => projection.rectOf(box);
 
     final profileFill = Paint()..color = _profile;
     final outline = Paint()
@@ -75,7 +121,6 @@ class TechnicalDrawingPainter extends CustomPainter {
       ..strokeWidth = 0.9
       ..color = _thin;
 
-    // Frame body: the ring between the outer edge and the inner aperture.
     final outerRect = rectOf(solved.outerRect);
     final innerRect = rectOf(solved.innerRect);
     canvas.drawPath(
@@ -89,29 +134,27 @@ class TechnicalDrawingPainter extends CustomPainter {
     canvas.drawRect(outerRect, outline);
     canvas.drawRect(innerRect, hairline);
 
-    // Mullions and transoms.
+    // Whatever no section claims is structure.
     for (final bar in solved.allBars) {
       final r = rectOf(bar.rect);
       canvas.drawRect(r, profileFill);
       canvas.drawRect(r, hairline);
     }
 
-    // Sections.
-    for (final cell in solved.leaves) {
-      _paintCell(canvas, cell, rectOf, scale);
+    for (final region in solved.leaves) {
+      _paintRegion(canvas, region, rectOf);
     }
-    for (final cell in solved.allCells.where((c) => !c.isLeaf && c.hasSash)) {
-      _paintSashOutline(canvas, cell, rectOf);
-      _paintOperationSymbol(canvas, cell, rectOf);
+    for (final region in solved.allRegions.where((r) => !r.isLeaf && r.hasSash)) {
+      _paintSashOutline(canvas, region, rectOf);
+      _paintOperationSymbol(canvas, region, rectOf);
     }
 
-    // Sill / threshold in elevation.
     if (model.hasSill) {
       final sill = Rect.fromLTRB(
-        outerRect.left - 60 * scale,
+        outerRect.left - 60 * projection.scale,
         outerRect.bottom,
-        outerRect.right + 60 * scale,
-        outerRect.bottom + 32 * scale,
+        outerRect.right + 60 * projection.scale,
+        outerRect.bottom + 32 * projection.scale,
       );
       canvas.drawRect(sill, profileFill);
       canvas.drawRect(sill, hairline);
@@ -121,35 +164,44 @@ class TechnicalDrawingPainter extends CustomPainter {
         outerRect.left,
         outerRect.bottom,
         outerRect.right,
-        outerRect.bottom + 22 * scale,
+        outerRect.bottom + 22 * projection.scale,
       );
       canvas.drawRect(threshold, profileFill);
       canvas.drawRect(threshold, hairline);
     }
 
     if (showLabels) {
-      for (final cell in solved.leaves) {
-        _paintCellLabel(canvas, cell, rectOf);
+      for (final region in solved.leaves) {
+        _paintRegionLabel(canvas, region, rectOf);
       }
     }
 
+    final selected = highlightRegionId == null ? null : solved.byId(highlightRegionId!);
+    if (selected != null) {
+      canvas.drawRect(
+        rectOf(selected.rect).deflate(1),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.4
+          ..color = AppColors.brandCreamDeep,
+      );
+      if (showDimensions) _paintSelectedDimensions(canvas, selected, projection);
+    }
+
+    if (showHandles) _paintDragHandles(canvas, solved, projection);
+
     if (showDimensions) {
-      _paintDimensions(canvas, solved, outerRect, toCanvas, scale);
+      _paintOverallDimensions(canvas, outerRect, projection);
     }
   }
 
-  void _paintCell(
-    Canvas canvas,
-    SolvedCell cell,
-    Rect Function(Box2) rectOf,
-    double scale,
-  ) {
-    if (cell.hasSash) _paintSashOutline(canvas, cell, rectOf);
+  void _paintRegion(Canvas canvas, SolvedRegion region, Rect Function(Box2) rectOf) {
+    if (region.hasSash) _paintSashOutline(canvas, region, rectOf);
 
-    final glazing = rectOf(cell.glazingRect);
+    final glazing = rectOf(region.glazingRect);
     if (glazing.width <= 0 || glazing.height <= 0) return;
 
-    switch (cell.spec.infill) {
+    switch (region.spec.infill) {
       case CellInfill.glass:
         canvas.drawRect(glazing, Paint()..color = _glass.withValues(alpha: 0.55));
         _paintGlassSheen(canvas, glazing);
@@ -173,29 +225,21 @@ class TechnicalDrawingPainter extends CustomPainter {
         ..color = _thin,
     );
 
-    if (highlightCellPath != null && cell.path == highlightCellPath) {
-      canvas.drawRect(
-        rectOf(cell.aperture).deflate(1),
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.4
-          ..color = AppColors.brandCreamDeep,
-      );
-    }
-
-    _paintOperationSymbol(canvas, cell, rectOf);
-    if (scale > 0) {
-      // no-op guard so the analyzer keeps `scale` meaningful for callers
-    }
+    _paintOperationSymbol(canvas, region, rectOf);
   }
 
-  void _paintSashOutline(Canvas canvas, SolvedCell cell, Rect Function(Box2) rectOf) {
-    final sash = rectOf(cell.sashRect);
-    final inner = rectOf(Box2(
-      cell.sashRect.left + model.material.sashFaceMm,
-      cell.sashRect.top + model.material.sashFaceMm,
-      cell.sashRect.right - model.material.sashFaceMm,
-      cell.sashRect.bottom - model.material.sashFaceMm,
+  void _paintSashOutline(
+    Canvas canvas,
+    SolvedRegion region,
+    Rect Function(Box2) rectOf,
+  ) {
+    final face = model.sashFaceMm;
+    final sash = rectOf(region.sashRect);
+    final inner = rectOf(region.sashRect.deflateEdges(
+      left: face,
+      top: face,
+      right: face,
+      bottom: face,
     ));
     canvas.drawPath(
       Path.combine(
@@ -205,37 +249,46 @@ class TechnicalDrawingPainter extends CustomPainter {
       ),
       Paint()..color = _profile,
     );
-    final stroke = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.1
-      ..color = _ink.withValues(alpha: 0.85);
-    canvas.drawRect(sash.deflate(0.5), stroke);
-    canvas.drawRect(inner, Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.8
-      ..color = _thin);
+    canvas.drawRect(
+      sash.deflate(0.5),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.1
+        ..color = _ink.withValues(alpha: 0.85),
+    );
+    canvas.drawRect(
+      inner,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8
+        ..color = _thin,
+    );
   }
 
   /// The standard elevation symbols: the apex of the V sits on the hinge side,
-  /// solid when the leaf opens towards the viewer and dashed when it opens
-  /// away — the convention on every joinery drawing.
-  void _paintOperationSymbol(Canvas canvas, SolvedCell cell, Rect Function(Box2) rectOf) {
-    final operation = cell.spec.operation;
+  /// solid when the leaf opens towards the viewer and dashed when it opens away.
+  void _paintOperationSymbol(
+    Canvas canvas,
+    SolvedRegion region,
+    Rect Function(Box2) rectOf,
+  ) {
+    final operation = region.spec.operation;
     if (!operation.isOperable) return;
 
-    final rect = rectOf(cell.sashRect).deflate(6);
+    final rect = rectOf(region.sashRect).deflate(6);
+    if (rect.width <= 4 || rect.height <= 4) return;
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.1
       ..color = _ink.withValues(alpha: 0.7);
-    final dashed = cell.spec.swing == SwingDirection.outward;
+    final dashed = region.spec.swing == SwingDirection.outward;
 
     if (operation.isSliding) {
       final y = rect.center.dy;
       final toRight = operation == CellOperation.slidingRight;
       final from = Offset(toRight ? rect.left + 12 : rect.right - 12, y);
       final to = Offset(toRight ? rect.right - 12 : rect.left + 12, y);
-      _line(canvas, from, to, paint, dashed: false);
+      _line(canvas, from, to, paint);
       final dir = toRight ? 1.0 : -1.0;
       _line(canvas, to, to + Offset(-14 * dir, -8), paint);
       _line(canvas, to, to + Offset(-14 * dir, 8), paint);
@@ -265,10 +318,15 @@ class TechnicalDrawingPainter extends CustomPainter {
     }
   }
 
-  void _paintCellLabel(Canvas canvas, SolvedCell cell, Rect Function(Box2) rectOf) {
-    final rect = rectOf(cell.aperture);
+  void _paintRegionLabel(
+    Canvas canvas,
+    SolvedRegion region,
+    Rect Function(Box2) rectOf,
+  ) {
+    final rect = rectOf(region.rect);
     if (rect.width < 46 || rect.height < 26) return;
-    final text = '${cell.aperture.width.round()}×${cell.aperture.height.round()}';
+    final label = region.spec.label;
+    final text = label ?? '${region.rect.width.round()}×${region.rect.height.round()}';
     _text(
       canvas,
       text,
@@ -333,16 +391,13 @@ class TechnicalDrawingPainter extends CustomPainter {
     canvas.restore();
   }
 
-  // -- dimension chains -----------------------------------------------------
+  // -- dimensions -----------------------------------------------------------
 
-  void _paintDimensions(
+  void _paintOverallDimensions(
     Canvas canvas,
-    SolvedOpening solved,
     Rect outerRect,
-    Offset Function(double, double) toCanvas,
-    double scale,
+    DrawingProjection projection,
   ) {
-    // Overall width, below the drawing.
     _dimensionLine(
       canvas,
       Offset(outerRect.left, outerRect.bottom + 40),
@@ -350,7 +405,6 @@ class TechnicalDrawingPainter extends CustomPainter {
       '${model.widthMm.round()}',
       horizontal: true,
     );
-    // Overall height, to the right.
     _dimensionLine(
       canvas,
       Offset(outerRect.right + 40, outerRect.top),
@@ -358,57 +412,63 @@ class TechnicalDrawingPainter extends CustomPainter {
       '${model.heightMm.round()}',
       horizontal: false,
     );
+    _text(
+      canvas,
+      '${model.material.label} · ${model.finish.label} · '
+      'frame ${model.frameDepthMm.round()} mm deep',
+      Offset(outerRect.center.dx, outerRect.bottom + 62),
+      fontSize: 10,
+      color: _thin,
+    );
+  }
 
-    // Section widths, above the drawing — only for the row that has the most
-    // divisions, so the chain stays readable.
-    final rows = solved.topCells.isEmpty
-        ? <int, List<SolvedCell>>{}
-        : <int, List<SolvedCell>>{};
-    for (final cell in solved.topCells) {
-      rows.putIfAbsent(cell.rowIndex, () => []).add(cell);
-    }
-    if (rows.isNotEmpty) {
-      final busiest = rows.entries.reduce((a, b) => a.value.length >= b.value.length ? a : b);
-      if (busiest.value.length > 1) {
-        for (final cell in busiest.value) {
-          final left = toCanvas(cell.aperture.left, 0).dx;
-          final right = toCanvas(cell.aperture.right, 0).dx;
-          _dimensionLine(
-            canvas,
-            Offset(left, outerRect.top - 26),
-            Offset(right, outerRect.top - 26),
-            '${cell.aperture.width.round()}',
-            horizontal: true,
-            small: true,
-          );
-        }
-      }
-    }
+  /// The selected section always shows its own size, whatever shape the design
+  /// is — a dimension chain only works on a regular grid.
+  void _paintSelectedDimensions(
+    Canvas canvas,
+    SolvedRegion region,
+    DrawingProjection projection,
+  ) {
+    final rect = projection.rectOf(region.rect);
+    _dimensionLine(
+      canvas,
+      Offset(rect.left, rect.top - 14),
+      Offset(rect.right, rect.top - 14),
+      '${region.rect.width.round()}',
+      horizontal: true,
+      small: true,
+    );
+    _dimensionLine(
+      canvas,
+      Offset(rect.left - 14, rect.top),
+      Offset(rect.left - 14, rect.bottom),
+      '${region.rect.height.round()}',
+      horizontal: false,
+      small: true,
+    );
+  }
 
-    // Row heights, to the left.
-    if (model.layout.rows.length > 1) {
-      for (final cell in solved.topCells.where((c) => c.columnIndex == 0)) {
-        final top = toCanvas(0, cell.aperture.top).dy;
-        final bottom = toCanvas(0, cell.aperture.bottom).dy;
-        _dimensionLine(
-          canvas,
-          Offset(outerRect.left - 26, top),
-          Offset(outerRect.left - 26, bottom),
-          '${cell.aperture.height.round()}',
-          horizontal: false,
-          small: true,
-        );
-      }
-    }
-
-    if (scale > 0) {
-      _text(
-        canvas,
-        '${model.material.label} · ${model.finish.label} · '
-        'frame ${model.material.frameDepthMm.round()} mm deep',
-        Offset(outerRect.center.dx, outerRect.bottom + 62),
-        fontSize: 10,
-        color: _thin,
+  /// Small grabs on every internal boundary, so it is obvious what can be
+  /// dragged.
+  void _paintDragHandles(
+    Canvas canvas,
+    SolvedOpening solved,
+    DrawingProjection projection,
+  ) {
+    final paint = Paint()..color = AppColors.brandDarkGreen.withValues(alpha: 0.55);
+    for (final bar in solved.allBars) {
+      final rect = projection.rectOf(bar.rect);
+      final centre = rect.center;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: centre,
+            width: bar.vertical ? 6 : 22,
+            height: bar.vertical ? 22 : 6,
+          ),
+          const Radius.circular(3),
+        ),
+        paint,
       );
     }
   }
@@ -507,5 +567,6 @@ class TechnicalDrawingPainter extends CustomPainter {
       oldDelegate.model != model ||
       oldDelegate.showDimensions != showDimensions ||
       oldDelegate.showLabels != showLabels ||
-      oldDelegate.highlightCellPath != highlightCellPath;
+      oldDelegate.showHandles != showHandles ||
+      oldDelegate.highlightRegionId != highlightRegionId;
 }
