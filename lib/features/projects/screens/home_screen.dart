@@ -12,6 +12,7 @@ import '../../../shared/widgets/responsive.dart';
 import '../../configurator/state/design_session.dart';
 import '../../rendering/widgets/technical_drawing_view.dart';
 import '../design_library.dart';
+import '../design_templates.dart';
 
 /// The way in: start a new drawing, pick up an unfinished one, or open a
 /// design you saved.
@@ -81,6 +82,16 @@ class HomeScreen extends ConsumerWidget {
                         },
                       ),
                     ],
+                    const SizedBox(height: AppSpacing.lg),
+                    _TemplateStrip(
+                      onSelected: (template) async {
+                        final design = await ref
+                            .read(designLibraryProvider.notifier)
+                            .createFromTemplate(template);
+                        ref.read(designSessionProvider.notifier).open(design);
+                        onOpenDesign(design);
+                      },
+                    ),
                     const SizedBox(height: AppSpacing.xl),
                     const SectionHeader(title: 'Your designs'),
                   ],
@@ -135,6 +146,8 @@ class HomeScreen extends ConsumerWidget {
                               ref.read(designSessionProvider.notifier).open(list[index]);
                               onOpenDrawing(list[index]);
                             },
+                            onDuplicate: () =>
+                                ref.read(designLibraryProvider.notifier).duplicate(list[index]),
                             onDelete: () =>
                                 ref.read(designLibraryProvider.notifier).remove(list[index].id),
                           ),
@@ -286,12 +299,14 @@ class _DesignCard extends StatelessWidget {
   final DesignDocument design;
   final VoidCallback onOpen;
   final VoidCallback onDraw;
+  final VoidCallback onDuplicate;
   final VoidCallback onDelete;
 
   const _DesignCard({
     required this.design,
     required this.onOpen,
     required this.onDraw,
+    required this.onDuplicate,
     required this.onDelete,
   });
 
@@ -339,11 +354,16 @@ class _DesignCard extends StatelessWidget {
                         label: const Text('Drawing'),
                       ),
                     ),
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      tooltip: 'Delete',
-                      icon: const Icon(Icons.delete_outline, size: 18),
-                      onPressed: onDelete,
+                    PopupMenuButton<String>(
+                      tooltip: 'More',
+                      padding: EdgeInsets.zero,
+                      iconSize: 18,
+                      onSelected: (value) =>
+                          value == 'duplicate' ? onDuplicate() : onDelete(),
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(value: 'duplicate', child: Text('Duplicate')),
+                        PopupMenuItem(value: 'delete', child: Text('Delete')),
+                      ],
                     ),
                   ],
                 ),
@@ -352,6 +372,83 @@ class _DesignCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+/// Ready-made starting points. A shortcut only — everything a template
+/// produces is an ordinary editable design, and drawing from scratch still
+/// supports geometry no template covers.
+class _TemplateStrip extends StatelessWidget {
+  final ValueChanged<DesignTemplate> onSelected;
+
+  const _TemplateStrip({required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(
+          title: 'Or start from a template',
+          subtitle: 'Then edit it, or draw over it',
+        ),
+        SizedBox(
+          height: 150,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: designTemplates.length,
+            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
+            itemBuilder: (context, index) {
+              final template = designTemplates[index];
+              return SizedBox(
+                width: 132,
+                child: AppCard(
+                  padding: EdgeInsets.zero,
+                  onTap: () => onSelected(template),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(AppSpacing.radiusMd),
+                          ),
+                          child: DesignThumbnail(model: template.build(template.id)),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(AppSpacing.xs),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              template.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelLarge,
+                            ),
+                            Text(
+                              template.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: AppColors.textMuted),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

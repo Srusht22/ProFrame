@@ -89,6 +89,18 @@ class PricingRules {
 
   PricingRules copyWith({
     String? currencySymbol,
+    Map<FrameMaterial, double>? framePerMetre,
+    Map<FrameMaterial, double>? sashPerMetre,
+    Map<FrameMaterial, double>? barPerMetre,
+    Map<GlassType, double>? glassPerSquareMetre,
+    Map<PanelMaterial, double>? panelPerSquareMetre,
+    double? hingeEach,
+    double? handleEach,
+    double? lockEach,
+    double? slidingTrackPerMetre,
+    double? sealPerMetre,
+    double? thresholdPerMetre,
+    double? sillPerMetre,
     double? labourPerSquareMetre,
     double? installationPerSquareMetre,
     double? wasteRate,
@@ -97,18 +109,18 @@ class PricingRules {
   }) =>
       PricingRules(
         currencySymbol: currencySymbol ?? this.currencySymbol,
-        framePerMetre: framePerMetre,
-        sashPerMetre: sashPerMetre,
-        barPerMetre: barPerMetre,
-        glassPerSquareMetre: glassPerSquareMetre,
-        panelPerSquareMetre: panelPerSquareMetre,
-        hingeEach: hingeEach,
-        handleEach: handleEach,
-        lockEach: lockEach,
-        slidingTrackPerMetre: slidingTrackPerMetre,
-        sealPerMetre: sealPerMetre,
-        thresholdPerMetre: thresholdPerMetre,
-        sillPerMetre: sillPerMetre,
+        framePerMetre: framePerMetre ?? this.framePerMetre,
+        sashPerMetre: sashPerMetre ?? this.sashPerMetre,
+        barPerMetre: barPerMetre ?? this.barPerMetre,
+        glassPerSquareMetre: glassPerSquareMetre ?? this.glassPerSquareMetre,
+        panelPerSquareMetre: panelPerSquareMetre ?? this.panelPerSquareMetre,
+        hingeEach: hingeEach ?? this.hingeEach,
+        handleEach: handleEach ?? this.handleEach,
+        lockEach: lockEach ?? this.lockEach,
+        slidingTrackPerMetre: slidingTrackPerMetre ?? this.slidingTrackPerMetre,
+        sealPerMetre: sealPerMetre ?? this.sealPerMetre,
+        thresholdPerMetre: thresholdPerMetre ?? this.thresholdPerMetre,
+        sillPerMetre: sillPerMetre ?? this.sillPerMetre,
         labourPerSquareMetre: labourPerSquareMetre ?? this.labourPerSquareMetre,
         installationPerSquareMetre:
             installationPerSquareMetre ?? this.installationPerSquareMetre,
@@ -117,8 +129,56 @@ class PricingRules {
         profitRate: profitRate ?? this.profitRate,
       );
 
+  /// Replaces one entry of a rate map without disturbing the others.
+  PricingRules withFrameRate(FrameMaterial material, double value) =>
+      copyWith(framePerMetre: {...framePerMetre, material: value});
+
+  PricingRules withSashRate(FrameMaterial material, double value) =>
+      copyWith(sashPerMetre: {...sashPerMetre, material: value});
+
+  PricingRules withBarRate(FrameMaterial material, double value) =>
+      copyWith(barPerMetre: {...barPerMetre, material: value});
+
+  PricingRules withGlassRate(GlassType type, double value) =>
+      copyWith(glassPerSquareMetre: {...glassPerSquareMetre, type: value});
+
+  PricingRules withPanelRate(PanelMaterial type, double value) =>
+      copyWith(panelPerSquareMetre: {...panelPerSquareMetre, type: value});
+
+  static Map<String, dynamic> _mapToJson<T extends Enum>(Map<T, double> map) =>
+      {for (final entry in map.entries) entry.key.name: entry.value};
+
+  static Map<T, double> _mapFromJson<T extends Enum>(
+    Object? raw,
+    List<T> values,
+    Map<T, double> fallback,
+  ) {
+    if (raw is! Map) return fallback;
+    final result = Map<T, double>.from(fallback);
+    raw.forEach((key, value) {
+      final match = values.where((v) => v.name == key);
+      final number = value is num ? value.toDouble() : null;
+      if (match.isNotEmpty && number != null && number >= 0) {
+        result[match.first] = number;
+      }
+    });
+    return result;
+  }
+
   Map<String, dynamic> toJson() => {
         'currencySymbol': currencySymbol,
+        'framePerMetre': _mapToJson(framePerMetre),
+        'sashPerMetre': _mapToJson(sashPerMetre),
+        'barPerMetre': _mapToJson(barPerMetre),
+        'glassPerSquareMetre': _mapToJson(glassPerSquareMetre),
+        'panelPerSquareMetre': _mapToJson(panelPerSquareMetre),
+        'hingeEach': hingeEach,
+        'handleEach': handleEach,
+        'lockEach': lockEach,
+        'slidingTrackPerMetre': slidingTrackPerMetre,
+        'sealPerMetre': sealPerMetre,
+        'thresholdPerMetre': thresholdPerMetre,
+        'sillPerMetre': sillPerMetre,
         'labourPerSquareMetre': labourPerSquareMetre,
         'installationPerSquareMetre': installationPerSquareMetre,
         'wasteRate': wasteRate,
@@ -126,12 +186,44 @@ class PricingRules {
         'profitRate': profitRate,
       };
 
-  factory PricingRules.fromJson(Map<String, dynamic> json) => const PricingRules().copyWith(
-        currencySymbol: json['currencySymbol'] as String?,
-        labourPerSquareMetre: (json['labourPerSquareMetre'] as num?)?.toDouble(),
-        installationPerSquareMetre: (json['installationPerSquareMetre'] as num?)?.toDouble(),
-        wasteRate: (json['wasteRate'] as num?)?.toDouble(),
-        overheadRate: (json['overheadRate'] as num?)?.toDouble(),
-        profitRate: (json['profitRate'] as num?)?.toDouble(),
-      );
+  /// Anything missing or malformed falls back to the shipped default, so a
+  /// partially-written settings file can never leave the app unable to price.
+  factory PricingRules.fromJson(Map<String, dynamic> json) {
+    const defaults = PricingRules();
+    double number(String key, double fallback) {
+      final value = json[key];
+      return value is num && value >= 0 ? value.toDouble() : fallback;
+    }
+
+    return PricingRules(
+      currencySymbol: (json['currencySymbol'] as String?)?.trim().isNotEmpty == true
+          ? json['currencySymbol'] as String
+          : defaults.currencySymbol,
+      framePerMetre: _mapFromJson(
+          json['framePerMetre'], FrameMaterial.values, defaults.framePerMetre),
+      sashPerMetre: _mapFromJson(
+          json['sashPerMetre'], FrameMaterial.values, defaults.sashPerMetre),
+      barPerMetre:
+          _mapFromJson(json['barPerMetre'], FrameMaterial.values, defaults.barPerMetre),
+      glassPerSquareMetre: _mapFromJson(
+          json['glassPerSquareMetre'], GlassType.values, defaults.glassPerSquareMetre),
+      panelPerSquareMetre: _mapFromJson(json['panelPerSquareMetre'],
+          PanelMaterial.values, defaults.panelPerSquareMetre),
+      hingeEach: number('hingeEach', defaults.hingeEach),
+      handleEach: number('handleEach', defaults.handleEach),
+      lockEach: number('lockEach', defaults.lockEach),
+      slidingTrackPerMetre:
+          number('slidingTrackPerMetre', defaults.slidingTrackPerMetre),
+      sealPerMetre: number('sealPerMetre', defaults.sealPerMetre),
+      thresholdPerMetre: number('thresholdPerMetre', defaults.thresholdPerMetre),
+      sillPerMetre: number('sillPerMetre', defaults.sillPerMetre),
+      labourPerSquareMetre:
+          number('labourPerSquareMetre', defaults.labourPerSquareMetre),
+      installationPerSquareMetre:
+          number('installationPerSquareMetre', defaults.installationPerSquareMetre),
+      wasteRate: number('wasteRate', defaults.wasteRate),
+      overheadRate: number('overheadRate', defaults.overheadRate),
+      profitRate: number('profitRate', defaults.profitRate),
+    );
+  }
 }

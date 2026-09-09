@@ -18,7 +18,8 @@ class DrawingCanvas extends StatefulWidget {
   final DrawingController controller;
   final TransformationController transformationController;
 
-  /// Asked for a measurement as soon as a dimension line is drawn — the app
+  /// Asked for a measurement as soon as a dimension line is drawn, and again
+  /// whenever an existing dimension is tapped with the select tool — the app
   /// never invents the number (§10).
   final Future<double?> Function(Stroke stroke)? onDimensionDrawn;
 
@@ -74,6 +75,11 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
     switch (_controller.tool) {
       case SketchTool.select:
         _controller.selectAt(point);
+        // Tapping a dimension is how its measurement gets set or corrected.
+        final selected = _controller.selectedStroke;
+        if (selected != null && selected.tool == SketchTool.dimension) {
+          _requestDimension(selected);
+        }
       case SketchTool.eraser:
         _drawingPointer = event.pointer;
         _controller.erase(point);

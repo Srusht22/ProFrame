@@ -7,6 +7,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../shared/models/opening_model.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../pricing_engine.dart';
+import '../screens/pricing_settings_screen.dart';
 
 /// The price, worked out from the geometry that was actually generated —
 /// profile lengths, glass areas, hardware counts (§42).
@@ -89,9 +90,15 @@ class PriceBreakdownView extends ConsumerWidget {
         const Divider(height: AppSpacing.lg),
         _TotalRow(label: 'Total', value: money(breakdown.total), emphasise: true),
         const SizedBox(height: AppSpacing.md),
+        OutlinedButton.icon(
+          onPressed: () => PricingSettingsScreen.show(context),
+          icon: const Icon(Icons.tune, size: 18),
+          label: const Text('Edit rates'),
+        ),
+        const SizedBox(height: AppSpacing.xs),
         Text(
-          'Rates are editable and apply to every design. This is an estimate '
-          'from the generated geometry, not a quotation.',
+          'Worked out from the generated geometry — profile metres, glazed '
+          'area and hardware counts. An estimate, not a quotation.',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
         ),
       ],

@@ -49,12 +49,19 @@ class _DrawingScreenState extends ConsumerState<DrawingScreen> {
     super.dispose();
   }
 
-  Future<double?> _askForMeasurement(Stroke stroke) => MeasurementDialog.show(
-        context,
-        title: 'How long is this?',
-        message: 'Type the real size of the line you just drew. '
-            'The first measurement also sets the scale of the whole drawing.',
-      );
+  Future<double?> _askForMeasurement(Stroke stroke) {
+    final existing = stroke.dimensionMm;
+    return MeasurementDialog.show(
+      context,
+      title: existing == null ? 'How long is this?' : 'Change this measurement',
+      message: existing == null
+          ? 'Type the real size of the line you just drew. The first '
+              'measurement also sets the scale of the whole drawing.'
+          : 'Type the corrected size. Everything derived from the drawing '
+              'scale updates with it.',
+      initialMm: existing,
+    );
+  }
 
   Future<String?> _askForNote() => NoteDialog.show(context);
 
@@ -105,6 +112,7 @@ class _DrawingScreenState extends ConsumerState<DrawingScreen> {
         compact: (context) => Column(
           children: [
             Expanded(child: _canvas()),
+            _SelectionBar(controller: _controller, onEditDimension: _editDimension),
             _CompactToolbar(controller: _controller),
             _ActionBar(controller: _controller, onInterpret: widget.onInterpret),
           ],
@@ -119,6 +127,7 @@ class _DrawingScreenState extends ConsumerState<DrawingScreen> {
                 ],
               ),
             ),
+            _SelectionBar(controller: _controller, onEditDimension: _editDimension),
             _ActionBar(controller: _controller, onInterpret: widget.onInterpret),
           ],
         ),
@@ -131,6 +140,7 @@ class _DrawingScreenState extends ConsumerState<DrawingScreen> {
               child: _PropertiesPanel(
                 controller: _controller,
                 onInterpret: widget.onInterpret,
+                onEditDimension: _editDimension,
                 onZoomIn: () => _zoom(1.2),
                 onZoomOut: () => _zoom(1 / 1.2),
               ),
@@ -139,6 +149,11 @@ class _DrawingScreenState extends ConsumerState<DrawingScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _editDimension(Stroke stroke) async {
+    final value = await _askForMeasurement(stroke);
+    if (value != null && value > 0) _controller.setDimensionValue(stroke.id, value);
   }
 
   Widget _canvas() => DrawingCanvas(
@@ -298,12 +313,14 @@ class _OverflowMenu extends StatelessWidget {
 class _PropertiesPanel extends StatelessWidget {
   final DrawingController controller;
   final VoidCallback onInterpret;
+  final Future<void> Function(Stroke stroke) onEditDimension;
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
 
   const _PropertiesPanel({
     required this.controller,
     required this.onInterpret,
+    required this.onEditDimension,
     required this.onZoomIn,
     required this.onZoomOut,
   });
@@ -385,6 +402,16 @@ class _PropertiesPanel extends StatelessWidget {
                   spacing: AppSpacing.xs,
                   runSpacing: AppSpacing.xs,
                   children: [
+                    if (selected.tool == SketchTool.dimension)
+                      OutlinedButton.icon(
+                        onPressed: () => onEditDimension(selected),
+                        icon: const Icon(Icons.straighten, size: 16),
+                        label: Text(
+                          selected.dimensionMm == null
+                              ? 'Set size'
+                              : '${selected.dimensionMm!.round()} mm',
+                        ),
+                      ),
                     OutlinedButton.icon(
                       onPressed: controller.deleteSelected,
                       icon: const Icon(Icons.delete_outline, size: 16),
@@ -461,4 +488,99 @@ class _WhatWeSee extends StatelessWidget {
       ],
     );
   }
+}
+
+
+/// Selection actions for phones and tablets, which have no properties panel.
+/// Without this the select tool would be able to pick a stroke and then do
+/// nothing with it.
+class _SelectionBar extends StatelessWidget {
+  final DrawingController controller;
+  final Future<void> Function(Stroke stroke) onEditDimension;
+
+  const _SelectionBar({required this.controller, required this.onEditDimension});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final stroke = controller.selectedStroke;
+        if (stroke == null) return const SizedBox.shrink();
+
+        return Container(
+          height: 52,
+          decoration: BoxDecoration(
+            color: AppColors.brandCreamSoft,
+            border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            child: Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.xs),
+                  child: Text(
+                    stroke.tool.label,
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                ),
+                if (stroke.tool == SketchTool.dimension)
+                  _SelectionAction(
+                    icon: Icons.straighten,
+                    label: stroke.dimensionMm == null
+                        ? 'Set size'
+                        : '${stroke.dimensionMm!.round()} mm',
+                    onPressed: () => onEditDimension(stroke),
+                  ),
+                _SelectionAction(
+                  icon: Icons.copy_all_outlined,
+                  label: 'Duplicate',
+                  onPressed: controller.duplicateSelected,
+                ),
+                _SelectionAction(
+                  icon: Icons.rotate_90_degrees_cw,
+                  label: 'Rotate',
+                  onPressed: controller.rotateSelected,
+                ),
+                _SelectionAction(
+                  icon: Icons.delete_outline,
+                  label: 'Delete',
+                  onPressed: controller.deleteSelected,
+                ),
+                _SelectionAction(
+                  icon: Icons.close,
+                  label: 'Done',
+                  onPressed: controller.clearSelection,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SelectionAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  const _SelectionAction({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: TextButton.icon(
+          onPressed: onPressed,
+          icon: Icon(icon, size: 16),
+          label: Text(label),
+        ),
+      );
 }

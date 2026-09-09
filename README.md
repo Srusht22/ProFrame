@@ -59,7 +59,10 @@ editor and all three update from the same edit.
   the grid, with an on-canvas guide showing *why* a point moved.
 - **Precision mode** turns all of that off and keeps every stroke exactly where
   it was drawn. Freehand and precision live side by side.
-- Undo/redo, eraser, select, duplicate, rotate.
+- Undo/redo, eraser, select, duplicate, rotate — with the selection actions
+  available on every screen size, not just where there is room for a panel.
+- Tap a dimension with the select tool to set its measurement, or correct one
+  already entered; everything derived from the drawing scale follows.
 
 **Understanding**
 - Reads the outline, transoms, mullions and each section.
@@ -94,11 +97,20 @@ editor and all three update from the same edit.
   Technical view switch, 3D dimensions and auto-rotate.
 
 **Everything else**
+- Start from scratch or from a template — fixed light, single casement,
+  casement + fixed, transom over two sashes, two-panel slider, single door,
+  glass-over-panel door, double door, door with transom. A template is only a
+  shortcut: it produces an ordinary editable design, and drawing by hand still
+  supports geometry no template covers.
 - Edit the structure: size, material, finish, glass, panels, divisions, opening
   type, swing, handle, lock, mesh, glass-over-panel leaves.
+- Duplicate a saved design to try a variation without losing the original.
 - Manufacturing warnings (sections too small, leaves too wide to hang).
 - Price derived from the generated geometry — profile metres, glazed area,
-  hardware counts — not from a generic catalogue entry.
+  hardware counts — not from a generic catalogue entry. Every rate is editable
+  and saved: profile per metre by material, glazing and infill per square
+  metre, each piece of hardware, labour, installation, waste, overhead and
+  margin.
 - Autosave with *Recover unfinished design?*, version history with restore,
   export to PNG, PDF and a project file, OS share sheet.
 - Works offline; nothing needs a server.
@@ -116,6 +128,11 @@ Per the "do not fake features" rule, these are stated plainly:
   `HandwritingRecognizer` (`features/recognition/handwriting_recognizer.dart`)
   is the interface, `TypedValueRecognizer` is the shipped implementation, and a
   real OCR or cloud recogniser drops in without touching anything downstream.
+- **Project files can be exported but not re-opened in the app.** The format
+  and its parser are real and tested (`ExportService.importProjectFile`), but
+  choosing a file from the device needs a file-picker plugin that is not a
+  dependency yet, so there is no Import action. Treat `.proframe` as a backup
+  and handoff format for now.
 - **No CNC output.** Cutting lists and machining files are not generated. The
   solved geometry (`SolvedOpening`) already contains every profile length and
   pane size those would need, but nothing pretends to produce them.
@@ -190,7 +207,7 @@ Verification:
 
 ```bash
 flutter analyze              # no issues
-flutter test                 # 135 tests
+flutter test                 # 159 tests
 flutter build web --release
 ```
 
@@ -199,8 +216,10 @@ interpretation (mullions, transoms, hinge sides, sliding, ambiguity), dimensions
 (calibration, measured vs derived, suggestions), the solver (proportions, pinned
 sizes, nesting), the 3D assembly (part composition, proportions, hardware
 placement, updates when the model changes), pricing (geometry-driven, consistent
-with the 3D hardware counts), export, persistence and the end-to-end pipeline
-from a hand-drawn sketch to a priced 3D model.
+with the 3D hardware counts, rates editable and damage-tolerant), every template
+(solves, renders, prices and carries no manufacturing warnings), export,
+persistence, the editing interactions, and the end-to-end pipeline from a
+hand-drawn sketch to a priced 3D model.
 
 ---
 

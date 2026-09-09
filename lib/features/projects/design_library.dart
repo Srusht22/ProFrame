@@ -4,6 +4,7 @@ import '../../core/services/providers.dart';
 import '../../core/utilities/id_generator.dart';
 import '../../shared/models/design_document.dart';
 import '../../shared/models/opening_model.dart';
+import 'design_templates.dart';
 
 /// The list of saved designs.
 class DesignLibrary extends AsyncNotifier<List<DesignDocument>> {
@@ -16,6 +17,34 @@ class DesignLibrary extends AsyncNotifier<List<DesignDocument>> {
     final all = await ref.read(designRepositoryProvider).save(design);
     state = AsyncData(all);
     return design;
+  }
+
+  /// Starts from a ready-made configuration. The result is an ordinary design
+  /// with an empty sketch — it can be edited freely, or drawn over.
+  Future<DesignDocument> createFromTemplate(DesignTemplate template) async {
+    final id = IdGenerator.generate();
+    final design = DesignDocument.blank(id: id, kind: template.kind, name: template.name)
+        .copyWith(model: template.build(id));
+    final all = await ref.read(designRepositoryProvider).save(design);
+    state = AsyncData(all);
+    return design;
+  }
+
+  /// Copies a saved design, history excluded — a copy starts its own history.
+  Future<DesignDocument> duplicate(DesignDocument source) async {
+    final copy = DesignDocument(
+      id: IdGenerator.generate(),
+      name: '${source.name} copy',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      sketch: source.sketch,
+      model: source.model,
+      calibration: source.calibration,
+      notes: source.notes,
+    );
+    final all = await ref.read(designRepositoryProvider).save(copy);
+    state = AsyncData(all);
+    return copy;
   }
 
   Future<void> save(DesignDocument design) async {
