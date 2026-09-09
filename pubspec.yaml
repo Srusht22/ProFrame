@@ -1,9 +1,9 @@
 name: proframe
 description: >
-  ProFrame — professional door & window configurator, quotation and
-  manufacturing management system for aluminum/PVC factories.
+  ProFrame — draw a door or window by hand and get a real, dimensioned
+  3D model of it.
 publish_to: 'none'
-version: 1.0.0+1
+version: 2.0.0+1
 
 environment:
   sdk: '>=3.12.0 <4.0.0'
@@ -12,8 +12,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_localizations:
-    sdk: flutter
 
   # State management / DI
   flutter_riverpod: ^3.4.3
@@ -21,26 +19,22 @@ dependencies:
   # Routing
   go_router: ^18.0.1
 
-  # Local persistence (cross-platform key/value JSON store; see
-  # lib/data/local/local_json_store.dart for the swap-to-REST seam)
+  # Offline-first local persistence for saved designs and drafts
   shared_preferences: ^2.2.3
 
-  # Real (non-faked) 3D rendering bridge — Chromium/WKWebView + three.js.
+  # Real WebGL rendering bridge — Chromium / WKWebView + three.js
   flutter_inappwebview: ^6.1.5
 
-  # Identifiers, formatting, dates
+  # Identifiers and formatting
   uuid: ^4.4.0
   intl: ^0.20.3
   collection: ^1.18.0
 
-  # PDF quotation generation
+  # PDF export of the technical drawing
   pdf: ^3.11.1
   printing: ^5.13.1
 
-  # Dashboard / reports charts
-  fl_chart: ^1.2.0
-
-  # File system access for exports (BOM/cutting list/PDF)
+  # File system access + OS share sheet for exports
   path_provider: ^2.1.3
   share_plus: ^13.3.0
 
@@ -51,10 +45,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  generate: true
 
   assets:
     - assets/web_3d/index.html
     - assets/web_3d/three.min.js
     - assets/web_3d/OrbitControls.js
-    - assets/web_3d/parametric_engine.js
+    - assets/web_3d/opening_engine.js

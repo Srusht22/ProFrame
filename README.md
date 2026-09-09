@@ -1,418 +1,210 @@
 # ProFrame
 
-A professional door & window **configurator, quotation and manufacturing
-management system** for aluminum/PVC/timber/steel factories, built in
-Flutter/Dart.
+**Draw a door or window by hand. Get the real thing in 3D.**
 
-ProFrame is not a demo or a calculator. It implements the full pipeline a
-real manufacturer needs, built around one rule: **every subsystem reads
-from the same `ProductConfiguration` object.**
+You sketch a door or a window the way you would on paper — a rough outline with
+a finger or a stylus, a line where the mullion goes, two diagonals to show which
+way it opens, a dimension with the size written on it. ProFrame reads that
+sketch, turns it into a proper parametric product, and generates a clean
+technical drawing and a real, dimensioned 3D model of the actual door or window.
 
 ```
-Configuration → Validation → 2D Design → 3D Design → Price → BOM →
-Cutting List → Quotation → Order → Manufacturing
+DRAW  ──▶  UNDERSTAND  ──▶  GENERATE  ──▶  EDIT  ──▶  VISUALISE
 ```
-
-If width changes from 1000mm to 1200mm, the 2D drawing, the 3D model, the
-price, the BOM, the cutting list and the quotation all update from that
-one number — none of them keep their own copy.
 
 ---
 
-## 1. What's actually implemented
+## The pipeline
 
-Everything below is wired to real state and real logic — no screen is a
-static mock and no price is hard-coded in a widget.
+The single most important rule in this codebase: **the 3D model is never made
+from the pixels of the drawing.** Every stage produces a structured description
+that the next stage consumes.
 
-| Area | Status |
-|---|---|
-| Auth (roles, permissions, sessions, remember me) | ✅ full, local/offline |
-| Responsive shell (rail / drawer / sidebar) | ✅ |
-| Dashboard (live stats + charts from real data) | ✅ |
-| Customers / Projects CRUD | ✅ |
-| Door + Window configurator (9-step wizard) | ✅ |
-| Validation engine (configurable rules) | ✅ |
-| 2D technical drawing (`CustomPainter`, dimensioned, zoom/pan) | ✅ |
-| 3D viewer (real procedural three.js engine, not an image) | ✅ |
-| Pricing engine (itemized, admin-configurable rates) | ✅ |
-| BOM + cutting list generation | ✅ |
-| Quotations (numbering, status, PDF export, share) | ✅ |
-| Orders (convert from quotation, progress tracking) | ✅ |
-| Manufacturing (production stages, QC checklist) | ✅ |
-| Inventory (stock, low-stock alerts) | ✅ |
-| Notifications (real, event-driven) | ✅ |
-| Audit log (every mutation is recorded) | ✅ |
-| Settings (company profile, pricing rules editor, users/roles) | ✅ |
-| Reports (revenue, funnel, top customers) | ✅ |
-| Localization (EN / AR / CKB, RTL) | ⚠️ core UI + nav fully translated; see §9 |
-| Tests | ✅ 41 passing: engines, serialization, widget + full app boot/navigation/configurator/quote-to-order flows |
-| Backend | Local-only (see §5) — repository interfaces are backend-ready |
+```
+Raw strokes            features/drawing        Stroke, StrokePoint, Sketch
+      │                                        (finger / mouse / stylus + pressure)
+      ▼
+Recognised primitives  features/recognition    LinePrimitive, RectanglePrimitive,
+      │                                        ArcPrimitive, ArrowPrimitive,
+      │                                        DimensionPrimitive, NotePrimitive
+      ▼
+Geometric structure    features/recognition    GeometryStructure — outline, bands,
+      │                                        mullions, sections, opening marks
+      ▼
+Parametric model       shared/models           OpeningModel — the one source of truth
+      │                                        (rows × cells, materials, hardware)
+      ▼
+Solved geometry        OpeningSolver           every bar, sash and pane in millimetres
+      │
+      ├──▶ 2D technical drawing   features/rendering/painters
+      ├──▶ 3D assembly            features/rendering/three_d  (SceneBuilder → Scene3D)
+      └──▶ Price                  features/pricing
+```
 
-Given the scope of the original brief (an 80-section enterprise spec), a
-few things are intentionally out of scope for this pass and documented as
-such rather than faked — see **§10 Honest scope notes**.
+Because the drawing, the 3D view and the price are all derived from
+`OpeningModel`, they can never disagree with each other. Change the width in the
+editor and all three update from the same edit.
 
 ---
 
-## 2. Architecture
+## What the app does
+
+**Drawing (the hero screen)**
+- Freehand pen with stylus pressure, plus line, rectangle, division, opening
+  diagonal, swing arc, sliding arrow, dimension and note tools.
+- Infinite sheet: one finger draws, two fingers pan and zoom.
+- Intelligent straightening — a line drawn at 88° becomes exactly vertical, a
+  deliberate 60° brace is left alone.
+- Snapping to endpoints, intersections, frame edges, centres, equal spacing and
+  the grid, with an on-canvas guide showing *why* a point moved.
+- **Precision mode** turns all of that off and keeps every stroke exactly where
+  it was drawn. Freehand and precision live side by side.
+- Undo/redo, eraser, select, duplicate, rotate.
+
+**Understanding**
+- Reads the outline, transoms, mullions and each section.
+- Reads opening direction from the standard elevation symbols: two diagonals
+  meeting at an edge put the hinges on that edge; a horizontal arrow is a
+  sliding leaf; a swing arc is a hinged one.
+- Keeps structure, opening marks and annotation strictly apart — a dimension
+  line can never become a bar of the door.
+- The *Understanding your design* screen lists what was read and what it is not
+  sure about, with real alternatives to pick from. **Nothing uncertain is
+  applied until you choose it.**
+
+**Dimensions**
+- Two synchronised routes to the same number: draw a dimension line and type the
+  size on it, or type it directly into the editor.
+- The first measurement calibrates the whole drawing (600 canvas units = 1200 mm
+  → 0.5 units per mm).
+- Sizes that were derived rather than measured are labelled as derived, and a
+  nearly-round value is *offered* ("Did you mean 1100 mm?"), never applied
+  silently.
+
+**The generated product**
+- A clean architectural elevation: profiles as double lines, glass hatched,
+  opening symbols, dimension chains, section sizes.
+- A real 3D assembly: outer frame as four members with true profile depth,
+  mullions and transoms, sash stiles and rails, glazing beads, glass with real
+  thickness, solid panels, louvres, hinges sized and counted by leaf height,
+  handles, locks, thresholds and sills. Sliding leaves sit in separate tracks;
+  outward-opening leaves sit further out through the frame depth than inward
+  ones.
+- Camera presets (front, back, left, right, top, perspective), a Realistic /
+  Technical view switch, 3D dimensions and auto-rotate.
+
+**Everything else**
+- Edit the structure: size, material, finish, glass, panels, divisions, opening
+  type, swing, handle, lock, mesh, glass-over-panel leaves.
+- Manufacturing warnings (sections too small, leaves too wide to hang).
+- Price derived from the generated geometry — profile metres, glazed area,
+  hardware counts — not from a generic catalogue entry.
+- Autosave with *Recover unfinished design?*, version history with restore,
+  export to PNG, PDF and a project file, OS share sheet.
+- Works offline; nothing needs a server.
+
+---
+
+## What is honestly *not* implemented
+
+Per the "do not fake features" rule, these are stated plainly:
+
+- **Handwriting is not read automatically.** Recognising handwritten digits
+  reliably enough to size a manufactured product needs a trained model, and a
+  misread `1100` as `1400` is a scrapped frame. So the app asks for the number
+  the moment a dimension line is drawn. The seam is real:
+  `HandwritingRecognizer` (`features/recognition/handwriting_recognizer.dart`)
+  is the interface, `TypedValueRecognizer` is the shipped implementation, and a
+  real OCR or cloud recogniser drops in without touching anything downstream.
+- **No CNC output.** Cutting lists and machining files are not generated. The
+  solved geometry (`SolvedOpening`) already contains every profile length and
+  pane size those would need, but nothing pretends to produce them.
+- **The 3D preview needs a WebView.** It runs on Android, iOS, macOS, Windows
+  and the web. On Linux desktop the viewer says so instead of showing an empty
+  box; the model itself is still fully generated.
+- **Business features are out of scope** by design — no CRM, no quotations, no
+  orders, no inventory. Pricing is a secondary read-out of the geometry.
+
+---
+
+## Project layout
 
 ```
 lib/
-  core/                    # cross-cutting: theme, routing, DI, l10n, errors, utils
-  domain/                  # pure Dart — no Flutter, no I/O
-    configuration/         # ProductConfiguration + value objects (single source of truth)
-    entities/               # Customer, Project, Quotation, Order, ManufacturingOrder, ...
-    pricing/                 # PricingRules, PriceBreakdown, Currency
-    manufacturing/           # BomLine, CuttingListLine
-    services/                # ValidationEngine, PricingEngine, ManufacturingEngine
-    repositories/             # abstract interfaces (backend-agnostic)
-    auth/                     # UserRole, Permission, AppUser
-  data/                    # implementations of the domain repositories
-    local/                   # SharedPreferences-backed key/value + JSON collection store
-    repositories/             # Local*Repository — the backend swap seam
-    demo/                     # seeded demo data
-  features/                # one folder per screen area, presentation only
-    <feature>/presentation/
-  shared/                  # widgets + Riverpod notifiers used by 2+ features
-assets/web_3d/             # three.js parametric 3D engine (see §7)
+  core/
+    constants/    app-wide constants (storage keys, canvas, autosave)
+    errors/       AppException family
+    routing/      go_router configuration — draw → understand → design
+    services/     key/value storage seam + Riverpod providers
+    theme/        colours (#013E37 / #FFEFB3), typography, spacing, breakpoints
+    utilities/    Vec2/Box2 geometry maths, unit conversion, ids
+  features/
+    drawing/      canvas, painters, DrawingController (ink + history)
+    recognition/  stroke → primitive, snapping, structure interpretation,
+                  handwriting seam, interpretation service
+    dimensions/   scale calibration, dimension resolution, measurement dialogs
+    geometry/     structure → parametric model, structured model edits
+    configurator/ session state, interpretation screen, structure editor
+    rendering/    2D technical painter, Dart SceneBuilder, three.js bridge/viewer
+    pricing/      rates, geometry-driven pricing engine, breakdown UI
+    projects/     design library, repository, home screen
+    export/       PNG / PDF / project file, cross-platform save & share
+  shared/
+    models/       Sketch, primitives, GeometryStructure, OpeningModel, Scene3D,
+                  materials, calibration, DesignDocument
+    widgets/      responsive helpers and shared UI
+assets/web_3d/    three.js r128 + OrbitControls + opening_engine.js
 ```
 
-**Layering rule:** `domain/` never imports `flutter/material.dart` (except
-where an enum's display metadata genuinely needs `Color`/`IconData` — a
-deliberate, contained exception, not the whole layer leaking). `data/`
-implements `domain/repositories/*` interfaces; nothing above `data/`
-imports a `Local*Repository` directly except the composition root
-(`data/app_repositories.dart`). `features/` never talks to
-`data/` — only to `domain/` and `shared/providers/*`.
-
-### State management
-
-**Riverpod** (`flutter_riverpod`), plain `AsyncNotifier`s — no code
-generation, so the project builds without running `build_runner`. Each
-entity (`customers`, `projects`, `configurations`, `quotations`, `orders`,
-`manufacturing`, `inventory`, `notifications`, `auditLog`, `settings`,
-`users`) has one notifier in `shared/providers/` that owns its list and
-exposes mutating methods; every mutation also appends an audit-log entry
-and, where relevant, a notification — this isn't decorative, it's how the
-audit log and notification center actually get their data.
-
-### Routing
-
-`go_router` with a `ShellRoute` wrapping the authenticated app shell
-(`AppShell`) and a `redirect` that watches `authNotifierProvider` so login
-state changes navigate immediately. The configurator is a separate
-full-screen route (`parentNavigatorKey`) outside the shell, matching how a
-real focused wizard should behave.
-
-### Permissions
-
-`domain/auth/permission.dart` holds one matrix:
-`Map<UserRole, Set<Permission>>`. It's checked in two independent places
-(spec requirement): the router/`AppShell` hides nav items a role can't see,
-and `PermissionGate` blocks the screen body itself — so a deep link can't
-bypass the nav-level hiding.
+`assets/web_3d/opening_engine.js` contains **no product knowledge**. It receives
+an explicit list of parts (role, size, position, rotation, material) built in
+Dart and instantiates three.js meshes for them. It cannot invent geometry, which
+is why 3D component placement and proportions are unit-testable.
 
 ---
 
-## 3. Design system
+## Responsive layout
 
-Brand colors are fixed: **`#013E37`** (dark green — navigation, primary
-actions, selected states) and **`#FFEFB3`** (cream — highlight surfaces,
-selected-configuration accents). See `core/theme/app_colors.dart` for the
-full palette (neutrals, semantic success/warning/error/info) and
-`core/theme/app_theme.dart` for the Material 3 theme built from it. The two
-brand colors are deliberately *not* used everywhere at full intensity —
-neutrals carry the bulk of the UI so the brand colors keep their weight.
+Each size class is a different arrangement, not a scaled copy:
 
-Responsive breakpoints (`core/theme/app_spacing.dart`): compact (<600),
-medium (600–1024, collapsed rail), expanded (≥1024, extended rail /
-3-pane configurator).
+| Width | Drawing screen | Design screen |
+| --- | --- | --- |
+| < 600 (phone) | canvas fills the screen, tools on a bottom bar | tabs: View / Edit / Price |
+| 600–1440 (tablet) | tool rail + canvas | structure panel + viewer |
+| ≥ 1440 (desktop) | tools \| canvas \| properties | structure \| viewer \| price |
 
----
-
-## 4. The configuration pipeline in detail
-
-### `ProductConfiguration` (`domain/configuration/product_configuration.dart`)
-
-The aggregate root. Composed of value objects — `FrameSpec`, `LeafSpec`,
-`PanelSpec`, `GlassSpec`, `HardwareSpec`, `FinishSpec`, `AccessoryOptions`
-— each mapping to a real manufacturing subsystem. Fully JSON-serializable
-(`toJson`/`fromJson`) so a design is portable and offline-safe, and exposes
-`to3DParams()` — a flat primitive map consumed by the JS 3D engine.
-
-### Validation (`domain/services/validation_engine.dart`)
-
-A list of independent `ValidationRule` functions (dimension ranges per
-product type, frame depth, section count, physical minimum section width,
-glass-thickness-by-type, double/triple-glazing pane consistency, wall
-opening vs. unit size, leaf-arrangement consistency, exterior-door lock
-recommendation, hinge count vs. height). Each returns `error` or `warning`
-severity — only errors block saving a configuration as production-ready,
-matching the spec's "Draft → Validated → Quoted → Approved → Production
-Ready" state progression. A factory can swap in its own rule list without
-touching the engine.
-
-### Pricing (`domain/services/pricing_engine.dart` + `domain/pricing/pricing_rules.dart`)
-
-Every rate is admin-editable from **Settings → Pricing rules** (frame
-price/m by material, glass price/m² by type, panel price/m² by type, hinge
-price, handle base price + per-model adjustment, lock/closer price tables,
-accessory flat price, mosquito net price/m², seal price/m, labor
-mode+rate, finish multiplier by color, waste %, overhead %, profit %,
-installation/unit, delivery flat fee). The engine returns a fully itemized
-`PriceBreakdown` — Frame / Glass / Panel / Hardware / Accessories →
-Materials subtotal → Labor → Finishing → Waste → Overhead → Subtotal →
-Profit → **Unit price** → **Line total**. Nothing is a black-box "$500".
-
-*Formula note:* the spec's worked example uses `2×height + width` for
-frame length; this implementation uses the geometrically correct
-rectangle perimeter `2×(width+height)` plus extra length for every
-mullion/transom, since that's what an actual frame needs.
-
-### Manufacturing (`domain/services/manufacturing_engine.dart`)
-
-Derives a cutting list (head/sill/jambs, mullions, transoms, door jamb,
-threshold, leaf stiles/rails) and a BOM (frame profile, glass/panel,
-hinges, handle, lock, closer, seal, mosquito net, misc accessories,
-fasteners) from the same configuration. Formulas are simple and explicit
-by design — spec §18 asks for factory-specific formulas to be able to
-replace the defaults later; this is the seam.
-
-### 2D (`features/designer_2d/`)
-
-A `CustomPainter` (`TechnicalDrawingPainter`) draws to true scale from
-`widthMm`/`heightMm`, with dimension lines (top = width, left = height,
-extension lines + labels) in the same style as a hand-drawn shop sketch,
-plus mullions/transoms, door-swing diagonals with hinge/handle markers,
-and sliding-window arrows. Wrapped in `InteractiveViewer` for pan/zoom,
-with a dimension-visibility toggle and PNG export via `RepaintBoundary`.
-
-### 3D (`features/viewer_3d/` + `assets/web_3d/`)
-
-**Real, procedurally-generated 3D — never a static image.** A WebView
-(`flutter_inappwebview`, mobile/desktop) or an `<iframe>` (web, via
-`dart:ui_web` platform views) runs `assets/web_3d/parametric_engine.js`,
-a from-scratch three.js (r128, bundled as static assets so there's no
-version drift) engine that builds the frame, mullions/transoms, door
-leaves/sashes, glass, hinges, handle, lock and threshold as real boxes/
-cylinders sized from the live configuration — changing hinge count adds a
-hinge mesh, changing width widens every beam, changing leaf arrangement
-regenerates the leaf split. Camera presets (front/back/left/right/top/
-bottom/perspective) animate smoothly; dimension overlays and auto-rotate
-are toggleable; full screen is supported.
-
-The Flutter↔JS bridge (`WebGLBridge`) is transport-agnostic:
-`InAppWebView.evaluateJavascript` on mobile/desktop,
-`iframe.contentWindow.postMessage` on web — both call the same
-`window.ConfiguratorBridge.*` API in the JS engine.
-
-*Extensibility:* if a factory needs beveled profiles, texture-mapped
-finishes, or CAD-accurate joinery beyond what boxes/cylinders can express,
-the JS engine is the only file to extend or replace — the Dart-side
-contract (`to3DParams()` in → `ConfiguratorBridge` calls out) doesn't
-change.
-
-### Quotation → Order → Manufacturing
-
-A quotation snapshots each configuration's price at creation time (so
-changing pricing rules later never rewrites a quote that already went
-out). Accepting a quotation converts it to an `Order`
-(`OrderNotifier.convertFromQuotation`), which immediately opens a
-`ManufacturingOrder` at the `productionOrder` stage with a standard QC
-checklist. Advancing through
-`productionOrder → materialPreparation → cutting → assembly →
-glassInstallation → hardwareInstallation → qualityControl → packaging →
-delivery → installation → completed` is gated at `qualityControl`: every
-check must be `pass`/`N/A` before the stage can advance.
+The widget tests pump every screen at 390×844, 1024×768 and 1600×1000; Flutter
+turns any overflow into a test failure, so they double as a layout regression
+suite.
 
 ---
 
-## 5. Backend
-
-Local-only in this build: `data/local/key_value_store.dart` wraps
-`shared_preferences` as a JSON key/value store, and every
-`Local*Repository` in `data/repositories/` implements the matching
-`domain/repositories/*` interface against it. **This is the intentional
-seam.** To connect a real backend (Laravel/Node/.NET/Java/…):
-
-1. Implement the same interface (e.g. `CustomerRepository`) with HTTP
-   calls instead of local JSON.
-2. Wire it in `data/app_repositories.dart` (the single composition root)
-   instead of `LocalCustomerRepository`.
-3. Nothing in `domain/` or `features/` changes.
-
-No repository method throws a raw exception to the UI —
-`AsyncValueView` (`shared/widgets/async_value_view.dart`) maps any error
-state to a friendly retry card.
-
----
-
-## 6. Demo accounts & data
-
-On first launch the app seeds realistic (clearly fictional) demo data —
-customers, projects, configurations, a quotation, an order in production,
-inventory, and notifications — once per collection (`__seeded` flag), so
-it never overwrites real data you create afterwards.
-
-Sign in with any of these (password for all: **`Demo@123`**):
-
-| Role | Email |
-|---|---|
-| Administrator | `admin@proframe.demo` |
-| Manager | `manager@proframe.demo` |
-| Sales | `sales@proframe.demo` |
-| Designer | `designer@proframe.demo` |
-| Engineer | `engineer@proframe.demo` |
-| Factory | `factory@proframe.demo` |
-| Accountant | `accountant@proframe.demo` |
-| Viewer | `viewer@proframe.demo` |
-
-The login screen has a **Demo accounts** panel that fills these in for
-you. See `domain/auth/permission.dart` for the full role → permission
-matrix.
-
----
-
-## 7. Getting started
+## Running it
 
 ```bash
-flutter pub get         # also runs `flutter gen-l10n` (flutter.generate: true
-                         # in pubspec.yaml) to produce
-                         # lib/core/localization/generated/app_localizations.dart
-flutter run              # pick a device: Android / iOS / macOS / Windows / Linux / Chrome
+flutter pub get
+flutter run -d chrome        # or any connected device
 ```
 
-Requires **Flutter ≥ 3.44 / Dart ≥ 3.12**.
-
-**Verified on Flutter 3.47.2 / Dart 3.13.2:** `flutter analyze` reports no
-issues, all 41 tests pass, and `flutter build web --release` succeeds
-(including the wasm dry run).
-
-### Building
+Verification:
 
 ```bash
-flutter build apk --release          # Android
-flutter build ios --release          # iOS (requires macOS + signing setup)
-flutter build web --release          # Web
-flutter build windows --release      # Desktop (Windows scaffolding included)
+flutter analyze              # no issues
+flutter test                 # 135 tests
+flutter build web --release
 ```
 
-macOS/Linux desktop scaffolding isn't included yet — run
-`flutter create --platforms=macos,linux .` once to add it (nothing in
-`lib/` is Windows-specific, so both should build immediately after).
-
-**Android toolchain:** `android/` targets Gradle 9.3.1, AGP 9.1.0, Kotlin
-2.4.0 and Java 17, matching what current Flutter generates. (Anything
-older than Gradle 8.14 / AGP 8.11.1 / Kotlin 2.2.20 is rejected outright by
-Flutter's Gradle dependency-version check, which is worth knowing if you
-ever hand-edit these files.) A JDK 17+ is required — JDK 21 is what this
-was validated against.
-
-### Testing
-
-```bash
-flutter test
-```
-
-**Unit tests** (`test/domain/`) — the pricing engine (exact-arithmetic
-cases against a zeroed rate table, plus formula/invariant checks: the spec
-asks for strong pricing coverage), the validation engine, the
-manufacturing engine's BOM/cutting-list generation, unit conversion, and
-`ProductConfiguration` JSON round-tripping.
-
-**Widget test** (`test/widget/`) — `PriceBreakdownView` rendering.
-
-**Integration-style tests** — these boot the *real* app (real repositories,
-real router, seeded demo data, an in-memory store swapped in via a
-`ProviderScope` override) and drive it like a user:
-
-| File | What it proves |
-|---|---|
-| `app_smoke_test.dart` | App boots to login, signs in, lands on the dashboard |
-| `app_navigation_smoke_test.dart` | Every rail destination + all four Settings tabs + project detail render without layout/state errors |
-| `configurator_flow_test.dart` | Phone layout (drawer nav) and the wizard end to end: a width typed in step 2 flows through to the summary price, BOM and cutting list |
-| `quotation_to_order_flow_test.dart` | Quotation created from project items → sent → accepted → converted to an order → manufacturing order opened |
-
-These run at both desktop (1600×1200) and phone (420×950) viewports, so
-Flutter's overflow assertions act as a responsive-layout regression suite —
-they caught (and now guard against) four real overflow bugs.
-
-The configurator's desktop 3-pane layout is exercised manually rather than
-in widget tests, because its centre pane embeds the WebView-backed 3D
-viewer, which has no implementation in the headless test harness.
+The test suite covers the recogniser (straightening, shapes, roles), structure
+interpretation (mullions, transoms, hinge sides, sliding, ambiguity), dimensions
+(calibration, measured vs derived, suggestions), the solver (proportions, pinned
+sizes, nesting), the 3D assembly (part composition, proportions, hardware
+placement, updates when the model changes), pricing (geometry-driven, consistent
+with the 3D hardware counts), export, persistence and the end-to-end pipeline
+from a hand-drawn sketch to a priced 3D model.
 
 ---
 
-## 8. Environment / configuration
+## Brand
 
-No secrets are hard-coded. This build has no remote backend, so there's no
-API base URL to configure yet — when one is added, follow the standard
-Flutter pattern (`--dart-define=API_BASE_URL=...` read via
-`String.fromEnvironment`) rather than committing it, and keep
-Development/Staging/Production as three `--dart-define` profiles rather
-than three code paths.
-
----
-
-## 9. Localization
-
-`l10n.yaml` + `lib/core/localization/arb/app_{en,ar,ckb}.arb` wire up
-`flutter gen-l10n` with **English, Arabic and Kurdish Sorani**, and
-`app.dart` forces `Directionality` explicitly from `AppLocale.isRtl`
-(rather than relying on Flutter's built-in RTL locale table, which may not
-recognize `ckb`) so RTL is correct regardless of platform locale data.
-
-**Scope note:** the ~90 keys in the ARB files cover the app shell,
-navigation, auth, dashboard labels, configurator step titles, pricing
-labels and status labels — fully translated in all three languages. Most
-in-screen copy (form field labels, button text inside feature screens) is
-still English-only literals; extending coverage is mechanical: add the
-key to `app_en.arb` + translations to the other two files, then replace
-the literal string with `AppLocalizations.of(context)!.yourKey`.
-
-**PDF fonts:** `QuotationPdfService` loads Noto Sans + Noto Sans Arabic via
-`PdfGoogleFonts` (from the `printing` package), which fetches and caches
-the TTFs on first use. A factory deploying somewhere without outbound
-network access on first run should bundle local `.ttf` files under
-`assets/fonts/` and swap `PdfGoogleFonts.notoSansArabicRegular()` for
-`pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSansArabic-Regular.ttf'))`
-— one function to change.
-
----
-
-## 10. Honest scope notes
-
-Built by one engineer against an ~80-section enterprise spec — everything
-above is real and functional, but a few things are deliberately scoped
-down rather than faked:
-
-- **No live backend/multi-user sync.** The repository-interface seam
-  (§5) exists specifically so this is a backend swap, not a rewrite.
-- **DXF/CNC/CAD export** is not implemented — `toJson()`/the BOM/cutting
-  list CSV export are the structured data a future integration would
-  consume; see `features/configurator/services/export_service.dart`.
-- **Push notifications** aren't wired to a provider — the
-  `NotificationType` enum and in-app notification center are the
-  provider-agnostic seam.
-- **Offline sync conflict resolution** isn't implemented; the app is
-  local-first by construction (everything is a local repository today),
-  which trivially satisfies "works offline" but doesn't yet demonstrate
-  a sync/merge strategy for when a backend is added.
-- **Design versioning** (multiple named versions of one configuration)
-  is not implemented as a separate history feature; `version`/`updatedAt`
-  fields exist on `ProductConfiguration` as the intended seam.
-- Full localization of every screen's copy is not complete (see §9).
-
-None of the above are hidden — this section exists so a reviewer never has
-to discover a gap by poking at a dead button. There are no dead buttons.
-
----
-
-## 11. Repository (this branch)
-
-Developed on `S.branch`. `M-branch` in this same repository is an earlier,
-smaller parametric-window-only prototype; this build shares its "WebView +
-bundled three.js" strategy for real (non-faked) 3D — the one part of that
-prototype worth keeping as-is — but the domain model, pricing/validation/
-manufacturing engines, and every screen are new and substantially more
-complete against the full specification.
+Primary `#013E37`, accent `#FFEFB3`. Premium, architectural, clean; no
+decorative gradients.
