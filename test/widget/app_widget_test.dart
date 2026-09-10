@@ -108,7 +108,7 @@ void main() {
         await _pumpScreen(
           tester,
           size,
-          DrawingScreen(onInterpret: () {}),
+          DrawingScreen(onInterpret: ({bool useDrawingExtent = false}) {}),
           design: _windowDesign(),
         );
 
@@ -122,7 +122,7 @@ void main() {
       await _pumpScreen(
         tester,
         desktop,
-        DrawingScreen(onInterpret: () {}),
+        DrawingScreen(onInterpret: ({bool useDrawingExtent = false}) {}),
         design: _windowDesign(),
       );
 
@@ -134,7 +134,7 @@ void main() {
       final container = await _pumpScreen(
         tester,
         desktop,
-        DrawingScreen(onInterpret: () {}),
+        DrawingScreen(onInterpret: ({bool useDrawingExtent = false}) {}),
         design: DesignDocument.blank(id: 'd2', kind: OpeningKind.window),
       );
 

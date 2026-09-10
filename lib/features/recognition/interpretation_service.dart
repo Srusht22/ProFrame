@@ -56,6 +56,7 @@ class InterpretationService {
     ScaleCalibration? calibration,
     OpeningModel? carryOver,
     String modelId = 'model',
+    bool useDrawingExtent = false,
   }) async {
     final primitives = strokeRecognizer.recognizeAll(sketch);
 
@@ -65,7 +66,11 @@ class InterpretationService {
       sketch.strokes.where((s) => s.tool == SketchTool.note).toList(),
     );
 
-    final structure = structureInterpreter.interpret(primitives, kind: kind);
+    final structure = structureInterpreter.interpret(
+      primitives,
+      kind: kind,
+      useDrawingExtent: useDrawingExtent,
+    );
 
     final dimensions = dimensionResolver.resolve(
       structure: structure,
@@ -115,15 +120,23 @@ class InterpretationService {
 
     items.add(InterpretationItem(
       id: 'outline',
-      level: InterpretationLevel.recognised,
-      title: '${model.kind.label} outline found',
-      detail: '${structure.rows.length} horizontal '
+      level: structure.outlineFromExtent
+          ? InterpretationLevel.uncertain
+          : InterpretationLevel.recognised,
+      title: structure.outlineFromExtent
+          ? 'Outline assumed from the extent of your drawing'
+          : '${model.kind.label} outline found',
+      detail: structure.outlineFromExtent
+          ? 'You did not draw a closed outside shape, so the overall extent of '
+              'what you drew was used as the frame. Check the size, or go back '
+              'and draw the outline.'
+          : '${structure.rows.length} horizontal '
           '${structure.rows.length == 1 ? 'band' : 'bands'}, '
           '${structure.cellCount} ${structure.cellCount == 1 ? 'section' : 'sections'}, '
           '${structure.mullionCount} vertical '
           '${structure.mullionCount == 1 ? 'division' : 'divisions'}.',
     ));
-    confidences.add(1);
+    confidences.add(structure.outlineFromExtent ? 0.4 : 1);
 
     // Size.
     for (final entry in <(String, String, ResolvedDimension, bool)>[

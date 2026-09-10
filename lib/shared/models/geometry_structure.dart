@@ -62,12 +62,18 @@ class GeometryStructure {
   final List<DimensionPrimitive> dimensions;
   final List<NotePrimitive> notes;
 
+  /// True when no closed outline was drawn and the overall extent of the
+  /// drawing was used instead. Always surfaced to the user — an assumed
+  /// outline is never presented as if it had been drawn.
+  final bool outlineFromExtent;
+
   const GeometryStructure({
     required this.outline,
     required this.transomYs,
     required this.rows,
     this.dimensions = const [],
     this.notes = const [],
+    this.outlineFromExtent = false,
   });
 
   static const GeometryStructure empty = GeometryStructure(

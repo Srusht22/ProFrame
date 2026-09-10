@@ -112,11 +112,16 @@ class DesignSessionNotifier extends Notifier<DesignSession> {
   void updateSketch(Sketch sketch) {
     final document = state.document;
     if (document == null) return;
+    // Changing the drawing makes any previous complaint about it stale.
+    if (state.error != null) state = state.copyWith(clearError: true);
     _touch(document.copyWith(sketch: sketch));
   }
 
   /// Runs the whole understanding pipeline over the current ink.
-  Future<InterpretationResult?> interpret() async {
+  ///
+  /// [useDrawingExtent] is the user's explicit answer to "you did not draw an
+  /// outline" — it is never set on their behalf.
+  Future<InterpretationResult?> interpret({bool useDrawingExtent = false}) async {
     final document = state.document;
     if (document == null) return null;
     state = state.copyWith(isInterpreting: true, clearError: true);
@@ -127,6 +132,7 @@ class DesignSessionNotifier extends Notifier<DesignSession> {
             calibration: document.calibration,
             carryOver: document.model,
             modelId: document.id,
+            useDrawingExtent: useDrawingExtent,
           );
       _modelUndo.clear();
       _modelRedo.clear();

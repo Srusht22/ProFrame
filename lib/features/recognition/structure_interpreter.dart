@@ -23,15 +23,24 @@ class StructureInterpreter {
   GeometryStructure interpret(
     List<SketchPrimitive> primitives, {
     required OpeningKind kind,
+    bool useDrawingExtent = false,
   }) {
-    final outline = _findOutline(primitives);
+    var outline = _findOutline(primitives);
+    var fromExtent = false;
+
+    if (outline == null && useDrawingExtent) {
+      outline = _extentOf(primitives);
+      fromExtent = outline != null;
+    }
+
     if (outline == null) {
       throw const InterpretationException(
         'No closed outline found. Draw the outside shape of the door or window first.',
       );
     }
+    final frame = outline;
 
-    final edgeTolerance = math.max(outline.width, outline.height) * 0.06;
+    final edgeTolerance = math.max(frame.width, frame.height) * 0.06;
 
     final structureLines = primitives
         .whereType<LinePrimitive>()
@@ -39,15 +48,15 @@ class StructureInterpreter {
         .toList();
 
     final interior = structureLines
-        .where((l) => !_isOnOutline(l, outline, edgeTolerance))
-        .where((l) => outline.inflate(edgeTolerance).contains(l.start) ||
-            outline.inflate(edgeTolerance).contains(l.end))
+        .where((l) => !_isOnOutline(l, frame, edgeTolerance))
+        .where((l) => frame.inflate(edgeTolerance).contains(l.start) ||
+            frame.inflate(edgeTolerance).contains(l.end))
         .toList();
 
     // Full-width horizontals become transoms and split the frame into bands.
     final transomLines = interior
         .where((l) => l.orientation == LineOrientation.horizontal)
-        .where((l) => l.bounds.width >= outline.width * divisionSpanRatio)
+        .where((l) => l.bounds.width >= frame.width * divisionSpanRatio)
         .toList();
     final transomYs = _cluster(
       transomLines.map((l) => (l.start.y + l.end.y) / 2).toList(),
@@ -55,13 +64,13 @@ class StructureInterpreter {
     )..sort();
 
     final rowBounds = <Box2>[];
-    var top = outline.top;
+    var top = frame.top;
     for (final y in transomYs) {
-      if (y <= top + 1 || y >= outline.bottom - 1) continue;
-      rowBounds.add(Box2(outline.left, top, outline.right, y));
+      if (y <= top + 1 || y >= frame.bottom - 1) continue;
+      rowBounds.add(Box2(frame.left, top, frame.right, y));
       top = y;
     }
-    rowBounds.add(Box2(outline.left, top, outline.right, outline.bottom));
+    rowBounds.add(Box2(frame.left, top, frame.right, frame.bottom));
 
     final verticalLines = interior
         .where((l) => l.orientation == LineOrientation.vertical)
@@ -94,7 +103,7 @@ class StructureInterpreter {
           rowIndex: ri,
           columnIndex: ci,
           marks: openingMarks,
-          outline: outline,
+          outline: frame,
           kind: kind,
         ));
         left = boundaries[ci];
@@ -103,12 +112,34 @@ class StructureInterpreter {
     }
 
     return GeometryStructure(
-      outline: outline,
+      outline: frame,
       transomYs: transomYs,
       rows: rows,
       dimensions: primitives.whereType<DimensionPrimitive>().toList(),
       notes: primitives.whereType<NotePrimitive>().toList(),
+      outlineFromExtent: fromExtent,
     );
+  }
+
+  /// The overall extent of everything drawn that is part of the product.
+  ///
+  /// Only used when the user explicitly asks for it, because it is a reading of
+  /// the drawing rather than something they drew. Measurements and notes are
+  /// left out — they sit outside the frame and would inflate it.
+  Box2? _extentOf(List<SketchPrimitive> primitives) {
+    final parts = primitives
+        .where((p) => p.role != PrimitiveRole.annotation)
+        .map((p) => p.bounds)
+        .toList();
+    if (parts.isEmpty) return null;
+
+    var box = parts.first;
+    for (final part in parts.skip(1)) {
+      box = box.union(part);
+    }
+    // Too thin to be a product: two parallel lines are not a frame.
+    if (box.width < 20 || box.height < 20) return null;
+    return box;
   }
 
   // -- outline --------------------------------------------------------------

@@ -91,9 +91,13 @@ class _DrawingRoute extends ConsumerWidget {
         id: id,
         builder: (context) => DrawingScreen(
           onBack: () => context.go(AppRoutes.home),
-          onInterpret: () async {
-            final result = await ref.read(designSessionProvider.notifier).interpret();
+          onInterpret: ({bool useDrawingExtent = false}) async {
+            final result = await ref
+                .read(designSessionProvider.notifier)
+                .interpret(useDrawingExtent: useDrawingExtent);
             if (!context.mounted) return;
+            // A failure leaves the user on the drawing with the reason shown,
+            // rather than navigating to an empty design.
             if (result != null) context.go(AppRoutes.interpret(id));
           },
         ),

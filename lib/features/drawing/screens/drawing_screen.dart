@@ -12,9 +12,13 @@ import '../state/drawing_controller.dart';
 import '../widgets/drawing_canvas.dart';
 import '../widgets/tool_palette.dart';
 
+/// Asks for the design to be generated. [useDrawingExtent] is only ever true
+/// because the user chose it after being told no outline was found.
+typedef GenerateCallback = void Function({bool useDrawingExtent});
+
 /// The hero screen: a sheet of paper you draw the door or window on (§61).
 class DrawingScreen extends ConsumerStatefulWidget {
-  final VoidCallback onInterpret;
+  final GenerateCallback onInterpret;
   final VoidCallback? onBack;
 
   const DrawingScreen({super.key, required this.onInterpret, this.onBack});
@@ -112,6 +116,7 @@ class _DrawingScreenState extends ConsumerState<DrawingScreen> {
         compact: (context) => Column(
           children: [
             Expanded(child: _canvas()),
+            _ProblemBanner(onRetryWithExtent: widget.onInterpret),
             _SelectionBar(controller: _controller, onEditDimension: _editDimension),
             _CompactToolbar(controller: _controller),
             _ActionBar(controller: _controller, onInterpret: widget.onInterpret),
@@ -127,6 +132,7 @@ class _DrawingScreenState extends ConsumerState<DrawingScreen> {
                 ],
               ),
             ),
+            _ProblemBanner(onRetryWithExtent: widget.onInterpret),
             _SelectionBar(controller: _controller, onEditDimension: _editDimension),
             _ActionBar(controller: _controller, onInterpret: widget.onInterpret),
           ],
@@ -134,7 +140,14 @@ class _DrawingScreenState extends ConsumerState<DrawingScreen> {
         expanded: (context) => Row(
           children: [
             _ToolRail(controller: _controller),
-            Expanded(child: _canvas()),
+            Expanded(
+              child: Column(
+                children: [
+                  Expanded(child: _canvas()),
+                  _ProblemBanner(onRetryWithExtent: widget.onInterpret),
+                ],
+              ),
+            ),
             SizedBox(
               width: 300,
               child: _PropertiesPanel(
@@ -215,7 +228,7 @@ class _CompactToolbar extends StatelessWidget {
 
 class _ActionBar extends ConsumerWidget {
   final DrawingController controller;
-  final VoidCallback onInterpret;
+  final GenerateCallback onInterpret;
 
   const _ActionBar({required this.controller, required this.onInterpret});
 
@@ -248,7 +261,9 @@ class _ActionBar extends ConsumerWidget {
               ),
               const SizedBox(width: AppSpacing.xs),
               FilledButton.icon(
-                onPressed: controller.isEmpty || session.isInterpreting ? null : onInterpret,
+                onPressed: controller.isEmpty || session.isInterpreting
+                    ? null
+                    : () => onInterpret(),
                 icon: session.isInterpreting
                     ? const SizedBox(
                         width: 14,
@@ -312,7 +327,7 @@ class _OverflowMenu extends StatelessWidget {
 
 class _PropertiesPanel extends StatelessWidget {
   final DrawingController controller;
-  final VoidCallback onInterpret;
+  final GenerateCallback onInterpret;
   final Future<void> Function(Stroke stroke) onEditDimension;
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
@@ -334,7 +349,10 @@ class _PropertiesPanel extends StatelessWidget {
         listenable: controller,
         builder: (context, _) {
           final selected = controller.selectedStroke;
-          return ListView(
+          return Column(
+            children: [
+              Expanded(
+                child: ListView(
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
               const SectionHeader(
@@ -432,11 +450,27 @@ class _PropertiesPanel extends StatelessWidget {
               ],
               const Divider(height: AppSpacing.lg),
               _WhatWeSee(controller: controller),
-              const SizedBox(height: AppSpacing.md),
-              FilledButton.icon(
-                onPressed: controller.isEmpty ? null : onInterpret,
-                icon: const Icon(Icons.auto_awesome, size: 18),
-                label: const Text('Generate the design'),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+                ),
+              ),
+              // Pinned: the primary action must never be somewhere the user
+              // has to scroll a side panel to find.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.xs,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: controller.isEmpty ? null : () => onInterpret(),
+                    icon: const Icon(Icons.auto_awesome, size: 18),
+                    label: const Text('Generate the design'),
+                  ),
+                ),
               ),
             ],
           );
@@ -583,4 +617,79 @@ class _SelectionAction extends StatelessWidget {
           label: Text(label),
         ),
       );
+}
+
+
+/// Says why the design could not be generated, and offers a way forward.
+///
+/// Without this the Generate button looks broken: the pipeline knows exactly
+/// what is missing, but the user is left staring at a screen that did nothing.
+class _ProblemBanner extends ConsumerWidget {
+  final GenerateCallback onRetryWithExtent;
+
+  const _ProblemBanner({required this.onRetryWithExtent});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(designSessionProvider);
+    final message = session.error;
+    if (message == null) return const SizedBox.shrink();
+
+    final notifier = ref.read(designSessionProvider.notifier);
+
+    return Material(
+      color: AppColors.warningSurface,
+      shape: Border(top: BorderSide(color: AppColors.warning.withValues(alpha: 0.45))),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.xs,
+          AppSpacing.xs,
+          AppSpacing.xs,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: Icon(Icons.info_outline, size: 18, color: AppColors.warning),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "That drawing could not be turned into a design",
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(message, style: Theme.of(context).textTheme.bodySmall),
+                  const SizedBox(height: AppSpacing.xs),
+                  Wrap(
+                    spacing: AppSpacing.xs,
+                    runSpacing: 4,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          notifier.clearError();
+                          onRetryWithExtent(useDrawingExtent: true);
+                        },
+                        icon: const Icon(Icons.crop_free, size: 15),
+                        label: const Text('Use what I drew as the outline'),
+                      ),
+                      TextButton(
+                        onPressed: notifier.clearError,
+                        child: const Text('Keep drawing'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

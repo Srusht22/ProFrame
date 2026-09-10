@@ -63,7 +63,7 @@ Future<ProviderContainer> _pumpDrawing(WidgetTester tester, Size size) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: MaterialApp(home: DrawingScreen(onInterpret: () {})),
+      child: MaterialApp(home: DrawingScreen(onInterpret: ({bool useDrawingExtent = false}) {})),
     ),
   );
   await tester.pumpAndSettle();
@@ -148,7 +148,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: MaterialApp(home: DrawingScreen(onInterpret: () {})),
+          child: MaterialApp(home: DrawingScreen(onInterpret: ({bool useDrawingExtent = false}) {})),
         ),
       );
       await tester.pumpAndSettle();
