@@ -84,18 +84,22 @@ class SketchPainter extends CustomPainter {
     }
 
     if (selected) {
+      final box = selectionBoxOf(stroke);
       canvas.drawRect(
-        Rect.fromLTRB(
-          stroke.bounds.left - 8,
-          stroke.bounds.top - 8,
-          stroke.bounds.right + 8,
-          stroke.bounds.bottom + 8,
-        ),
+        Rect.fromLTRB(box.left, box.top, box.right, box.bottom),
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.2
           ..color = AppColors.brandDarkGreen.withValues(alpha: 0.6),
       );
+      // Corner grips, so it is obvious the selection can be resized.
+      final grip = Paint()..color = AppColors.brandDarkGreen;
+      for (final corner in selectionCornersOf(stroke)) {
+        canvas.drawRect(
+          Rect.fromCenter(center: _offset(corner), width: 9, height: 9),
+          grip,
+        );
+      }
     }
   }
 
@@ -217,6 +221,26 @@ class SketchPainter extends CustomPainter {
   }
 
   static Offset _offset(Vec2 v) => Offset(v.x, v.y);
+
+  /// How far the selection rectangle sits outside the ink, so a thin stroke is
+  /// still comfortable to grab.
+  static const double selectionPadding = 8;
+
+  /// The selection rectangle around a stroke, in sketch units. Shared with the
+  /// canvas so what is drawn and what can be grabbed are the same box.
+  static Box2 selectionBoxOf(Stroke stroke) => stroke.bounds.inflate(selectionPadding);
+
+  /// Its four corners, in the order top-left, top-right, bottom-right,
+  /// bottom-left.
+  static List<Vec2> selectionCornersOf(Stroke stroke) {
+    final box = selectionBoxOf(stroke);
+    return [
+      Vec2(box.left, box.top),
+      Vec2(box.right, box.top),
+      Vec2(box.right, box.bottom),
+      Vec2(box.left, box.bottom),
+    ];
+  }
 
   static Color _colorFor(SketchTool tool, {bool live = false}) {
     final base = switch (tool) {

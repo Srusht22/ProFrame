@@ -4,15 +4,14 @@ import '../../shared/models/geometry_structure.dart';
 import '../../shared/models/materials.dart';
 import '../../shared/models/opening_model.dart';
 import '../dimensions/dimension_resolver.dart';
-import 'region_builder.dart';
 
-/// Converts the drawing-space structure into the parametric product.
+/// Converts the sections read from the drawing into the parametric product.
 ///
-/// Proportions come straight from the sketch — a section drawn twice as wide as
-/// its neighbour stays twice as wide, and the bands the user drew keep their
-/// relative heights. Absolute size comes from the resolved dimensions. Nothing
-/// is equalised or centred on the way through: if the drawing is lopsided, so
-/// is the product.
+/// This is a straight, proportional mapping: the drawing's outline becomes the
+/// product's outline, and every section keeps exactly its position and size
+/// relative to that outline. A section drawn at a third of the way across stays
+/// at a third of the way across. Nothing is squared up, equalised or nudged
+/// towards a tidier arrangement.
 class GeometryBuilder {
   const GeometryBuilder();
 
@@ -29,35 +28,28 @@ class GeometryBuilder {
     final height = dimensions.height.millimetres;
     final outline = structure.outline;
 
-    final rows = <GridRowSpec>[];
-    for (final row in structure.rows) {
-      final heightShare =
-          outline.height <= 0 ? 1.0 : row.box.height / outline.height;
-      rows.add(GridRowSpec(
-        share: heightShare <= 0 ? 1 : heightShare,
-        cells: row.cells.map((cell) {
-          final widthShare =
-              row.box.width <= 0 ? 1.0 : cell.box.width / row.box.width;
-          return GridCellSpec(
-            share: widthShare <= 0 ? 1 : widthShare,
-            operation: cell.operation,
-            infill: CellInfill.glass,
-            glass: glass,
-            swing: _defaultSwing(cell.operation),
-            handle: _defaultHandle(cell.operation),
-          );
-        }).toList(),
-      ));
-    }
+    final scaleX = outline.width <= 0 ? 1.0 : width / outline.width;
+    final scaleY = outline.height <= 0 ? 1.0 : height / outline.height;
 
-    if (rows.isEmpty) {
-      rows.add(const GridRowSpec(cells: [GridCellSpec()]));
-    }
+    Box2 toProduct(Box2 box) => Box2(
+          (box.left - outline.left) * scaleX,
+          (box.top - outline.top) * scaleY,
+          (box.right - outline.left) * scaleX,
+          (box.bottom - outline.top) * scaleY,
+        );
 
-    final regions = RegionBuilder.fromGrid(
-      rows,
-      Box2.fromLTWH(0, 0, width, height),
-    );
+    final regions = <DesignRegion>[
+      for (final section in structure.sections)
+        DesignRegion(
+          id: section.id,
+          rect: toProduct(section.box),
+          operation: section.operation,
+          infill: CellInfill.glass,
+          glass: glass,
+          swing: _defaultSwing(section.operation),
+          handle: _defaultHandle(section.operation),
+        ),
+    ];
 
     return OpeningModel(
       id: id,
@@ -66,7 +58,11 @@ class GeometryBuilder {
       heightMm: height,
       material: material,
       finish: finish,
-      regions: _assignLock(regions),
+      regions: _assignLock(
+        regions.isEmpty
+            ? [DesignRegion(id: 's0', rect: Box2.fromLTWH(0, 0, width, height))]
+            : regions,
+      ),
       hasThreshold: kind == OpeningKind.door,
       hasSill: kind == OpeningKind.window,
     );

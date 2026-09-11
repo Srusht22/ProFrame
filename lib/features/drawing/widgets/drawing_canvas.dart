@@ -47,6 +47,11 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   final Set<int> _activePointers = {};
   int? _drawingPointer;
 
+  /// Move / resize state for the select tool.
+  Vec2? _dragFrom;
+  int? _resizeCorner;
+  Box2? _resizeOrigin;
+
   DrawingController get _controller => widget.controller;
 
   double _pressureOf(PointerEvent event) {
@@ -74,6 +79,27 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
     final point = _toSketch(event.localPosition);
     switch (_controller.tool) {
       case SketchTool.select:
+        // A grip on the current selection resizes it; inside the selection
+        // moves it; anywhere else picks something new.
+        final current = _controller.selectedStroke;
+        if (current != null) {
+          final corner = _cornerNear(current, point);
+          if (corner != null) {
+            _drawingPointer = event.pointer;
+            _dragFrom = point;
+            _resizeCorner = corner;
+            _resizeOrigin = current.bounds;
+            _controller.beginTransform();
+            return;
+          }
+          if (SketchPainter.selectionBoxOf(current).contains(point)) {
+            _drawingPointer = event.pointer;
+            _dragFrom = point;
+            _controller.beginTransform();
+            return;
+          }
+        }
+
         _controller.selectAt(point);
         // Tapping a dimension is how its measurement gets set or corrected.
         final selected = _controller.selectedStroke;
@@ -94,17 +120,64 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   void _onPointerMove(PointerMoveEvent event) {
     if (_drawingPointer != event.pointer || _activePointers.length > 1) return;
     final point = _toSketch(event.localPosition);
+
     if (_controller.tool == SketchTool.eraser) {
       _controller.erase(point);
       return;
     }
+    if (_controller.tool == SketchTool.select) {
+      final from = _dragFrom;
+      if (from == null) return;
+      final corner = _resizeCorner;
+      final origin = _resizeOrigin;
+      if (corner != null && origin != null) {
+        _controller.resizeSelectedTo(_boxForCorner(origin, corner, point - from));
+      } else {
+        _controller.moveSelectedBy(point - from);
+      }
+      return;
+    }
     _controller.extendStroke(point, pressure: _pressureOf(event));
+  }
+
+  /// Which grip the touch landed on, or null.
+  int? _cornerNear(Stroke stroke, Vec2 point) {
+    const reach = 14.0;
+    final corners = SketchPainter.selectionCornersOf(stroke);
+    for (var i = 0; i < corners.length; i++) {
+      if (corners[i].distanceTo(point) <= reach) return i;
+    }
+    return null;
+  }
+
+  /// The stroke's bounds after its [corner] has been dragged by [delta]; the
+  /// opposite corner stays put, which is what makes a resize feel predictable.
+  ///
+  /// The grips sit on the padded selection box but the maths is done on the
+  /// stroke's own bounds, so the two agree however thin the stroke is — a
+  /// horizontal line is lengthened, not inflated into a box.
+  Box2 _boxForCorner(Box2 origin, int corner, Vec2 delta) {
+    final (anchor, moving) = switch (corner) {
+      0 => (origin.bottomRight, origin.topLeft),
+      1 => (Vec2(origin.left, origin.bottom), Vec2(origin.right, origin.top)),
+      2 => (origin.topLeft, origin.bottomRight),
+      _ => (Vec2(origin.right, origin.top), Vec2(origin.left, origin.bottom)),
+    };
+    return Box2.fromCorners(anchor, moving + delta);
   }
 
   void _onPointerUp(PointerEvent event) {
     _activePointers.remove(event.pointer);
     if (_drawingPointer != event.pointer) return;
     _drawingPointer = null;
+
+    if (_controller.tool == SketchTool.select) {
+      _dragFrom = null;
+      _resizeCorner = null;
+      _resizeOrigin = null;
+      _controller.endTransform();
+      return;
+    }
     if (_controller.tool == SketchTool.eraser) return;
 
     final stroke = _controller.endStroke();
@@ -157,7 +230,12 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               _activePointers.remove(event.pointer);
               if (_drawingPointer == event.pointer) {
                 _drawingPointer = null;
-                _controller.cancelStroke();
+                _dragFrom = null;
+                _resizeCorner = null;
+                _resizeOrigin = null;
+                _controller
+                  ..endTransform()
+                  ..cancelStroke();
               }
             },
             child: Stack(

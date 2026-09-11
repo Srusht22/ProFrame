@@ -118,11 +118,11 @@ void main() {
 
         expect(find.byType(InterpretationScreen), findsOneWidget);
         expect(container.read(designSessionProvider).model, isNotNull);
-        // And it is honest about where the outline came from.
-        expect(
-          find.textContaining('Outline assumed'),
-          findsOneWidget,
-        );
+
+        // And it is honest about it, right at the top where it cannot be
+        // missed: the comparison names the outline as a difference.
+        expect(find.textContaining('difference'), findsOneWidget);
+        expect(find.textContaining('outline'), findsWidgets);
         await tester.pump(const Duration(milliseconds: 1500));
         await tester.pumpAndSettle();
       });

@@ -44,6 +44,11 @@ class DrawingController extends ChangeNotifier {
   StrokePoint? _skippedTail;
   bool _drawing = false;
 
+  /// The selected stroke as it was when a move or resize began. Every step of
+  /// the drag is computed from this, so dragging back and forth cannot
+  /// accumulate rounding drift.
+  Stroke? _transformSnapshot;
+
   // -- state ----------------------------------------------------------------
 
   Sketch get sketch => Sketch(strokes: List.unmodifiable(_strokes));
@@ -241,6 +246,68 @@ class DrawingController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Starts a move or resize. One undo step covers the whole gesture.
+  void beginTransform() {
+    final stroke = selectedStroke;
+    if (stroke == null) return;
+    _transformSnapshot = stroke;
+    _pushUndo();
+  }
+
+  void endTransform() => _transformSnapshot = null;
+
+  bool get isTransforming => _transformSnapshot != null;
+
+  /// Moves the selected stroke by [delta] from where it was when the gesture
+  /// started.
+  void moveSelectedBy(Vec2 delta) {
+    final origin = _transformSnapshot;
+    if (origin == null) return;
+    _replace(
+      origin.id,
+      origin.copyWith(
+        points: origin.points
+            .map((p) => p.copyWith(x: p.x + delta.x, y: p.y + delta.y))
+            .toList(),
+      ),
+    );
+  }
+
+  /// Resizes the selected stroke so its bounds become [bounds]. Used by the
+  /// corner handles.
+  ///
+  /// An axis the stroke has no extent on — the height of a horizontal line —
+  /// is left exactly as drawn rather than being stretched out of nothing, so
+  /// lengthening a line does not also give it a thickness or shift it sideways.
+  /// A target that would collapse the stroke, or turn it inside out by dragging
+  /// a grip past the opposite edge, is ignored: the stroke stops rather than
+  /// vanishing or mirroring itself.
+  void resizeSelectedTo(Box2 bounds) {
+    final origin = _transformSnapshot;
+    if (origin == null) return;
+    final from = origin.bounds;
+
+    final flatX = from.width.abs() < 1e-6;
+    final flatY = from.height.abs() < 1e-6;
+    if (!flatX && bounds.width < 4) return;
+    if (!flatY && bounds.height < 4) return;
+
+    final scaleX = flatX ? 1.0 : bounds.width / from.width;
+    final scaleY = flatY ? 1.0 : bounds.height / from.height;
+
+    _replace(
+      origin.id,
+      origin.copyWith(
+        points: origin.points
+            .map((p) => p.copyWith(
+                  x: flatX ? p.x : bounds.left + (p.x - from.left) * scaleX,
+                  y: flatY ? p.y : bounds.top + (p.y - from.top) * scaleY,
+                ))
+            .toList(),
+      ),
+    );
+  }
+
   void deleteSelected() {
     final id = _selectedStrokeId;
     if (id == null) return;
@@ -331,13 +398,29 @@ class DrawingController extends ChangeNotifier {
     if (stroke.points.length == 1) {
       return stroke.points.first.position.distanceTo(point) <= radius;
     }
-    final positions = stroke.positions;
+    final positions = _hitPath(stroke);
     for (var i = 1; i < positions.length; i++) {
       if (GeometryMath.distanceToSegment(point, positions[i - 1], positions[i]) <= radius) {
         return true;
       }
     }
     return false;
+  }
+
+  /// What the user can actually grab. A rectangle is stored as two opposite
+  /// corners but drawn as four edges, so it has to be hit-tested on those
+  /// edges — otherwise tapping the frame line misses and tapping the empty
+  /// middle (on the diagonal) selects it.
+  List<Vec2> _hitPath(Stroke stroke) {
+    if (stroke.tool != SketchTool.rectangle) return stroke.positions;
+    final box = Box2.fromCorners(stroke.start, stroke.end);
+    return [
+      Vec2(box.left, box.top),
+      Vec2(box.right, box.top),
+      Vec2(box.right, box.bottom),
+      Vec2(box.left, box.bottom),
+      Vec2(box.left, box.top),
+    ];
   }
 
   // -- history --------------------------------------------------------------

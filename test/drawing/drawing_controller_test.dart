@@ -148,6 +148,23 @@ void main() {
       expect(after.height, closeTo(before.width, 0.001));
     });
 
+    test('a rectangle is grabbed by its edges, not by its diagonal', () {
+      controller.precisionMode = true;
+      controller.tool = SketchTool.rectangle;
+      controller.beginStroke(const Vec2(100, 100));
+      controller.extendStroke(const Vec2(300, 220));
+      controller.endStroke();
+      controller.tool = SketchTool.select;
+
+      // On the drawn top edge.
+      controller.selectAt(const Vec2(200, 100));
+      expect(controller.selectedStroke, isNotNull);
+
+      // In the empty middle, where only the diagonal would be.
+      controller.selectAt(const Vec2(200, 160));
+      expect(controller.selectedStroke, isNull);
+    });
+
     test('a dimension value is stored on the stroke it belongs to', () {
       controller.tool = SketchTool.dimension;
       controller.beginStroke(const Vec2(0, 0));
@@ -166,6 +183,164 @@ void main() {
 
       final note = controller.primitives.whereType<NotePrimitive>().single;
       expect(note.text, 'obscure glass');
+    });
+  });
+
+  group('moving and resizing', () {
+    void selectRectangle() {
+      controller.precisionMode = true;
+      controller.tool = SketchTool.rectangle;
+      controller.beginStroke(const Vec2(100, 100));
+      controller.extendStroke(const Vec2(300, 220));
+      controller.endStroke();
+      controller.tool = SketchTool.select;
+      controller.selectAt(const Vec2(200, 100));
+      expect(controller.selectedStroke, isNotNull);
+    }
+
+    test('moving a stroke shifts it without changing its size', () {
+      selectRectangle();
+      final before = controller.selectedStroke!.bounds;
+
+      controller.beginTransform();
+      controller.moveSelectedBy(const Vec2(40, -25));
+      controller.endTransform();
+
+      final after = controller.selectedStroke!.bounds;
+      expect(after.left, closeTo(before.left + 40, 0.001));
+      expect(after.top, closeTo(before.top - 25, 0.001));
+      expect(after.width, closeTo(before.width, 0.001));
+      expect(after.height, closeTo(before.height, 0.001));
+    });
+
+    test('every step of a drag is measured from where it started', () {
+      selectRectangle();
+      final before = controller.selectedStroke!.bounds;
+
+      controller.beginTransform();
+      controller.moveSelectedBy(const Vec2(10, 10));
+      controller.moveSelectedBy(const Vec2(60, 45));
+      controller.endTransform();
+
+      final after = controller.selectedStroke!.bounds;
+      expect(after.left, closeTo(before.left + 60, 0.001));
+      expect(after.top, closeTo(before.top + 45, 0.001));
+    });
+
+    test('dragging away and back leaves the stroke exactly where it was', () {
+      selectRectangle();
+      final before = controller.selectedStroke!.bounds;
+
+      controller.beginTransform();
+      for (final step in const [Vec2(30, 12), Vec2(-80, 200), Vec2(0, 0)]) {
+        controller.moveSelectedBy(step);
+      }
+      controller.endTransform();
+
+      expect(controller.selectedStroke!.bounds, before);
+    });
+
+    test('resizing from a corner keeps the opposite corner anchored', () {
+      selectRectangle();
+      final before = controller.selectedStroke!.bounds;
+      // Drag the bottom-right corner; the top-left must not move (§26).
+      final target = Box2(before.left, before.top, before.right + 90, before.bottom + 40);
+
+      controller.beginTransform();
+      controller.resizeSelectedTo(target);
+      controller.endTransform();
+
+      final after = controller.selectedStroke!.bounds;
+      expect(after.left, closeTo(before.left, 0.001));
+      expect(after.top, closeTo(before.top, 0.001));
+      expect(after.right, closeTo(before.right + 90, 0.001));
+      expect(after.bottom, closeTo(before.bottom + 40, 0.001));
+    });
+
+    test('a resize that would collapse the stroke is refused', () {
+      selectRectangle();
+      final before = controller.selectedStroke!.bounds;
+
+      controller.beginTransform();
+      controller.resizeSelectedTo(Box2(before.left, before.top, before.left + 1, before.top + 1));
+      controller.endTransform();
+
+      expect(controller.selectedStroke!.bounds, before);
+    });
+
+    test('dragging a grip past the opposite edge does not mirror the stroke', () {
+      selectRectangle();
+      final before = controller.selectedStroke!.bounds;
+
+      controller.beginTransform();
+      // Right edge dragged 100 units to the left of the left edge.
+      controller.resizeSelectedTo(
+        Box2(before.left, before.top, before.left - 100, before.bottom),
+      );
+      controller.endTransform();
+
+      expect(controller.selectedStroke!.bounds, before);
+    });
+
+    test('a whole gesture is one undo step', () {
+      selectRectangle();
+      final before = controller.selectedStroke!.bounds;
+
+      controller.beginTransform();
+      controller.moveSelectedBy(const Vec2(15, 0));
+      controller.moveSelectedBy(const Vec2(35, 20));
+      controller.moveSelectedBy(const Vec2(70, 60));
+      controller.endTransform();
+      expect(controller.selectedStroke!.bounds, isNot(before));
+
+      controller.undo();
+      expect(controller.strokes.single.bounds, before);
+
+      // One more step goes back past the drawing itself — proof the three
+      // move calls consumed exactly one step between them.
+      controller.undo();
+      expect(controller.isEmpty, isTrue);
+      expect(controller.canUndo, isFalse);
+    });
+
+    test('nothing moves unless a gesture was started', () {
+      selectRectangle();
+      final before = controller.selectedStroke!.bounds;
+
+      controller.moveSelectedBy(const Vec2(50, 50));
+      controller.resizeSelectedTo(const Box2(0, 0, 500, 500));
+
+      expect(controller.selectedStroke!.bounds, before);
+      expect(controller.isTransforming, isFalse);
+    });
+
+    test('lengthening a line does not give it a thickness', () {
+      controller.precisionMode = true;
+      drawLine(const Vec2(100, 200), const Vec2(400, 200));
+      controller.tool = SketchTool.select;
+      controller.selectAt(const Vec2(250, 200));
+
+      controller.beginTransform();
+      controller.resizeSelectedTo(const Box2(100, 200, 600, 200));
+      controller.endTransform();
+
+      final bounds = controller.selectedStroke!.bounds;
+      expect(bounds.left, closeTo(100, 0.001));
+      expect(bounds.right, closeTo(600, 0.001));
+      expect(bounds.top, closeTo(200, 0.001));
+      expect(bounds.height, closeTo(0, 0.001));
+    });
+
+    test('a moved rectangle is re-read at its new place', () {
+      selectRectangle();
+
+      controller.beginTransform();
+      controller.moveSelectedBy(const Vec2(100, 50));
+      controller.endTransform();
+
+      final rect = controller.primitives.whereType<RectanglePrimitive>().single;
+      expect(rect.bounds.left, closeTo(200, 1));
+      expect(rect.bounds.top, closeTo(150, 1));
     });
   });
 

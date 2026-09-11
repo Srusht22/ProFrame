@@ -132,6 +132,36 @@ void main() {
       expect(cell.level, InterpretationLevel.uncertain);
       expect(cell.choices.map((c) => c.label), contains(CellOperation.fixed.label));
     });
+
+    test('a panel drawn inside the frame is asked about, never assumed', () async {
+      // A rectangle floating inside the outline, touching no edge, with no
+      // opening mark on it. The app must ask what it is instead of deciding
+      // (section 18) — and must keep it exactly where it was drawn.
+      final sketch = (SketchBuilder()
+            ..rectangle(0, 0, 1000, 800)
+            ..rectangle(250, 200, 750, 600)
+            ..dimension(0, -60, 1000, -60, 2000)
+            ..dimension(1060, 0, 1060, 800, 1600))
+          .build();
+
+      final result = await service.interpret(sketch: sketch, kind: OpeningKind.window);
+
+      final asked = result.report.uncertain
+          .where((i) => i.id.startsWith('cell.') && i.title.contains('you drew'))
+          .toList();
+      expect(asked, isNotEmpty);
+      expect(asked.first.choices, isNotEmpty);
+      expect(asked.first.detail, contains('did not mark'));
+
+      // The drawn rectangle is still a section of its own, at its own size,
+      // and the frame around it was filled in rather than redrawn.
+      final inner = result.model.regions.singleWhere(
+        (r) => (r.rect.left - 500).abs() < 2 && (r.rect.top - 400).abs() < 2,
+      );
+      expect(inner.rect.width, closeTo(1000, 2));
+      expect(inner.rect.height, closeTo(800, 2));
+      expect(result.model.regions.length, greaterThan(1));
+    });
   });
 
   group('saving and reopening', () {

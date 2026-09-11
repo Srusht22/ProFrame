@@ -93,6 +93,13 @@ class _IframeOpening3DViewState extends State<_IframeOpening3DView> {
     switch (data['handler']) {
       case 'onEngineReady':
         _publish();
+      case 'onPartTapped':
+        final tapped = data['data'];
+        if (tapped is Map) {
+          widget.bridge.onPartTapped?.call(
+            TappedPart.fromJson(Map<String, dynamic>.from(tapped)),
+          );
+        }
       case 'onSnapshotData':
         final payload = data['data'];
         if (payload is Map && payload['dataUrl'] is String) {

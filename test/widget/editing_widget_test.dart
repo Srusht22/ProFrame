@@ -110,6 +110,89 @@ void main() {
     });
   });
 
+  group('a drawn stroke can be moved and resized on the canvas', () {
+    Future<void> dragCanvas(
+      WidgetTester tester,
+      Vec2Like from,
+      Vec2Like to,
+    ) async {
+      final origin = tester.getTopLeft(find.byType(DrawingCanvas));
+      final gesture = await tester.startGesture(origin + Offset(from.x, from.y));
+      // Several steps, the way a finger actually moves.
+      const steps = 4;
+      for (var i = 1; i <= steps; i++) {
+        await gesture.moveTo(origin +
+            Offset(
+              from.x + (to.x - from.x) * i / steps,
+              from.y + (to.y - from.y) * i / steps,
+            ));
+        await tester.pump();
+      }
+      await gesture.up();
+      await tester.pumpAndSettle();
+    }
+
+    Stroke lineOf(ProviderContainer container) => container
+        .read(designSessionProvider)
+        .document!
+        .sketch
+        .strokes
+        .firstWhere((s) => s.id == 'line1');
+
+    testWidgets('dragging inside the selection moves the stroke', (tester) async {
+      final container = await _pumpDrawing(tester, desktop);
+
+      await _selectTool(tester, 'Select');
+      await _tapCanvasAt(tester, (x: 180, y: 220));
+
+      final before = lineOf(container).bounds;
+      await dragCanvas(tester, (x: 180, y: 220), (x: 230, y: 260));
+
+      final after = lineOf(container).bounds;
+      expect(after.left, closeTo(before.left + 50, 0.5));
+      expect(after.top, closeTo(before.top + 40, 0.5));
+      expect(after.width, closeTo(before.width, 0.5));
+      await _flushAutosave(tester);
+    });
+
+    testWidgets('dragging a corner grip lengthens the line in place',
+        (tester) async {
+      final container = await _pumpDrawing(tester, desktop);
+
+      await _selectTool(tester, 'Select');
+      await _tapCanvasAt(tester, (x: 180, y: 220));
+
+      final before = lineOf(container).bounds;
+      // The grips sit 8 units outside the ink: the line runs 60..300 at y 220,
+      // so its top-right grip is at (308, 212).
+      await dragCanvas(tester, (x: 308, y: 212), (x: 408, y: 212));
+
+      final after = lineOf(container).bounds;
+      expect(after.left, closeTo(before.left, 0.5));
+      expect(after.right, closeTo(before.right + 100, 0.5));
+      // Grabbing the grip must not inflate a flat line into a box.
+      expect(after.height, closeTo(0, 0.5));
+      await _flushAutosave(tester);
+    });
+
+    testWidgets('a move is a single undo step', (tester) async {
+      final container = await _pumpDrawing(tester, desktop);
+
+      await _selectTool(tester, 'Select');
+      await _tapCanvasAt(tester, (x: 180, y: 220));
+      final before = lineOf(container).bounds;
+
+      await dragCanvas(tester, (x: 180, y: 220), (x: 260, y: 300));
+      expect(lineOf(container).bounds, isNot(before));
+
+      await tester.tap(find.byTooltip('Undo'));
+      await tester.pumpAndSettle();
+
+      expect(lineOf(container).bounds, before);
+      await _flushAutosave(tester);
+    });
+  });
+
   group('a dimension can be measured after it is drawn', () {
     testWidgets('tapping a dimension with the select tool asks for the size',
         (tester) async {

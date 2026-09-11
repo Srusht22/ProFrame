@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../shared/models/design_document.dart';
+import '../../../shared/models/sketch.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../../../shared/widgets/responsive.dart';
 import '../../export/export_service.dart';
@@ -12,12 +13,13 @@ import '../../pricing/pricing_engine.dart';
 import '../../pricing/widgets/price_breakdown_view.dart';
 import '../../../core/services/providers.dart';
 import '../../rendering/widgets/model_3d_panel.dart';
+import '../../rendering/widgets/original_vs_result.dart';
 import '../../rendering/widgets/technical_drawing_view.dart';
 import '../state/design_session.dart';
 import '../widgets/region_properties_panel.dart';
 import '../widgets/version_history_sheet.dart';
 
-enum _ViewMode { drawing, model }
+enum _ViewMode { original, drawing, model }
 
 /// Where the generated product lives: the technical drawing, the real 3D
 /// model, the structure you can edit, and what it costs.
@@ -269,6 +271,11 @@ class _Viewer extends ConsumerWidget {
             showSelectedIcon: false,
             segments: const [
               ButtonSegment(
+                value: _ViewMode.original,
+                label: Text('Original'),
+                icon: Icon(Icons.compare, size: 18),
+              ),
+              ButtonSegment(
                 value: _ViewMode.drawing,
                 label: Text('Drawing'),
                 icon: Icon(Icons.architecture, size: 18),
@@ -284,7 +291,13 @@ class _Viewer extends ConsumerWidget {
           ),
         ),
         Expanded(
-          child: mode == _ViewMode.drawing
+          child: mode == _ViewMode.original
+              ? OriginalVsResult(
+                  sketch: session.document?.sketch ?? const Sketch(),
+                  model: model,
+                  structure: session.interpretation?.structure,
+                )
+              : mode == _ViewMode.drawing
               ? TechnicalDrawingView(
                   model: model,
                   selectedRegionId: session.selectedRegionId,
@@ -321,6 +334,7 @@ class _Viewer extends ConsumerWidget {
                   onStyleChanged: notifier.setRenderStyle,
                   onToggleDimensions: notifier.toggleDimensions,
                   onToggleAutoRotate: notifier.toggleAutoRotate,
+                  onSelectRegion: notifier.selectRegion,
                 ),
         ),
         if (session.isDirty)

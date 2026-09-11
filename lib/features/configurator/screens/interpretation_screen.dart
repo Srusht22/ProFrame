@@ -4,9 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../shared/models/interpretation.dart';
+import '../../../shared/models/sketch.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../../../shared/widgets/responsive.dart';
-import '../../rendering/painters/technical_drawing_painter.dart';
+import '../../rendering/widgets/original_vs_result.dart';
 import '../state/design_session.dart';
 
 /// "Understanding your design" — the app says exactly what it read from the
@@ -61,17 +62,22 @@ class InterpretationScreen extends ConsumerWidget {
       );
     }
 
-    final preview = AspectRatio(
-      aspectRatio: (model.widthMm / model.heightMm).clamp(0.4, 2.5),
-      child: AppCard(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        color: AppColors.neutralOffWhite,
-        child: CustomPaint(
-          painter: TechnicalDrawingPainter(
-            model: model,
-            showDimensions: true,
-            showLabels: false,
-          ),
+    final structure = session.interpretation?.structure;
+    final sketch = session.document?.sketch;
+
+    // The drawing and the result side by side: the user checks the app's work
+    // rather than being asked to trust it.
+    final preview = DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        child: OriginalVsResult(
+          sketch: sketch ?? const Sketch(),
+          model: model,
+          structure: structure,
         ),
       ),
     );
@@ -92,8 +98,12 @@ class InterpretationScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(AppSpacing.md),
           children: [
             _ConfidenceBanner(report: report),
+            if (structure != null) ...[
+              const SizedBox(height: AppSpacing.xs),
+              ComparisonSummary(structure: structure, model: model),
+            ],
             const SizedBox(height: AppSpacing.md),
-            preview,
+            SizedBox(height: 420, child: preview),
             const SizedBox(height: AppSpacing.md),
             details,
           ],
@@ -108,8 +118,12 @@ class InterpretationScreen extends ConsumerWidget {
                 child: Column(
                   children: [
                     _ConfidenceBanner(report: report),
+                    if (structure != null) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      ComparisonSummary(structure: structure, model: model),
+                    ],
                     const SizedBox(height: AppSpacing.md),
-                    Expanded(child: Center(child: preview)),
+                    Expanded(child: preview),
                   ],
                 ),
               ),

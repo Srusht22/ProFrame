@@ -130,11 +130,12 @@ class InterpretationService {
           ? 'You did not draw a closed outside shape, so the overall extent of '
               'what you drew was used as the frame. Check the size, or go back '
               'and draw the outline.'
-          : '${structure.rows.length} horizontal '
-          '${structure.rows.length == 1 ? 'band' : 'bands'}, '
-          '${structure.cellCount} ${structure.cellCount == 1 ? 'section' : 'sections'}, '
-          '${structure.mullionCount} vertical '
-          '${structure.mullionCount == 1 ? 'division' : 'divisions'}.',
+          : '${structure.sectionCount} '
+              '${structure.sectionCount == 1 ? 'section' : 'sections'}, '
+              '${structure.dividerCount} '
+              '${structure.dividerCount == 1 ? 'division' : 'divisions'} '
+              '(${structure.verticalDividerCount} vertical, '
+              '${structure.horizontalDividerCount} horizontal).',
     ));
     confidences.add(structure.outlineFromExtent ? 0.4 : 1);
 
@@ -186,22 +187,27 @@ class InterpretationService {
     }
 
     // Sections and their opening direction.
-    for (final row in structure.rows) {
-      for (final cell in row.cells) {
-        final cellId = 'r${cell.rowIndex}.c${cell.columnIndex}';
-        final confident = cell.confidence >= RecognitionThresholds.confident;
-        confidences.add(cell.confidence);
-        items.add(InterpretationItem(
-          id: 'cell.$cellId',
-          level: confident ? InterpretationLevel.recognised : InterpretationLevel.uncertain,
-          title: 'Section ${cell.rowIndex + 1}.${cell.columnIndex + 1}: '
-              '${cell.operation.label}',
-          detail: cell.evidence,
-          choices: confident
-              ? const []
-              : _operationChoices(cellId, model.kind, cell.operation),
-        ));
-      }
+    for (var i = 0; i < structure.sections.length; i++) {
+      final section = structure.sections[i];
+      final region = model.region(section.id);
+      final confident = section.confidence >= RecognitionThresholds.confident;
+      confidences.add(section.confidence);
+
+      final size = region == null
+          ? ''
+          : ' · ${region.rect.width.round()} × ${region.rect.height.round()} mm';
+
+      items.add(InterpretationItem(
+        id: 'cell.${section.id}',
+        level: confident ? InterpretationLevel.recognised : InterpretationLevel.uncertain,
+        title: section.drawnExplicitly
+            ? 'Section ${i + 1} you drew$size: ${section.operation.label}'
+            : 'Section ${i + 1}$size: ${section.operation.label}',
+        detail: section.evidence,
+        choices: confident
+            ? const []
+            : _operationChoices(section.id, model.kind, section.operation),
+      ));
     }
 
     // Dimension lines still waiting for a number.

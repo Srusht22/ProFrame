@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../shared/models/materials.dart';
 import '../../../shared/models/opening_model.dart';
 import '../../../shared/models/scene_3d.dart';
 import '../three_d/opening_3d_view.dart';
@@ -20,6 +21,10 @@ class Model3DPanel extends StatefulWidget {
   final VoidCallback? onToggleDimensions;
   final VoidCallback? onToggleAutoRotate;
 
+  /// A section the user tapped in the 3D view, so selection matches the 2D
+  /// drawing's behaviour.
+  final ValueChanged<String?>? onSelectRegion;
+
   const Model3DPanel({
     super.key,
     required this.model,
@@ -30,6 +35,7 @@ class Model3DPanel extends StatefulWidget {
     this.onStyleChanged,
     this.onToggleDimensions,
     this.onToggleAutoRotate,
+    this.onSelectRegion,
   });
 
   @override
@@ -41,11 +47,19 @@ class _Model3DPanelState extends State<Model3DPanel> {
   final SceneBuilder _builder = const SceneBuilder();
   late Scene3D _scene;
   CameraPreset _preset = CameraPreset.perspective;
+  TappedPart? _tapped;
 
   @override
   void initState() {
     super.initState();
     _scene = _builder.build(widget.model, style: widget.style);
+    _bridge.onPartTapped = (part) {
+      if (!mounted) return;
+      setState(() => _tapped = part.isNothing ? null : part);
+      // Frame parts do not belong to a section; tapping one clears the
+      // selection rather than picking an unrelated section.
+      widget.onSelectRegion?.call(part.cellPath);
+    };
   }
 
   @override
@@ -72,6 +86,19 @@ class _Model3DPanelState extends State<Model3DPanel> {
             showDimensions: widget.showDimensions,
           ),
         ),
+        if (_tapped != null)
+          Positioned(
+            left: AppSpacing.sm,
+            top: AppSpacing.sm,
+            child: _SelectionChip(
+              part: _tapped!,
+              model: widget.model,
+              onClear: () {
+                setState(() => _tapped = null);
+                widget.onSelectRegion?.call(null);
+              },
+            ),
+          ),
         Positioned(
           left: AppSpacing.sm,
           right: AppSpacing.sm,
@@ -196,6 +223,70 @@ class _Controls extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// "Selected: Glass · 1200 × 800 mm" — what the user just tapped in 3D.
+class _SelectionChip extends StatelessWidget {
+  final TappedPart part;
+  final OpeningModel model;
+  final VoidCallback onClear;
+
+  const _SelectionChip({
+    required this.part,
+    required this.model,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final region = part.cellPath == null ? null : model.region(part.cellPath!);
+    final detail = region != null
+        ? '${region.rect.width.round()} × ${region.rect.height.round()} mm'
+        : switch (part.role) {
+            'frameHead' || 'frameSill' || 'frameJambLeft' || 'frameJambRight' =>
+              '${model.frameFaceMm.round()} mm face · '
+                  '${model.frameDepthMm.round()} mm deep',
+            'mullion' || 'transom' => '${model.mullionFaceMm.round()} mm face',
+            _ => model.material.label,
+          };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.brandDarkGreen.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Selected: ${part.label}',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              Text(
+                detail,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: AppColors.textMuted),
+              ),
+            ],
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          InkWell(
+            onTap: onClear,
+            child: const Icon(Icons.close, size: 16, color: AppColors.textMuted),
           ),
         ],
       ),

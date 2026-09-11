@@ -1,64 +1,73 @@
 import '../../core/utilities/geometry_math.dart';
-import 'opening_model.dart';
+import 'opening_enums.dart';
 import 'primitives.dart';
 
-/// One aperture as found in the *drawing*, still in sketch coordinates.
-class StructureCell {
+/// One section as it appears in the *drawing*, still in sketch coordinates.
+///
+/// Sections are free-form rectangles, not grid cells. A divider that only
+/// crosses half the design produces exactly the sections that divider creates —
+/// no more, no fewer.
+class StructureSection {
+  final String id;
   final Box2 box;
-  final int rowIndex;
-  final int columnIndex;
   final CellOperation operation;
   final double confidence;
 
-  /// Plain-English reason the recogniser reached this reading, shown to the
-  /// user on the interpretation screen instead of an opaque result.
+  /// Plain-English reason for this reading, shown to the user rather than an
+  /// opaque result.
   final String evidence;
 
-  const StructureCell({
+  /// True when the user drew this section as a closed shape of its own, rather
+  /// than it falling out of where the dividing lines happen to cross.
+  final bool drawnExplicitly;
+
+  const StructureSection({
+    required this.id,
     required this.box,
-    required this.rowIndex,
-    required this.columnIndex,
     this.operation = CellOperation.fixed,
     this.confidence = 1.0,
     this.evidence = 'No opening marks found — read as a fixed section.',
+    this.drawnExplicitly = false,
   });
 
-  StructureCell copyWith({
+  StructureSection copyWith({
     CellOperation? operation,
     double? confidence,
     String? evidence,
   }) =>
-      StructureCell(
+      StructureSection(
+        id: id,
         box: box,
-        rowIndex: rowIndex,
-        columnIndex: columnIndex,
         operation: operation ?? this.operation,
         confidence: confidence ?? this.confidence,
         evidence: evidence ?? this.evidence,
+        drawnExplicitly: drawnExplicitly,
       );
 }
 
-/// A horizontal band of the drawing, with the vertical divisions found inside
-/// it. Mullions are tracked per band because a sketch very often has a full
-/// width transom light on top and divisions only in the band below.
-class StructureRow {
-  final Box2 box;
-  final List<double> mullionXs;
-  final List<StructureCell> cells;
+/// A dividing line the user actually drew, kept so the read-back can report
+/// how many divisions were found and so nothing is silently dropped.
+class StructureDivider {
+  final Box2 span;
+  final bool vertical;
 
-  const StructureRow({
-    required this.box,
-    required this.mullionXs,
-    required this.cells,
+  /// True when the divider runs the whole way across the design. A partial
+  /// divider is just as valid — it simply makes fewer sections.
+  final bool full;
+
+  const StructureDivider({
+    required this.span,
+    required this.vertical,
+    required this.full,
   });
 }
 
-/// The drawing understood as a grid — the last stage that still lives in
-/// sketch coordinates. [GeometryBuilder] converts it to millimetres.
+/// The drawing understood as a set of sections — the last stage that still
+/// lives in sketch coordinates. [GeometryBuilder] converts it to millimetres.
 class GeometryStructure {
   final Box2 outline;
-  final List<double> transomYs;
-  final List<StructureRow> rows;
+  final List<StructureSection> sections;
+  final List<StructureDivider> dividers;
   final List<DimensionPrimitive> dimensions;
   final List<NotePrimitive> notes;
 
@@ -69,8 +78,8 @@ class GeometryStructure {
 
   const GeometryStructure({
     required this.outline,
-    required this.transomYs,
-    required this.rows,
+    required this.sections,
+    this.dividers = const [],
     this.dimensions = const [],
     this.notes = const [],
     this.outlineFromExtent = false,
@@ -78,20 +87,19 @@ class GeometryStructure {
 
   static const GeometryStructure empty = GeometryStructure(
     outline: Box2(0, 0, 0, 0),
-    transomYs: [],
-    rows: [],
+    sections: [],
   );
 
-  bool get isEmpty => outline.width <= 0 || outline.height <= 0 || rows.isEmpty;
+  bool get isEmpty => outline.width <= 0 || outline.height <= 0 || sections.isEmpty;
 
-  List<StructureCell> get allCells =>
-      rows.expand((r) => r.cells).toList(growable: false);
+  int get sectionCount => sections.length;
+  int get dividerCount => dividers.length;
+  int get verticalDividerCount => dividers.where((d) => d.vertical).length;
+  int get horizontalDividerCount => dividers.where((d) => !d.vertical).length;
+  int get explicitSectionCount => sections.where((s) => s.drawnExplicitly).length;
+  int get openingCount => sections.where((s) => s.operation.isOperable).length;
 
-  int get cellCount => allCells.length;
-
-  int get mullionCount => rows.fold<int>(0, (sum, r) => sum + r.mullionXs.length);
-
-  /// Proportion of the drawn outline — used to sanity-check inferred sizes and
-  /// to keep the generated model faithful to what was drawn.
+  /// Proportion of the drawn outline, used to keep the generated product
+  /// faithful to what was drawn.
   double get aspectRatio => outline.height == 0 ? 1 : outline.width / outline.height;
 }

@@ -7,6 +7,48 @@ import '../../../shared/models/scene_3d.dart';
 
 typedef WebMessageSender = void Function(String action, Map<String, dynamic> data);
 
+/// What the user tapped in the 3D view.
+class TappedPart {
+  final String? role;
+  final String? cellPath;
+  final String? partId;
+
+  const TappedPart({this.role, this.cellPath, this.partId});
+
+  bool get isNothing => role == null;
+
+  /// The component's name in plain words, for "Selected: ...".
+  String get label => switch (role) {
+        null => 'Nothing',
+        'frameHead' => 'Frame — head',
+        'frameSill' => 'Frame — sill',
+        'frameJambLeft' => 'Frame — left jamb',
+        'frameJambRight' => 'Frame — right jamb',
+        'mullion' => 'Mullion',
+        'transom' => 'Transom',
+        'sashStile' => 'Sash stile',
+        'sashRail' => 'Sash rail',
+        'glazingBead' => 'Glazing bead',
+        'glass' => 'Glass',
+        'panel' => 'Panel',
+        'louvreBlade' => 'Louvre blade',
+        'mesh' => 'Insect mesh',
+        'hinge' => 'Hinge',
+        'handle' => 'Handle',
+        'handleRose' => 'Handle rose',
+        'lockCylinder' => 'Lock',
+        'threshold' => 'Threshold',
+        'windowSill' => 'Window sill',
+        _ => role!,
+      };
+
+  factory TappedPart.fromJson(Map<String, dynamic> json) => TappedPart(
+        role: json['role'] as String?,
+        cellPath: json['cellPath'] as String?,
+        partId: json['partId'] as String?,
+      );
+}
+
 /// Talks to `assets/web_3d/opening_engine.js`.
 ///
 /// One API, two transports: `evaluateJavascript` inside the WebView on
@@ -21,6 +63,10 @@ class SceneBridge {
 
   void Function(String pngDataUrl)? onSnapshot;
 
+  /// A part the user tapped in the 3D view. [cellPath] is null for parts that
+  /// belong to the frame rather than to a section.
+  void Function(TappedPart part)? onPartTapped;
+
   bool get isReady => _isReady;
 
   void attachController(InAppWebViewController controller) {
@@ -28,6 +74,16 @@ class SceneBridge {
     controller.addJavaScriptHandler(
       handlerName: 'onEngineReady',
       callback: (_) => markReady(),
+    );
+    controller.addJavaScriptHandler(
+      handlerName: 'onPartTapped',
+      callback: (args) {
+        if (args.isNotEmpty && args.first is Map) {
+          onPartTapped?.call(TappedPart.fromJson(Map<String, dynamic>.from(
+            args.first as Map,
+          )));
+        }
+      },
     );
     controller.addJavaScriptHandler(
       handlerName: 'onSnapshotData',

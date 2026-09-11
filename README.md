@@ -103,6 +103,39 @@ outside of the product, and half a bar on an edge shared with a neighbour. That
 is why sections specified as 400 + 1600 in a 2000 mm product still add up to
 exactly 2000 mm.
 
+### The drawing is read as a planar subdivision, not as a grid
+
+`StructureInterpreter` does not try to match the drawing against a row/column
+layout. Every line the user drew is treated as a **cut**, and the outline is
+subdivided by those cuts: the cut coordinates make a lattice of candidate
+cells, and two neighbouring cells are merged (union-find) unless a drawn line
+actually covers the boundary between them. Each merged group is then decomposed
+back into maximal rectangles.
+
+That is what makes a partial divider behave the way it was drawn. A line that
+stops halfway is a T-junction, and it stays a T-junction:
+
+```
+drawn                     a grid interpreter              ProFrame
+┌───────────────┐         ┌───────┬───────┐               ┌───────┬───────┐
+│               │         │       │       │               │       │       │
+├───────┬───────┤   →     ├───────┼───────┤        vs     ├───────┴───────┤
+│       │       │         │       │       │               │       │       │
+└───────┴───────┘         └───────┴───────┘               └───────┴───────┘
+                          invents the upper cut           3 sections, as drawn
+```
+
+The same mechanism is what makes a rectangle floating in the middle of the
+outline — touching no edge — come out as its own section, with the leftover area
+around it filled in as real sections rather than being discarded. Diagonals,
+arcs, arrows, dimensions and notes are never cuts, so an opening symbol cannot
+accidentally split a leaf.
+
+A section the user drew as a closed shape of its own but did not mark is not
+guessed at: it comes back at 0.6 confidence with *"You drew this section on its
+own but did not mark how it opens"*, which puts it in **Needs your answer** with
+real choices instead of silently becoming fixed glass.
+
 ---
 
 ## What the app does
@@ -119,6 +152,11 @@ exactly 2000 mm.
   it was drawn. Freehand and precision live side by side.
 - Undo/redo, eraser, select, duplicate, rotate — with the selection actions
   available on every screen size, not just where there is room for a panel.
+- **Move and resize what you drew.** With the select tool, drag inside the
+  selection to move a stroke and drag a corner grip to resize it; the opposite
+  corner stays anchored. Every step of a drag is computed from where the gesture
+  started, so dragging back and forth cannot accumulate drift, and the whole
+  gesture is a single undo step.
 - Tap a dimension with the select tool to set its measurement, or correct one
   already entered; everything derived from the drawing scale follows.
 
@@ -153,6 +191,21 @@ exactly 2000 mm.
   ones.
 - Camera presets (front, back, left, right, top, perspective), a Realistic /
   Technical view switch, 3D dimensions and auto-rotate.
+- **Tap a part in the 3D view** to select it. The renderer raycasts the actual
+  assembly, walks up from an edge overlay to the mesh that owns it, and reports
+  the part back to Flutter, which names it in plain words — *left sash stile*,
+  *glass*, *transom* — with its size and profile. A drag that orbited the camera
+  is not treated as a tap.
+
+**Original vs Result**
+
+- A third view puts **your drawing beside the generated model**, at the same
+  scale, so the comparison is visual and immediate.
+- Under it, a match checklist states the actual numbers: section count, divider
+  count, outline proportion, and the drawn-versus-built position of every
+  section. Anything that drifted is named, with the difference, rather than
+  being smoothed over. A compact banner carries the same verdict on the smaller
+  layouts.
 
 **Editing — every part of it, two ways**
 
@@ -268,9 +321,10 @@ lib/
                   handwriting seam, interpretation service
     dimensions/   scale calibration, dimension resolution, measurement dialogs
     geometry/     free-form region model, solver, editor, validator,
-                  selector and the instruction parser
+                  selector, drawn-vs-built comparator, instruction parser
     configurator/ session state, interpretation screen, structure editor
-    rendering/    2D technical painter, Dart SceneBuilder, three.js bridge/viewer
+    rendering/    2D technical painter, Dart SceneBuilder, three.js bridge/viewer,
+                  Original vs Result comparison
     pricing/      rates, geometry-driven pricing engine, breakdown UI
     projects/     design library, repository, home screen
     export/       PNG / PDF / project file, cross-platform save & share
@@ -315,7 +369,7 @@ Verification:
 
 ```bash
 flutter analyze              # no issues
-flutter test                 # 209 tests
+flutter test                 # 240 tests
 flutter build web --release
 ```
 
@@ -342,6 +396,13 @@ A whole group exists purely to prove the app does not redesign anything:
   design, and its suggested fix only applies when it is asked for
 - the spoken instructions from the brief, run in order, produce the same
   geometry as authoring it by hand
+- a divider drawn only halfway stays a T-junction and is never completed into a
+  full cross
+- a rectangle floating inside the outline becomes its own section, and the app
+  asks what it is instead of deciding
+- moving a stroke on the canvas does not resize it, resizing from a corner keeps
+  the opposite corner fixed, and dragging away and back leaves the stroke
+  exactly where it was
 
 ---
 

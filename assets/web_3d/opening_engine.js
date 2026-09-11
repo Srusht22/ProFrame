@@ -16,6 +16,7 @@
   var container, renderer, scene, camera, controls, pmrem, envTexture;
   var productGroup, dimensionGroup, groundPlane;
   var currentScene = null;
+  var raycaster, pointerVector, pointerDownAt;
   var currentStyle = 'realistic';
   var showDimensions = false;
   var autoRotate = false;
@@ -58,6 +59,9 @@
     controls.maxDistance = 40;
     controls.target.set(0, 0, 0);
 
+    raycaster = new THREE.Raycaster();
+    pointerVector = new THREE.Vector2();
+
     buildLighting();
     buildEnvironment();
 
@@ -69,6 +73,13 @@
 
     window.addEventListener('resize', onResize);
     window.addEventListener('message', onHostMessage);
+
+    // Tapping a part selects it. Orbiting must not count as a tap, so the
+    // pointer has to come up close to where it went down.
+    renderer.domElement.addEventListener('pointerdown', function (event) {
+      pointerDownAt = { x: event.clientX, y: event.clientY };
+    });
+    renderer.domElement.addEventListener('pointerup', onPointerUp);
 
     animate();
     notifyFlutter('onEngineReady', { ok: true });
@@ -214,6 +225,7 @@
     mesh.castShadow = part.role !== 'glass';
     mesh.receiveShadow = true;
     mesh.userData.role = part.role;
+    mesh.userData.partId = part.id;
     mesh.userData.cellPath = part.cellPath || null;
     mesh.userData.materialKey = part.material;
 
@@ -337,6 +349,39 @@
     ctx.arcTo(x, y + h, x, y, r);
     ctx.arcTo(x, y, x + w, y, r);
     ctx.closePath();
+  }
+
+  // ----------------------------------------------------------------- picking
+
+  function onPointerUp(event) {
+    var start = pointerDownAt;
+    pointerDownAt = null;
+    if (!start) return;
+    var dx = event.clientX - start.x;
+    var dy = event.clientY - start.y;
+    if (Math.sqrt(dx * dx + dy * dy) > 5) return; // that was an orbit, not a tap
+
+    var rect = renderer.domElement.getBoundingClientRect();
+    pointerVector.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointerVector.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointerVector, camera);
+
+    var hits = raycaster.intersectObjects(productGroup.children, true);
+    if (!hits.length) {
+      notifyFlutter('onPartTapped', { role: null, cellPath: null, partId: null });
+      return;
+    }
+
+    // Edge overlays are children of their mesh, so walk up to the part itself.
+    var object = hits[0].object;
+    while (object && !object.userData.role && object.parent) {
+      object = object.parent;
+    }
+    notifyFlutter('onPartTapped', {
+      role: object.userData.role || null,
+      cellPath: object.userData.cellPath || null,
+      partId: object.userData.partId || null
+    });
   }
 
   // ------------------------------------------------------------------ camera
