@@ -20,7 +20,7 @@ class WorkspaceScaffold extends StatefulWidget {
   /// The main workspace — the drawing canvas or the 3D view.
   final Widget canvas;
 
-  /// Section properties and measurements. A bottom sheet when compact.
+  /// Panel properties and measurements. A bottom sheet when compact.
   final Widget properties;
 
   /// Shown across the bottom on every size: the primary actions the spec

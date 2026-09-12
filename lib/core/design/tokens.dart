@@ -82,6 +82,43 @@ abstract final class AppSizing {
   const AppSizing._();
 }
 
+/// Line weights and hit sizes for the drawing canvas, in logical pixels.
+///
+/// Here rather than in the painter so the canvas has no magic numbers in it
+/// (spec section 7), and so the painter and the hit-testing agree by
+/// construction rather than by two people remembering the same figure.
+abstract final class AppCanvasMetrics {
+  /// Wet ink, before the stroke has been read.
+  static const double inkWidth = 3;
+
+  /// The frame, once recognised and snapped.
+  static const double frameWidth = 4;
+
+  /// A mullion or transom.
+  static const double dividerWidth = 3;
+
+  /// A selected divider, thickened so the selection is not colour-only.
+  static const double selectedDividerWidth = 6;
+
+  /// How near a finger has to land to grab a divider.
+  static const double dividerGrabRadius = 24;
+
+  /// Dimension line weight and the length of its end ticks.
+  static const double dimensionWidth = 1.5;
+  static const double dimensionTick = 6;
+
+  /// Gap between the frame and its dimension line.
+  static const double dimensionOffset = 28;
+
+  /// The note marker drawn in the corner of a panel that has one.
+  static const double noteMarkerRadius = 11;
+
+  /// The opening symbol drawn inside a Z panel.
+  static const double openingSymbolInset = 14;
+
+  const AppCanvasMetrics._();
+}
+
 abstract final class AppDurations {
   static const Duration fast = Duration(milliseconds: 120);
   static const Duration medium = Duration(milliseconds: 240);

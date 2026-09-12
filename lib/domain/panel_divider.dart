@@ -7,7 +7,7 @@ import 'geometry/polygon.dart';
 /// that spans only part of the frame — a transom over two bays of a five-bay
 /// window — is an ordinary divider rather than a special case
 /// (spec section 4).
-class Divider {
+class PanelDivider {
   final String id;
   final Point2 start;
   final Point2 end;
@@ -17,7 +17,7 @@ class Divider {
   /// another divider, forming a T-junction.
   final bool spansFullFrame;
 
-  const Divider({
+  const PanelDivider({
     required this.id,
     required this.start,
     required this.end,
@@ -36,7 +36,7 @@ class Divider {
   /// A divider the user drew at an angle. Kept as drawn; never levelled.
   bool get isSloping => orientation == EdgeOrientation.sloping;
 
-  Divider copyWith({Point2? start, Point2? end, bool? spansFullFrame}) => Divider(
+  PanelDivider copyWith({Point2? start, Point2? end, bool? spansFullFrame}) => PanelDivider(
         id: id,
         start: start ?? this.start,
         end: end ?? this.end,
@@ -45,7 +45,7 @@ class Divider {
 
   @override
   bool operator ==(Object other) =>
-      other is Divider &&
+      other is PanelDivider &&
       other.id == id &&
       other.start == start &&
       other.end == end &&
@@ -56,7 +56,7 @@ class Divider {
 
   @override
   String toString() =>
-      'Divider($id, ${orientation.name}, $start -> $end, '
+      'PanelDivider($id, ${orientation.name}, $start -> $end, '
       '${spansFullFrame ? 'full' : 'partial'})';
 
   Map<String, dynamic> toJson() => {
@@ -66,13 +66,13 @@ class Divider {
         'full': spansFullFrame,
       };
 
-  static Divider fromJson(Object? json, {String path = 'divider'}) {
+  static PanelDivider fromJson(Object? json, {String path = 'divider'}) {
     if (json is! Map) throw FormatException('$path must be an object, got $json');
     final id = json['id'];
     if (id is! String || id.isEmpty) {
       throw FormatException('$path.id must be a non-empty string, got $id');
     }
-    return Divider(
+    return PanelDivider(
       id: id,
       start: Point2.fromJson(json['start'], path: '$path.start'),
       end: Point2.fromJson(json['end'], path: '$path.end'),

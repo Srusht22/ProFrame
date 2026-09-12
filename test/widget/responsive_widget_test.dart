@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/app.dart';
+import 'package:proframe/app/canvas/drawing_canvas.dart';
 import 'package:proframe/app/widgets/workspace_scaffold.dart';
 import 'package:proframe/core/design/app_theme.dart';
 import 'package:proframe/core/design/tokens.dart';
@@ -130,7 +131,7 @@ void main() {
       );
     });
 
-    testWidgets('a complete choice creates a real design', (tester) async {
+    testWidgets('a complete choice opens the drawing canvas', (tester) async {
       await pumpApp(tester, const Size(1440, 900));
 
       await tester.tap(find.text('Window'));
@@ -140,10 +141,9 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Start drawing'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Design created'), findsOneWidget);
-      expect(find.text('Window'), findsWidgets);
-      // The design states what is still missing rather than implying it is
-      // ready (spec section 2).
+      expect(find.byType(DrawingCanvas), findsOneWidget);
+      // The summary states what is still missing rather than implying the
+      // design is ready (spec section 2).
       expect(find.text('Still to confirm'), findsOneWidget);
       expect(
         find.textContaining('has not been interpreted'),
@@ -159,7 +159,7 @@ void main() {
             title: 'Workspace',
             tools: [Icon(Icons.edit), Icon(Icons.straighten)],
             canvas: ColoredBox(color: AppColors.canvasSurface),
-            properties: Text('Section properties'),
+            properties: Text('Panel properties'),
           ),
         );
 
@@ -168,13 +168,13 @@ void main() {
       await tester.pumpWidget(shell());
       await tester.pumpAndSettle();
 
-      expect(find.text('Section properties'), findsNothing);
+      expect(find.text('Panel properties'), findsNothing);
       expect(find.text('Properties'), findsOneWidget);
 
       await tester.tap(find.text('Properties'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Section properties'), findsOneWidget);
+      expect(find.text('Panel properties'), findsOneWidget);
     });
 
     testWidgets('expanded shows the panel alongside the canvas',
@@ -184,7 +184,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // No button needed: the panel is simply there.
-      expect(find.text('Section properties'), findsOneWidget);
+      expect(find.text('Panel properties'), findsOneWidget);
       expect(find.text('Properties'), findsNothing);
     });
 
@@ -194,12 +194,12 @@ void main() {
       await tester.pumpWidget(shell());
       await tester.pumpAndSettle();
 
-      expect(find.text('Section properties'), findsOneWidget);
+      expect(find.text('Panel properties'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Hide properties'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Section properties'), findsNothing);
+      expect(find.text('Panel properties'), findsNothing);
     });
 
     testWidgets('a landscape phone drops the app bar to save height',
@@ -221,7 +221,8 @@ void main() {
     });
   });
 
-  testWidgets('rotating the device does not change the design', (tester) async {
+  testWidgets('rotating the device keeps the canvas and the design',
+      (tester) async {
     await pumpApp(tester, const Size(1440, 900));
 
     await tester.tap(find.text('Window'));
@@ -231,17 +232,16 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Start drawing'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Design created'), findsOneWidget);
-    expect(find.text('PVC'), findsOneWidget);
+    expect(find.byType(DrawingCanvas), findsOneWidget);
 
     // Rotate to portrait.
     tester.view.physicalSize = const Size(900, 1440);
     await tester.pumpAndSettle();
 
-    // Same design, same choices, no exception. Model dimensions are in
-    // millimetres and independent of the screen (spec section 8).
-    expect(find.text('Design created'), findsOneWidget);
-    expect(find.text('PVC'), findsOneWidget);
+    // Still the same design, on the same canvas, with no exception. Model
+    // dimensions are millimetres and independent of the screen
+    // (spec section 8).
+    expect(find.byType(DrawingCanvas), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

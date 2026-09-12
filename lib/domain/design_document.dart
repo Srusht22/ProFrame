@@ -1,12 +1,12 @@
 import '../core/errors/app_exception.dart';
 import '../core/units/length_unit.dart';
-import 'divider.dart';
 import 'geometry/polygon.dart';
 import 'measurement.dart';
+import 'panel.dart';
+import 'panel_divider.dart';
 import 'product/finish.dart';
 import 'product/product_basics.dart';
 import 'product/profile_system.dart';
-import 'section.dart';
 import 'sketch.dart';
 
 /// The one source of truth for a design (spec section 5).
@@ -35,7 +35,7 @@ class DesignDocument {
   final Finish finish;
 
   /// Which side of the product the elevation is drawn from. Every hinge side
-  /// in [sections] is relative to this (spec section 3C).
+  /// in [panels] is relative to this (spec section 3C).
   final ViewingSide viewedFrom;
 
   /// What the entered overall width and height refer to (spec section 3D).
@@ -55,8 +55,8 @@ class DesignDocument {
   /// interpreted.
   final Polygon? outline;
 
-  final List<Divider> dividers;
-  final List<Section> sections;
+  final List<PanelDivider> dividers;
+  final List<Panel> panels;
 
   /// Overall size. Null means nobody has said yet, which is different from an
   /// estimate — see [Measurement].
@@ -65,6 +65,13 @@ class DesignDocument {
 
   /// The original ink, kept for the life of the design.
   final Sketch sketch;
+
+  /// Free text about the design as a whole — general remarks, customer
+  /// requests (spec Phase 2, item 6).
+  ///
+  /// Separate from a panel's own note: this one belongs to the job, not to any
+  /// one pane, and appears on the summary and in exports.
+  final String designNote;
 
   DesignDocument({
     required this.id,
@@ -82,10 +89,11 @@ class DesignDocument {
     this.displayUnit = LengthUnit.millimetre,
     this.outline,
     this.dividers = const [],
-    this.sections = const [],
+    this.panels = const [],
     this.overallWidth,
     this.overallHeight,
     this.sketch = const Sketch(),
+    this.designNote = '',
   });
 
   /// A new, empty design. The profile defaults to the factory default for the
@@ -113,15 +121,15 @@ class DesignDocument {
   // -- completeness ---------------------------------------------------------
 
   /// True once the drawing has been interpreted into a layout.
-  bool get hasLayout => outline != null && sections.isNotEmpty;
+  bool get hasLayout => outline != null && panels.isNotEmpty;
 
   /// Dimensions the user has actually confirmed.
   bool get hasConfirmedSize =>
       (overallWidth?.isConfirmed ?? false) && (overallHeight?.isConfirmed ?? false);
 
-  /// Sections still waiting for the user to say how they open.
-  List<Section> get sectionsNeedingOpeningConfirmation =>
-      sections.where((s) => s.needsOpeningConfirmation).toList();
+  /// Panels still waiting for the user to say how they open.
+  List<Panel> get panelsNeedingOpeningConfirmation =>
+      panels.where((s) => s.needsOpeningConfirmation).toList();
 
   /// Everything still unconfirmed, in plain language. The 3D preview shows
   /// this list rather than implying the model is final (spec section 2).
@@ -135,8 +143,8 @@ class DesignDocument {
           'The overall height has not been entered.'
         else if (!overallHeight!.isConfirmed)
           'The overall height is ${overallHeight!.source.name}, not confirmed.',
-        for (final section in sectionsNeedingOpeningConfirmation)
-          'Section ${section.label.isEmpty ? section.id : section.label} '
+        for (final panel in panelsNeedingOpeningConfirmation)
+          'Panel ${panel.label.isEmpty ? panel.id : panel.label} '
               'opens, but the hinge side has not been confirmed.',
       ];
 
@@ -147,13 +155,13 @@ class DesignDocument {
   /// production data (spec section 6).
   bool get isFullyConfirmed => hasLayout && outstandingQuestions.isEmpty;
 
-  int get fixedSectionCount =>
-      sections.where((s) => s.behaviour.isFixed).length;
-  int get openingSectionCount =>
-      sections.where((s) => s.behaviour.isOpening).length;
+  int get fixedPanelCount =>
+      panels.where((s) => s.behaviour.isFixed).length;
+  int get openingPanelCount =>
+      panels.where((s) => s.behaviour.isOpening).length;
 
-  Section? sectionById(String sectionId) =>
-      sections.where((s) => s.id == sectionId).firstOrNull;
+  Panel? panelById(String panelId) =>
+      panels.where((s) => s.id == panelId).firstOrNull;
 
   // -- editing --------------------------------------------------------------
 
@@ -169,11 +177,12 @@ class DesignDocument {
     double? fittingGapMm,
     LengthUnit? displayUnit,
     Polygon? outline,
-    List<Divider>? dividers,
-    List<Section>? sections,
+    List<PanelDivider>? dividers,
+    List<Panel>? panels,
     Measurement? overallWidth,
     Measurement? overallHeight,
     Sketch? sketch,
+    String? designNote,
   }) =>
       DesignDocument(
         id: id,
@@ -191,18 +200,34 @@ class DesignDocument {
         displayUnit: displayUnit ?? this.displayUnit,
         outline: outline ?? this.outline,
         dividers: dividers ?? this.dividers,
-        sections: sections ?? this.sections,
+        panels: panels ?? this.panels,
         overallWidth: overallWidth ?? this.overallWidth,
         overallHeight: overallHeight ?? this.overallHeight,
         sketch: sketch ?? this.sketch,
+        designNote: designNote ?? this.designNote,
       );
 
-  /// Replaces one section, keeping its position in the list and every other
-  /// section untouched.
-  DesignDocument withSection(Section replacement) => copyWith(
-        sections: [
-          for (final section in sections)
-            section.id == replacement.id ? replacement : section,
+  /// True when there is a design note worth showing an indicator for.
+  bool get hasDesignNote => designNote.trim().isNotEmpty;
+
+  /// Every note in the design, panel notes included, for the summary and for
+  /// exports. Panels are named by label where they have one.
+  List<({String source, String text})> get allNotes => [
+        if (hasDesignNote) (source: 'Design', text: designNote.trim()),
+        for (final panel in panels)
+          if (panel.hasNote)
+            (
+              source: panel.label.isEmpty ? 'Panel ${panel.id}' : panel.label,
+              text: panel.note.trim(),
+            ),
+      ];
+
+  /// Replaces one panel, keeping its position in the list and every other
+  /// panel untouched.
+  DesignDocument withPanel(Panel replacement) => copyWith(
+        panels: [
+          for (final panel in panels)
+            panel.id == replacement.id ? replacement : panel,
         ],
       );
 
@@ -241,10 +266,11 @@ class DesignDocument {
         'displayUnit': displayUnit.name,
         if (outline != null) 'outline': outline!.toJson(),
         'dividers': [for (final d in dividers) d.toJson()],
-        'sections': [for (final s in sections) s.toJson()],
+        'panels': [for (final s in panels) s.toJson()],
         if (overallWidth != null) 'overallWidth': overallWidth!.toJson(),
         if (overallHeight != null) 'overallHeight': overallHeight!.toJson(),
         'sketch': sketch.toJson(),
+        if (designNote.isNotEmpty) 'designNote': designNote,
       };
 
   /// Reads a saved project.
@@ -316,15 +342,16 @@ class DesignDocument {
       }
 
       final rawDividers = json['dividers'];
-      final rawSections = json['sections'];
+      final rawPanels = json['panels'];
       if (rawDividers is! List) {
         throw FormatException('dividers must be a list, got $rawDividers');
       }
-      if (rawSections is! List) {
-        throw FormatException('sections must be a list, got $rawSections');
+      if (rawPanels is! List) {
+        throw FormatException('panels must be a list, got $rawPanels');
       }
 
       final gap = json['fittingGapMm'];
+      final designNote = json['designNote'];
       final outlineJson = json['outline'];
       final widthJson = json['overallWidth'];
       final heightJson = json['overallHeight'];
@@ -348,11 +375,11 @@ class DesignDocument {
             : Polygon.fromJson(outlineJson, path: 'outline'),
         dividers: [
           for (var i = 0; i < rawDividers.length; i++)
-            Divider.fromJson(rawDividers[i], path: 'dividers[$i]'),
+            PanelDivider.fromJson(rawDividers[i], path: 'dividers[$i]'),
         ],
-        sections: [
-          for (var i = 0; i < rawSections.length; i++)
-            Section.fromJson(rawSections[i], path: 'sections[$i]'),
+        panels: [
+          for (var i = 0; i < rawPanels.length; i++)
+            Panel.fromJson(rawPanels[i], path: 'panels[$i]'),
         ],
         overallWidth: widthJson == null
             ? null
@@ -367,6 +394,7 @@ class DesignDocument {
                 path: 'overallHeight',
               ),
         sketch: Sketch.fromJson(json['sketch'] ?? const {'strokes': <Object?>[]}),
+        designNote: designNote is String ? designNote : '',
       );
     } on FormatException catch (error) {
       throw DesignDataException(
@@ -379,7 +407,7 @@ class DesignDocument {
       );
     } on ArgumentError catch (error) {
       throw DesignDataException(
-        'This project contains an inconsistent section: ${error.message}',
+        'This project contains an inconsistent panel: ${error.message}',
       );
     }
   }
@@ -397,7 +425,7 @@ class DesignDocument {
 
   @override
   String toString() => 'DesignDocument($id, "$name", ${category.name}, '
-      '${sections.length} sections)';
+      '${panels.length} panels)';
 }
 
 extension<T> on Iterable<T> {

@@ -86,7 +86,7 @@ class Polygon {
       );
     }
     final polygon = Polygon._(List.unmodifiable(cleaned));
-    if (polygon.area.abs() < Tolerances.minimumSectionAreaMmSq) {
+    if (polygon.area.abs() < Tolerances.minimumPanelAreaMmSq) {
       throw const GeometryException('This outline encloses no usable area.');
     }
     if (polygon._selfIntersects()) {

@@ -1,4 +1,4 @@
-/// What fills a section: glass or a solid panel.
+/// What fills a panel: glass or a solid infill board.
 sealed class Infill {
   /// Overall thickness in millimetres, used by the 3D generator and checked
   /// against the profile's glazing rebate.

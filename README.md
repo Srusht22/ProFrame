@@ -10,17 +10,18 @@ into a parametric product they can measure, assign, edit and save.
 
 ---
 
-## Status: Phase 1 of 6
+## Status: Phase 2 of 6
 
-This repository is at the **end of Phase 1**. What that means concretely is set
-out in [Phase 1 — what works](#phase-1--what-works) and
-[What is not built yet](#what-is-not-built-yet). Nothing below describes a
-feature that does not exist.
+This repository is at the **end of Phase 2**. What that means concretely is set
+out in [What works](#what-works) and [What is not built yet](#what-is-not-built-yet).
+Nothing below describes a feature that does not exist.
+
+The full requirements live in [SPEC.md](SPEC.md).
 
 | Phase | Scope | State |
 | --- | --- | --- |
 | 1 | Project skeleton, theme, responsive system, domain models + tests | **Done** |
-| 2 | Drawing canvas, stroke classification, recognition pipeline | Not started |
+| 2 | Smart drawing canvas, stroke classification, panel and dimension logic | **Done** |
 | 3 | 3D viewer with open/close animation | Not started |
 | 4 | Persistence and the saved-designs list | Not started |
 | 5 | PDF export and cutting list | Not started |
@@ -163,15 +164,69 @@ so rotating the device or resizing the window cannot change the geometry.
 
 ---
 
-## Phase 1 — what works
+## What works
 
-Run it and you can: choose Door or Window, choose PVC or Aluminium, pick a
-product colour, see the factory-default profile system pre-selected for that
-material, read the warning that the shipped profiles are generic previews, and
-create a real `DesignDocument` — which then lists, in plain language, every
-question still outstanding.
+Run it and you can go from two taps to a measured, assigned design: choose Door
+or Window and PVC or Aluminium, pick a product colour, then **draw the thing
+with your finger** — a rough box becomes the frame, a stroke down the middle
+becomes a mullion, a `>` inside a panel makes it open — type the real sizes in
+centimetres, set each panel to CH or Z, and add notes. The summary beside the
+canvas empties out as you answer its questions.
 
-Concretely, and verified by tests:
+### Phase 2 — the smart canvas
+
+**Reading the drawing.** `StrokeClassifier` is deterministic, rule-based and
+pure Dart. Five outcomes, checked in order: a closed-ish loop with about four
+corners is the frame; a chevron inside a panel opens it; a mostly-vertical
+stroke is a mullion; a mostly-horizontal one is a transom; anything else is
+dropped silently. There is no model, no network call and no randomness — these
+users were promised a tool, and a wrong guess changes a product somebody
+builds.
+
+The chevron is tested **before** the straight lines, because a `<` is two
+segments and a divider is one; checking the line first would match a chevron's
+first leg.
+
+**Two tolerances, on purpose.** Reading a rough gesture and measuring a product
+are different problems, so they have separate numbers:
+
+| Tolerance | Value | Governs |
+| --- | --- | --- |
+| `axisAlignmentDegrees` | 5° | Whether a **frame edge** is a deliberate slope. Being wrong scraps a frame. |
+| `dividerAxisDominance` | 2.0 (≈26°) | Whether a **gesture** meant vertical or horizontal. Being wrong costs one undo. |
+
+A stroke that leans genuinely diagonal is **discarded**, not snapped to
+whichever axis it happens to favour — snapping it would invent a divider the
+user did not draw.
+
+**Panels split proportionally.** A divider drawn a third of the way across
+makes a panel a third as wide. Equal panels happen only when asked for. When
+the real width arrives the whole design rescales about its top-left corner, so
+the proportions drawn by hand survive into millimetres exactly.
+
+**Splitting creates new panels.** The original panel's id does not survive a
+split, and a merge creates a third new id. Pretending one half is the old panel
+would make a CH/Z choice silently apply to something the user never assigned.
+
+**Widths always sum.** Tap any dimension label — total width, total height, or
+a panel's own width — and type it in centimetres. The panel to the right
+absorbs the change (the left-hand one for the last panel in a row, which has no
+right-hand neighbour), and the outcome names which panel moved. A width that
+will not fit is **refused with an explanation and nothing changes**; it is
+never quietly clamped to a number the user did not type.
+
+**Notes.** Free text on any panel and on the design as a whole, deliberately
+unconstrained — the factory's shorthand is Arabic, Kurdish or its own, and a
+note the app cannot parse is still one a fabricator can read. A panel with a
+note shows a marker on the canvas.
+
+**Undo covers everything.** The whole design is one immutable value, so history
+is a stack of documents rather than a log of reversible operations — there is
+no way for an action to be half-undone.
+
+### Phase 1 — foundations
+
+Verified by tests:
 
 - **Domain model.** `DesignDocument` with a schema version, `Measurement` with
   provenance, `Polygon` with validation, `Section` with CH/Z integrity,
@@ -197,11 +252,16 @@ Concretely, and verified by tests:
 Stated plainly, because a screen that pretends to be finished is exactly what
 this project is not doing.
 
-- **There is no drawing canvas.** Phase 1 ends at the point where a
-  `DesignDocument` exists. The app says so on screen rather than showing a
-  canvas that does not work.
-- **There is no recognition pipeline, no 3D, no persistence, no export, and no
-  localisation.** Those are Phases 2–6.
+- **There is no 3D view, no persistence, no export and no localisation.** Those
+  are Phases 3–6. A design exists only while the app is open — closing it loses
+  the work, because saving is Phase 4.
+- **Only fixed and hinged.** `OpeningMechanism` contains exactly one value.
+  Sliding and tilt are **absent, not greyed out**, and the panel sheet says so
+  in one line. They arrive in Phase 3 with their geometry and their tests.
+- **Curves, sloping tops and partial transoms are modelled but not yet
+  drawable.** The domain supports all three; the Phase 2 classifier reads
+  rectangles, full dividers and chevrons only. A curve is discarded, never
+  silently straightened.
 - **No manufacturer profile data.** The two systems in `GenericProfiles` are
   clearly labelled generic previews with their assumptions written out in full.
   They are not any manufacturer's product.
@@ -224,7 +284,7 @@ Everything below was executed in this environment, with the results shown.
 | Check | Result |
 | --- | --- |
 | `flutter analyze` | **No issues found** |
-| `flutter test` | **97 tests, all passing** |
+| `flutter test` | **175 tests, all passing** |
 | `flutter build web --release` | **Succeeds** |
 | Android build | **Not verified** — no Android SDK in this environment |
 | iOS build | **Not verified** — requires macOS and Xcode |
@@ -261,10 +321,18 @@ flutter build web --release
 | `test/core/window_size_test.dart` | Breakpoints, landscape phones, constraint-derived sizing |
 | `test/core/theme_test.dart` | Exact brand colours, WCAG contrast, 48dp touch targets |
 | `test/architecture_test.dart` | Domain has no Flutter, no colour literals, `main.dart` stays wiring |
+| `test/domain/recognition/stroke_classifier_test.dart` | The five outcomes, on deliberately wobbly hand-drawn input |
+| `test/domain/layout/panel_math_test.dart` | Proportional splitting, width solving, refusals, equal distribution |
+| `test/domain/layout/design_builder_test.dart` | Intents applied to the document, rescaling, the live summary |
+| `test/widget/canvas_widget_test.dart` | Drawing through the real canvas, undo/redo, labels, notes, rotation |
 | `test/widget/responsive_widget_test.dart` | Every size and orientation, large text, the create-a-design flow |
 
 Run one file with `flutter test test/domain/measurement_test.dart`, or one test
 with `--plain-name "a sloping-top frame keeps both side heights exactly"`.
+
+The classifier tests build their input with a seeded `handDrawn` helper that
+adds real wobble to every stroke, so they exercise rough input rather than
+perfect input.
 
 ---
 

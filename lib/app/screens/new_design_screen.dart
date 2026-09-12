@@ -75,7 +75,7 @@ class _NewDesignScreenState extends State<NewDesignScreen> {
         body: SafeArea(
           child: ResponsiveBuilder(
             builder: (context, size) {
-              final content = _Sections(
+              final content = _Choices(
                 category: _category,
                 material: _material,
                 finish: _finish,
@@ -111,7 +111,7 @@ class _NewDesignScreenState extends State<NewDesignScreen> {
       );
 }
 
-class _Sections extends StatelessWidget {
+class _Choices extends StatelessWidget {
   final ProductCategory? category;
   final FrameMaterial? material;
   final Finish finish;
@@ -122,7 +122,7 @@ class _Sections extends StatelessWidget {
   final ValueChanged<ProfileSystem> onProfile;
   final bool twoColumn;
 
-  const _Sections({
+  const _Choices({
     required this.category,
     required this.material,
     required this.finish,

@@ -1,7 +1,7 @@
 import 'product_basics.dart';
 
-/// What a section does, using the factory's own labels (spec section 3C).
-enum SectionBehaviour {
+/// What a panel does, using the factory's own labels (spec section 3C).
+enum PanelBehaviour {
   /// CH — fixed. Does not open.
   fixed('CH', 'Fixed', 'Does not open.'),
 
@@ -14,13 +14,13 @@ enum SectionBehaviour {
   final String label;
   final String description;
 
-  const SectionBehaviour(this.code, this.label, this.description);
+  const PanelBehaviour(this.code, this.label, this.description);
 
-  bool get isFixed => this == SectionBehaviour.fixed;
-  bool get isOpening => this == SectionBehaviour.opening;
+  bool get isFixed => this == PanelBehaviour.fixed;
+  bool get isOpening => this == PanelBehaviour.opening;
 }
 
-/// How an opening section moves.
+/// How an opening panel moves.
 ///
 /// This enum contains exactly one value on purpose. The specification requires
 /// fixed and hinged in the first complete implementation, and requires that
@@ -70,10 +70,10 @@ enum OpeningDirection {
   const OpeningDirection(this.label);
 }
 
-/// The full opening specification for a Z section.
+/// The full opening specification for a Z panel.
 ///
-/// A fixed (CH) section has none of this: the absence of an [OpeningSpec] is
-/// what makes it fixed, so there is no way to have a section that is fixed and
+/// A fixed (CH) panel has none of this: the absence of an [OpeningSpec] is
+/// what makes it fixed, so there is no way to have a panel that is fixed and
 /// carries a stale hinge side at the same time.
 class OpeningSpec {
   final OpeningMechanism mechanism;
