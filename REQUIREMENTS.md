@@ -121,6 +121,7 @@ screenshot looking right.
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
+| The app opens with no internet | **Verified** | The web build used to fetch its renderer from Google's CDN at startup. `web/flutter_bootstrap.js` now points it at the copy in the bundle, and the app was loaded in a browser with every Google host blocked |
 | English, Arabic and Kurdish (Sorani) | **Verified** | `localisation_test.dart` — every phrase exists in every language, none blank, none left in English; `language_widget_test.dart` switches the running app |
 | Right-to-left layout, not only right-to-left words | **Verified** | `language_widget_test.dart` asserts the app's `Directionality` follows the language; the PDF sheet mirrors too |
 | Western or Arabic-Indic numerals, chosen separately | **Verified** | `localisation_test.dart`; either set can always be typed, whatever the setting |
@@ -228,3 +229,4 @@ The 16-step main scenario runs as one test: `test/integration/acceptance_test.da
 | **The share sheet** | `share_plus` needs a platform channel | Tap any export on a device; in tests the delivery is captured instead |
 | **File picking for import** | `file_selector` needs a platform channel | Tap "Open a project file" on a device |
 | **The golden image on other platforms** | Rasterised on Linux; font hinting differs | `flutter test --update-goldens` on that machine |
+| **The Arabic and Kurdish screens as a picture** | The web build runs in this container's headless Chromium and was screenshotted — the English screens are real screenshots — but the settings list would not scroll under synthetic input, so the language could not be switched from outside the app. The words and the layout direction are asserted in `language_widget_test.dart` instead, and the Arabic **PDF** was rasterised and read | Open the app, set the language, and look at it |
