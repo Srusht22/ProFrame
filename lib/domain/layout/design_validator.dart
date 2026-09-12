@@ -11,6 +11,29 @@ enum FindingLevel {
   conflict,
 }
 
+/// Which finding this is.
+///
+/// The code is what makes a finding translatable: the English sentence below
+/// is what a log and a test read, and the UI writes its own sentence from the
+/// code and the numbers (spec section 7).
+enum FindingCode {
+  widthMissing,
+  widthNotPositive,
+  heightMissing,
+  heightNotPositive,
+  fittingGapLeavesNoWidth,
+  fittingGapLeavesNoHeight,
+  panelHasNoSize,
+  panelUnderMinimum,
+  panelOutsideFrame,
+  gapBetweenPanels,
+  panelsOverlap,
+  rowDoesNotFillFrame,
+  openingNotConfirmed,
+  sashTooWide,
+  sashTooTall,
+}
+
 /// One thing the app noticed about a design.
 ///
 /// A finding is a **report**, never a correction. The spec is explicit that a
@@ -20,20 +43,45 @@ enum FindingLevel {
 class Finding {
   final FindingLevel level;
 
+  /// Which finding this is, for a UI that writes it in another language.
+  final FindingCode code;
+
   /// What is wrong, in plain words. No jargon, no error codes.
+  ///
+  /// English, and it stays English: it is what a log and a test read. What a
+  /// user sees is written from [code] and [values] in their own language.
   final String message;
 
-  /// What the user can do about it.
+  /// What the user can do about it, in English, for the same reason.
   final String remedy;
 
   /// The panel or divider involved, so the UI can point at it.
   final String? subjectId;
 
+  /// Which panel it is, counting from one — so the UI can name it without
+  /// parsing an English "Panel 3" out of the message.
+  final int? subjectNumber;
+
+  /// The panel's own label, when the user gave it one.
+  final String? subjectLabel;
+
+  /// The numbers named in the message, unformatted, so they can be written
+  /// in the user's digits and units.
+  final Map<String, double> values;
+
+  /// The profile system named in the message, where there is one.
+  final String? profileName;
+
   const Finding({
     required this.level,
+    required this.code,
     required this.message,
     required this.remedy,
     this.subjectId,
+    this.subjectNumber,
+    this.subjectLabel,
+    this.values = const {},
+    this.profileName,
   });
 
   bool get isConflict => level == FindingLevel.conflict;
@@ -69,12 +117,14 @@ abstract final class DesignValidator {
     if (width == null) {
       findings.add(const Finding(
         level: FindingLevel.incomplete,
+        code: FindingCode.widthMissing,
         message: 'The overall width has not been entered.',
         remedy: 'Tap the width below the drawing and type it.',
       ));
     } else if (width.millimetres <= 0) {
       findings.add(const Finding(
         level: FindingLevel.conflict,
+        code: FindingCode.widthNotPositive,
         message: 'The overall width is zero or negative.',
         remedy: 'Type a width greater than zero.',
       ));
@@ -83,12 +133,14 @@ abstract final class DesignValidator {
     if (height == null) {
       findings.add(const Finding(
         level: FindingLevel.incomplete,
+        code: FindingCode.heightMissing,
         message: 'The overall height has not been entered.',
         remedy: 'Tap the height beside the drawing and type it.',
       ));
     } else if (height.millimetres <= 0) {
       findings.add(const Finding(
         level: FindingLevel.conflict,
+        code: FindingCode.heightNotPositive,
         message: 'The overall height is zero or negative.',
         remedy: 'Type a height greater than zero.',
       ));
@@ -100,15 +152,21 @@ abstract final class DesignValidator {
     if (frameWidth != null && frameWidth <= 0) {
       findings.add(Finding(
         level: FindingLevel.conflict,
+        code: FindingCode.fittingGapLeavesNoWidth,
         message: 'The fitting gap of ${design.fittingGapMm.round()} mm each '
             'side leaves no frame at all in a '
             '${width?.millimetres.round()} mm opening.',
         remedy: 'Reduce the fitting gap, or check the opening size.',
+        values: {
+          'gap': design.fittingGapMm,
+          'opening': width?.millimetres ?? 0,
+        },
       ));
     }
     if (frameHeight != null && frameHeight <= 0) {
       findings.add(const Finding(
         level: FindingLevel.conflict,
+        code: FindingCode.fittingGapLeavesNoHeight,
         message: 'The fitting gap leaves no frame height at all.',
         remedy: 'Reduce the fitting gap, or check the opening height.',
       ));
@@ -129,9 +187,12 @@ abstract final class DesignValidator {
       if (panel.widthMm <= 0 || panel.heightMm <= 0) {
         findings.add(Finding(
           level: FindingLevel.conflict,
+          code: FindingCode.panelHasNoSize,
           message: '$name has no size.',
           remedy: 'Move the divider beside it, or undo the last change.',
           subjectId: panel.id,
+          subjectNumber: i + 1,
+          subjectLabel: panel.label.isEmpty ? null : panel.label,
         ));
         continue;
       }
@@ -140,11 +201,19 @@ abstract final class DesignValidator {
           panel.heightMm < Tolerances.minimumPanelSideMm) {
         findings.add(Finding(
           level: FindingLevel.conflict,
+          code: FindingCode.panelUnderMinimum,
           message: '$name is ${panel.widthMm.round()} × '
               '${panel.heightMm.round()} mm, under the '
               '${Tolerances.minimumPanelSideMm.round()} mm minimum.',
           remedy: 'Widen it, or remove the divider beside it.',
           subjectId: panel.id,
+          subjectNumber: i + 1,
+          subjectLabel: panel.label.isEmpty ? null : panel.label,
+          values: {
+            'width': panel.widthMm,
+            'height': panel.heightMm,
+            'minimum': Tolerances.minimumPanelSideMm,
+          },
         ));
       }
 
@@ -158,9 +227,12 @@ abstract final class DesignValidator {
         if (outside) {
           findings.add(Finding(
             level: FindingLevel.conflict,
+            code: FindingCode.panelOutsideFrame,
             message: '$name sits outside the frame.',
             remedy: 'Undo the change that moved it, or redraw the divider.',
             subjectId: panel.id,
+            subjectNumber: i + 1,
+            subjectLabel: panel.label.isEmpty ? null : panel.label,
           ));
         }
       }
@@ -193,17 +265,21 @@ abstract final class DesignValidator {
         if (gap > Tolerances.lengthMm) {
           findings.add(Finding(
             level: FindingLevel.conflict,
+            code: FindingCode.gapBetweenPanels,
             message: 'There is a ${gap.round()} mm gap between two panels '
                 'that nothing fills.',
             remedy: 'Widen one of them, or move the divider between them.',
             subjectId: sorted[i].id,
+            values: {'gap': gap},
           ));
         } else if (gap < -Tolerances.lengthMm) {
           findings.add(Finding(
             level: FindingLevel.conflict,
+            code: FindingCode.panelsOverlap,
             message: 'Two panels overlap by ${gap.abs().round()} mm.',
             remedy: 'Narrow one of them, or move the divider between them.',
             subjectId: sorted[i].id,
+            values: {'gap': gap.abs()},
           ));
         }
       }
@@ -213,10 +289,12 @@ abstract final class DesignValidator {
       if ((total - span).abs() > Tolerances.lengthMm) {
         findings.add(Finding(
           level: FindingLevel.conflict,
+          code: FindingCode.rowDoesNotFillFrame,
           message: 'The panels in one row add up to ${total.round()} mm, but '
               'the frame is ${span.round()} mm wide.',
           remedy: 'Change a panel width — the panel beside it will take up '
               'the difference.',
+          values: {'total': total, 'frame': span},
         ));
       }
     }
@@ -239,9 +317,12 @@ abstract final class DesignValidator {
       if (!opening.isConfirmed) {
         findings.add(Finding(
           level: FindingLevel.incomplete,
+          code: FindingCode.openingNotConfirmed,
           message: '$name opens, but how it opens has not been confirmed.',
           remedy: 'Long-press it and choose the hinge side and direction.',
           subjectId: panel.id,
+          subjectNumber: i + 1,
+          subjectLabel: panel.label.isEmpty ? null : panel.label,
         ));
       }
 
@@ -250,22 +331,32 @@ abstract final class DesignValidator {
       if (panel.widthMm > profile.maxSashWidthMm) {
         findings.add(Finding(
           level: FindingLevel.conflict,
+          code: FindingCode.sashTooWide,
           message: '$name is ${panel.widthMm.round()} mm wide, over the '
               '${profile.maxSashWidthMm.round()} mm limit for an opening leaf '
               'in ${profile.name}.',
           remedy: 'Make it fixed (CH), narrow it, or choose a system rated '
               'for a wider leaf.',
           subjectId: panel.id,
+          subjectNumber: i + 1,
+          subjectLabel: panel.label.isEmpty ? null : panel.label,
+          values: {'width': panel.widthMm, 'limit': profile.maxSashWidthMm},
+          profileName: profile.name,
         ));
       }
       if (panel.heightMm > profile.maxSashHeightMm) {
         findings.add(Finding(
           level: FindingLevel.conflict,
+          code: FindingCode.sashTooTall,
           message: '$name is ${panel.heightMm.round()} mm tall, over the '
               '${profile.maxSashHeightMm.round()} mm limit for an opening leaf '
               'in ${profile.name}.',
           remedy: 'Make it fixed (CH), or add a transom above it.',
           subjectId: panel.id,
+          subjectNumber: i + 1,
+          subjectLabel: panel.label.isEmpty ? null : panel.label,
+          values: {'height': panel.heightMm, 'limit': profile.maxSashHeightMm},
+          profileName: profile.name,
         ));
       }
     }

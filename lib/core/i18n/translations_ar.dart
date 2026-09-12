@@ -193,6 +193,68 @@ const Map<T, String> arabicStrings = {
       'الخانة جزء من الإطار. احذف الفاصل المجاور لها لدمجها مع جارتها.',
   T.neighbourNowWide: 'أصبح عرض الخانة المجاورة {width}.',
 
+  // -- what is still to confirm, and what is wrong ------------------------
+  T.panelNumber: 'الخانة {number}',
+  T.sourceEstimated: 'تقديري',
+  T.sourceDerived: 'مستخرج من الرسم',
+  T.askNotInterpreted: 'لم تتم قراءة الرسم بعد.',
+  T.askWidthMissing: 'لم يُدخل العرض الكلي.',
+  T.askWidthUnconfirmed: 'العرض الكلي {source}، وغير مؤكد.',
+  T.askHeightMissing: 'لم يُدخل الارتفاع الكلي.',
+  T.askHeightUnconfirmed: 'الارتفاع الكلي {source}، وغير مؤكد.',
+  T.askHingeSide: '{panel} تفتح، لكن طريقة فتحها غير مؤكدة.',
+  T.findWidthMissing: 'لم يُدخل العرض الكلي.',
+  T.findWidthNotPositive: 'العرض الكلي صفر أو أقل.',
+  T.findHeightMissing: 'لم يُدخل الارتفاع الكلي.',
+  T.findHeightNotPositive: 'الارتفاع الكلي صفر أو أقل.',
+  T.findFittingGapNoWidth:
+      'فجوة التركيب {gap} على كل جانب لا تترك إطاراً على الإطلاق في فتحة '
+          '{opening}.',
+  T.findFittingGapNoHeight: 'فجوة التركيب لا تترك أي ارتفاع للإطار.',
+  T.findPanelHasNoSize: '{panel} بلا قياس.',
+  T.findPanelUnderMinimum:
+      '{panel} قياسها {width} × {height}، أقل من الحد الأدنى {minimum}.',
+  T.findPanelOutsideFrame: '{panel} خارج الإطار.',
+  T.findGapBetweenPanels: 'توجد فجوة {gap} بين خانتين لا يملؤها شيء.',
+  T.findPanelsOverlap: 'تتداخل خانتان بمقدار {gap}.',
+  T.findRowDoesNotFillFrame:
+      'مجموع الخانات في صف واحد {total}، بينما عرض الإطار {frame}.',
+  T.findOpeningNotConfirmed: '{panel} تفتح، لكن طريقة فتحها لم تُؤكد.',
+  T.findSashTooWide:
+      'عرض {panel} هو {width}، وهو فوق الحد {limit} لدرفة تفتح في {profile}.',
+  T.findSashTooTall:
+      'ارتفاع {panel} هو {height}، وهو فوق الحد {limit} لدرفة تفتح في '
+          '{profile}.',
+  T.fixWidthMissing: 'اضغط على العرض أسفل الرسم واكتبه.',
+  T.fixWidthNotPositive: 'اكتب عرضاً أكبر من صفر.',
+  T.fixHeightMissing: 'اضغط على الارتفاع بجانب الرسم واكتبه.',
+  T.fixHeightNotPositive: 'اكتب ارتفاعاً أكبر من صفر.',
+  T.fixFittingGapWidth: 'قلّل فجوة التركيب، أو راجع قياس الفتحة.',
+  T.fixFittingGapHeight: 'قلّل فجوة التركيب، أو راجع ارتفاع الفتحة.',
+  T.fixPanelHasNoSize: 'حرّك الفاصل المجاور، أو تراجع عن آخر تغيير.',
+  T.fixPanelUnderMinimum: 'وسّعها، أو احذف الفاصل المجاور لها.',
+  T.fixPanelOutsideFrame: 'تراجع عن التغيير الذي حرّكها، أو أعد رسم الفاصل.',
+  T.fixGapBetweenPanels: 'وسّع إحداهما، أو حرّك الفاصل بينهما.',
+  T.fixPanelsOverlap: 'ضيّق إحداهما، أو حرّك الفاصل بينهما.',
+  T.fixRowDoesNotFillFrame:
+      'غيّر عرض خانة — الخانة المجاورة ستستوعب الفرق.',
+  T.fixOpeningNotConfirmed: 'اضغط عليها مطولاً واختر جهة المفصلات والاتجاه.',
+  T.fixSashTooWide:
+      'اجعلها ثابتة (CH)، أو ضيّقها، أو اختر نظاماً يتحمل درفة أعرض.',
+  T.fixSashTooTall: 'اجعلها ثابتة (CH)، أو أضف عارضة فوقها.',
+  T.notesMovedWithPanels: 'انتقلت {count} ملاحظة مع خاناتها.',
+  T.notesRemovedNowhereToGo: '{count} ملاحظة لم يبق لها مكان فحُذفت.',
+  T.refuseNoPanels: 'لا توجد خانات لتغيير قياسها.',
+  T.refuseNotInRow: 'هذه الخانة ليست في هذا الصف.',
+  T.refuseOnlyPanel:
+      'هذه هي الخانة الوحيدة، فعرضها هو عرض الإطار. غيّر العرض الكلي بدلاً '
+          'من ذلك.',
+  T.refuseTooNarrow: 'لا يمكن أن تكون الخانة أضيق من {minimum}.',
+  T.refuseNotEnoughRoom:
+      'لا توجد مساحة كافية. توسيع هذه الخانة إلى {requested} سيترك الخانة '
+          'المجاورة عند {neighbour}، أقل من الحد الأدنى {minimum}.',
+  T.refuseWidestIs: 'أقصى عرض ممكن هو {width}.',
+
   // -- panel properties ----------------------------------------------------
   T.panelType: 'النوع',
   T.howItOpens: 'كيف يفتح',

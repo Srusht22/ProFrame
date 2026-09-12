@@ -509,8 +509,8 @@ class _Summary extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                   child: Notice(
                     tone: NoticeTone.problem,
-                    title: finding.message,
-                    message: finding.remedy,
+                    title: s.findingMessage(finding),
+                    message: s.findingRemedy(finding),
                   ),
                 ),
               const SizedBox(height: AppSpacing.md),
@@ -530,7 +530,7 @@ class _Summary extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('• '),
-                      Expanded(child: Text(question)),
+                      Expanded(child: Text(s.question(question))),
                     ],
                   ),
                 ),

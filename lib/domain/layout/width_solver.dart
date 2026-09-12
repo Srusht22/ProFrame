@@ -27,19 +27,43 @@ class WidthApplied extends WidthOutcome {
   });
 }
 
+/// Why a width was refused.
+///
+/// The code is what makes a refusal translatable: [WidthRefused.reason] is
+/// the English wording, for a log and a test, and the UI writes its own
+/// sentence from the code and the numbers.
+enum WidthRefusal {
+  noPanelsToResize,
+  panelNotInRow,
+  onlyPanelInRow,
+  narrowerThanMinimum,
+  neighbourWouldBeTooNarrow,
+}
+
 /// The width could not be applied. Nothing was changed.
 ///
 /// A refusal, not a silent clamp: quietly giving the user a different number
 /// from the one they typed is the behaviour the spec forbids (section 2).
 class WidthRefused extends WidthOutcome {
-  /// Plain language, no jargon — this goes straight to the user.
+  /// Which refusal this is, so it can be written in any language.
+  final WidthRefusal code;
+
+  /// Plain language, no jargon. English: what a log and a test read.
   final String reason;
 
   /// The largest width that would have worked, when one exists. Offered as a
   /// suggestion the user may take, never applied automatically.
   final double? largestWorkableMm;
 
-  const WidthRefused(this.reason, {this.largestWorkableMm});
+  /// The numbers the sentence names, unformatted.
+  final Map<String, double> values;
+
+  const WidthRefused(
+    this.reason, {
+    required this.code,
+    this.largestWorkableMm,
+    this.values = const {},
+  });
 }
 
 /// Keeps panel widths summing to the frame width (spec Phase 2, item 4).
@@ -60,27 +84,36 @@ abstract final class WidthSolver {
     double newWidthMm,
   ) {
     if (row.isEmpty) {
-      return const WidthRefused('There are no panels to resize.');
+      return const WidthRefused(
+        'There are no panels to resize.',
+        code: WidthRefusal.noPanelsToResize,
+      );
     }
 
     final sorted = [...row]
       ..sort((a, b) => a.boundary.left.compareTo(b.boundary.left));
     final index = sorted.indexWhere((p) => p.id == panelId);
     if (index < 0) {
-      return const WidthRefused('That panel is not in this row.');
+      return const WidthRefused(
+        'That panel is not in this row.',
+        code: WidthRefusal.panelNotInRow,
+      );
     }
 
     if (sorted.length == 1) {
       return const WidthRefused(
         'This is the only panel, so its width is the frame width. Change the '
         'overall width instead.',
+        code: WidthRefusal.onlyPanelInRow,
       );
     }
 
     if (newWidthMm < Tolerances.minimumPanelSideMm) {
-      return WidthRefused(
+      return const WidthRefused(
         'A panel cannot be narrower than '
-        '${Tolerances.minimumPanelSideMm.round()} mm.',
+        '${Tolerances.minimumPanelSideMm} mm.',
+        code: WidthRefusal.narrowerThanMinimum,
+        values: {'minimum': Tolerances.minimumPanelSideMm},
       );
     }
 
@@ -107,7 +140,13 @@ abstract final class WidthSolver {
         '${newWidthMm.round()} mm would leave the panel beside it at '
         '${neighbourWidth.round()} mm, under the '
         '${Tolerances.minimumPanelSideMm.round()} mm minimum.',
+        code: WidthRefusal.neighbourWouldBeTooNarrow,
         largestWorkableMm: target.boundary.width + headroom,
+        values: {
+          'requested': newWidthMm,
+          'neighbour': neighbourWidth,
+          'minimum': Tolerances.minimumPanelSideMm,
+        },
       );
     }
 

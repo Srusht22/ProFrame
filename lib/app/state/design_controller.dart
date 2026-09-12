@@ -19,6 +19,7 @@ import '../../domain/recognition/stroke_classifier.dart';
 import '../../domain/recognition/stroke_intent.dart';
 import '../../domain/sketch.dart';
 import '../canvas/canvas_projection.dart';
+import '../i18n/labels.dart';
 import 'preferences_controller.dart';
 
 /// What the finger does on the canvas.
@@ -287,13 +288,8 @@ class DesignController extends Notifier<DesignState> {
     final outcome = WidthSolver.setWidth(row, panelId, millimetres);
 
     switch (outcome) {
-      case WidthRefused(:final reason, :final largestWorkableMm):
-        state = state.copyWith(
-          message: largestWorkableMm == null
-              ? reason
-              : '$reason The widest it can be is '
-                  '${largestWorkableMm.round()} mm.',
-        );
+      case final WidthRefused refused:
+        state = state.copyWith(message: _strings.widthRefusal(refused));
       case WidthApplied(:final panels, :final adjustedPanelId, :final adjustmentMm):
         _remember();
         final updated = {for (final panel in panels) panel.id: panel};
@@ -607,7 +603,7 @@ class DesignController extends Notifier<DesignState> {
         ],
       ),
       clearSelection: true,
-      message: NoteResolver.describe(resolved.transfers),
+      message: _strings.noteTransfers(resolved.transfers),
       clearMessage: resolved.transfers.isEmpty,
     );
   }

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/core/errors/app_exception.dart';
 import 'package:proframe/core/units/length_unit.dart';
 import 'package:proframe/domain/design_document.dart';
+import 'package:proframe/domain/design_question.dart';
 import 'package:proframe/domain/geometry/point2.dart';
 import 'package:proframe/domain/geometry/polygon.dart';
 import 'package:proframe/domain/measurement.dart';
@@ -99,8 +100,8 @@ void main() {
       expect(blank.isFullyConfirmed, isFalse);
       expect(blank.outstandingQuestions, isNotEmpty);
       expect(
-        blank.outstandingQuestions.first,
-        contains('not been interpreted'),
+        blank.outstandingQuestions.first.kind,
+        DesignQuestionKind.notInterpreted,
       );
     });
 
@@ -172,7 +173,9 @@ void main() {
 
       expect(updated.panelsNeedingOpeningConfirmation, hasLength(1));
       expect(
-        updated.outstandingQuestions.any((q) => q.contains('hinge side')),
+        updated.outstandingQuestions.any(
+          (q) => q.kind == DesignQuestionKind.hingeSideUnconfirmed,
+        ),
         isTrue,
       );
       expect(updated.isFullyConfirmed, isFalse);

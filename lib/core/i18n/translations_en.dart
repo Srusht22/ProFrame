@@ -193,6 +193,75 @@ const Map<T, String> englishStrings = {
           'to its neighbour.',
   T.neighbourNowWide: 'The panel beside it is now {width}.',
 
+  // -- what is still to confirm, and what is wrong ------------------------
+  T.panelNumber: 'Panel {number}',
+  T.sourceEstimated: 'estimated',
+  T.sourceDerived: 'worked out from the drawing',
+  T.askNotInterpreted: 'The drawing has not been interpreted yet.',
+  T.askWidthMissing: 'The overall width has not been entered.',
+  T.askWidthUnconfirmed: 'The overall width is {source}, not confirmed.',
+  T.askHeightMissing: 'The overall height has not been entered.',
+  T.askHeightUnconfirmed: 'The overall height is {source}, not confirmed.',
+  T.askHingeSide: '{panel} opens, but how it opens is not confirmed.',
+  T.findWidthMissing: 'The overall width has not been entered.',
+  T.findWidthNotPositive: 'The overall width is zero or negative.',
+  T.findHeightMissing: 'The overall height has not been entered.',
+  T.findHeightNotPositive: 'The overall height is zero or negative.',
+  T.findFittingGapNoWidth:
+      'The fitting gap of {gap} each side leaves no frame at all in a '
+          '{opening} opening.',
+  T.findFittingGapNoHeight: 'The fitting gap leaves no frame height at all.',
+  T.findPanelHasNoSize: '{panel} has no size.',
+  T.findPanelUnderMinimum:
+      '{panel} is {width} × {height}, under the {minimum} minimum.',
+  T.findPanelOutsideFrame: '{panel} sits outside the frame.',
+  T.findGapBetweenPanels:
+      'There is a {gap} gap between two panels that nothing fills.',
+  T.findPanelsOverlap: 'Two panels overlap by {gap}.',
+  T.findRowDoesNotFillFrame:
+      'The panels in one row add up to {total}, but the frame is {frame} wide.',
+  T.findOpeningNotConfirmed:
+      '{panel} opens, but how it opens has not been confirmed.',
+  T.findSashTooWide:
+      '{panel} is {width} wide, over the {limit} limit for an opening leaf in '
+          '{profile}.',
+  T.findSashTooTall:
+      '{panel} is {height} tall, over the {limit} limit for an opening leaf in '
+          '{profile}.',
+  T.fixWidthMissing: 'Tap the width below the drawing and type it.',
+  T.fixWidthNotPositive: 'Type a width greater than zero.',
+  T.fixHeightMissing: 'Tap the height beside the drawing and type it.',
+  T.fixHeightNotPositive: 'Type a height greater than zero.',
+  T.fixFittingGapWidth: 'Reduce the fitting gap, or check the opening size.',
+  T.fixFittingGapHeight: 'Reduce the fitting gap, or check the opening height.',
+  T.fixPanelHasNoSize: 'Move the divider beside it, or undo the last change.',
+  T.fixPanelUnderMinimum: 'Widen it, or remove the divider beside it.',
+  T.fixPanelOutsideFrame:
+      'Undo the change that moved it, or redraw the divider.',
+  T.fixGapBetweenPanels: 'Widen one of them, or move the divider between them.',
+  T.fixPanelsOverlap: 'Narrow one of them, or move the divider between them.',
+  T.fixRowDoesNotFillFrame:
+      'Change a panel width — the panel beside it will take up the difference.',
+  T.fixOpeningNotConfirmed:
+      'Long-press it and choose the hinge side and direction.',
+  T.fixSashTooWide:
+      'Make it fixed (CH), narrow it, or choose a system rated for a wider '
+          'leaf.',
+  T.fixSashTooTall: 'Make it fixed (CH), or add a transom above it.',
+  T.notesMovedWithPanels: '{count} notes moved with their panels.',
+  T.notesRemovedNowhereToGo: '{count} notes had nowhere to go and were removed.',
+  T.refuseNoPanels: 'There are no panels to resize.',
+  T.refuseNotInRow: 'That panel is not in this row.',
+  T.refuseOnlyPanel:
+      'This is the only panel, so its width is the frame width. Change the '
+          'overall width instead.',
+  T.refuseTooNarrow: 'A panel cannot be narrower than {minimum}.',
+  T.refuseNotEnoughRoom:
+      'There is not enough room. Widening this panel to {requested} would '
+          'leave the panel beside it at {neighbour}, under the {minimum} '
+          'minimum.',
+  T.refuseWidestIs: 'The widest it can be is {width}.',
+
   // -- panel properties ----------------------------------------------------
   T.panelType: 'Type',
   T.howItOpens: 'How it opens',

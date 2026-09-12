@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/domain/design_document.dart';
+import 'package:proframe/domain/design_question.dart';
 import 'package:proframe/domain/geometry/point2.dart';
 import 'package:proframe/domain/geometry/polygon.dart';
 import 'package:proframe/domain/layout/design_builder.dart';
@@ -49,7 +50,10 @@ void main() {
       expect(design.overallWidth!.isConfirmed, isFalse);
       expect(design.hasConfirmedSize, isFalse);
       expect(
-        design.outstandingQuestions.any((q) => q.contains('width')),
+        design.outstandingQuestions.any(
+          (q) => q.kind == DesignQuestionKind.overallWidthMissing ||
+              q.kind == DesignQuestionKind.overallWidthUnconfirmed,
+        ),
         isTrue,
       );
     });
@@ -177,7 +181,9 @@ void main() {
       expect(after.panelById(panelId)!.opening!.isConfirmed, isFalse);
       expect(after.panelsNeedingOpeningConfirmation, hasLength(1));
       expect(
-        after.outstandingQuestions.any((q) => q.contains('hinge side')),
+        after.outstandingQuestions.any(
+          (q) => q.kind == DesignQuestionKind.hingeSideUnconfirmed,
+        ),
         isTrue,
       );
     });
@@ -278,7 +284,9 @@ void main() {
     );
     // Frame drawn: no longer "not interpreted", but both sizes are estimates.
     expect(
-      design.outstandingQuestions.any((q) => q.contains('not been interpreted')),
+      design.outstandingQuestions.any(
+        (q) => q.kind == DesignQuestionKind.notInterpreted,
+      ),
       isFalse,
     );
     expect(design.outstandingQuestions, hasLength(2));

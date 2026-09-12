@@ -197,6 +197,73 @@ const Map<T, String> kurdishStrings = {
           'دراوسێکەی یەک بگرێت.',
   T.neighbourNowWide: 'ئێستا پانی خانەی تەنیشتی {width}ـە.',
 
+  // -- what is still to confirm, and what is wrong ------------------------
+  T.panelNumber: 'خانەی {number}',
+  T.sourceEstimated: 'خەمڵێنراو',
+  T.sourceDerived: 'لە وێنەکەوە دەرهێنراوە',
+  T.askNotInterpreted: 'هێشتا وێنەکە نەخوێنراوەتەوە.',
+  T.askWidthMissing: 'پانی گشتی نەنووسراوە.',
+  T.askWidthUnconfirmed: 'پانی گشتی {source}ـە، پشتڕاست نەکراوە.',
+  T.askHeightMissing: 'بەرزی گشتی نەنووسراوە.',
+  T.askHeightUnconfirmed: 'بەرزی گشتی {source}ـە، پشتڕاست نەکراوە.',
+  T.askHingeSide: '{panel} دەکرێتەوە، بەڵام چۆنیەتی کردنەوەی پشتڕاست نەکراوە.',
+  T.findWidthMissing: 'پانی گشتی نەنووسراوە.',
+  T.findWidthNotPositive: 'پانی گشتی سفر یان کەمترە.',
+  T.findHeightMissing: 'بەرزی گشتی نەنووسراوە.',
+  T.findHeightNotPositive: 'بەرزی گشتی سفر یان کەمترە.',
+  T.findFittingGapNoWidth:
+      'بۆشایی دانانی {gap} لە هەر لایەکەوە هیچ چوارچێوەیەک ناهێڵێتەوە لە '
+          'کردنەوەیەکی {opening}.',
+  T.findFittingGapNoHeight: 'بۆشایی دانان هیچ بەرزییەک بۆ چوارچێوە ناهێڵێتەوە.',
+  T.findPanelHasNoSize: '{panel} هیچ پێوانەیەکی نییە.',
+  T.findPanelUnderMinimum:
+      '{panel} {width} × {height}ـە، کەمتر لە کەمترین {minimum}.',
+  T.findPanelOutsideFrame: '{panel} لە دەرەوەی چوارچێوەکەیە.',
+  T.findGapBetweenPanels: 'بۆشاییەکی {gap} لەنێوان دوو خانەدا هەیە کە هیچی تێدا نییە.',
+  T.findPanelsOverlap: 'دوو خانە بە {gap} یەکتر دەپۆشن.',
+  T.findRowDoesNotFillFrame:
+      'خانەکانی یەک ڕیز کۆی {total} دەکەن، بەڵام چوارچێوەکە {frame} پانە.',
+  T.findOpeningNotConfirmed:
+      '{panel} دەکرێتەوە، بەڵام چۆنیەتی کردنەوەی پشتڕاست نەکراوەتەوە.',
+  T.findSashTooWide:
+      'پانی {panel} {width}ـە، زیاتر لە سنووری {limit} بۆ لەپەڕەیەکی کراوە لە '
+          '{profile}.',
+  T.findSashTooTall:
+      'بەرزی {panel} {height}ـە، زیاتر لە سنووری {limit} بۆ لەپەڕەیەکی کراوە لە '
+          '{profile}.',
+  T.fixWidthMissing: 'دەست لە پانی ژێر وێنەکە بدە و بینووسە.',
+  T.fixWidthNotPositive: 'پانییەک گەورەتر لە سفر بنووسە.',
+  T.fixHeightMissing: 'دەست لە بەرزی تەنیشت وێنەکە بدە و بینووسە.',
+  T.fixHeightNotPositive: 'بەرزییەک گەورەتر لە سفر بنووسە.',
+  T.fixFittingGapWidth: 'بۆشایی دانان کەم بکەرەوە، یان پێوانەی کردنەوەکە بپشکنە.',
+  T.fixFittingGapHeight:
+      'بۆشایی دانان کەم بکەرەوە، یان بەرزی کردنەوەکە بپشکنە.',
+  T.fixPanelHasNoSize: 'دابەشکەری تەنیشتی بجوڵێنە، یان پاشگەز ببەرەوە.',
+  T.fixPanelUnderMinimum: 'پانتری بکە، یان دابەشکەری تەنیشتی لابە.',
+  T.fixPanelOutsideFrame:
+      'پاشگەز ببەرەوە لەو گۆڕانکارییەی جوڵاندی، یان دابەشکەرەکە دووبارە بکێشە.',
+  T.fixGapBetweenPanels: 'یەکێکیان پانتر بکە، یان دابەشکەری نێوانیان بجوڵێنە.',
+  T.fixPanelsOverlap: 'یەکێکیان تەسکتر بکە، یان دابەشکەری نێوانیان بجوڵێنە.',
+  T.fixRowDoesNotFillFrame:
+      'پانی خانەیەک بگۆڕە — خانەی تەنیشتی جیاوازییەکە هەڵدەگرێت.',
+  T.fixOpeningNotConfirmed:
+      'دەستت لەسەری ڕابگرە و لایەنی ڕەزە و ئاراستەکە هەڵبژێرە.',
+  T.fixSashTooWide:
+      'جێگیری بکە (CH)، یان تەسکتری بکە، یان سیستەمێک هەڵبژێرە بۆ لەپەڕەی پانتر.',
+  T.fixSashTooTall: 'جێگیری بکە (CH)، یان ترانسۆمێک لەسەرەوەی زیاد بکە.',
+  T.notesMovedWithPanels: '{count} تێبینی لەگەڵ خانەکانیان جووڵان.',
+  T.notesRemovedNowhereToGo: '{count} تێبینی جێگایان نەما و لابران.',
+  T.refuseNoPanels: 'هیچ خانەیەک نییە قەبارەی بگۆڕدرێت.',
+  T.refuseNotInRow: 'ئەم خانەیە لەم ڕیزەدا نییە.',
+  T.refuseOnlyPanel:
+      'ئەمە تەنها خانەیە، بۆیە پانییەکەی پانی چوارچێوەکەیە. لەبری ئەوە پانی '
+          'گشتی بگۆڕە.',
+  T.refuseTooNarrow: 'خانە ناتوانێت تەسکتر بێت لە {minimum}.',
+  T.refuseNotEnoughRoom:
+      'جێگای پێویست نییە. پانکردنەوەی ئەم خانەیە بۆ {requested} خانەی تەنیشتی '
+          'لە {neighbour} دەهێڵێتەوە، کەمتر لە کەمترین {minimum}.',
+  T.refuseWidestIs: 'پانترین شتێک کە دەکرێت {width}ـە.',
+
   // -- panel properties ----------------------------------------------------
   T.panelType: 'جۆر',
   T.howItOpens: 'چۆن دەکرێتەوە',

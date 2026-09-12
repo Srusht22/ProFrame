@@ -1,5 +1,6 @@
 import '../core/errors/app_exception.dart';
 import '../core/units/length_unit.dart';
+import 'design_question.dart';
 import 'geometry/polygon.dart';
 import 'measurement.dart';
 import 'panel.dart';
@@ -142,19 +143,29 @@ class DesignDocument {
 
   /// Everything still unconfirmed, in plain language. The 3D preview shows
   /// this list rather than implying the model is final (spec section 2).
-  List<String> get outstandingQuestions => [
-        if (outline == null) 'The drawing has not been interpreted yet.',
+  List<DesignQuestion> get outstandingQuestions => [
+        if (outline == null)
+          const DesignQuestion(DesignQuestionKind.notInterpreted),
         if (overallWidth == null)
-          'The overall width has not been entered.'
+          const DesignQuestion(DesignQuestionKind.overallWidthMissing)
         else if (!overallWidth!.isConfirmed)
-          'The overall width is ${overallWidth!.source.name}, not confirmed.',
+          DesignQuestion(
+            DesignQuestionKind.overallWidthUnconfirmed,
+            source: overallWidth!.source,
+          ),
         if (overallHeight == null)
-          'The overall height has not been entered.'
+          const DesignQuestion(DesignQuestionKind.overallHeightMissing)
         else if (!overallHeight!.isConfirmed)
-          'The overall height is ${overallHeight!.source.name}, not confirmed.',
+          DesignQuestion(
+            DesignQuestionKind.overallHeightUnconfirmed,
+            source: overallHeight!.source,
+          ),
         for (final panel in panelsNeedingOpeningConfirmation)
-          'Panel ${panel.label.isEmpty ? panel.id : panel.label} '
-              'opens, but the hinge side has not been confirmed.',
+          DesignQuestion(
+            DesignQuestionKind.hingeSideUnconfirmed,
+            panelId: panel.id,
+            panelLabel: panel.label.isEmpty ? null : panel.label,
+          ),
       ];
 
   /// True when every dimension and assignment has been confirmed by a person.

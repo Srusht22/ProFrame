@@ -158,7 +158,17 @@ abstract final class NoteResolver {
     );
   }
 
-  /// A sentence summarising [transfers], or null when nothing moved.
+  /// How many notes moved and how many could not be kept.
+  ///
+  /// Counts rather than a sentence, so the words can be written in the user's
+  /// language where they are shown.
+  static ({int moved, int lost}) summarise(List<NoteTransfer> transfers) {
+    final lost = transfers.where((t) => !t.wasKept).length;
+    return (moved: transfers.length - lost, lost: lost);
+  }
+
+  /// A sentence summarising [transfers] in English, or null when nothing
+  /// moved. Kept for logs and tests; the UI writes its own from [summarise].
   static String? describe(List<NoteTransfer> transfers) {
     if (transfers.isEmpty) return null;
     final lost = transfers.where((t) => !t.wasKept).length;

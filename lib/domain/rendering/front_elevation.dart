@@ -330,7 +330,9 @@ class DesignFacts {
       fixedCount: design.fixedPanelCount,
       openingCount: design.openingPanelCount,
       designNote: design.designNote.trim(),
-      outstanding: design.outstandingQuestions,
+      outstanding: [
+        for (final question in design.outstandingQuestions) question.message,
+      ],
     );
   }
 }
