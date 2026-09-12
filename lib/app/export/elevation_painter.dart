@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../../core/design/tokens.dart';
+import '../../core/i18n/strings.dart';
 import '../../domain/design_document.dart';
 import '../../domain/product/opening.dart';
 import '../../domain/rendering/front_elevation.dart';
@@ -49,6 +50,10 @@ class ElevationPainter extends CustomPainter {
   final Color mutedColor;
   final Color backgroundColor;
 
+  /// The phrases and digits the drawing is labelled with, so an exported
+  /// picture matches the screen it was exported from.
+  final AppStrings strings;
+
   const ElevationPainter({
     required this.elevation,
     required this.inkColor,
@@ -56,6 +61,7 @@ class ElevationPainter extends CustomPainter {
     required this.mutedColor,
     required this.backgroundColor,
     this.options = const ElevationOptions(),
+    this.strings = const AppStrings(),
   });
 
   @override
@@ -182,8 +188,8 @@ class ElevationPainter extends CustomPainter {
 
     for (final dimension in elevation.dimensions) {
       final label = dimension.confirmed
-          ? '${dimension.valueMm.round()}'
-          : '(${dimension.valueMm.round()})';
+          ? strings.number(dimension.valueMm)
+          : '(${strings.number(dimension.valueMm)})';
 
       if (dimension.horizontal) {
         final y = py(outline.bottom) +
@@ -338,6 +344,7 @@ class ElevationPainter extends CustomPainter {
 Future<Uint8List> renderElevationPng(
   DesignDocument design, {
   ElevationOptions options = const ElevationOptions(),
+  AppStrings strings = const AppStrings(),
   int width = 1600,
   int height = 1200,
 }) async {
@@ -348,6 +355,7 @@ Future<Uint8List> renderElevationPng(
   ElevationPainter(
     elevation: FrontElevation.of(design),
     options: options,
+    strings: strings,
     inkColor: AppColors.deepGreen,
     glassColor: AppColors.glassTint,
     mutedColor: AppColors.mutedText,

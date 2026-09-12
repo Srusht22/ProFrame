@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+
 import '../../core/design/tokens.dart';
+import '../../core/i18n/product_labels.dart';
 import '../../core/i18n/strings.dart';
 import '../../core/layout/responsive.dart';
 import '../../core/units/length_unit.dart';
 import '../../domain/design_document.dart';
 import '../../domain/panel.dart';
 import '../../domain/product/profile_system.dart';
-import '../i18n/labels.dart';
 import '../rendering/animated_design_view.dart';
 import '../rendering/design_renderer.dart';
 import '../rendering/isometric_renderer.dart';

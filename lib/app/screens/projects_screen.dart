@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+
 import '../../core/design/tokens.dart';
+import '../../core/i18n/product_labels.dart';
 import '../../core/i18n/strings.dart';
 import '../../core/layout/responsive.dart';
 import '../../domain/design_document.dart';
 import '../../infrastructure/project_repository.dart';
-import '../i18n/labels.dart';
 import '../state/project_controller.dart';
 import '../widgets/dimension_input.dart';
 import '../widgets/notice.dart';

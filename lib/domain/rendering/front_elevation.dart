@@ -52,11 +52,9 @@ class ElevationPanel {
     this.isEmpty = false,
   });
 
-  /// The marks that are not the CH/Z code — mesh, empty — as short words.
-  List<String> get badges => [
-        if (hasMesh) 'Mesh',
-        if (isEmpty) 'Empty',
-      ];
+  /// Whether this panel carries a mark that is not its CH/Z code. The words
+  /// for them are written where they are shown, in the user's language.
+  bool get hasBadges => hasMesh || isEmpty;
 }
 
 /// One divider in the front view.
@@ -256,83 +254,3 @@ class FrontElevation {
   }
 }
 
-/// The facts an export sheet states about a design.
-///
-/// Assembled from the document, so nothing in a PDF can be invented
-/// (spec section 8A: "never invent information in the summary").
-class DesignFacts {
-  final String projectName;
-  final String category;
-  final String material;
-  final String finish;
-  final String profile;
-  final bool profileIsGeneric;
-  final String profileAssumptions;
-  final String size;
-  final bool sizeConfirmed;
-  final String viewedFrom;
-  final String dimensionReference;
-  final String dimensionReferenceDetail;
-  final int fixedCount;
-  final int openingCount;
-  final String designNote;
-
-  /// Everything still unanswered, for the warning block.
-  final List<String> outstanding;
-
-  const DesignFacts({
-    required this.projectName,
-    required this.category,
-    required this.material,
-    required this.finish,
-    required this.profile,
-    required this.profileIsGeneric,
-    required this.profileAssumptions,
-    required this.size,
-    required this.sizeConfirmed,
-    required this.viewedFrom,
-    required this.dimensionReference,
-    required this.dimensionReferenceDetail,
-    required this.fixedCount,
-    required this.openingCount,
-    required this.designNote,
-    required this.outstanding,
-  });
-
-  static DesignFacts of(DesignDocument design) {
-    final unit = design.displayUnit;
-    final width = design.overallWidth;
-    final height = design.overallHeight;
-    final profile = design.profileSystem;
-
-    return DesignFacts(
-      projectName: design.name,
-      category: design.category.label,
-      material: design.material.label,
-      finish: design.finish.name,
-      profile: profile.name,
-      profileIsGeneric: profile.isGeneric,
-      profileAssumptions: profile.assumptions,
-      size: width == null || height == null
-          ? 'Not measured'
-          : '${unit.format(width.millimetres)} × '
-              '${unit.format(height.millimetres)}',
-      sizeConfirmed: design.hasConfirmedSize,
-      viewedFrom: design.viewedFrom.label,
-      dimensionReference: design.dimensionReference.label,
-      dimensionReferenceDetail: design.dimensionReference.description +
-          (design.fittingGapMm > 0
-              ? ' Fitting gap ${design.fittingGapMm.round()} mm each side, '
-                  'giving a frame of '
-                  '${design.frameWidthMm?.round()} × '
-                  '${design.frameHeightMm?.round()} mm.'
-              : ''),
-      fixedCount: design.fixedPanelCount,
-      openingCount: design.openingPanelCount,
-      designNote: design.designNote.trim(),
-      outstanding: [
-        for (final question in design.outstandingQuestions) question.message,
-      ],
-    );
-  }
-}

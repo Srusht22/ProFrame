@@ -114,8 +114,20 @@ screenshot looking right.
 | Association maintained when dimensions change | **Verified** | Fractional positions; `notes_and_validation_test.dart` |
 | Split/merge resolved explicitly | **Verified** | `NoteResolver`; every move is reported |
 | Notes reachable in 3D | **Verified** | `viewer_widget_test.dart` "tapping a panel with a note shows the note" |
-| Unicode and text direction | **Verified** | Arabic round-trips through save, PDF and PNG. Fonts bundled |
+| Unicode and text direction | **Verified** | Arabic round-trips through save, PDF and PNG. Fonts bundled; a note written in another script than the app is set to is still shaped correctly — checked by rasterising the PDF and looking at it |
 | A note never changes the product | **Verified** | `notes_and_validation_test.dart` |
+
+## Language
+
+| Requirement | Status | Evidence |
+| --- | --- | --- |
+| English, Arabic and Kurdish (Sorani) | **Verified** | `localisation_test.dart` — every phrase exists in every language, none blank, none left in English; `language_widget_test.dart` switches the running app |
+| Right-to-left layout, not only right-to-left words | **Verified** | `language_widget_test.dart` asserts the app's `Directionality` follows the language; the PDF sheet mirrors too |
+| Western or Arabic-Indic numerals, chosen separately | **Verified** | `localisation_test.dart`; either set can always be typed, whatever the setting |
+| The choice is remembered | **Verified** | `language_widget_test.dart` "the choice is remembered" |
+| Everything the app reports, not only its labels | **Verified** | Validator findings, the "still to confirm" list, width refusals and note transfers all carry codes; `localised_reports_test.dart` checks every code in English and Arabic |
+| Exports follow the app's language | **Verified** | `pdf_smoke_test.dart` "the sheet is written in the language the app is set to"; `samples/kitchen-window-arabic.pdf` was rendered and read |
+| Translations reviewed by a native speaker | **Not built** | The Arabic and Kurdish tables are machine-produced and say so at the top of each file. They need a read-through by someone at the factory before the app is put in front of customers |
 
 ## §9 Materials and profiles
 
@@ -202,7 +214,6 @@ The 16-step main scenario runs as one test: `test/integration/acceptance_test.da
 | Item | Reason |
 | --- | --- |
 | **Curved profiles** | Out of the agreed scope. A curved stroke is discarded rather than straightened |
-| **Dragging a note label on the canvas** | The model and the controller support it; no gesture is wired to it |
 | **Glazing catalogue** | Glass type beyond single/double/triple and obscure was never specified |
 | **Profile catalogue importer** | No supplier catalogue has been supplied; the interface is in place, the importer is not |
 | **Pricing, inventory, CNC, CAD export** | Explicitly out of scope |

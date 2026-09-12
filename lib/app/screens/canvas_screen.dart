@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+
 import '../../core/design/tokens.dart';
+import '../../core/i18n/product_labels.dart';
 import '../../core/i18n/strings.dart';
 import '../../core/layout/responsive.dart';
 import '../../core/units/length_unit.dart';
@@ -12,7 +14,6 @@ import '../../domain/panel_divider.dart';
 import '../canvas/canvas_projection.dart';
 import '../canvas/dimension_labels.dart';
 import '../canvas/drawing_canvas.dart';
-import '../i18n/labels.dart';
 import '../state/design_controller.dart';
 import '../state/project_controller.dart';
 import '../widgets/dimension_input.dart';

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+
 import '../../core/design/tokens.dart';
+import '../../core/i18n/product_labels.dart';
 import '../../core/i18n/strings.dart';
 import '../../core/layout/responsive.dart';
 import '../../core/layout/window_size.dart';
@@ -10,7 +12,6 @@ import '../../domain/product/factory_settings.dart';
 import '../../domain/product/finish.dart';
 import '../../domain/product/product_basics.dart';
 import '../../domain/product/profile_system.dart';
-import '../i18n/labels.dart';
 import '../state/settings_controller.dart';
 import '../widgets/choice_card.dart';
 import '../widgets/notice.dart';

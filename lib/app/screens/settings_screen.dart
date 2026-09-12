@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+
 import '../../core/design/tokens.dart';
 import '../../core/i18n/app_language.dart';
 import '../../core/i18n/numerals.dart';
+import '../../core/i18n/product_labels.dart';
 import '../../core/i18n/strings.dart';
 import '../../core/units/length_unit.dart';
 import '../../domain/product/finish.dart';
 import '../../domain/product/product_basics.dart';
 import '../../domain/product/profile_system.dart';
-import '../i18n/labels.dart';
 import '../state/preferences_controller.dart';
 import '../state/settings_controller.dart';
 import '../widgets/dimension_input.dart';
@@ -169,7 +170,7 @@ class SettingsScreen extends ConsumerWidget {
                         Notice(
                           tone: NoticeTone.caution,
                           title: s(T.genericPreviewProfile),
-                          message: profile.assumptions,
+                          message: s.profileAssumptions(profile),
                         ),
                       ],
                     ],

@@ -86,6 +86,23 @@ In the same sheet you can also switch on **Mesh (توري)** or **Empty (فار�
 
 ---
 
+## Language and numbers
+
+**Factory settings → Language and numbers.**
+
+The app can be read in **English**, **العربية** or **کوردی**. Choosing one
+changes every word in the app, and the whole screen turns round for the two
+that read right to left. It changes nothing about any design you have saved.
+
+**Numbers** can be written `0 1 2 3` or `٠ ١ ٢ ٣`, whichever you prefer — and
+you can always **type** either, whatever the setting says.
+
+Exports follow the app: a design sheet printed with the app set to Arabic
+comes out in Arabic.
+
+A note you write is a different matter. It stays exactly as you typed it, in
+whatever language you typed it, in every language the app is set to.
+
 ## Notes
 
 Two kinds, and they are separate.

@@ -1,6 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:proframe/core/i18n/app_language.dart';
+import 'package:proframe/core/i18n/numerals.dart';
+import 'package:proframe/core/i18n/strings.dart';
 import 'package:proframe/domain/design_document.dart';
 import 'package:proframe/domain/geometry/point2.dart';
 import 'package:proframe/domain/geometry/polygon.dart';
@@ -17,7 +20,8 @@ void main() {
   // The PDF embeds fonts from the asset bundle, which needs the binding.
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('generates a real PDF', () async {
+  /// A window with an Arabic note, a mesh panel and one opening leaf.
+  DesignDocument kitchenWindow() {
     final outline = Polygon.rectangle(width: 1200, height: 1500);
     final design = DesignDocument.blank(
       id: 'p1',
@@ -62,14 +66,33 @@ void main() {
       ],
     );
 
-    final bytes = await PdfDesignSheet.build(design);
+    return design;
+  }
+
+  test('generates a real PDF', () async {
+    final bytes = await PdfDesignSheet.build(kitchenWindow());
 
     expect(bytes.length, greaterThan(1000));
     // A real PDF starts with %PDF.
     expect(String.fromCharCodes(bytes.take(4)), '%PDF');
 
     await File('/tmp/sample_design_sheet.pdf').writeAsBytes(bytes);
-    // ignore: avoid_print
-    print('WROTE ${bytes.length} bytes');
+  });
+
+  test('the sheet is written in the language the app is set to', () async {
+    const arabic = AppStrings(
+      language: AppLanguage.arabic,
+      numerals: NumeralSystem.arabicIndic,
+    );
+    final english = await PdfDesignSheet.build(kitchenWindow());
+    final translated =
+        await PdfDesignSheet.build(kitchenWindow(), strings: arabic);
+
+    expect(translated.length, greaterThan(1000));
+    expect(String.fromCharCodes(translated.take(4)), '%PDF');
+    // Not the same sheet with the same words: the text really changed.
+    expect(translated.length, isNot(english.length));
+
+    await File('/tmp/sample_design_sheet_ar.pdf').writeAsBytes(translated);
   });
 }

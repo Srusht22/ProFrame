@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:flutter/services.dart' show FontLoader, rootBundle;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/export/elevation_painter.dart';
+import 'package:proframe/core/i18n/app_language.dart';
+import 'package:proframe/core/i18n/numerals.dart';
+import 'package:proframe/core/i18n/strings.dart';
 import 'package:proframe/domain/design_document.dart';
 import 'package:proframe/domain/geometry/point2.dart';
 import 'package:proframe/domain/geometry/polygon.dart';
@@ -54,6 +57,19 @@ void main() {
   test('writes the sample PDF design sheet', () async {
     final bytes = await PdfDesignSheet.build(design);
     await File('samples/kitchen-window.pdf').writeAsBytes(bytes);
+
+    expect(String.fromCharCodes(bytes.take(4)), '%PDF');
+  });
+
+  test('writes the same sheet in Arabic', () async {
+    // The same design, the same numbers, read from the other side of the
+    // page: what a factory in Erbil or Baghdad would actually print.
+    const arabic = AppStrings(
+      language: AppLanguage.arabic,
+      numerals: NumeralSystem.arabicIndic,
+    );
+    final bytes = await PdfDesignSheet.build(design, strings: arabic);
+    await File('samples/kitchen-window-arabic.pdf').writeAsBytes(bytes);
 
     expect(String.fromCharCodes(bytes.take(4)), '%PDF');
   });
@@ -122,6 +138,8 @@ void main() {
       ..writeln('| `kitchen-window.proframe` | The editable project. '
           'The only one that reopens for editing. |')
       ..writeln('| `kitchen-window.pdf` | The design sheet. |')
+      ..writeln('| `kitchen-window-arabic.pdf` | The same sheet with the app '
+          'set to Arabic. |')
       ..writeln('| `kitchen-window.png` | The drawing, with dimensions and '
           'note markers. |')
       ..writeln('| `kitchen-window-plain.png` | The same drawing without '

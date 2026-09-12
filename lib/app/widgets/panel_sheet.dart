@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../core/design/tokens.dart';
+import '../../core/i18n/product_labels.dart';
 import '../../core/i18n/strings.dart';
 import '../../domain/panel.dart';
 import '../../domain/product/opening.dart';
 import '../../domain/product/product_basics.dart';
-import '../i18n/labels.dart';
+
 import 'notice.dart';
 
 /// What the user asked to change about a panel.

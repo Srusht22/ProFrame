@@ -1,5 +1,3 @@
-import '../../core/i18n/strings.dart';
-import '../../core/units/length_unit.dart';
 import '../../domain/design_question.dart';
 import '../../domain/layout/design_validator.dart';
 import '../../domain/layout/note_resolver.dart';
@@ -10,8 +8,15 @@ import '../../domain/product/finish.dart';
 import '../../domain/product/opening.dart';
 import '../../domain/product/product_basics.dart';
 import '../../domain/product/profile_system.dart';
+import '../units/length_unit.dart';
+import 'strings.dart';
 
 /// Translations for the things the domain names.
+///
+/// This is the one place a domain enum, a validator finding or an outstanding
+/// question turns into words. It lives here, beside the phrases, rather than
+/// in the UI, because the exported sheet needs exactly the same words as the
+/// screen — and it reads them from the export layer.
 ///
 /// The domain keeps its own English labels — they are what a stored file and a
 /// log say, and they must not change when a user picks another language. This
@@ -92,6 +97,14 @@ extension ProductLabels on AppStrings {
         'brown' => call(T.finishBrown),
         'golden_oak' => call(T.finishGoldenOak),
         _ => finish.name,
+      };
+
+  /// What a built-in profile system's numbers are based on. A system the
+  /// factory adds later has no key, so its own words are shown.
+  String profileAssumptions(ProfileSystem system) => switch (system.id) {
+        'generic.pvc.casement' => call(T.assumptionsPvc),
+        'generic.aluminium.casement' => call(T.assumptionsAluminium),
+        _ => system.assumptions,
       };
 
   /// A built-in profile system's name; anything else keeps its own.

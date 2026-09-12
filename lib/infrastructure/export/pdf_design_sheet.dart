@@ -3,9 +3,12 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../../core/i18n/product_labels.dart';
+import '../../core/i18n/strings.dart';
 import '../../domain/design_document.dart';
 import '../../domain/product/opening.dart';
 import '../../domain/rendering/front_elevation.dart';
+import 'design_facts.dart';
 import 'export_fonts.dart';
 
 /// Builds the PDF design sheet (spec section 11C).
@@ -37,51 +40,65 @@ abstract final class PdfDesignSheet {
   }
 
   /// Renders the sheet.
-  static Future<Uint8List> build(DesignDocument design) async {
+  static Future<Uint8List> build(
+    DesignDocument design, {
+    AppStrings strings = const AppStrings(),
+  }) async {
     // Embedded Unicode fonts, so an Arabic or Kurdish note is readable rather
     // than a row of boxes (spec section 8B).
     await ExportFonts.load();
 
-    final facts = DesignFacts.of(design);
+    final facts = DesignFacts.of(design, strings);
     final elevation = FrontElevation.of(design);
     final document = pw.Document(
       title: design.name,
-      theme: ExportFonts.theme,
+      theme: ExportFonts.themeFor(rightToLeft: strings.language.isRightToLeft),
     );
 
     document.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(28),
+        // The sheet mirrors for Arabic and Kurdish, the same way the app
+        // does: a fabricator reading it should not have to read one page in
+        // two directions.
+        textDirection: strings.language.isRightToLeft
+            ? pw.TextDirection.rtl
+            : pw.TextDirection.ltr,
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            _header(facts),
+            _header(facts, strings),
             pw.SizedBox(height: 12),
             if (!facts.sizeConfirmed || facts.outstanding.isNotEmpty)
-              _warning(
-                'Preview — measurements incomplete',
-                [
-                  ...facts.outstanding,
-                  'Do not manufacture from this sheet.',
-                ],
-              ),
+              _warning(strings(T.sheetPreviewIncomplete), [
+                ...facts.outstanding,
+                strings(T.sheetDoNotManufacture),
+              ]),
             pw.SizedBox(height: 8),
             pw.Expanded(
               child: pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Expanded(flex: 3, child: _drawingBlock(elevation)),
+                  pw.Expanded(
+                    flex: 3,
+                    child: _drawingBlock(elevation, strings),
+                  ),
                   pw.SizedBox(width: 16),
-                  pw.Expanded(flex: 2, child: _detailsBlock(facts, elevation)),
+                  pw.Expanded(
+                    flex: 2,
+                    child: _detailsBlock(facts, elevation, strings),
+                  ),
                 ],
               ),
             ),
             pw.SizedBox(height: 8),
             if (facts.profileIsGeneric)
-              _warning('Generic preview profile', [facts.profileAssumptions]),
+              _warning(strings(T.genericPreviewProfile), [
+                facts.profileAssumptions,
+              ]),
             pw.SizedBox(height: 6),
-            _footer(facts),
+            _footer(strings),
           ],
         ),
       ),
@@ -92,7 +109,8 @@ abstract final class PdfDesignSheet {
 
   // -- blocks ---------------------------------------------------------------
 
-  static pw.Widget _header(DesignFacts facts) => pw.Container(
+  static pw.Widget _header(DesignFacts facts, AppStrings strings) =>
+      pw.Container(
         width: double.infinity,
         padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         color: _deepGreen,
@@ -130,7 +148,11 @@ abstract final class PdfDesignSheet {
                   ),
                 ),
                 pw.Text(
-                  facts.sizeConfirmed ? 'Confirmed' : 'Not confirmed',
+                  strings(
+                    facts.sizeConfirmed
+                        ? T.sheetConfirmed
+                        : T.sheetNotConfirmed,
+                  ),
                   style: const pw.TextStyle(color: _cream, fontSize: 9),
                 ),
               ],
@@ -139,54 +161,63 @@ abstract final class PdfDesignSheet {
         ),
       );
 
-  static pw.Widget _drawingBlock(FrontElevation elevation) => pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          _sectionTitle('Front view'),
-          pw.Expanded(
-            child: pw.Container(
-              width: double.infinity,
-              decoration: pw.BoxDecoration(border: pw.Border.all(color: _rule)),
-              padding: const pw.EdgeInsets.all(10),
-              child: elevation.isEmpty
-                  ? pw.Center(
-                      child: pw.Text(
-                        'Nothing has been drawn yet.',
-                        style: const pw.TextStyle(color: _muted, fontSize: 10),
-                      ),
-                    )
-                  : pw.CustomPaint(
-                      painter: (canvas, size) =>
-                          _paintElevation(canvas, size, elevation),
-                    ),
-            ),
-          ),
-          pw.SizedBox(height: 4),
-          pw.Text(
-            'Not to scale — fitted to the page.',
-            style: const pw.TextStyle(color: _muted, fontSize: 8),
-          ),
-        ],
-      );
+  static pw.Widget _drawingBlock(
+    FrontElevation elevation,
+    AppStrings strings,
+  ) => pw.Column(
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+      _sectionTitle(strings(T.sheetFrontView)),
+      pw.Expanded(
+        child: pw.Container(
+          width: double.infinity,
+          decoration: pw.BoxDecoration(border: pw.Border.all(color: _rule)),
+          padding: const pw.EdgeInsets.all(10),
+          child: elevation.isEmpty
+              ? pw.Center(
+                  child: pw.Text(
+                    strings(T.sheetNothingDrawn),
+                    style: const pw.TextStyle(color: _muted, fontSize: 10),
+                  ),
+                )
+              : pw.CustomPaint(
+                  painter: (canvas, size) =>
+                      _paintElevation(canvas, size, elevation, strings),
+                ),
+        ),
+      ),
+      pw.SizedBox(height: 4),
+      pw.Text(
+        strings(T.sheetNotToScale),
+        style: const pw.TextStyle(color: _muted, fontSize: 8),
+      ),
+    ],
+  );
 
   static pw.Widget _detailsBlock(
     DesignFacts facts,
     FrontElevation elevation,
+    AppStrings strings,
   ) {
     final notes = elevation.numberedNotes;
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Specification'),
-        _row('Product', facts.category),
-        _row('Material', facts.material),
-        _row('Colour', facts.finish),
-        _row('Profile', facts.profile +
-            (facts.profileIsGeneric ? ' (generic preview)' : '')),
-        _row('Overall size', facts.size),
-        _row('Measured as', facts.dimensionReference),
-        _row('Drawing viewed from', facts.viewedFrom),
+        _sectionTitle(strings(T.sheetSpecification)),
+        _row(strings(T.sheetProduct), facts.category),
+        _row(strings(T.material), facts.material),
+        _row(strings(T.colour), facts.finish),
+        _row(
+          strings(T.sheetProfile),
+          facts.profile +
+              (facts.profileIsGeneric
+                  ? ' ${strings(T.sheetGenericSuffix)}'
+                  : ''),
+        ),
+        _row(strings(T.sheetOverallSize), facts.size),
+        _row(strings(T.sheetMeasuredAs), facts.dimensionReference),
+        _row(strings(T.sheetViewedFrom), facts.viewedFrom),
         pw.SizedBox(height: 3),
         pw.Text(
           facts.dimensionReferenceDetail,
@@ -194,22 +225,34 @@ abstract final class PdfDesignSheet {
         ),
 
         pw.SizedBox(height: 10),
-        _sectionTitle('Legend'),
-        _legendRow('CH', 'Fixed — does not open', facts.fixedCount),
-        _legendRow('Z', 'Opening sash or door leaf', facts.openingCount),
+        _sectionTitle(strings(T.sheetLegend)),
+        _legendRow(
+          'CH',
+          strings(T.sheetLegendFixed),
+          facts.fixedCount,
+          strings,
+        ),
+        _legendRow(
+          'Z',
+          strings(T.sheetLegendOpening),
+          facts.openingCount,
+          strings,
+        ),
 
         if (elevation.panels.isNotEmpty) ...[
           pw.SizedBox(height: 10),
-          _sectionTitle('Panels'),
+          _sectionTitle(strings(T.sheetPanels)),
           for (final panel in elevation.panels)
             pw.Padding(
               padding: const pw.EdgeInsets.only(bottom: 2),
               child: pw.Text(
-                '${panel.number}. ${panel.code} · '
-                '${panel.rect.width.round()} × ${panel.rect.height.round()} mm'
-                '${panel.badges.isEmpty ? '' : ' · ${panel.badges.join(', ')}'}'
-                '${panel.opening == null ? '' : ' · ${panel.opening!.mechanism.label}'
-                    '${panel.opening!.mechanism.needsHingeSide ? ', ${panel.opening!.hingeSide.label.toLowerCase()}' : ''}'}',
+                '${strings.number(panel.number)}. ${panel.code} · '
+                '${strings.number(panel.rect.width)} × '
+                '${strings.number(panel.rect.height)} '
+                '${strings(T.unitMillimetre)}'
+                '${panel.hasBadges ? ' · ${_badges(panel, strings)}' : ''}'
+                '${panel.opening == null ? '' : ' · ${strings.mechanism(panel.opening!.mechanism)}'
+                          '${panel.opening!.mechanism.needsHingeSide ? ', ${strings.hingeSide(panel.opening!.hingeSide)}' : ''}'}',
                 style: const pw.TextStyle(fontSize: 8, color: _ink),
               ),
             ),
@@ -217,7 +260,7 @@ abstract final class PdfDesignSheet {
 
         if (facts.designNote.isNotEmpty) ...[
           pw.SizedBox(height: 10),
-          _sectionTitle('Design notes'),
+          _sectionTitle(strings(T.sheetDesignNotes)),
           pw.Text(
             facts.designNote,
             style: const pw.TextStyle(fontSize: 8.5, color: _ink),
@@ -226,27 +269,32 @@ abstract final class PdfDesignSheet {
 
         if (notes.isNotEmpty) ...[
           pw.SizedBox(height: 10),
-          _sectionTitle('Section notes'),
+          _sectionTitle(strings(T.sheetSectionNotes)),
           for (final note in notes)
             pw.Padding(
               padding: const pw.EdgeInsets.only(bottom: 2),
-              child: pw.RichText(
-                text: pw.TextSpan(
-                  children: [
-                    pw.TextSpan(
-                      text: '${note.reference}  ',
-                      style: pw.TextStyle(
-                        fontSize: 8,
-                        fontWeight: pw.FontWeight.bold,
-                        color: _deepGreen,
-                      ),
+              // Two widgets rather than one rich span: the layout engine
+              // picks the font from the widget, so a note in another script
+              // than the sheet needs to be its own widget to be shaped with
+              // the face that can shape it.
+              child: pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    '${note.reference}  ',
+                    style: pw.TextStyle(
+                      fontSize: 8,
+                      fontWeight: pw.FontWeight.bold,
+                      color: _deepGreen,
                     ),
-                    pw.TextSpan(
-                      text: note.text,
+                  ),
+                  pw.Expanded(
+                    child: pw.Text(
+                      note.text,
                       style: const pw.TextStyle(fontSize: 8, color: _ink),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
         ],
@@ -254,121 +302,130 @@ abstract final class PdfDesignSheet {
     );
   }
 
-  static pw.Widget _footer(DesignFacts facts) => pw.Container(
-        width: double.infinity,
-        padding: const pw.EdgeInsets.only(top: 5),
-        decoration: const pw.BoxDecoration(
-          border: pw.Border(top: pw.BorderSide(color: _rule)),
-        ),
-        child: pw.Text(
-          'Visual design sheet. Not manufacturing data: fabrication requires '
-          'validated profile data, fabrication rules and factory review. '
-          'Generated ${DateTime.now().toUtc().toIso8601String().substring(0, 16)} UTC.',
-          style: const pw.TextStyle(color: _muted, fontSize: 7.5),
-        ),
-      );
+  static pw.Widget _footer(AppStrings strings) => pw.Container(
+    width: double.infinity,
+    padding: const pw.EdgeInsets.only(top: 5),
+    decoration: const pw.BoxDecoration(
+      border: pw.Border(top: pw.BorderSide(color: _rule)),
+    ),
+    child: pw.Text(
+      '${strings(T.sheetFooter)} '
+      '${strings(T.sheetGeneratedAt, {'when': strings.numerals.format(DateTime.now().toUtc().toIso8601String().substring(0, 16))})}',
+      style: const pw.TextStyle(color: _muted, fontSize: 7.5),
+    ),
+  );
 
   // -- pieces ---------------------------------------------------------------
 
+  /// The mesh and empty marks, in words.
+  static String _badges(ElevationPanel panel, AppStrings strings) => [
+    if (panel.hasMesh) strings(T.mesh),
+    if (panel.isEmpty) strings(T.emptyPanel),
+  ].join(', ');
+
   static pw.Widget _sectionTitle(String text) => pw.Padding(
-        padding: const pw.EdgeInsets.only(bottom: 4),
-        child: pw.Text(
-          text.toUpperCase(),
-          style: pw.TextStyle(
-            fontSize: 8,
-            letterSpacing: 0.8,
-            fontWeight: pw.FontWeight.bold,
-            color: _deepGreen,
-          ),
-        ),
-      );
+    padding: const pw.EdgeInsets.only(bottom: 4),
+    child: pw.Text(
+      text.toUpperCase(),
+      style: pw.TextStyle(
+        fontSize: 8,
+        letterSpacing: 0.8,
+        fontWeight: pw.FontWeight.bold,
+        color: _deepGreen,
+      ),
+    ),
+  );
 
   static pw.Widget _row(String label, String value) => pw.Padding(
-        padding: const pw.EdgeInsets.only(bottom: 2),
-        child: pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.SizedBox(
-              width: 84,
-              child: pw.Text(
-                label,
-                style: const pw.TextStyle(fontSize: 8, color: _muted),
-              ),
-            ),
-            pw.Expanded(
-              child: pw.Text(
-                value,
-                style: pw.TextStyle(
-                  fontSize: 8,
-                  color: _ink,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
+    padding: const pw.EdgeInsets.only(bottom: 2),
+    child: pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.SizedBox(
+          width: 84,
+          child: pw.Text(
+            label,
+            style: const pw.TextStyle(fontSize: 8, color: _muted),
+          ),
         ),
-      );
+        pw.Expanded(
+          child: pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 8,
+              color: _ink,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 
-  static pw.Widget _legendRow(String code, String meaning, int count) =>
-      pw.Padding(
-        padding: const pw.EdgeInsets.only(bottom: 2),
-        child: pw.Row(
-          children: [
-            pw.Container(
-              width: 22,
-              alignment: pw.Alignment.center,
-              padding: const pw.EdgeInsets.symmetric(vertical: 1),
-              decoration: pw.BoxDecoration(border: pw.Border.all(color: _ink)),
-              child: pw.Text(
-                code,
-                style: pw.TextStyle(
-                  fontSize: 8,
-                  fontWeight: pw.FontWeight.bold,
-                  color: _ink,
-                ),
-              ),
+  static pw.Widget _legendRow(
+    String code,
+    String meaning,
+    int count,
+    AppStrings strings,
+  ) => pw.Padding(
+    padding: const pw.EdgeInsets.only(bottom: 2),
+    child: pw.Row(
+      children: [
+        pw.Container(
+          width: 22,
+          alignment: pw.Alignment.center,
+          padding: const pw.EdgeInsets.symmetric(vertical: 1),
+          decoration: pw.BoxDecoration(border: pw.Border.all(color: _ink)),
+          child: pw.Text(
+            code,
+            style: pw.TextStyle(
+              fontSize: 8,
+              fontWeight: pw.FontWeight.bold,
+              color: _ink,
             ),
-            pw.SizedBox(width: 6),
-            pw.Expanded(
-              child: pw.Text(
-                meaning,
-                style: const pw.TextStyle(fontSize: 8, color: _ink),
-              ),
-            ),
-            pw.Text(
-              '$count',
-              style: const pw.TextStyle(fontSize: 8, color: _muted),
-            ),
-          ],
+          ),
         ),
-      );
+        pw.SizedBox(width: 6),
+        pw.Expanded(
+          child: pw.Text(
+            meaning,
+            style: const pw.TextStyle(fontSize: 8, color: _ink),
+          ),
+        ),
+        pw.Text(
+          strings.number(count),
+          style: const pw.TextStyle(fontSize: 8, color: _muted),
+        ),
+      ],
+    ),
+  );
 
   static pw.Widget _warning(String title, List<String> lines) => pw.Container(
-        width: double.infinity,
-        padding: const pw.EdgeInsets.all(7),
-        decoration: pw.BoxDecoration(
-          color: _cautionBox,
-          border: pw.Border.all(color: _caution, width: 0.7),
+    width: double.infinity,
+    padding: const pw.EdgeInsets.all(7),
+    decoration: pw.BoxDecoration(
+      color: _cautionBox,
+      border: pw.Border.all(color: _caution, width: 0.7),
+    ),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          title,
+          style: pw.TextStyle(
+            fontSize: 9,
+            fontWeight: pw.FontWeight.bold,
+            color: _caution,
+          ),
         ),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text(
-              title,
-              style: pw.TextStyle(
-                fontSize: 9,
-                fontWeight: pw.FontWeight.bold,
-                color: _caution,
-              ),
-            ),
-            for (final line in lines)
-              pw.Text(
-                line,
-                style: const pw.TextStyle(fontSize: 7.5, color: _caution),
-              ),
-          ],
-        ),
-      );
+        for (final line in lines)
+          pw.Text(
+            line,
+            style: const pw.TextStyle(fontSize: 7.5, color: _caution),
+          ),
+      ],
+    ),
+  );
 
   // -- the drawing ----------------------------------------------------------
 
@@ -379,6 +436,7 @@ abstract final class PdfDesignSheet {
     PdfGraphics canvas,
     PdfPoint size,
     FrontElevation elevation,
+    AppStrings strings,
   ) {
     final outline = elevation.outline;
     if (outline.width <= 0 || outline.height <= 0) return;
@@ -407,8 +465,11 @@ abstract final class PdfDesignSheet {
     // faces are used here too, so a label on the drawing renders the same
     // characters as the text beside it.
     final fontContext = pw.Context(document: PdfDocument());
-    final regular = ExportFonts.regular.getFont(fontContext);
-    final bold = ExportFonts.bold.getFont(fontContext);
+    final rightToLeft = strings.language.isRightToLeft;
+    final regular = (rightToLeft ? ExportFonts.arabic : ExportFonts.regular)
+        .getFont(fontContext);
+    final bold = (rightToLeft ? ExportFonts.arabicBold : ExportFonts.bold)
+        .getFont(fontContext);
 
     // Glass behind everything.
     for (final panel in elevation.panels) {
@@ -484,9 +545,11 @@ abstract final class PdfDesignSheet {
       ..setStrokeColor(_muted)
       ..setLineWidth(0.5);
     for (final dimension in elevation.dimensions) {
+      // Written in the user's digits, and bracketed when it is not confirmed
+      // — a difference that survives a monochrome print (spec section 2).
       final label = dimension.confirmed
-          ? '${dimension.valueMm.round()}'
-          : '(${dimension.valueMm.round()})';
+          ? strings.number(dimension.valueMm)
+          : '(${strings.number(dimension.valueMm)})';
       if (dimension.horizontal) {
         final y = py(outline.bottom) - 12.0 * dimension.tier;
         canvas

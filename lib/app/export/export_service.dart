@@ -5,6 +5,7 @@ import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/errors/app_exception.dart';
+import '../../core/i18n/strings.dart';
 import '../../domain/design_document.dart';
 import '../../infrastructure/export/pdf_design_sheet.dart';
 import '../../infrastructure/export/project_file.dart';
@@ -32,11 +33,18 @@ class ExportService {
   final Future<void> Function(Uint8List bytes, String fileName, String mimeType)
       deliver;
 
-  const ExportService({this.deliver = _shareFile});
+  /// The language and digits every export is written in — the same ones the
+  /// user is reading the app in.
+  final AppStrings strings;
+
+  const ExportService({
+    this.deliver = _shareFile,
+    this.strings = const AppStrings(),
+  });
 
   /// The PDF design sheet.
   Future<ExportResult> exportPdf(DesignDocument design) async {
-    final bytes = await PdfDesignSheet.build(design);
+    final bytes = await PdfDesignSheet.build(design, strings: strings);
     final name = PdfDesignSheet.fileNameFor(design);
     await deliver(bytes, name, 'application/pdf');
     return ExportResult(fileName: name, byteCount: bytes.length);
@@ -47,7 +55,11 @@ class ExportService {
     DesignDocument design, {
     ElevationOptions options = const ElevationOptions(),
   }) async {
-    final bytes = await renderElevationPng(design, options: options);
+    final bytes = await renderElevationPng(
+      design,
+      options: options,
+      strings: strings,
+    );
     final name = '${_safeName(design.name)}.png';
     await deliver(bytes, name, 'image/png');
     return ExportResult(fileName: name, byteCount: bytes.length);
@@ -74,7 +86,7 @@ class ExportService {
   /// intentions, and a factory more often wants the sheet on paper.
   Future<void> printPdf(DesignDocument design) async {
     await Printing.layoutPdf(
-      onLayout: (_) => PdfDesignSheet.build(design),
+      onLayout: (_) => PdfDesignSheet.build(design, strings: strings),
       name: PdfDesignSheet.fileNameFor(design),
     );
   }

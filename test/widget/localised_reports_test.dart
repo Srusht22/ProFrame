@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:proframe/app/i18n/labels.dart';
 import 'package:proframe/core/i18n/app_language.dart';
 import 'package:proframe/core/i18n/numerals.dart';
+import 'package:proframe/core/i18n/product_labels.dart';
 import 'package:proframe/core/i18n/strings.dart';
 import 'package:proframe/domain/design_document.dart';
 import 'package:proframe/domain/design_question.dart';

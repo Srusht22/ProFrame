@@ -6,12 +6,15 @@ import '../../core/i18n/strings.dart';
 import '../../domain/design_document.dart';
 import '../export/elevation_painter.dart';
 import '../export/export_service.dart';
+import '../state/preferences_controller.dart';
 import '../widgets/notice.dart';
 
 /// Which exports the app offers. Overridden in tests so nothing opens a share
 /// sheet.
 final exportServiceProvider = Provider<ExportService>(
-  (ref) => const ExportService(),
+  // Watches the language: an export is written in whatever the user is
+  // reading the app in at the moment they ask for it.
+  (ref) => ExportService(strings: ref.watch(appStringsProvider)),
 );
 
 /// The export screen (spec section 11).

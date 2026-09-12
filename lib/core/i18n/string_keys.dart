@@ -86,6 +86,9 @@ enum T {
   profileGenericPvc,
   profileGenericAluminium,
 
+  assumptionsPvc,
+  assumptionsAluminium,
+
   // -- projects screen -----------------------------------------------------
   openProjectFile,
   factorySettings,
@@ -277,6 +280,32 @@ enum T {
   exportFailed,
   fileBytes,
   fileKilobytes,
+
+  // -- the exported sheet --------------------------------------------------
+  sheetConfirmed,
+  sheetNotConfirmed,
+  sheetPreviewIncomplete,
+  sheetDoNotManufacture,
+  sheetFrontView,
+  sheetNothingDrawn,
+  sheetNotToScale,
+  sheetSpecification,
+  sheetProduct,
+  sheetProfile,
+  sheetGenericSuffix,
+  sheetOverallSize,
+  sheetMeasuredAs,
+  sheetViewedFrom,
+  sheetLegend,
+  sheetLegendFixed,
+  sheetLegendOpening,
+  sheetPanels,
+  sheetDesignNotes,
+  sheetSectionNotes,
+  sheetFooter,
+  sheetGeneratedAt,
+  sheetFittingGapDetail,
+  sheetNotMeasured,
 
   // -- leaving and recovering ----------------------------------------------
   saveBeforeLeaving,

@@ -86,6 +86,17 @@ const Map<T, String> englishStrings = {
   T.profileGenericPvc: 'Generic PVC casement',
   T.profileGenericAluminium: 'Generic aluminium casement',
 
+  T.assumptionsPvc:
+      'Preview profile only. Based on a typical 70 mm five-chamber PVC '
+          'casement system. Not a manufacturer specification: face widths, '
+          'depths, rebates and size limits must be replaced with your '
+          "supplier's data before any of this is used for fabrication.",
+  T.assumptionsAluminium:
+      'Preview profile only. Based on a typical 65 mm thermally broken '
+          'aluminium casement system. Not a manufacturer specification: face '
+          'widths, depths, rebates and size limits must be replaced with your '
+          "supplier's data before any of this is used for fabrication.",
+
   // -- projects screen -----------------------------------------------------
   T.openProjectFile: 'Open a project file',
   T.factorySettings: 'Factory settings',
@@ -321,6 +332,35 @@ const Map<T, String> englishStrings = {
   T.exportFailed: 'That export failed: {error}',
   T.fileBytes: '{size} bytes',
   T.fileKilobytes: '{size} KB',
+
+  // -- the exported sheet --------------------------------------------------
+  T.sheetConfirmed: 'Confirmed',
+  T.sheetNotConfirmed: 'Not confirmed',
+  T.sheetPreviewIncomplete: 'Preview — measurements incomplete',
+  T.sheetDoNotManufacture: 'Do not manufacture from this sheet.',
+  T.sheetFrontView: 'Front view',
+  T.sheetNothingDrawn: 'Nothing has been drawn yet.',
+  T.sheetNotToScale: 'Not to scale — fitted to the page.',
+  T.sheetSpecification: 'Specification',
+  T.sheetProduct: 'Product',
+  T.sheetProfile: 'Profile',
+  T.sheetGenericSuffix: '(generic preview)',
+  T.sheetOverallSize: 'Overall size',
+  T.sheetMeasuredAs: 'Measured as',
+  T.sheetViewedFrom: 'Drawing viewed from',
+  T.sheetLegend: 'Legend',
+  T.sheetLegendFixed: 'Fixed — does not open',
+  T.sheetLegendOpening: 'Opening sash or door leaf',
+  T.sheetPanels: 'Panels',
+  T.sheetDesignNotes: 'Design notes',
+  T.sheetSectionNotes: 'Panel notes',
+  T.sheetFooter:
+      'Visual design sheet. Not manufacturing data: fabrication requires '
+          'validated profile data, fabrication rules and factory review.',
+  T.sheetGeneratedAt: 'Generated {when} UTC.',
+  T.sheetFittingGapDetail:
+      'Fitting gap {gap} each side, giving a frame of {width} × {height}.',
+  T.sheetNotMeasured: 'Not measured',
 
   // -- leaving and recovering ----------------------------------------------
   T.saveBeforeLeaving: 'Save before leaving?',

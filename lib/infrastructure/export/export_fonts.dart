@@ -43,12 +43,27 @@ abstract final class ExportFonts {
   /// through to the Arabic one for anything it cannot render.
   static List<pw.Font> get fallback => [_require(_arabic), _require(_arabicBold)];
 
+  static pw.Font get arabic => _require(_arabic);
+  static pw.Font get arabicBold => _require(_arabicBold);
+
   /// The theme applied to the whole document.
-  static pw.ThemeData get theme => pw.ThemeData.withFont(
-        base: regular,
-        bold: bold,
-        fontFallback: fallback,
+  ///
+  /// [rightToLeft] picks which face leads. It matters for more than looks:
+  /// the layout engine shapes a run with one font, and falls back per
+  /// character for anything that font lacks — so an Arabic sentence set in a
+  /// Latin-first theme comes out as a row of disconnected letters. The
+  /// language decides which face leads, and the other one is the fallback.
+  static pw.ThemeData themeFor({required bool rightToLeft}) =>
+      pw.ThemeData.withFont(
+        base: rightToLeft ? arabic : regular,
+        bold: rightToLeft ? arabicBold : bold,
+        fontFallback: rightToLeft
+            ? [regular, bold, arabicBold]
+            : [arabic, arabicBold],
       );
+
+  /// The Latin-first theme, for callers that have no language to hand.
+  static pw.ThemeData get theme => themeFor(rightToLeft: false);
 
   static pw.Font _require(pw.Font? font) {
     final loaded = font;

@@ -92,6 +92,17 @@ const Map<T, String> arabicStrings = {
   T.profileGenericPvc: 'نظام بي في سي عام',
   T.profileGenericAluminium: 'نظام ألمنيوم عام',
 
+  T.assumptionsPvc:
+      'بروفيل معاينة فقط. مبني على نظام بي في سي بعرض ٧٠ ملم بخمس حجرات، وهو '
+          'نظام شائع. ليس مواصفة من مصنّع: يجب استبدال عروض الأوجه والأعماق '
+          'والمجاري وحدود القياس ببيانات مورّدك قبل استخدام أي من هذا في '
+          'التصنيع.',
+  T.assumptionsAluminium:
+      'بروفيل معاينة فقط. مبني على نظام ألمنيوم بعرض ٦٥ ملم بفاصل حراري، وهو '
+          'نظام شائع. ليس مواصفة من مصنّع: يجب استبدال عروض الأوجه والأعماق '
+          'والمجاري وحدود القياس ببيانات مورّدك قبل استخدام أي من هذا في '
+          'التصنيع.',
+
   // -- projects screen -----------------------------------------------------
   T.openProjectFile: 'فتح ملف مشروع',
   T.factorySettings: 'إعدادات المصنع',
@@ -309,6 +320,35 @@ const Map<T, String> arabicStrings = {
   T.exportFailed: 'فشل التصدير: {error}',
   T.fileBytes: '{size} بايت',
   T.fileKilobytes: '{size} كيلوبايت',
+
+  // -- the exported sheet --------------------------------------------------
+  T.sheetConfirmed: 'مؤكد',
+  T.sheetNotConfirmed: 'غير مؤكد',
+  T.sheetPreviewIncomplete: 'معاينة — القياسات غير مكتملة',
+  T.sheetDoNotManufacture: 'لا تصنّع اعتماداً على هذه الورقة.',
+  T.sheetFrontView: 'الواجهة الأمامية',
+  T.sheetNothingDrawn: 'لم يُرسم شيء بعد.',
+  T.sheetNotToScale: 'ليست بمقياس رسم — مُلائمة لحجم الصفحة.',
+  T.sheetSpecification: 'المواصفات',
+  T.sheetProduct: 'المنتج',
+  T.sheetProfile: 'البروفيل',
+  T.sheetGenericSuffix: '(معاينة عامة)',
+  T.sheetOverallSize: 'القياس الكلي',
+  T.sheetMeasuredAs: 'القياس يعني',
+  T.sheetViewedFrom: 'الرسم منظور من',
+  T.sheetLegend: 'الدليل',
+  T.sheetLegendFixed: 'ثابت — لا يفتح',
+  T.sheetLegendOpening: 'درفة تفتح أو درفة باب',
+  T.sheetPanels: 'الخانات',
+  T.sheetDesignNotes: 'ملاحظات التصميم',
+  T.sheetSectionNotes: 'ملاحظات الخانات',
+  T.sheetFooter:
+      'ورقة تصميم مرئية. ليست بيانات تصنيع: التصنيع يتطلب بيانات بروفيل '
+          'موثّقة وقواعد تصنيع ومراجعة من المصنع.',
+  T.sheetGeneratedAt: 'أُنشئت في {when} بتوقيت UTC.',
+  T.sheetFittingGapDetail:
+      'فجوة تركيب {gap} على كل جانب، فيصبح الإطار {width} × {height}.',
+  T.sheetNotMeasured: 'غير مقاس',
 
   // -- leaving and recovering ----------------------------------------------
   T.saveBeforeLeaving: 'حفظ قبل الخروج؟',

@@ -92,6 +92,17 @@ const Map<T, String> kurdishStrings = {
   T.profileGenericPvc: 'سیستەمی گشتی پی ڤی سی',
   T.profileGenericAluminium: 'سیستەمی گشتی ئەلومینیۆم',
 
+  T.assumptionsPvc:
+      'تەنها پڕۆفایلی پێشبینین. لەسەر سیستەمێکی باوی پی ڤی سی ٧٠ مم بە پێنج '
+          'ژوورە. تایبەتمەندی بەرهەمهێنەر نییە: پێویستە پانی ڕووەکان و قووڵی و '
+          'شوێنی شووشە و سنووری قەبارە بە داتای دابینکەرەکەت بگۆڕدرێن پێش '
+          'ئەوەی هیچیان بۆ دروستکردن بەکاربهێنرێن.',
+  T.assumptionsAluminium:
+      'تەنها پڕۆفایلی پێشبینین. لەسەر سیستەمێکی باوی ئەلومینیۆمی ٦٥ مم بە '
+          'پچڕانی گەرمی. تایبەتمەندی بەرهەمهێنەر نییە: پێویستە پانی ڕووەکان و '
+          'قووڵی و شوێنی شووشە و سنووری قەبارە بە داتای دابینکەرەکەت بگۆڕدرێن '
+          'پێش ئەوەی هیچیان بۆ دروستکردن بەکاربهێنرێن.',
+
   // -- projects screen -----------------------------------------------------
   T.openProjectFile: 'کردنەوەی فایلی پڕۆژە',
   T.factorySettings: 'ڕێکخستنەکانی کارگە',
@@ -322,6 +333,36 @@ const Map<T, String> kurdishStrings = {
   T.exportFailed: 'ناردنە دەرەوە سەرکەوتوو نەبوو: {error}',
   T.fileBytes: '{size} بایت',
   T.fileKilobytes: '{size} کیلۆبایت',
+
+  // -- the exported sheet --------------------------------------------------
+  T.sheetConfirmed: 'پشتڕاستکراوە',
+  T.sheetNotConfirmed: 'پشتڕاست نەکراوە',
+  T.sheetPreviewIncomplete: 'پێشبینین — پێوانەکان تەواو نین',
+  T.sheetDoNotManufacture: 'لەسەر ئەم پەڕەیە بەرهەم مەهێنە.',
+  T.sheetFrontView: 'ڕووی پێشەوە',
+  T.sheetNothingDrawn: 'هێشتا هیچ نەکێشراوە.',
+  T.sheetNotToScale: 'بە پێوەر نییە — بۆ پەڕەکە ڕێکخراوە.',
+  T.sheetSpecification: 'تایبەتمەندییەکان',
+  T.sheetProduct: 'بەرهەم',
+  T.sheetProfile: 'پڕۆفایل',
+  T.sheetGenericSuffix: '(پێشبینینی گشتی)',
+  T.sheetOverallSize: 'پێوانەی گشتی',
+  T.sheetMeasuredAs: 'پێوانە بە',
+  T.sheetViewedFrom: 'وێنەکە بینراوە لە',
+  T.sheetLegend: 'ڕێنمایی',
+  T.sheetLegendFixed: 'جێگیر — ناکرێتەوە',
+  T.sheetLegendOpening: 'لەپەڕەی کراوە یان لەپەڕەی دەرگا',
+  T.sheetPanels: 'خانەکان',
+  T.sheetDesignNotes: 'تێبینییەکانی دیزاین',
+  T.sheetSectionNotes: 'تێبینییەکانی خانەکان',
+  T.sheetFooter:
+      'پەڕەی دیزاینی بینراو. داتای بەرهەمهێنان نییە: بەرهەمهێنان پێویستی بە '
+          'داتای پڕۆفایلی پشتڕاستکراوە و یاسای دروستکردن و پێداچوونەوەی '
+          'کارگە هەیە.',
+  T.sheetGeneratedAt: 'دروستکراوە لە {when} بە کاتی UTC.',
+  T.sheetFittingGapDetail:
+      'بۆشایی دانانی {gap} لە هەر لایەکەوە، چوارچێوەکە دەبێتە {width} × {height}.',
+  T.sheetNotMeasured: 'نەپێوراوە',
 
   // -- leaving and recovering ----------------------------------------------
   T.saveBeforeLeaving: 'پێش ڕۆیشتن پاشەکەوت بکرێت؟',

@@ -1,6 +1,7 @@
 import 'package:flutter/painting.dart' show Offset;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/product_labels.dart';
 import '../../core/i18n/strings.dart';
 import '../../core/units/length_unit.dart';
 import '../../domain/design_document.dart';
@@ -19,7 +20,7 @@ import '../../domain/recognition/stroke_classifier.dart';
 import '../../domain/recognition/stroke_intent.dart';
 import '../../domain/sketch.dart';
 import '../canvas/canvas_projection.dart';
-import '../i18n/labels.dart';
+
 import 'preferences_controller.dart';
 
 /// What the finger does on the canvas.
