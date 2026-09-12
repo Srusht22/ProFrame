@@ -62,6 +62,7 @@ screenshot looking right.
 | Requirement | Status | Evidence |
 | --- | --- | --- |
 | Resampling and noise reduction | **Verified** | `StrokeSimplifier`; the classifier tests feed deliberately wobbly input |
+| A frame drawn as separate strokes | **Verified** | `frame_assembler_test.dart` — four sides, two L shapes, any order or direction, corners that do not meet; `canvas_view_test.dart` "four strokes become one frame, and the preview comes alive". The joined path goes through the same classifier as a single stroke, so a box in four strokes is held to the same rules |
 | Straight-segment recognition, endpoint snapping | **Verified** | Ramer–Douglas–Peucker plus the frame fit; `stroke_classifier_test.dart` |
 | Outer boundary and internal divider identification | **Verified** | Same |
 | Closed-region construction | **Verified** | `PanelSplitter`, `panel_math_test.dart` |

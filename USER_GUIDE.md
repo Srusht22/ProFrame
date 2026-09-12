@@ -24,11 +24,15 @@ Draw the way you would on paper.
 
 | To draw | Do this |
 | --- | --- |
-| The outer frame | Draw a rough box. It does not need to be neat |
+| The outer frame | Draw a rough box. It does not need to be neat, and you can draw it in one go or one side at a time |
 | A vertical divider | Draw a line down inside the frame |
 | A horizontal divider | Draw a line across inside the frame |
 | A sloping top | Draw the box with one side taller than the other |
 | An opening panel | Draw a `<` or a `>` inside it. **The point marks the hinges** |
+
+Drawing the box **side by side** is fine: draw the top, then a side, then the
+bottom, then the other side. Nothing appears until the box closes, and then
+the whole frame appears at once. The corners do not have to meet exactly.
 
 The app tidies the shakiness out of your lines. It does **not** tidy away a
 slope you meant — if you drew one side taller, it stays taller.

@@ -60,6 +60,17 @@ abstract final class Tolerances {
   /// accepts a visible gap while still rejecting an open L shape.
   static const double loopClosureFraction = 0.25;
 
+  /// How near two stroke ends must be, relative to the size of the loop they
+  /// would make, for one to carry on where the other stopped.
+  ///
+  /// A frame is often drawn as several strokes — one side at a time, the way
+  /// anybody draws a box on paper — and the corners rarely meet. This is the
+  /// gap that still counts as a corner. It sits well under
+  /// [loopClosureFraction]: joining strokes that were never meant to be one
+  /// outline is worse than asking for one more line, and whatever the strokes
+  /// join into still has to pass every frame test on its own.
+  static const double strokeJoinFraction = 0.12;
+
   /// The smallest a drawn frame may be before it is treated as a stray mark.
   static const double minimumFrameSideMm = 200;
 

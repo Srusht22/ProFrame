@@ -16,6 +16,7 @@ import '../../domain/panel_note.dart';
 import '../../domain/product/infill.dart';
 import '../../domain/product/opening.dart';
 import '../../domain/product/product_basics.dart';
+import '../../domain/recognition/frame_assembler.dart';
 import '../../domain/recognition/stroke_classifier.dart';
 import '../../domain/recognition/stroke_intent.dart';
 import '../../domain/sketch.dart';
@@ -246,13 +247,33 @@ class DesignController extends Notifier<DesignState> {
       timestampMs: DateTime.now().millisecondsSinceEpoch,
     );
 
-    final intent = StrokeClassifier(
+    final classifier = StrokeClassifier(
       frame: design.outline,
       panels: design.panels,
-    ).classify(stroke);
+    );
+    var intent = classifier.classify(stroke);
 
     _remember();
     final withInk = design.copyWith(sketch: design.sketch.withStroke(stroke));
+
+    // One stroke at a time made nothing of a box drawn side by side — which is
+    // how a box is normally drawn. Before giving up, the strokes so far are
+    // joined and read as one outline, by the same classifier and the same
+    // rules (spec section 4: the drawing is taken as it comes).
+    if (intent is DiscardedIntent && design.outline == null) {
+      final joined = FrameAssembler.join(withInk.sketch);
+      if (joined != null) {
+        final assembled = classifier.classify(
+          Stroke(
+            id: stroke.id,
+            points: joined,
+            timestampMs: stroke.timestampMs,
+          ),
+        );
+        if (assembled is FrameIntent) intent = assembled;
+      }
+    }
+
     state = state.copyWith(
       design: DesignBuilder.apply(withInk, intent, _nextId),
       clearMessage: true,

@@ -456,6 +456,80 @@ void main() {
     });
   });
 
+  group('a frame drawn side by side', () {
+    /// Draws [points] as one stroke, the way a finger would.
+    Future<void> drawLine(
+      WidgetTester tester,
+      ProviderContainer container,
+      Point2 from,
+      Point2 to,
+    ) async {
+      final gesture = await tester.startGesture(pixelOf(tester, container, from));
+      for (var i = 1; i <= 8; i++) {
+        final t = i / 8;
+        await gesture.moveTo(
+          pixelOf(
+            tester,
+            container,
+            Point2(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t),
+          ),
+        );
+        await tester.pump();
+      }
+      await gesture.up();
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('four strokes become one frame, and the preview comes alive',
+        (tester) async {
+      final container = await pumpCanvas(tester);
+      const topLeft = Point2(600, 500);
+      const topRight = Point2(2000, 500);
+      const bottomRight = Point2(2000, 1500);
+      const bottomLeft = Point2(600, 1500);
+
+      // Nothing is built until the box closes — and the preview says so.
+      await drawLine(tester, container, topLeft, topRight);
+      await drawLine(tester, container, topRight, bottomRight);
+      await drawLine(tester, container, bottomRight, bottomLeft);
+      expect(container.read(designControllerProvider).design.outline, isNull);
+      expect(find.text('Draw a frame to preview'), findsOneWidget);
+
+      await drawLine(tester, container, bottomLeft, topLeft);
+
+      final design = container.read(designControllerProvider).design;
+      expect(design.outline, isNotNull, reason: 'the box closed');
+      expect(design.panels, hasLength(1));
+      expect(design.outline!.width, closeTo(1400, 20));
+      expect(design.outline!.height, closeTo(1000, 20));
+      // Every stroke is still the user's own ink.
+      expect(design.sketch.strokes, hasLength(4));
+
+      await tester.pumpAndSettle();
+      expect(find.text('3D Preview'), findsOneWidget);
+      expect(find.text('Draw a frame to preview'), findsNothing);
+    });
+
+    testWidgets('a divider still works afterwards', (tester) async {
+      final container = await pumpCanvas(tester);
+      await drawLine(tester, container, const Point2(600, 500),
+          const Point2(2000, 500));
+      await drawLine(tester, container, const Point2(2000, 500),
+          const Point2(2000, 1500));
+      await drawLine(tester, container, const Point2(2000, 1500),
+          const Point2(600, 1500));
+      await drawLine(tester, container, const Point2(600, 1500),
+          const Point2(600, 500));
+
+      await drawLine(tester, container, const Point2(1300, 520),
+          const Point2(1300, 1480));
+
+      final design = container.read(designControllerProvider).design;
+      expect(design.dividers, hasLength(1));
+      expect(design.panels, hasLength(2));
+    });
+  });
+
   group('nothing on the canvas screen is invisible', () {
     testWidgets('every button on the bottom bar can be read', (tester) async {
       final container = await pumpCanvas(tester);
