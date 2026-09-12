@@ -1,0 +1,57 @@
+name: proframe
+description: "Draw a door or window by hand and get your own editable parametric 3D design."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State management. One approach across the whole app (spec section 9).
+  # Riverpod is compile-safe, testable without a widget tree, and has no
+  # platform channels of its own, so it cannot restrict the target platforms.
+  flutter_riverpod: ^3.0.2
+  shared_preferences: ^2.3.0
+  pdf: ^3.11.0
+  printing: ^5.13.0
+  share_plus: ^13.0.0
+  path_provider: ^2.1.0
+  file_selector: ^1.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Bundled rather than downloaded at run time: the app must work offline
+  # (spec section 10), and a PDF that silently lost its Arabic text because a
+  # font download failed would be worse than a larger binary. SIL Open Font
+  # Licence — see assets/fonts/OFL.txt.
+  #
+  # Also declared as assets, because the PDF builder reads the raw TTF bytes
+  # rather than going through Flutter's text stack.
+  assets:
+    - assets/fonts/
+
+  # Used for the whole interface, so an Arabic or Kurdish note renders the
+  # same in the app, in an exported PNG and in a PDF — rather than depending
+  # on whatever the device happens to have installed.
+  fonts:
+    - family: Noto Sans
+      fonts:
+        - asset: assets/fonts/NotoSans-Regular.ttf
+        - asset: assets/fonts/NotoSans-Bold.ttf
+          weight: 700
+    - family: Noto Sans Arabic
+      fonts:
+        - asset: assets/fonts/NotoSansArabic-Regular.ttf
+        - asset: assets/fonts/NotoSansArabic-Bold.ttf
+          weight: 700
