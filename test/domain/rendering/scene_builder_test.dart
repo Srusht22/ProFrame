@@ -621,4 +621,176 @@ void main() {
       expect(first.faces[i].corners, second.faces[i].corners);
     }
   });
+
+  group('hardware is placed where a fabricator would put it', () {
+    /// A door of [height] mm with one hinged leaf.
+    DesignDocument door({
+      double width = 900,
+      double height = 2100,
+      HingeSide hinge = HingeSide.left,
+    }) {
+      final outline = Polygon.rectangle(width: width, height: height);
+      return DesignDocument.blank(
+        id: 'd1',
+        category: ProductCategory.door,
+        material: FrameMaterial.aluminium,
+        now: DateTime.utc(2026, 9, 12),
+      ).copyWith(
+        outline: outline,
+        panels: [
+          Panel.opening(
+            id: 'p1',
+            boundary: outline,
+            opening: OpeningSpec(
+              mechanism: OpeningMechanism.hinged,
+              hingeSide: hinge,
+              direction: OpeningDirection.inward,
+              isConfirmed: true,
+            ),
+          ),
+        ],
+      );
+    }
+
+    List<SceneFace> partsOf(RenderScene scene, PartRole role) =>
+        scene.faces.where((f) => f.role == role).toList();
+
+    Point3 centreOf(SceneFace face) {
+      var x = 0.0;
+      var y = 0.0;
+      var z = 0.0;
+      for (final corner in face.corners) {
+        x += corner.x;
+        y += corner.y;
+        z += corner.z;
+      }
+      final n = face.corners.length;
+      return Point3(x / n, y / n, z / n);
+    }
+
+    test('a fixed panel has no handle and no hinges', () {
+      final scene = SceneBuilder.build(window());
+
+      expect(partsOf(scene, PartRole.handle), isEmpty);
+      expect(partsOf(scene, PartRole.hinge), isEmpty);
+    });
+
+    test('the handle goes on the edge that moves, not the hinged one', () {
+      final left = SceneBuilder.build(
+        window(panels: [sash(OpeningMechanism.hinged, hinge: HingeSide.left)]),
+      );
+      final right = SceneBuilder.build(
+        window(panels: [sash(OpeningMechanism.hinged, hinge: HingeSide.right)]),
+      );
+
+      // Hinged on the left: the handle is over towards the right-hand edge.
+      expect(centreOf(partsOf(left, PartRole.handle).single).x,
+          greaterThan(600));
+      expect(centreOf(partsOf(right, PartRole.handle).single).x,
+          lessThan(600));
+    });
+
+    test('the hinges sit on the hinged edge, spread down the leaf', () {
+      final scene = SceneBuilder.build(
+        window(panels: [sash(OpeningMechanism.hinged, hinge: HingeSide.left)]),
+      );
+
+      final hinges = partsOf(scene, PartRole.hinge);
+      expect(hinges, hasLength(2), reason: 'a 900 mm leaf takes two hinges');
+
+      // Measured against the leaf itself, which is set inside the frame.
+      final leaf = panelFace(scene, 'p1');
+      final leafLeft = leaf.first.x;
+      final leafTop = leaf.first.y;
+      final leafBottom = leaf[2].y;
+      for (final hinge in hinges) {
+        final at = centreOf(hinge);
+        expect(at.x, closeTo(leafLeft, 14), reason: 'on the left-hand edge');
+        expect(
+          at.y,
+          inInclusiveRange(leafTop, leafBottom),
+          reason: 'inside the leaf',
+        );
+      }
+
+      // Not stacked on top of each other: one high, one low.
+      final ys = hinges.map((h) => centreOf(h).y).toList()..sort();
+      expect(ys.last - ys.first, greaterThan(400));
+    });
+
+    test('a tall leaf takes a third hinge', () {
+      final short = SceneBuilder.build(door(height: 1500));
+      final tall = SceneBuilder.build(door(height: 2100));
+
+      expect(partsOf(short, PartRole.hinge), hasLength(2));
+      expect(partsOf(tall, PartRole.hinge), hasLength(3));
+    });
+
+    test('a door handle is a hand height above the floor', () {
+      const height = 2100.0;
+      final scene = SceneBuilder.build(door(height: height));
+
+      final at = centreOf(partsOf(scene, PartRole.handle).single);
+      // Measured from the floor — the bottom of the frame — and not from the
+      // bottom of the leaf, which sits a frame member above it.
+      expect(
+        height - at.y,
+        closeTo(SceneBuilder.doorHandleHeightMm, 1),
+        reason: 'a door handle is set by its height above the floor',
+      );
+    });
+
+    test('a window handle is in the middle of its sash, where it is reachable',
+        () {
+      final scene = SceneBuilder.build(
+        window(panels: [sash(OpeningMechanism.hinged, hinge: HingeSide.left)]),
+      );
+
+      final leaf = panelFace(scene, 'p1');
+      expect(
+        centreOf(partsOf(scene, PartRole.handle).single).y,
+        closeTo((leaf.first.y + leaf[2].y) / 2, 1),
+      );
+    });
+
+    test('a sliding sash gets a handle but no hinges', () {
+      final scene = SceneBuilder.build(
+        window(panels: [sash(OpeningMechanism.slidingLeft)]),
+      );
+
+      expect(partsOf(scene, PartRole.handle), hasLength(1));
+      expect(partsOf(scene, PartRole.hinge), isEmpty);
+    });
+
+    test('the hardware travels with the leaf as it opens', () {
+      final shut = SceneBuilder.build(door());
+      final open = SceneBuilder.build(door(), openFractions: {'p1': 1});
+
+      final shutHandle = centreOf(partsOf(shut, PartRole.handle).single);
+      final openHandle = centreOf(partsOf(open, PartRole.handle).single);
+
+      expect(
+        openHandle.z,
+        isNot(closeTo(shutHandle.z, 1)),
+        reason: 'the handle must swing with the door, not stay on the frame',
+      );
+      expect(openHandle.x, lessThan(shutHandle.x));
+
+      // The hinges are on the axis, so they stay put.
+      final shutHinge = centreOf(partsOf(shut, PartRole.hinge).first);
+      final openHinge = centreOf(partsOf(open, PartRole.hinge).first);
+      expect(openHinge.x, closeTo(shutHinge.x, 0.5));
+      expect(openHinge.z, closeTo(shutHinge.z, 0.5));
+    });
+
+    test('hardware belongs to its panel, so tapping it selects the sash', () {
+      final scene = SceneBuilder.build(door());
+
+      for (final role in [PartRole.handle, PartRole.hinge]) {
+        for (final face in partsOf(scene, role)) {
+          expect(face.panelId, 'p1');
+        }
+      }
+    });
+  });
 }

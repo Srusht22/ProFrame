@@ -247,6 +247,9 @@ abstract final class SceneBuilder {
         corners: corners,
         system: system,
         isDoor: design.category == ProductCategory.door,
+        // The floor is the bottom of the frame, not the bottom of the leaf:
+        // handle height is measured from the ground a person stands on.
+        floorY: design.outline?.bottom,
         openFraction: openFraction,
         faces: faces,
       );
@@ -494,6 +497,7 @@ abstract final class SceneBuilder {
     required bool isDoor,
     required double openFraction,
     required List<SceneFace> faces,
+    double? floorY,
   }) {
     final topLeft = corners[0];
     final topRight = corners[1];
@@ -532,8 +536,10 @@ abstract final class SceneBuilder {
 
       // A door handle sits at a fixed height above the floor; a window handle
       // sits at the middle of its sash, where a person can reach it.
+      final floor = floorY ?? bottomLeft.y;
       final fraction = isDoor && leafHeight > 0
-          ? (1 - doorHandleHeightMm / leafHeight).clamp(0.15, 0.85)
+          ? ((floor - doorHandleHeightMm - topLeft.y) / leafHeight)
+              .clamp(0.15, 0.85)
           : 0.5;
       final edgeTop = onLeft ? topLeft : topRight;
       final edgeBottom = onLeft ? bottomLeft : bottomRight;

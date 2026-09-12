@@ -30,8 +30,9 @@ enum CanvasTool {
   /// One finger moves the sheet. Two fingers always zoom, in either mode.
   pan('Move', 'Drag the sheet, pinch to zoom'),
 
-  /// Tap to pick a panel or a divider, long-press for its properties.
-  select('Select', 'Tap a panel or a divider');
+  /// Tap to pick a panel or a divider, long-press for its properties, drag a
+  /// note label to move it.
+  select('Select', 'Tap a panel or a divider, drag a note to move it');
 
   final String label;
   final String hint;
@@ -161,6 +162,7 @@ class DesignController extends Notifier<DesignState> {
 
   void undo() {
     if (_undoStack.isEmpty) return;
+    endGesture();
     _redoStack.add(state.design);
     state = state.copyWith(
       design: _undoStack.removeLast(),
@@ -173,6 +175,7 @@ class DesignController extends Notifier<DesignState> {
 
   void redo() {
     if (_redoStack.isEmpty) return;
+    endGesture();
     _undoStack.add(state.design);
     state = state.copyWith(
       design: _redoStack.removeLast(),
@@ -183,11 +186,29 @@ class DesignController extends Notifier<DesignState> {
     );
   }
 
+  /// What the current drag is moving, or null between gestures.
+  ///
+  /// A drag arrives as dozens of small changes. They are one thing the user
+  /// did, so they get one entry in the history, not one per frame.
+  String? _gestureKey;
+
+  /// The finger came off the glass: the next change starts a new history
+  /// entry, even if it moves the same thing again.
+  void endGesture() => _gestureKey = null;
+
   /// Records the current document so the next change can be undone.
   ///
   /// Callers set the new design straight after; the history flags are updated
   /// here so no caller can forget them.
-  void _remember() {
+  ///
+  /// [coalesce] names what a drag is moving. While the same thing keeps
+  /// moving, the snapshot taken when the drag began is the one kept, so a
+  /// single undo puts the label — or the divider — back where it started.
+  void _remember({String? coalesce}) {
+    if (coalesce != null && coalesce == _gestureKey && _undoStack.isNotEmpty) {
+      return;
+    }
+    _gestureKey = coalesce;
     _undoStack.add(state.design);
     _redoStack.clear();
     state = state.copyWith(canUndo: true, canRedo: false);
@@ -371,6 +392,7 @@ class DesignController extends Notifier<DesignState> {
     _editPanel(
       panelId,
       (panel) => panel.withUpdatedNote(note.copyWith(position: at)),
+      coalesce: 'note:$panelId/$noteId',
     );
   }
 
@@ -405,12 +427,16 @@ class DesignController extends Notifier<DesignState> {
   void setInfill(String panelId, Infill infill) =>
       _editPanel(panelId, (panel) => panel.copyWith(infill: infill));
 
-  void _editPanel(String panelId, Panel Function(Panel) edit) {
+  void _editPanel(
+    String panelId,
+    Panel Function(Panel) edit, {
+    String? coalesce,
+  }) {
     final panel = state.design.panelById(panelId);
     if (panel == null) return;
     final updated = edit(panel);
     if (updated == panel) return;
-    _remember();
+    _remember(coalesce: coalesce);
     state = state.copyWith(design: state.design.withPanel(updated));
   }
 
@@ -464,7 +490,7 @@ class DesignController extends Notifier<DesignState> {
       return;
     }
 
-    _remember();
+    _remember(coalesce: 'divider:$dividerId');
     final box = before.boundary;
     state = state.copyWith(
       design: state.design.copyWith(

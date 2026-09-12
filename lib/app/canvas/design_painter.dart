@@ -8,6 +8,7 @@ import '../../domain/product/infill.dart';
 import '../../domain/product/opening.dart';
 import 'canvas_projection.dart';
 import 'dimension_labels.dart';
+import 'note_labels.dart';
 
 /// Draws the design: the frame, its dividers, each panel's state, the
 /// dimension lines, and whatever ink has not been read yet.
@@ -25,6 +26,12 @@ class DesignPainter extends CustomPainter {
 
   /// Whether note labels are drawn. Hiding them never touches the design.
   final bool notesVisible;
+
+  /// The view the user has set. The painter takes the same zoom and pan the
+  /// canvas hit-tests with, so what is drawn and what a finger lands on stay
+  /// the same thing (spec section 8).
+  final double zoom;
+  final Offset pan;
 
   /// Colours, taken from the theme by the widget so the painter stays free of
   /// context lookups.
@@ -47,11 +54,13 @@ class DesignPainter extends CustomPainter {
     this.selectedPanelId,
     this.selectedDividerId,
     this.notesVisible = true,
+    this.zoom = 1,
+    this.pan = Offset.zero,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final projection = CanvasProjection.fit(size);
+    final projection = CanvasProjection.view(size, zoom: zoom, pan: pan);
 
     _paintPanels(canvas, projection);
     _paintFrame(canvas, projection);
@@ -63,6 +72,11 @@ class DesignPainter extends CustomPainter {
   // -- the product ----------------------------------------------------------
 
   void _paintPanels(Canvas canvas, CanvasProjection projection) {
+    // Worked out once for the whole design, then handed to each panel.
+    final noteLabels = notesVisible
+        ? NoteLabels.of(design, projection)
+        : const <NoteLabel>[];
+
     for (final panel in design.panels) {
       final box = panel.boundary;
       final rect = projection.toPixelRect(box.left, box.top, box.right, box.bottom);
@@ -88,7 +102,7 @@ class DesignPainter extends CustomPainter {
         );
       }
 
-      _paintPanelMarks(canvas, projection, panel, rect);
+      _paintPanelMarks(canvas, projection, panel, rect, noteLabels);
     }
   }
 
@@ -102,6 +116,7 @@ class DesignPainter extends CustomPainter {
     CanvasProjection projection,
     Panel panel,
     Rect rect,
+    List<NoteLabel> noteLabels,
   ) {
     // The opening symbol: the chevron the user drew, redrawn cleanly, its
     // point on the hinge edge.
@@ -135,18 +150,16 @@ class DesignPainter extends CustomPainter {
       bold: true,
     );
 
-    // Note labels, each where the user put it inside the panel.
+    // Note labels, each where the user put it inside the panel. The positions
+    // come from [NoteLabels] rather than being worked out here, so a label is
+    // drawn exactly where a finger can grab it.
     if (notesVisible) {
-      for (final note in panel.visibleNotes) {
-        final at = note.clampedPosition;
-        final centre = Offset(
-          rect.left + rect.width * at.x,
-          rect.top + rect.height * at.y,
-        );
+      for (final label in noteLabels) {
+        if (label.panelId != panel.id) continue;
         _paintText(
           canvas,
-          note.text,
-          centre,
+          label.text,
+          label.centre,
           frameColor,
           background: panelFillColor,
         );
@@ -348,5 +361,7 @@ class DesignPainter extends CustomPainter {
       old.notesVisible != notesVisible ||
       old.wetInk.length != wetInk.length ||
       old.selectedPanelId != selectedPanelId ||
-      old.selectedDividerId != selectedDividerId;
+      old.selectedDividerId != selectedDividerId ||
+      old.zoom != zoom ||
+      old.pan != pan;
 }

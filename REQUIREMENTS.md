@@ -50,7 +50,7 @@ screenshot looking right.
 | Partial dividers and T-junctions | **Verified** | `design_builder_test.dart` "a divider inside one panel of several is partial, and stays partial" |
 | Straight sloping tops, unequal side heights | **Verified** | `stroke_classifier_test.dart` "the two heights survive into the outline" |
 | Draw / select / move / delete / undo / redo | **Verified** | Tool palette in `canvas_screen.dart`; `canvas_widget_test.dart` undo/redo group |
-| Pan, zoom, fit to view | **Implemented, unverified** | `CanvasProjection.view` / `.fitTo`, wired to the palette. The transform maths has no direct test |
+| Pan, zoom, fit to view | **Verified** | `canvas_view_test.dart` — the transform maths, the pinch, the one-finger pan, Fit and Whole sheet, and a tap that still lands on the right panel after a zoom |
 | Add note | **Verified** | `acceptance_test.dart` steps 8–9 |
 | Strokes shown immediately while drawing | **Verified** | Wet ink painted from `_wetInk`; exercised by every canvas gesture test |
 | Drawing separated from navigation | **Verified** | `CanvasTool` modes; two fingers always zoom, one finger draws only in Draw |
@@ -89,7 +89,7 @@ screenshot looking right.
 | Requirement | Status | Evidence |
 | --- | --- | --- |
 | Frame members, dividers, glazing, sashes | **Verified** | `scene_builder_test.dart` (33 tests) |
-| Hardware — handles and hinges | **Implemented, unverified** | `SceneBuilder._addHardware` places a handle on the opening edge and 2–3 hinges by leaf height. No test asserts their positions |
+| Hardware — handles and hinges | **Verified** | `scene_builder_test.dart` hardware group — the handle on the moving edge, a door handle 1050 mm above the floor, 2 hinges or 3 by leaf height, and hardware that swings with the leaf |
 | Door vs Window respected | **Verified** | `acceptance_test.dart` — a door gets a flush threshold, a window a sill that noses out |
 | Rotate, pan, zoom, reset | **Verified** | `viewer_widget_test.dart` pan-and-zoom group; camera angle and turn-around in `ViewerController` |
 | Return to the drawing editor | **Verified** | `viewer_widget_test.dart` "canvas to viewer and back loses nothing" (three round trips) |
@@ -106,7 +106,7 @@ screenshot looking right.
 | Design notes, saved and in the PDF | **Verified** | `acceptance_test.dart` step 8; `pdf_smoke_test.dart` |
 | Factual summary from real data | **Verified** | `DesignFacts.of` reads the document only |
 | Add / edit / delete a note in a section | **Verified** | `panel_sheet.dart`; `acceptance_test.dart` step 9 |
-| Move the label within the section | **Implemented, unverified** | `DesignController.movePanelNote` with fractional positions; no drag gesture is wired to it yet |
+| Move the label within the section | **Verified** | Drag the label with the Select tool; `canvas_view_test.dart` note-drag group — it follows the finger, stops at the panel edge, and the whole drag is one undo |
 | Multiple notes per section | **Verified** | `persistence_test.dart`; the sample has two on one panel |
 | Show / hide without deleting | **Verified** | `notes_and_validation_test.dart` "hiding one keeps it" |
 | CH/Z kept separate from free text | **Verified** | Different fields; `notes_and_validation_test.dart` "a note is an annotation, never a command" |

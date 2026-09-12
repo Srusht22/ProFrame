@@ -9,6 +9,7 @@ import '../state/design_controller.dart';
 import 'canvas_projection.dart';
 import 'design_painter.dart';
 import 'dimension_labels.dart';
+import 'note_labels.dart';
 
 /// The drawing surface.
 ///
@@ -48,6 +49,15 @@ class DrawingCanvas extends StatefulWidget {
   /// (spec Phase 2, item 4).
   final ValueChanged<DimensionLabel> onDimensionTap;
 
+  /// A note label dragged to a new place inside its own panel. The position is
+  /// fractional, so the label stays where the user put it when the panel is
+  /// later resized.
+  final void Function(String panelId, String noteId, Point2 at) onNoteMoved;
+
+  /// The finger came off the glass. A drag is one change to undo, not one per
+  /// frame, so the controller is told where the gesture ended.
+  final VoidCallback onGestureEnd;
+
   const DrawingCanvas({
     required this.design,
     required this.tool,
@@ -58,6 +68,8 @@ class DrawingCanvas extends StatefulWidget {
     required this.onDividerMoved,
     required this.onPanelTap,
     required this.onDimensionTap,
+    required this.onNoteMoved,
+    required this.onGestureEnd,
     this.selectedPanelId,
     this.selectedDividerId,
     this.zoom = 1,
@@ -76,6 +88,12 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   /// The divider currently being dragged. While this is set the gesture moves
   /// a divider instead of laying down ink.
   PanelDivider? _draggingDivider;
+
+  /// The note label currently being dragged, and the gap between the finger
+  /// and the label's centre when it was grabbed — so the label does not jump
+  /// under the finger on the first move.
+  NoteLabel? _draggingNote;
+  Offset _noteGrabOffset = Offset.zero;
 
   CanvasProjection _projection = const CanvasProjection(
     scale: 1,
@@ -119,6 +137,8 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               size: constraints.biggest,
               painter: DesignPainter(
                 design: widget.design,
+                zoom: widget.zoom,
+                pan: widget.pan,
                 wetInk: _wetInk,
                 selectedPanelId: widget.selectedPanelId,
                 selectedDividerId: widget.selectedDividerId,
@@ -192,8 +212,24 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
         : (_touchDownAt ?? details.localFocalPoint);
     _gestureStart = start;
     _draggingDivider = null;
+    _draggingNote = null;
 
     if (details.pointerCount > 1) return;
+
+    // A note label can be dragged while selecting. It is tested before
+    // anything else under the finger, because it sits on top of a panel and
+    // is the smaller, more deliberate target.
+    if (widget.tool == CanvasTool.select && widget.notesVisible) {
+      final label = NoteLabels.at(
+        NoteLabels.of(widget.design, _projection),
+        start,
+      );
+      if (label != null) {
+        _draggingNote = label;
+        _noteGrabOffset = label.centre - start;
+        return;
+      }
+    }
 
     // A selected divider can be dragged, whatever the tool: the user has
     // already said which one they mean by long-pressing it.
@@ -223,6 +259,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
     if (details.pointerCount > 1) {
       if (_wetInk.isNotEmpty) setState(_wetInk.clear);
       _draggingDivider = null;
+      _draggingNote = null;
       widget.onViewChanged(
         (_zoomAtStart * details.scale).clamp(
           CanvasProjection.minZoom,
@@ -230,6 +267,16 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
         ),
         _panAtStart +
             (details.localFocalPoint - (_gestureStart ?? Offset.zero)),
+      );
+      return;
+    }
+
+    final note = _draggingNote;
+    if (note != null) {
+      widget.onNoteMoved(
+        note.panelId,
+        note.noteId,
+        note.fractionOf(details.localFocalPoint + _noteGrabOffset),
       );
       return;
     }
@@ -255,9 +302,12 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   }
 
   void _handleScaleEnd(ScaleEndDetails details) {
+    final wasDragging = _draggingDivider != null || _draggingNote != null;
     _draggingDivider = null;
+    _draggingNote = null;
     _gestureStart = null;
     _touchDownAt = null;
+    if (wasDragging) widget.onGestureEnd();
     if (_wetInk.length < 2) {
       if (_wetInk.isNotEmpty) setState(_wetInk.clear);
       return;

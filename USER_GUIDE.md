@@ -42,7 +42,7 @@ still kept, so nothing you drew is lost.
 | --- | --- |
 | **Draw** | One finger draws |
 | **Move** | One finger drags the sheet around |
-| **Select** | One finger picks a panel or a divider |
+| **Select** | One finger picks a panel or a divider, or drags a note label |
 | **Fit** | Zooms so your drawing fills the screen |
 | **Whole sheet** | Zooms back out |
 | **Notes on / off** | Hides the note labels. It does not delete them |
@@ -96,6 +96,10 @@ what the customer asked for.
 **A note inside one panel** — long-press the panel, then **Add a note**. Write
 anything: توري, فارغ, "frosted glass", a reminder. You can add several to one
 panel, edit them, hide them, or delete them.
+
+**Moving a label** — switch to **Select**, then drag the label to wherever it
+reads best. It stays inside its own panel, and it stays in the same place on
+that panel if you change the sizes later. One drag is one **Undo**.
 
 A note **describes** a panel. It never changes one. Writing "make this 2 metres
 wide" does not resize anything — type the size in if you want that.

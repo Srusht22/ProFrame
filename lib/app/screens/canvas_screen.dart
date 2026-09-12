@@ -230,6 +230,11 @@ class CanvasScreen extends ConsumerWidget {
           onDividerMoved: (divider, toMm) => ref
               .read(designControllerProvider.notifier)
               .moveDivider(divider.id, toMm),
+          onNoteMoved: (panelId, noteId, at) => ref
+              .read(designControllerProvider.notifier)
+              .movePanelNote(panelId, noteId, at),
+          onGestureEnd: () =>
+              ref.read(designControllerProvider.notifier).endGesture(),
         ),
       );
 

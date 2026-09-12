@@ -16,6 +16,14 @@ typedef DrawCall = ({String method, Paint paint});
 class RecordingCanvas implements Canvas {
   final List<DrawCall> calls = [];
 
+  /// Where rectangles and lines actually landed, for questions about the view
+  /// transform rather than about colour.
+  final List<Rect> rects = [];
+  final List<(Offset, Offset)> lines = [];
+
+  /// The bounding box of every path drawn.
+  final List<Rect> pathBounds = [];
+
   /// Every colour a path was filled or stroked with.
   Iterable<Color> get pathColors =>
       calls.where((c) => c.method == 'drawPath').map((c) => c.paint.color);
@@ -48,16 +56,47 @@ class RecordingCanvas implements Canvas {
       lineColors.any((c) => c.toARGB32() == color.toARGB32());
 
   @override
-  void drawPath(Path path, Paint paint) =>
-      calls.add((method: 'drawPath', paint: paint));
+  void drawPath(Path path, Paint paint) {
+    calls.add((method: 'drawPath', paint: paint));
+    pathBounds.add(path.getBounds());
+  }
+
+  /// The biggest path drawn — on the canvas, the frame outline.
+  Rect get largestPathBounds {
+    var best = Rect.zero;
+    for (final bounds in pathBounds) {
+      if (bounds.width * bounds.height > best.width * best.height) {
+        best = bounds;
+      }
+    }
+    return best;
+  }
 
   @override
-  void drawLine(Offset p1, Offset p2, Paint paint) =>
-      calls.add((method: 'drawLine', paint: paint));
+  void drawLine(Offset p1, Offset p2, Paint paint) {
+    calls.add((method: 'drawLine', paint: paint));
+    lines.add((p1, p2));
+  }
 
   @override
-  void drawRect(Rect rect, Paint paint) =>
-      calls.add((method: 'drawRect', paint: paint));
+  void drawRect(Rect rect, Paint paint) {
+    calls.add((method: 'drawRect', paint: paint));
+    rects.add(rect);
+  }
+
+  /// The box every recorded rectangle and line fits inside — the drawing's
+  /// extent on screen.
+  Rect get drawnBounds {
+    var box = rects.isEmpty ? null : rects.first;
+    for (final rect in rects) {
+      box = box == null ? rect : box.expandToInclude(rect);
+    }
+    for (final (a, b) in lines) {
+      final segment = Rect.fromPoints(a, b);
+      box = box == null ? segment : box.expandToInclude(segment);
+    }
+    return box ?? Rect.zero;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
