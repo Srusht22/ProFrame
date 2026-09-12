@@ -1,11 +1,11 @@
 {
-    "name": "ProFrame",
-    "short_name": "ProFrame",
+    "name": "proframe",
+    "short_name": "proframe",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#013E37",
-    "theme_color": "#013E37",
-    "description": "Doors & windows configurator, quotation and manufacturing management.",
+    "background_color": "#0175C2",
+    "theme_color": "#0175C2",
+    "description": "Draw a door or window by hand and get your own editable parametric 3D design.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
