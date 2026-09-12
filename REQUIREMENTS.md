@@ -26,7 +26,7 @@ screenshot looking right.
 | Never silently invent a dimension | **Verified** | `measurement_test.dart` — a confirmed 1200 and an estimated 1200 are deliberately unequal; text that will not parse stays unknown rather than becoming zero |
 | Never assume sections are equal | **Verified** | `panel_math_test.dart` "equal distribution happens only when asked for" |
 | Intentional slopes are not flattened | **Verified** | `stroke_classifier_test.dart` "sloping tops are kept, not levelled" (4 tests) |
-| Original strokes preserved | **Verified** | `canvas_widget_test.dart` "a scribble is dropped but its ink is still kept" |
+| Original strokes preserved | **Verified** | Kept in the model (`canvas_widget_test.dart` "a scribble is dropped but its ink is still kept") **and drawn on the canvas** (`canvas_view_test.dart` "a stroke the app made nothing of is still drawn") — the ink used to be kept but never painted, so a drawing the app recognised nothing in disappeared the moment the finger came off the glass |
 | Unsupported shapes not silently distorted | **Verified** | A stroke that is not frame, divider or chevron is discarded; `stroke_classifier_test.dart` "anything else is dropped" |
 
 ## §3 Workflow and navigation
@@ -53,6 +53,7 @@ screenshot looking right.
 | Pan, zoom, fit to view | **Verified** | `canvas_view_test.dart` — the transform maths, the pinch, the one-finger pan, Fit and Whole sheet, and a tap that still lands on the right panel after a zoom |
 | Add note | **Verified** | `acceptance_test.dart` steps 8–9 |
 | Strokes shown immediately while drawing | **Verified** | Wet ink painted from `_wetInk`; exercised by every canvas gesture test |
+| Nothing on the canvas screen is invisible | **Verified** | `canvas_view_test.dart` "every button on the bottom bar can be read" and "the summary button is not its own background colour"; `theme_test.dart` "a button that names a text style still names the font" — button labels were being drawn in a font the platform did not have, and came out blank on the web |
 | Drawing separated from navigation | **Verified** | `CanvasTool` modes; two fingers always zoom, one finger draws only in Draw |
 | Screen and model coordinates separate | **Verified** | `canvas_widget_test.dart` "the model is the same whatever size the screen is" |
 

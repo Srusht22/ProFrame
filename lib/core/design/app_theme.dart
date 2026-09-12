@@ -33,6 +33,19 @@ abstract final class AppTheme {
         onErrorContainer: AppColors.danger,
       );
 
+  /// The label on a button.
+  ///
+  /// A button style's `textStyle` **replaces** the inherited one rather than
+  /// merging with it, so a style that names a size and a weight but no family
+  /// drops the app's font — and with it every glyph, on a platform that has no
+  /// system font to fall back to. The family is named here for that reason.
+  static const TextStyle buttonLabel = TextStyle(
+    fontFamily: AppFonts.family,
+    fontFamilyFallback: AppFonts.fallback,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+  );
+
   static ThemeData light() {
     final scheme = colorScheme;
     final base = ThemeData(
@@ -62,7 +75,7 @@ abstract final class AppTheme {
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(AppRadius.md)),
           ),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          textStyle: buttonLabel,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -73,9 +86,11 @@ abstract final class AppTheme {
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(AppRadius.md)),
           ),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          textStyle: buttonLabel,
         ),
       ),
+      // A text button names no style of its own, so it keeps the theme's
+      // `labelLarge` — which already carries the font. Nothing to add.
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.deepGreen,

@@ -121,4 +121,43 @@ void main() {
       });
     });
   });
+
+  group('the app font reaches every word', () {
+    test('a button that names a text style still names the font', () {
+      // A button style's textStyle replaces the inherited one instead of
+      // merging with it. A style with a size but no family drops the app's
+      // font — and on a platform with no system font to fall back to, the
+      // label is drawn with nothing at all and the button comes out blank.
+      final theme = AppTheme.light();
+      final styles = <String, ButtonStyle?>{
+        'filled': theme.filledButtonTheme.style,
+        'outlined': theme.outlinedButtonTheme.style,
+        'text': theme.textButtonTheme.style,
+      };
+
+      styles.forEach((name, style) {
+        final text = style?.textStyle?.resolve({});
+        if (text == null) return; // Inherits the theme's own, which is fine.
+        expect(
+          text.fontFamily,
+          AppFonts.family,
+          reason: '$name button label would fall back to a platform font',
+        );
+        expect(
+          text.fontFamilyFallback,
+          contains(AppFonts.fallback.first),
+          reason: '$name button label could not draw an Arabic word',
+        );
+      });
+    });
+
+    test('the base theme names the font and its fallback', () {
+      final theme = AppTheme.light();
+      expect(theme.textTheme.bodyMedium?.fontFamily, AppFonts.family);
+      expect(
+        theme.textTheme.bodyMedium?.fontFamilyFallback,
+        contains(AppFonts.fallback.first),
+      );
+    });
+  });
 }

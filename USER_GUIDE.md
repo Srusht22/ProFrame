@@ -33,8 +33,12 @@ Draw the way you would on paper.
 The app tidies the shakiness out of your lines. It does **not** tidy away a
 slope you meant — if you drew one side taller, it stays taller.
 
-If you draw something the app does not recognise, it is ignored. Your ink is
-still kept, so nothing you drew is lost.
+**Your own lines stay on the sheet.** They are drawn faded, underneath what
+the app made of them, so you can always see what you drew against what was
+built. If you draw something the app does not recognise, nothing is built
+from it — but the line is still there, not thrown away.
+
+Use **Undo** to take a line back.
 
 ### The tools along the top
 

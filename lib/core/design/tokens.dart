@@ -115,6 +115,15 @@ abstract final class AppCanvasMetrics {
   /// Wet ink, before the stroke has been read.
   static const double inkWidth = 3;
 
+  /// The user's own lines, kept on the sheet after they have been read.
+  ///
+  /// Thinner and faded, like pencil under ink: what the app made of a stroke
+  /// is what stands out, but the stroke itself is still there to compare it
+  /// against — and a stroke the app made nothing of is still on the paper
+  /// rather than gone (spec section 4).
+  static const double keptInkWidth = 2;
+  static const double keptInkOpacity = 0.4;
+
   /// The frame, once recognised and snapped.
   static const double frameWidth = 4;
 

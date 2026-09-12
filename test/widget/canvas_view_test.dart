@@ -8,10 +8,12 @@ import 'package:proframe/app/canvas/note_labels.dart';
 import 'package:proframe/app/screens/canvas_screen.dart';
 import 'package:proframe/app/state/design_controller.dart';
 import 'package:proframe/core/design/app_theme.dart';
+import 'package:proframe/core/design/contrast.dart';
 import 'package:proframe/core/design/tokens.dart';
 import 'package:proframe/domain/design_document.dart';
 import 'package:proframe/domain/geometry/point2.dart';
 import 'package:proframe/domain/product/product_basics.dart';
+import 'package:proframe/domain/sketch.dart';
 
 import '../support/recording_canvas.dart';
 
@@ -371,6 +373,131 @@ void main() {
         panel.id,
       );
       controller.resetView();
+    });
+  });
+
+  group('what the user drew stays on the sheet', () {
+    testWidgets('a stroke the app made nothing of is still drawn',
+        (tester) async {
+      final container = await pumpCanvas(tester);
+      // A scribble: not a frame, not a divider, not an opening mark.
+      final scribble = [
+        const Point2(800, 700),
+        const Point2(1000, 900),
+        const Point2(800, 900),
+        const Point2(1000, 700),
+      ];
+      final gesture =
+          await tester.startGesture(pixelOf(tester, container, scribble.first));
+      for (final point in scribble.skip(1)) {
+        await gesture.moveTo(pixelOf(tester, container, point));
+        await tester.pump();
+      }
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      final design = container.read(designControllerProvider).design;
+      expect(design.outline, isNull, reason: 'nothing was recognised');
+      expect(design.sketch.strokes, hasLength(1), reason: 'the ink is kept');
+
+      // And it is on the canvas, not only in the model: the finger coming off
+      // the glass must never make a drawing disappear.
+      final recorded = RecordingCanvas();
+      painterFor(design).paint(recorded, const Size(390, 700));
+      expect(
+        recorded.pathCount,
+        greaterThan(0),
+        reason: 'the stroke the user drew is not painted anywhere',
+      );
+      expect(recorded.largestPathBounds.width, greaterThan(1));
+    });
+
+    testWidgets('a recognised frame keeps its ink as well as its frame',
+        (tester) async {
+      final container = await pumpCanvas(tester);
+      await drawFrame(tester, container);
+      final design = container.read(designControllerProvider).design;
+
+      expect(design.outline, isNotNull);
+      expect(design.sketch.strokes, hasLength(1));
+
+      final withInk = RecordingCanvas();
+      painterFor(design).paint(withInk, const Size(390, 700));
+      final withoutInk = RecordingCanvas();
+      painterFor(design.copyWith(sketch: const Sketch()))
+          .paint(withoutInk, const Size(390, 700));
+
+      expect(
+        withInk.pathCount,
+        greaterThan(withoutInk.pathCount),
+        reason: 'the frame was drawn but the stroke behind it was not',
+      );
+    });
+
+    testWidgets('the ink moves with the view, like everything else',
+        (tester) async {
+      final container = await pumpCanvas(tester);
+      await drawFrame(tester, container);
+      final design = container
+          .read(designControllerProvider)
+          .design
+          .copyWith(outline: null, panels: [], dividers: []);
+      const size = Size(390, 700);
+
+      final plain = RecordingCanvas();
+      painterFor(design).paint(plain, size);
+      final zoomed = RecordingCanvas();
+      painterFor(design, zoom: 2).paint(zoomed, size);
+
+      expect(
+        zoomed.largestPathBounds.width,
+        closeTo(plain.largestPathBounds.width * 2, 0.5),
+      );
+    });
+  });
+
+  group('nothing on the canvas screen is invisible', () {
+    testWidgets('every button on the bottom bar can be read', (tester) async {
+      final container = await pumpCanvas(tester);
+      await drawFrame(tester, container);
+
+      // The size buttons say what they are and what they hold, in full: an
+      // ellipsis here used to swallow the mark that says a size is not
+      // confirmed.
+      expect(find.text('Width'), findsOneWidget);
+      expect(find.text('Height'), findsOneWidget);
+      expect(find.textContaining('('), findsWidgets);
+      expect(find.text('3D Preview'), findsOneWidget);
+
+      for (final text in tester.widgetList<Text>(find.byType(Text))) {
+        expect(
+          text.overflow == TextOverflow.ellipsis && text.data == '',
+          isFalse,
+        );
+      }
+    });
+
+    testWidgets('the summary button is not its own background colour',
+        (tester) async {
+      final container = await pumpCanvas(tester);
+      await drawFrame(tester, container);
+
+      final icon = find.byIcon(Icons.checklist);
+      expect(icon, findsOneWidget, reason: 'the summary button is missing');
+
+      final foreground = IconTheme.of(tester.element(icon)).color!;
+      final material = tester.widget<Material>(
+        find
+            .ancestor(of: icon, matching: find.byType(Material))
+            .first,
+      );
+      final background = material.color ?? AppColors.surface;
+
+      expect(
+        Contrast.ratio(foreground, background),
+        greaterThan(3),
+        reason: 'the icon cannot be seen against the button it sits on',
+      );
     });
   });
 

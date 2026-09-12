@@ -63,6 +63,10 @@ class DesignPainter extends CustomPainter {
     final projection = CanvasProjection.view(size, zoom: zoom, pan: pan);
 
     _paintPanels(canvas, projection);
+    // Under the frame and the dividers, so what the app understood stands out
+    // — and over the panel fills, so a stroke it understood nothing of is
+    // still visible rather than painted over.
+    _paintKeptInk(canvas, projection);
     _paintFrame(canvas, projection);
     _paintDividers(canvas, projection);
     _paintDimensions(canvas, projection);
@@ -297,6 +301,37 @@ class DesignPainter extends CustomPainter {
   }
 
   // -- ink ------------------------------------------------------------------
+
+  /// Every stroke the user has drawn, still on the sheet.
+  ///
+  /// The model keeps each stroke whatever the classifier decided (spec
+  /// section 4). Without this the ink disappeared the moment the finger came
+  /// off the glass: a recognised stroke was replaced by what it produced, and
+  /// a stroke that was recognised as nothing simply vanished, which is the
+  /// one thing a drawing-first app must never do.
+  void _paintKeptInk(Canvas canvas, CanvasProjection projection) {
+    if (design.sketch.isEmpty) return;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = AppCanvasMetrics.keptInkWidth
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..color = inkColor.withValues(alpha: AppCanvasMetrics.keptInkOpacity);
+
+    for (final stroke in design.sketch.strokes) {
+      if (stroke.points.length < 2) continue;
+      final path = Path();
+      for (var i = 0; i < stroke.points.length; i++) {
+        final pixel = projection.toPixels(stroke.points[i]);
+        if (i == 0) {
+          path.moveTo(pixel.dx, pixel.dy);
+        } else {
+          path.lineTo(pixel.dx, pixel.dy);
+        }
+      }
+      canvas.drawPath(path, paint);
+    }
+  }
 
   void _paintWetInk(Canvas canvas, CanvasProjection projection) {
     if (wetInk.length < 2) return;

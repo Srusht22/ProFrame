@@ -9,6 +9,7 @@ import '../../core/layout/responsive.dart';
 import '../../core/units/length_unit.dart';
 import '../../domain/design_document.dart';
 import '../../domain/layout/design_validator.dart';
+import '../../domain/measurement.dart';
 import '../../domain/panel.dart';
 import '../../domain/panel_divider.dart';
 import '../canvas/canvas_projection.dart';
@@ -620,30 +621,20 @@ class _Toolbar extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(
+                child: _SizeButton(
+                  label: s(T.width),
+                  measurement: width,
+                  unit: unit,
                   onPressed: onWidth,
-                  child: Text(
-                    width == null
-                        ? s(T.width)
-                        : '${s(T.width)} '
-                            '${s.length(width.millimetres, unit)}'
-                            '${width.isConfirmed ? '' : ' ?'}',
-                    overflow: TextOverflow.ellipsis,
-                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.xs),
               Expanded(
-                child: OutlinedButton(
+                child: _SizeButton(
+                  label: s(T.height),
+                  measurement: height,
+                  unit: unit,
                   onPressed: onHeight,
-                  child: Text(
-                    height == null
-                        ? s(T.height)
-                        : '${s(T.height)} '
-                            '${s.length(height.millimetres, unit)}'
-                            '${height.isConfirmed ? '' : ' ?'}',
-                    overflow: TextOverflow.ellipsis,
-                  ),
                 ),
               ),
               if (showSummaryButton) ...[
@@ -651,6 +642,14 @@ class _Toolbar extends StatelessWidget {
                 IconButton.filled(
                   icon: const Icon(Icons.checklist),
                   tooltip: s(T.whatIsStillToConfirm),
+                  // Named here because the app's icon-button theme sets one
+                  // foreground colour for every icon button, and it wins over
+                  // the filled variant's own — which would paint a deep green
+                  // icon on a deep green circle.
+                  style: IconButton.styleFrom(
+                    foregroundColor: AppColors.cream,
+                    backgroundColor: AppColors.deepGreen,
+                  ),
                   onPressed: onSummary,
                 ),
               ],
@@ -667,6 +666,60 @@ class _Toolbar extends StatelessWidget {
               onPressed: onPreview,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One of the two overall sizes, and the button that asks for it.
+///
+/// The name and the value go on separate lines rather than in one sentence:
+/// on a phone the two buttons share the width of the screen, and a single
+/// line was ellipsised — which cut off the very mark that says a size has not
+/// been confirmed (spec section 2).
+class _SizeButton extends StatelessWidget {
+  final String label;
+  final Measurement? measurement;
+  final LengthUnit unit;
+  final VoidCallback onPressed;
+
+  const _SizeButton({
+    required this.label,
+    required this.measurement,
+    required this.unit,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.s;
+    final theme = Theme.of(context);
+    final value = measurement;
+
+    return OutlinedButton(
+      onPressed: onPressed,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: value == null
+                ? null
+                : theme.textTheme.labelSmall?.copyWith(
+                    color: AppColors.mutedText,
+                  ),
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (value != null)
+            Text(
+              // Brackets, not only a colour, for a size nobody has confirmed
+              // — the same convention the drawing itself uses.
+              value.isConfirmed
+                  ? s.length(value.millimetres, unit)
+                  : '(${s.length(value.millimetres, unit)})',
+              overflow: TextOverflow.ellipsis,
+            ),
         ],
       ),
     );
