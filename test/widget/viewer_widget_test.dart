@@ -8,6 +8,7 @@ import 'package:proframe/app/rendering/scene_painter.dart';
 import 'package:proframe/app/rendering/surface_shading.dart';
 import 'package:proframe/app/screens/viewer_screen.dart';
 import 'package:proframe/app/state/design_controller.dart';
+import 'package:proframe/app/state/project_controller.dart';
 import 'package:proframe/app/state/viewer_controller.dart';
 import 'package:proframe/core/design/app_theme.dart';
 import 'package:proframe/core/design/tokens.dart';
@@ -17,10 +18,12 @@ import 'package:proframe/domain/geometry/polygon.dart';
 import 'package:proframe/domain/measurement.dart';
 import 'package:proframe/domain/panel.dart';
 import 'package:proframe/domain/panel_divider.dart';
+import 'package:proframe/domain/panel_note.dart';
 import 'package:proframe/domain/product/finish.dart';
 import 'package:proframe/domain/product/opening.dart';
 import 'package:proframe/domain/product/product_basics.dart';
 import 'package:proframe/domain/rendering/scene_builder.dart';
+import 'package:proframe/infrastructure/key_value_store.dart';
 
 import '../support/recording_canvas.dart';
 
@@ -62,7 +65,10 @@ DesignDocument twoBayWindow() {
       Panel.fixed(
         id: 'left',
         boundary: Polygon.rectangle(width: 700, height: 1000),
-      ).copyWith(hasMesh: true, note: 'توري'),
+      ).copyWith(
+        hasMesh: true,
+        notes: const [PanelNote(id: 'n1', text: 'توري')],
+      ),
       Panel.opening(
         id: 'right',
         boundary: Polygon.rectangle(
@@ -131,9 +137,20 @@ RecordingCanvas recordScene(
     meshColor: AppColors.deepGreen,
     noteMarkerColor: AppColors.deepGreen,
     noteMarkerInk: AppColors.cream,
+    hardwareColor: AppColors.hardware,
+    hardwareEdgeColor: AppColors.hardwareEdge,
   ).paint(canvas, size);
 
   return canvas;
+}
+
+/// Lets the pending autosave timer fire.
+///
+/// Every edit schedules a draft write a moment later; a test that ends before
+/// it fires leaves a live timer and the binding rightly complains.
+Future<void> flushAutosave(WidgetTester tester) async {
+  await tester.pump(SaveController.autosaveDelay + const Duration(milliseconds: 50));
+  await tester.pumpAndSettle();
 }
 
 /// The CustomPaint the viewer draws into.
@@ -503,7 +520,9 @@ void main() {
   group('round trip from the canvas and back', () {
     Future<ProviderContainer> pumpApp(WidgetTester tester, Size size) async {
       await setSize(tester, size);
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [keyValueStoreProvider.overrideWithValue(InMemoryStore())],
+      );
       addTearDown(container.dispose);
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -511,6 +530,9 @@ void main() {
           child: ProFrameApp(idFactory: () => 'p1'),
         ),
       );
+      await tester.pumpAndSettle();
+      // Past the project list into the new-design screen.
+      await tester.tap(find.text('New design'));
       await tester.pumpAndSettle();
       return container;
     }
@@ -585,6 +607,7 @@ void main() {
 
       // Both panels now read CH in the side list.
       expect(find.text('CH'), findsNWidgets(2));
+      await flushAutosave(tester);
     });
   });
 

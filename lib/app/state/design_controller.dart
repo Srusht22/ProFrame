@@ -1,18 +1,45 @@
+import 'package:flutter/painting.dart' show Offset;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/design_document.dart';
 import '../../domain/geometry/point2.dart';
 import '../../domain/geometry/polygon.dart';
 import '../../domain/layout/design_builder.dart';
+import '../../domain/layout/note_resolver.dart';
 import '../../domain/layout/width_solver.dart';
 import '../../domain/panel.dart';
 import '../../domain/panel_divider.dart';
+import '../../domain/panel_note.dart';
 import '../../domain/product/infill.dart';
 import '../../domain/product/opening.dart';
 import '../../domain/product/product_basics.dart';
 import '../../domain/recognition/stroke_classifier.dart';
 import '../../domain/recognition/stroke_intent.dart';
 import '../../domain/sketch.dart';
+import '../canvas/canvas_projection.dart';
+
+/// What the finger does on the canvas.
+///
+/// Drawing and navigating are deliberately different modes rather than both
+/// living on one gesture: the spec requires that panning cannot accidentally
+/// create geometry and drawing cannot accidentally scroll (section 4).
+enum CanvasTool {
+  /// One finger draws ink, which is then classified.
+  draw('Draw', 'Draw the frame, dividers and opening marks'),
+
+  /// One finger moves the sheet. Two fingers always zoom, in either mode.
+  pan('Move', 'Drag the sheet, pinch to zoom'),
+
+  /// Tap to pick a panel or a divider, long-press for its properties.
+  select('Select', 'Tap a panel or a divider');
+
+  final String label;
+  final String hint;
+
+  const CanvasTool(this.label, this.hint);
+
+  bool get drawsInk => this == CanvasTool.draw;
+}
 
 /// Everything the canvas screen needs to render, in one immutable value.
 class DesignState {
@@ -27,6 +54,16 @@ class DesignState {
   /// The last thing the app wants to tell the user — a refused width, a
   /// divider that would not fit. Cleared when they act again.
   final String? message;
+
+  /// Which tool the finger is using.
+  final CanvasTool tool;
+
+  /// The view transform. Model coordinates never change with it.
+  final double zoom;
+  final Offset pan;
+
+  /// Whether note labels are drawn on the canvas. Hiding is not deleting.
+  final bool notesVisible;
 
   /// Whether there is anything to undo or redo.
   ///
@@ -43,6 +80,10 @@ class DesignState {
     this.message,
     this.canUndo = false,
     this.canRedo = false,
+    this.tool = CanvasTool.draw,
+    this.zoom = 1,
+    this.pan = Offset.zero,
+    this.notesVisible = true,
   });
 
   DesignState copyWith({
@@ -52,6 +93,10 @@ class DesignState {
     String? message,
     bool? canUndo,
     bool? canRedo,
+    CanvasTool? tool,
+    double? zoom,
+    Offset? pan,
+    bool? notesVisible,
     bool clearSelection = false,
     bool clearMessage = false,
   }) =>
@@ -64,6 +109,10 @@ class DesignState {
         message: clearMessage ? null : (message ?? this.message),
         canUndo: canUndo ?? this.canUndo,
         canRedo: canRedo ?? this.canRedo,
+        tool: tool ?? this.tool,
+        zoom: zoom ?? this.zoom,
+        pan: pan ?? this.pan,
+        notesVisible: notesVisible ?? this.notesVisible,
       );
 }
 
@@ -282,8 +331,76 @@ class DesignController extends Notifier<DesignState> {
   void setEmpty(String panelId, bool isEmpty) =>
       _editPanel(panelId, (panel) => panel.copyWith(isEmpty: isEmpty));
 
-  void setPanelNote(String panelId, String note) =>
-      _editPanel(panelId, (panel) => panel.copyWith(note: note));
+  /// Adds a note to a panel, or removes it when the text is blank.
+  ///
+  /// Returns the note's id so the caller can move it afterwards.
+  String? addPanelNote(String panelId, String text, {Point2? at}) {
+    if (text.trim().isEmpty) return null;
+    final note = PanelNote(
+      id: _nextId('note'),
+      text: text.trim(),
+      position: at ?? const Point2(0.5, 0.5),
+    );
+    _editPanel(panelId, (panel) => panel.withNote(note));
+    return note.id;
+  }
+
+  void editPanelNote(String panelId, String noteId, String text) {
+    final panel = state.design.panelById(panelId);
+    final note = panel?.noteById(noteId);
+    if (panel == null || note == null) return;
+    // Clearing the text deletes it: an empty note is not a note, and leaving
+    // a blank marker on the drawing would be worse than removing it.
+    if (text.trim().isEmpty) {
+      removePanelNote(panelId, noteId);
+      return;
+    }
+    _editPanel(
+      panelId,
+      (p) => p.withUpdatedNote(note.copyWith(text: text.trim())),
+    );
+  }
+
+  void removePanelNote(String panelId, String noteId) =>
+      _editPanel(panelId, (panel) => panel.withoutNote(noteId));
+
+  /// Moves a note's label within its own panel. [at] is fractional.
+  void movePanelNote(String panelId, String noteId, Point2 at) {
+    final note = state.design.panelById(panelId)?.noteById(noteId);
+    if (note == null) return;
+    _editPanel(
+      panelId,
+      (panel) => panel.withUpdatedNote(note.copyWith(position: at)),
+    );
+  }
+
+  /// Shows or hides a note without deleting it (spec section 8B).
+  void setNoteVisible(String panelId, String noteId, bool visible) {
+    final note = state.design.panelById(panelId)?.noteById(noteId);
+    if (note == null) return;
+    _editPanel(
+      panelId,
+      (panel) => panel.withUpdatedNote(note.copyWith(isVisible: visible)),
+    );
+  }
+
+  /// Hides or shows every note at once — the annotation overlay toggle.
+  void setAllNotesVisible(bool visible) {
+    _remember();
+    state = state.copyWith(
+      design: state.design.copyWith(
+        panels: [
+          for (final panel in state.design.panels)
+            panel.copyWith(
+              notes: [
+                for (final note in panel.notes)
+                  note.copyWith(isVisible: visible),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
 
   void setInfill(String panelId, Infill infill) =>
       _editPanel(panelId, (panel) => panel.copyWith(infill: infill));
@@ -298,6 +415,19 @@ class DesignController extends Notifier<DesignState> {
   }
 
   // -- design note ----------------------------------------------------------
+
+  /// Renames the project.
+  void rename(String name) {
+    if (name.trim().isEmpty || name == state.design.name) return;
+    _remember();
+    state = state.copyWith(design: state.design.copyWith(name: name.trim()));
+  }
+
+  /// Stamps the document as changed now. Called before a save, so the project
+  /// list orders by when work actually happened.
+  void touch() => state = state.copyWith(
+        design: state.design.copyWith(updatedAt: DateTime.now()),
+      );
 
   void setDesignNote(String note) {
     if (note == state.design.designNote) return;
@@ -414,18 +544,21 @@ class DesignController extends Notifier<DesignState> {
         topLeft: Point2(before.boundary.left, before.boundary.top),
       ),
       infill: before.infill,
-      // Keep whichever note exists, rather than losing the user's words.
-      note: before.hasNote ? before.note : after.note,
       hasMesh: before.hasMesh || after.hasMesh,
       isEmpty: before.isEmpty && after.isEmpty,
     );
+
+    // Both panels' notes come across, repositioned. Deciding that one of them
+    // no longer applies is the user's call (spec section 8B).
+    final resolved = NoteResolver.afterMerge([before, after], merged);
+    final mergedWithNotes = resolved.panels.single;
 
     state = state.copyWith(
       design: state.design.copyWith(
         panels: [
           for (final panel in state.design.panels)
             if (panel.id == before.id)
-              merged
+              mergedWithNotes
             else if (panel.id != after.id)
               panel,
         ],
@@ -435,7 +568,8 @@ class DesignController extends Notifier<DesignState> {
         ],
       ),
       clearSelection: true,
-      clearMessage: true,
+      message: NoteResolver.describe(resolved.transfers),
+      clearMessage: resolved.transfers.isEmpty,
     );
   }
 
@@ -481,6 +615,57 @@ class DesignController extends Notifier<DesignState> {
     final overlap = (high < boxHigh ? high : boxHigh) -
         (low > boxLow ? low : boxLow);
     return overlap > 1;
+  }
+
+  // -- the view -------------------------------------------------------------
+
+  void selectTool(CanvasTool tool) =>
+      state = state.copyWith(tool: tool, clearMessage: true);
+
+  void setZoom(double zoom) => state = state.copyWith(
+        zoom: zoom.clamp(CanvasProjection.minZoom, CanvasProjection.maxZoom),
+      );
+
+  void panBy(Offset delta) => state = state.copyWith(pan: state.pan + delta);
+
+  void setView(double zoom, Offset pan) =>
+      state = state.copyWith(zoom: zoom, pan: pan);
+
+  /// Back to the whole sheet.
+  void resetView() => state = state.copyWith(zoom: 1, pan: Offset.zero);
+
+  /// Shows or hides every note label on the drawing.
+  ///
+  /// A *view* setting, not an edit: it is not undoable and it does not touch
+  /// the design, because hiding a note must never risk losing it.
+  void setNotesVisible(bool visible) =>
+      state = state.copyWith(notesVisible: visible);
+
+  /// Deletes whatever is selected — a divider, or a panel's opening marks.
+  void deleteSelection() {
+    final dividerId = state.selectedDividerId;
+    if (dividerId != null) {
+      deleteDivider(dividerId);
+      return;
+    }
+    final panelId = state.selectedPanelId;
+    if (panelId == null) {
+      state = state.copyWith(message: 'Tap something first, then delete it.');
+      return;
+    }
+    // A panel cannot be deleted — it is a region of the frame, not an object.
+    // What can be removed is what was added to it.
+    final panel = state.design.panelById(panelId);
+    if (panel == null) return;
+    if (panel.behaviour.isOpening) {
+      makeFixed(panelId);
+      state = state.copyWith(message: 'That panel is fixed (CH) again.');
+      return;
+    }
+    state = state.copyWith(
+      message: 'A panel is part of the frame. Delete the divider beside it to '
+          'join it to its neighbour.',
+    );
   }
 
   void clearMessage() => state = state.copyWith(clearMessage: true);

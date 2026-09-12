@@ -36,8 +36,24 @@ class SetEmpty extends PanelEdit {
   const SetEmpty(this.value);
 }
 
+/// Add a note when [noteId] is null, otherwise edit that one.
 class EditNote extends PanelEdit {
-  const EditNote();
+  final String? noteId;
+
+  const EditNote(this.noteId);
+}
+
+class DeleteNote extends PanelEdit {
+  final String noteId;
+
+  const DeleteNote(this.noteId);
+}
+
+class ToggleNoteVisible extends PanelEdit {
+  final String noteId;
+  final bool visible;
+
+  const ToggleNoteVisible(this.noteId, this.visible);
 }
 
 /// The panel properties sheet, opened by a long press (spec Phase 2, item 5).
@@ -209,15 +225,49 @@ class _PanelSheet extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text('Note', style: theme.textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
-            if (panel.hasNote)
+            for (final note in panel.notes)
               Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                child: Notice(message: panel.note),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Notice(
+                        message: note.text,
+                        tone: note.isVisible
+                            ? NoticeTone.information
+                            : NoticeTone.caution,
+                      ),
+                    ),
+                    IconButton(
+                      // Hiding is not deleting (spec section 8B).
+                      icon: Icon(
+                        note.isVisible
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                      tooltip: note.isVisible ? 'Hide this note' : 'Show it',
+                      onPressed: () => _close(
+                        context,
+                        ToggleNoteVisible(note.id, !note.isVisible),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined),
+                      tooltip: 'Edit this note',
+                      onPressed: () => _close(context, EditNote(note.id)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: 'Delete this note',
+                      onPressed: () => _close(context, DeleteNote(note.id)),
+                    ),
+                  ],
+                ),
               ),
             OutlinedButton.icon(
-              icon: const Icon(Icons.edit_note),
-              label: Text(panel.hasNote ? 'Change this note' : 'Add a note'),
-              onPressed: () => _close(context, const EditNote()),
+              icon: const Icon(Icons.add_comment_outlined),
+              label: const Text('Add a note'),
+              onPressed: () => _close(context, const EditNote(null)),
             ),
             const SizedBox(height: AppSpacing.md),
           ],

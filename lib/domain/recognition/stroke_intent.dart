@@ -16,16 +16,24 @@ sealed class StrokeIntent {
 
 /// A closed-ish loop with about four corners: the outer frame.
 ///
-/// [rectangle] is the perfect rectangle fitted to the loop's extent. The rough
-/// loop the user actually drew is kept in the sketch, so nothing is lost.
+/// [outline] is the tidied shape fitted to the loop — a true rectangle when
+/// the top was drawn level, and a sloping-top quadrilateral when it was not.
+/// The rough loop the user actually drew is kept in the sketch, so nothing is
+/// lost.
 class FrameIntent extends StrokeIntent {
-  final Polygon rectangle;
+  final Polygon outline;
 
-  const FrameIntent(super.strokeId, this.rectangle);
+  /// True when the user drew a deliberate slope across the top and it was
+  /// kept. Surfaced so the app can say "your sloping top was recognised"
+  /// rather than leaving the user to check (spec section 4).
+  final bool hasSlopingTop;
+
+  const FrameIntent(super.strokeId, this.outline, {this.hasSlopingTop = false});
 
   @override
-  String toString() => 'FrameIntent(${rectangle.width.round()} x '
-      '${rectangle.height.round()} mm)';
+  String toString() => 'FrameIntent(${outline.width.round()} x '
+      '${outline.height.round()} mm'
+      '${hasSlopingTop ? ', sloping top' : ''})';
 }
 
 /// A mostly-vertical stroke inside the frame: a mullion, snapped to vertical.

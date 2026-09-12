@@ -134,6 +134,8 @@ class ScenePainter extends CustomPainter {
   final Color meshColor;
   final Color noteMarkerColor;
   final Color noteMarkerInk;
+  final Color hardwareColor;
+  final Color hardwareEdgeColor;
 
   const ScenePainter({
     required this.scene,
@@ -145,6 +147,8 @@ class ScenePainter extends CustomPainter {
     required this.meshColor,
     required this.noteMarkerColor,
     required this.noteMarkerInk,
+    required this.hardwareColor,
+    required this.hardwareEdgeColor,
   });
 
   @override
@@ -196,6 +200,30 @@ class ScenePainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = AppViewerMetrics.surfaceEdge
             ..color = shading.edge,
+        );
+
+      case PartRole.threshold:
+        // Part of the product, so it takes the finish like everything else.
+        canvas.drawPath(path, Paint()..color = shading.forFace(face.kind));
+        canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = AppViewerMetrics.surfaceEdge
+            ..color = shading.edge,
+        );
+
+      case PartRole.handle:
+      case PartRole.hinge:
+        // Hardware is metal, not the frame colour: it reads as a fitting
+        // rather than as part of the profile.
+        canvas.drawPath(path, Paint()..color = hardwareColor);
+        canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = AppViewerMetrics.surfaceEdge
+            ..color = hardwareEdgeColor,
         );
 
       case PartRole.panel:
@@ -260,7 +288,12 @@ class ScenePainter extends CustomPainter {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
-        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)
+            .copyWith(
+          color: color,
+          fontFamily: AppFonts.family,
+          fontFamilyFallback: AppFonts.fallback,
+        ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();

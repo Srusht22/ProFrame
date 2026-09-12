@@ -5,11 +5,14 @@ import '../../core/design/tokens.dart';
 import '../../core/layout/responsive.dart';
 import '../../core/units/length_unit.dart';
 import '../../domain/design_document.dart';
+import '../../domain/layout/design_validator.dart';
 import '../../domain/panel.dart';
 import '../../domain/panel_divider.dart';
+import '../canvas/canvas_projection.dart';
 import '../canvas/dimension_labels.dart';
 import '../canvas/drawing_canvas.dart';
 import '../state/design_controller.dart';
+import '../state/project_controller.dart';
 import '../widgets/dimension_input.dart';
 import '../widgets/notice.dart';
 import '../widgets/panel_sheet.dart';
@@ -19,6 +22,9 @@ import '../widgets/panel_sheet.dart';
 /// Compact puts the summary behind a button; expanded and tablet-landscape put
 /// it beside the canvas, so the user watches the questions disappear as they
 /// draw (spec section 8 and Phase 2, items 9 and 10).
+/// Lets the screen read the canvas's laid-out size for "fit to view".
+final _canvasKey = GlobalKey();
+
 class CanvasScreen extends ConsumerWidget {
   final VoidCallback onBack;
 
@@ -26,9 +32,13 @@ class CanvasScreen extends ConsumerWidget {
   /// nothing to look at yet.
   final VoidCallback onPreview;
 
+  /// Opens the export sheet.
+  final VoidCallback onExport;
+
   const CanvasScreen({
     required this.onBack,
     required this.onPreview,
+    required this.onExport,
     super.key,
   });
 
@@ -36,6 +46,7 @@ class CanvasScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(designControllerProvider);
     final controller = ref.read(designControllerProvider.notifier);
+    final save = ref.watch(saveControllerProvider);
 
     return ResponsiveBuilder(
       builder: (context, size) {
@@ -52,7 +63,27 @@ class CanvasScreen extends ConsumerWidget {
               tooltip: 'Back',
               onPressed: onBack,
             ),
-            title: Text(state.design.name),
+            title: InkWell(
+              // Tapping the name renames the project — the shortest path to
+              // the thing a user most often wants to change.
+              onTap: () => _rename(context, ref),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      state.design.name,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (save.isDirty)
+                    const Padding(
+                      padding: EdgeInsets.only(left: AppSpacing.xxs),
+                      child: Text('•', style: TextStyle(fontSize: 22)),
+                    ),
+                ],
+              ),
+            ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.undo),
@@ -75,11 +106,41 @@ class CanvasScreen extends ConsumerWidget {
                 tooltip: 'Note for the whole design',
                 onPressed: () => _editDesignNote(context, ref),
               ),
+              IconButton(
+                icon: save.isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined),
+                tooltip: 'Save this project',
+                onPressed: save.isSaving ? null : () => _save(context, ref),
+              ),
+              IconButton(
+                icon: const Icon(Icons.ios_share),
+                tooltip: 'Export',
+                onPressed: onExport,
+              ),
             ],
           ),
           body: SafeArea(
             child: Column(
               children: [
+                if (save.error != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.sm,
+                      AppSpacing.sm,
+                      AppSpacing.sm,
+                      0,
+                    ),
+                    child: Notice(
+                      tone: NoticeTone.problem,
+                      title: 'Not saved',
+                      message: save.error!,
+                    ),
+                  ),
                 if (state.message != null)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
@@ -93,6 +154,24 @@ class CanvasScreen extends ConsumerWidget {
                       message: state.message!,
                     ),
                   ),
+                _ToolPalette(
+                  tool: state.tool,
+                  notesVisible: state.notesVisible,
+                  hasSelection: state.selectedPanelId != null ||
+                      state.selectedDividerId != null,
+                  onTool: (tool) =>
+                      ref.read(designControllerProvider.notifier).selectTool(tool),
+                  onFit: () => _fitToView(ref),
+                  onResetView: () =>
+                      ref.read(designControllerProvider.notifier).resetView(),
+                  onDelete: () => ref
+                      .read(designControllerProvider.notifier)
+                      .deleteSelection(),
+                  onToggleNotes: (visible) => ref
+                      .read(designControllerProvider.notifier)
+                      .setNotesVisible(visible),
+                ),
+                const Divider(height: 1),
                 Expanded(
                   child: sideBySide
                       ? Row(
@@ -129,9 +208,16 @@ class CanvasScreen extends ConsumerWidget {
         // Cream, from the theme — the paper the user draws on.
         color: AppColors.cream,
         child: DrawingCanvas(
+          key: _canvasKey,
           design: state.design,
+          tool: state.tool,
+          zoom: state.zoom,
+          pan: state.pan,
+          notesVisible: state.notesVisible,
           selectedPanelId: state.selectedPanelId,
           selectedDividerId: state.selectedDividerId,
+          onViewChanged: (zoom, pan) =>
+              ref.read(designControllerProvider.notifier).setView(zoom, pan),
           onStroke: (points) =>
               ref.read(designControllerProvider.notifier).addStroke(points),
           onPanelTap: (panel) => ref
@@ -148,6 +234,56 @@ class CanvasScreen extends ConsumerWidget {
       );
 
   // -- actions --------------------------------------------------------------
+
+  /// Zooms and pans so the whole drawing fills the canvas.
+  void _fitToView(WidgetRef ref) {
+    final controller = ref.read(designControllerProvider.notifier);
+    final outline = ref.read(designControllerProvider).design.outline;
+    // The canvas's own laid-out size, read from its render box: the same box
+    // the projection was built against, so the fit lands exactly.
+    final size = _canvasKey.currentContext?.size;
+    if (outline == null || size == null || size.isEmpty) {
+      controller.resetView();
+      return;
+    }
+    final (zoom, pan) = CanvasProjection.fitTo(
+      size,
+      outline.left,
+      outline.top,
+      outline.right,
+      outline.bottom,
+    );
+    controller.setView(zoom, pan);
+  }
+
+  Future<void> _save(BuildContext context, WidgetRef ref) async {
+    final controller = ref.read(designControllerProvider.notifier)..touch();
+    final saved = await ref
+        .read(saveControllerProvider.notifier)
+        .save(ref.read(designControllerProvider).design);
+    if (!context.mounted) return;
+    if (saved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Saved "${ref.read(designControllerProvider).design.name}".'),
+        ),
+      );
+    }
+    // A failure is already on screen as a banner; no need to say it twice.
+    controller.clearMessage();
+  }
+
+  Future<void> _rename(BuildContext context, WidgetRef ref) async {
+    final design = ref.read(designControllerProvider).design;
+    final name = await askForNote(
+      context,
+      title: 'Rename project',
+      helper: 'What should this design be called?',
+      current: design.name,
+    );
+    if (name == null || name.trim().isEmpty) return;
+    ref.read(designControllerProvider.notifier).rename(name);
+  }
 
   /// Tapping a dimension on the drawing asks for that measurement.
   Future<void> _editDimension(
@@ -245,15 +381,26 @@ class CanvasScreen extends ConsumerWidget {
         controller.setMesh(panel.id, value);
       case SetEmpty(:final value):
         controller.setEmpty(panel.id, value);
-      case EditNote():
+      case EditNote(:final noteId):
         if (!context.mounted) return;
-        final note = await askForNote(
+        final existing = noteId == null ? null : panel.noteById(noteId);
+        final text = await askForNote(
           context,
-          title: 'Note for this panel',
-          helper: 'For example: توري, فارغ, frosted glass.',
-          current: panel.note,
+          title: existing == null ? 'Add a note' : 'Edit this note',
+          helper: 'For example: توري, فارغ, frosted glass. A note describes '
+              'the panel; it never changes it.',
+          current: existing?.text ?? '',
         );
-        if (note != null) controller.setPanelNote(panel.id, note);
+        if (text == null) return;
+        if (existing == null) {
+          controller.addPanelNote(panel.id, text);
+        } else {
+          controller.editPanelNote(panel.id, existing.id, text);
+        }
+      case DeleteNote(:final noteId):
+        controller.removePanelNote(panel.id, noteId);
+      case ToggleNoteVisible(:final noteId, :final visible):
+        controller.setNoteVisible(panel.id, noteId, visible);
     }
   }
 
@@ -322,6 +469,10 @@ class _Summary extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final questions = design.outstandingQuestions;
+    // Reported, never corrected: the app does not silently change a confirmed
+    // dimension to make a layout fit (spec section 6).
+    final conflicts =
+        DesignValidator.check(design).where((f) => f.isConflict).toList();
 
     return ColoredBox(
       color: AppColors.surface,
@@ -337,6 +488,22 @@ class _Summary extends StatelessWidget {
             _Fact('Opening (Z)', '${design.openingPanelCount}'),
             _Fact('Dividers', '${design.dividers.length}'),
             const SizedBox(height: AppSpacing.md),
+            // Contradictions first: an unfinished design is normal, a
+            // contradictory one has to be resolved (spec section 6).
+            if (conflicts.isNotEmpty) ...[
+              Text('Problems', style: theme.textTheme.titleMedium),
+              const SizedBox(height: AppSpacing.xs),
+              for (final finding in conflicts)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                  child: Notice(
+                    tone: NoticeTone.problem,
+                    title: finding.message,
+                    message: finding.remedy,
+                  ),
+                ),
+              const SizedBox(height: AppSpacing.md),
+            ],
             Text(
               questions.isEmpty
                   ? 'Nothing left to confirm'
@@ -493,6 +660,153 @@ class _Toolbar extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The drawing tools (spec section 4).
+///
+/// Scrollable, so the row cannot push the canvas off a narrow phone, and every
+/// button carries a label as well as an icon.
+class _ToolPalette extends StatelessWidget {
+  final CanvasTool tool;
+  final bool notesVisible;
+  final bool hasSelection;
+  final ValueChanged<CanvasTool> onTool;
+  final VoidCallback onFit;
+  final VoidCallback onResetView;
+  final VoidCallback onDelete;
+  final ValueChanged<bool> onToggleNotes;
+
+  const _ToolPalette({
+    required this.tool,
+    required this.notesVisible,
+    required this.hasSelection,
+    required this.onTool,
+    required this.onFit,
+    required this.onResetView,
+    required this.onDelete,
+    required this.onToggleNotes,
+  });
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+        color: AppColors.surface,
+        child: SizedBox(
+          height: AppSizing.minTouchTarget + AppSpacing.xs * 2,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            children: [
+              for (final option in CanvasTool.values)
+                _ToolButton(
+                  icon: switch (option) {
+                    CanvasTool.draw => Icons.edit_outlined,
+                    CanvasTool.pan => Icons.open_with,
+                    CanvasTool.select => Icons.touch_app_outlined,
+                  },
+                  label: option.label,
+                  tooltip: option.hint,
+                  selected: tool == option,
+                  onPressed: () => onTool(option),
+                ),
+              const VerticalDivider(width: AppSpacing.sm),
+              _ToolButton(
+                icon: Icons.fit_screen_outlined,
+                label: 'Fit',
+                tooltip: 'Fit the drawing to the screen',
+                onPressed: onFit,
+              ),
+              _ToolButton(
+                icon: Icons.zoom_out_map,
+                label: 'Whole sheet',
+                tooltip: 'Show the whole sheet again',
+                onPressed: onResetView,
+              ),
+              _ToolButton(
+                icon: notesVisible
+                    ? Icons.speaker_notes_outlined
+                    : Icons.speaker_notes_off_outlined,
+                label: notesVisible ? 'Notes on' : 'Notes off',
+                tooltip: notesVisible
+                    ? 'Hide the note labels'
+                    : 'Show the note labels',
+                onPressed: () => onToggleNotes(!notesVisible),
+              ),
+              _ToolButton(
+                icon: Icons.delete_outline,
+                label: 'Delete',
+                tooltip: hasSelection
+                    ? 'Delete what is selected'
+                    : 'Select something first',
+                onPressed: onDelete,
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _ToolButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String tooltip;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  const _ToolButton({
+    required this.icon,
+    required this.label,
+    required this.tooltip,
+    required this.onPressed,
+    this.selected = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = selected ? AppColors.cream : AppColors.deepGreen;
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xxs,
+        vertical: AppSpacing.xs,
+      ),
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: selected ? '$label, selected' : label,
+        child: ExcludeSemantics(
+          child: Tooltip(
+            message: tooltip,
+            child: Material(
+              color: selected ? AppColors.deepGreen : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              child: InkWell(
+                onTap: onPressed,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minWidth: AppSizing.minTouchTarget,
+                    minHeight: AppSizing.minTouchTarget,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, size: 20, color: foreground),
+                      const SizedBox(width: AppSpacing.xxs),
+                      // The word as well as the icon, so nothing depends on
+                      // recognising a glyph (spec section 12).
+                      Text(label, style: TextStyle(color: foreground)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

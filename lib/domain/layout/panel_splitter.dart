@@ -85,13 +85,17 @@ abstract final class PanelSplitter {
   /// A new panel carrying across what still applies after a split.
   ///
   /// Always CH: the halves are new panels and nobody has said how they open.
-  /// The note, mesh and empty flags follow, because they describe the infill
-  /// rather than the opening.
+  /// Mesh and the empty flag follow, because they describe the infill rather
+  /// than the opening.
+  ///
+  /// Notes are deliberately *not* copied here. Duplicating a remark onto both
+  /// halves would put it somewhere the user never wrote it; where each note
+  /// belongs is decided geometrically by [NoteResolver.afterSplit], which the
+  /// caller applies to the pair this returns.
   static Panel _derive(Panel source, String id, Polygon boundary) => Panel.fixed(
         id: id,
         boundary: boundary,
         infill: source.infill,
-        note: source.note,
         hasMesh: source.hasMesh,
         isEmpty: source.isEmpty,
       );

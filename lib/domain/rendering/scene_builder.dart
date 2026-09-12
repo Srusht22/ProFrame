@@ -4,6 +4,7 @@ import '../design_document.dart';
 import '../panel.dart';
 import '../product/infill.dart';
 import '../product/opening.dart';
+import '../product/product_basics.dart';
 import '../product/profile_system.dart';
 import 'point3.dart';
 import 'scene.dart';
@@ -31,6 +32,13 @@ abstract final class SceneBuilder {
 
   /// How far a sliding sash travels, as a fraction of its own width.
   static const double maxSlideFraction = 0.92;
+
+  /// Handle height above the floor on a door leaf, in millimetres. The usual
+  /// figure, and it is overridden the moment a factory supplies its own.
+  static const double doorHandleHeightMm = 1050;
+
+  /// How tall a leaf has to be before it needs a third hinge.
+  static const double thirdHingeAboveMm = 1600;
 
   /// Builds the scene for [design].
   ///
@@ -162,6 +170,11 @@ abstract final class SceneBuilder {
       );
     }
 
+    // A door sits on a threshold; a window sits on a sill that projects
+    // outwards. Respecting the category is a requirement, not decoration
+    // (spec section 7).
+    _addSillOrThreshold(design, system, faces, extent);
+
     faces.sort((a, b) => a.sortDepth.compareTo(b.sortDepth));
     lines.sort((a, b) => a.sortDepth.compareTo(b.sortDepth));
 
@@ -224,6 +237,19 @@ abstract final class SceneBuilder {
     final opening = panel.opening;
     if (opening != null) {
       _addOpeningGlyph(corners, opening, panel.id, openFraction, lines);
+    }
+
+    // Hardware on an opening leaf.
+    if (opening != null) {
+      _addHardware(
+        panel: panel,
+        opening: opening,
+        corners: corners,
+        system: system,
+        isDoor: design.category == ProductCategory.door,
+        openFraction: openFraction,
+        faces: faces,
+      );
     }
 
     if (panel.hasNote) {
@@ -454,6 +480,152 @@ abstract final class SceneBuilder {
         sortDepth: sort,
       ));
     }
+  }
+
+  /// A handle, and hinge knuckles down the hinged edge.
+  ///
+  /// Drawn from the same corners as the leaf, so hardware travels with the
+  /// sash when it opens instead of staying behind on the frame.
+  static void _addHardware({
+    required Panel panel,
+    required OpeningSpec opening,
+    required List<Point3> corners,
+    required ProfileSystem system,
+    required bool isDoor,
+    required double openFraction,
+    required List<SceneFace> faces,
+  }) {
+    final topLeft = corners[0];
+    final topRight = corners[1];
+    final bottomRight = corners[2];
+    final bottomLeft = corners[3];
+    final sort = -topLeft.z + openFraction * 100 + 0.75;
+
+    Point3 lerp(Point3 a, Point3 b, double t) => Point3(
+          a.x + (b.x - a.x) * t,
+          a.y + (b.y - a.y) * t,
+          a.z + (b.z - a.z) * t,
+        );
+
+    void addPlate(Point3 centre, double width, double height) {
+      faces.add(SceneFace(
+        role: PartRole.handle,
+        kind: FaceKind.front,
+        corners: [
+          Point3(centre.x - width / 2, centre.y - height / 2, centre.z),
+          Point3(centre.x + width / 2, centre.y - height / 2, centre.z),
+          Point3(centre.x + width / 2, centre.y + height / 2, centre.z),
+          Point3(centre.x - width / 2, centre.y + height / 2, centre.z),
+        ],
+        sortDepth: sort,
+        panelId: panel.id,
+      ));
+    }
+
+    // The handle goes on the edge opposite the hinges, because that is the
+    // edge that moves.
+    final leafHeight = (bottomLeft.y - topLeft.y).abs();
+    if (opening.mechanism.needsHingeSide || opening.mechanism.isSliding) {
+      final onLeft = opening.mechanism.isSliding
+          ? opening.mechanism == OpeningMechanism.slidingRight
+          : opening.hingeSide == HingeSide.right;
+
+      // A door handle sits at a fixed height above the floor; a window handle
+      // sits at the middle of its sash, where a person can reach it.
+      final fraction = isDoor && leafHeight > 0
+          ? (1 - doorHandleHeightMm / leafHeight).clamp(0.15, 0.85)
+          : 0.5;
+      final edgeTop = onLeft ? topLeft : topRight;
+      final edgeBottom = onLeft ? bottomLeft : bottomRight;
+      final at = lerp(edgeTop, edgeBottom, fraction.toDouble());
+      final inset = system.sashFaceMm * 0.6 * (onLeft ? 1 : -1);
+
+      addPlate(
+        Point3(at.x + inset, at.y, at.z),
+        system.sashFaceMm * 0.45,
+        isDoor ? 160 : 110,
+      );
+    }
+
+    // Hinge knuckles, counted by leaf height the way a fabricator would.
+    if (!opening.mechanism.needsHingeSide) return;
+    final count = leafHeight > thirdHingeAboveMm ? 3 : 2;
+    final onLeft = opening.hingeSide == HingeSide.left;
+    final edgeTop = onLeft ? topLeft : topRight;
+    final edgeBottom = onLeft ? bottomLeft : bottomRight;
+
+    for (var i = 0; i < count; i++) {
+      // Spread between an eighth and seven eighths of the leaf, the way
+      // hinges actually sit.
+      final t = count == 1 ? 0.5 : 0.12 + (0.76 * i) / (count - 1);
+      final at = lerp(edgeTop, edgeBottom, t);
+      faces.add(SceneFace(
+        role: PartRole.hinge,
+        kind: FaceKind.verticalSide,
+        corners: [
+          Point3(at.x, at.y - 45, at.z),
+          Point3(at.x + (onLeft ? -14 : 14), at.y - 45, at.z),
+          Point3(at.x + (onLeft ? -14 : 14), at.y + 45, at.z),
+          Point3(at.x, at.y + 45, at.z),
+        ],
+        sortDepth: sort,
+        panelId: panel.id,
+      ));
+    }
+  }
+
+  /// A door's threshold sits flush; a window's sill projects outwards.
+  static void _addSillOrThreshold(
+    DesignDocument design,
+    ProfileSystem system,
+    List<SceneFace> faces,
+    List<Point3> extent,
+  ) {
+    final outline = design.outline;
+    if (outline == null) return;
+
+    final isDoor = design.category == ProductCategory.door;
+    // A window sill overhangs the frame at the sides and noses *outwards*,
+    // towards the viewer — which is why its front face sits at a negative z.
+    // A door threshold is a flat plate the same width as the frame.
+    final overhang = isDoor ? 0.0 : 25.0;
+    final frontZ = isDoor ? 0.0 : -overhang;
+    final thickness = isDoor ? 18.0 : 26.0;
+
+    final top = outline.bottom;
+    final bottom = outline.bottom + thickness;
+    final left = outline.left - overhang;
+    final right = outline.right + overhang;
+
+    faces
+      ..add(SceneFace(
+        role: PartRole.threshold,
+        kind: FaceKind.front,
+        corners: [
+          Point3(left, top, frontZ),
+          Point3(right, top, frontZ),
+          Point3(right, bottom, frontZ),
+          Point3(left, bottom, frontZ),
+        ],
+        // Ahead of the frame, because it noses out in front of it.
+        sortDepth: -frontZ + 0.5,
+      ))
+      ..add(SceneFace(
+        role: PartRole.threshold,
+        kind: FaceKind.horizontalSide,
+        corners: [
+          Point3(left, top, frontZ),
+          Point3(right, top, frontZ),
+          Point3(right, top, system.frameDepthMm),
+          Point3(left, top, system.frameDepthMm),
+        ],
+        sortDepth: -frontZ + 0.48,
+      ));
+
+    extent.addAll([
+      Point3(left, bottom, frontZ),
+      Point3(right, top, system.frameDepthMm),
+    ]);
   }
 
   /// A small square in the panel's top-right corner.

@@ -54,6 +54,12 @@ class ViewerScreen extends ConsumerWidget {
             ),
             title: Text(renderer.label),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.flip_camera_android_outlined),
+                tooltip: 'Turn the product around',
+                onPressed:
+                    ref.read(viewerControllerProvider.notifier).turnAround,
+              ),
               if (viewer.openPanels.isNotEmpty)
                 IconButton(
                   icon: const Icon(Icons.close_fullscreen),
@@ -97,6 +103,12 @@ class ViewerScreen extends ConsumerWidget {
                           design: design,
                           profile: profile,
                         ),
+                ),
+                _CameraBar(
+                  angle: viewer.cameraAngle,
+                  onAngle: ref
+                      .read(viewerControllerProvider.notifier)
+                      .setCameraAngle,
                 ),
                 _ViewerFooter(design: design),
               ],
@@ -154,6 +166,7 @@ class _ViewerState extends ConsumerState<_Viewer> {
           openPanels: viewer.openPanels,
           zoom: viewer.zoom,
           pan: viewer.pan,
+          projection: viewer.projection,
           onPanelTapped: (panelId) => _handleTap(context, panelId),
         ),
       ),
@@ -200,7 +213,11 @@ class _ViewerState extends ConsumerState<_Viewer> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Notice(title: 'Note', message: panel.note),
+                for (final note in panel.notes)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                    child: Notice(title: 'Note', message: note.text),
+                  ),
                 if (panel.behaviour.isOpening) ...[
                   const SizedBox(height: AppSpacing.sm),
                   FilledButton.icon(
@@ -410,7 +427,7 @@ class _SidePanel extends StatelessWidget {
                             ),
                           if (panel.hasNote)
                             Text(
-                              panel.note,
+                              panel.noteSummary,
                               style: theme.textTheme.bodySmall
                                   ?.copyWith(color: AppColors.mutedText),
                             ),
@@ -465,4 +482,58 @@ class _ViewerFooter extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Raises and lowers the camera (spec section 7: rotate, pan, zoom, reset).
+///
+/// A slider rather than a drag-to-orbit: this is an axonometric view with no
+/// perspective to swing through, so what the user can actually change is how
+/// steeply the depth recedes — and a slider says that honestly.
+class _CameraBar extends StatelessWidget {
+  final double angle;
+  final ValueChanged<double> onAngle;
+
+  const _CameraBar({required this.angle, required this.onAngle});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.outline)),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.threed_rotation_outlined,
+              size: 18,
+              color: AppColors.mutedText,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              'View angle',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.mutedText),
+            ),
+            Expanded(
+              child: Slider(
+                value: angle,
+                min: 8,
+                max: 62,
+                label: '${angle.round()}°',
+                onChanged: onAngle,
+              ),
+            ),
+            SizedBox(
+              width: 34,
+              child: Text(
+                '${angle.round()}°',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
+      );
 }

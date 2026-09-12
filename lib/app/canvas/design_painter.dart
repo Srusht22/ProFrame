@@ -23,6 +23,9 @@ class DesignPainter extends CustomPainter {
   final String? selectedPanelId;
   final String? selectedDividerId;
 
+  /// Whether note labels are drawn. Hiding them never touches the design.
+  final bool notesVisible;
+
   /// Colours, taken from the theme by the widget so the painter stays free of
   /// context lookups.
   final Color frameColor;
@@ -43,6 +46,7 @@ class DesignPainter extends CustomPainter {
     required this.labelColor,
     this.selectedPanelId,
     this.selectedDividerId,
+    this.notesVisible = true,
   });
 
   @override
@@ -131,6 +135,26 @@ class DesignPainter extends CustomPainter {
       bold: true,
     );
 
+    // Note labels, each where the user put it inside the panel.
+    if (notesVisible) {
+      for (final note in panel.visibleNotes) {
+        final at = note.clampedPosition;
+        final centre = Offset(
+          rect.left + rect.width * at.x,
+          rect.top + rect.height * at.y,
+        );
+        _paintText(
+          canvas,
+          note.text,
+          centre,
+          frameColor,
+          background: panelFillColor,
+        );
+      }
+    }
+
+    // A marker in the corner whenever there is a note, shown or hidden, so a
+    // hidden note is never forgotten about.
     if (panel.hasNote) {
       final centre = Offset(
         rect.right - AppCanvasMetrics.noteMarkerRadius - 6,
@@ -139,7 +163,9 @@ class DesignPainter extends CustomPainter {
       canvas.drawCircle(
         centre,
         AppCanvasMetrics.noteMarkerRadius,
-        Paint()..color = frameColor,
+        Paint()..color = panel.visibleNotes.isEmpty
+            ? frameColor.withValues(alpha: 0.4)
+            : frameColor,
       );
       _paintText(canvas, '!', centre, panelFillColor, bold: true);
     }
@@ -296,6 +322,10 @@ class DesignPainter extends CustomPainter {
           color: color,
           fontSize: 13,
           fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+          // Named explicitly: a painter draws outside the widget tree, so it
+          // does not inherit the theme's font.
+          fontFamily: AppFonts.family,
+          fontFamilyFallback: AppFonts.fallback,
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -315,6 +345,7 @@ class DesignPainter extends CustomPainter {
   @override
   bool shouldRepaint(DesignPainter old) =>
       old.design != design ||
+      old.notesVisible != notesVisible ||
       old.wetInk.length != wetInk.length ||
       old.selectedPanelId != selectedPanelId ||
       old.selectedDividerId != selectedDividerId;

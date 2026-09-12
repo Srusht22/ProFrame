@@ -94,9 +94,8 @@ void main() {
       expect([left.id, right.id], isNot(contains('p1')));
     });
 
-    test('the note and the glass follow both halves', () {
+    test('the glass follows both halves, the notes do not', () {
       final whole = panelAt('p1', 0, 1200).copyWith(
-        note: 'توري',
         hasMesh: true,
         infill: Glazing.singleGlazed,
       );
@@ -105,10 +104,13 @@ void main() {
           PanelSplitter.splitVertical(whole, 600, leftId: 'a', rightId: 'b');
 
       for (final half in [left, right]) {
-        expect(half.note, 'توري');
         expect(half.hasMesh, isTrue);
         expect(half.infill, Glazing.singleGlazed);
       }
+      // Notes are not copied onto both halves — duplicating a remark would
+      // put it somewhere the user never wrote it. NoteResolver places them.
+      expect(left.notes, isEmpty);
+      expect(right.notes, isEmpty);
     });
 
     test('a split that would leave an unbuildable sliver is refused', () {

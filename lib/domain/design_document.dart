@@ -16,9 +16,18 @@ import 'sketch.dart';
 /// data throughout — never pixels, never a triangle mesh — so a saved project
 /// reopens fully editable rather than as a picture of a decision.
 class DesignDocument {
-  /// Bumped whenever the stored shape changes in a way older builds cannot
-  /// read. [fromJson] refuses anything newer rather than guessing.
-  static const int currentSchemaVersion = 1;
+  /// Bumped whenever the stored shape changes.
+  ///
+  /// Older files are migrated forward on load, never rejected — see
+  /// `Panel._notesFromJson`, which reads both the schema 1 single-note string
+  /// and the schema 2 note list. A file from a *newer* build is refused,
+  /// because this one cannot know what it would be dropping.
+  ///
+  /// | Version | Change |
+  /// | --- | --- |
+  /// | 1 | Phases 1 to 3. One note per panel, stored as a string. |
+  /// | 2 | Notes become a list of [PanelNote] with positions and visibility. |
+  static const int currentSchemaVersion = 2;
 
   final int schemaVersion;
 
@@ -214,12 +223,15 @@ class DesignDocument {
   /// exports. Panels are named by label where they have one.
   List<({String source, String text})> get allNotes => [
         if (hasDesignNote) (source: 'Design', text: designNote.trim()),
-        for (final panel in panels)
-          if (panel.hasNote)
-            (
-              source: panel.label.isEmpty ? 'Panel ${panel.id}' : panel.label,
-              text: panel.note.trim(),
-            ),
+        for (var i = 0; i < panels.length; i++)
+          for (final note in panels[i].notes)
+            if (!note.isEmpty)
+              (
+                source: panels[i].label.isEmpty
+                    ? 'Panel ${i + 1}'
+                    : panels[i].label,
+                text: note.text.trim(),
+              ),
       ];
 
   /// Replaces one panel, keeping its position in the list and every other
@@ -230,6 +242,15 @@ class DesignDocument {
             panel.id == replacement.id ? replacement : panel,
         ],
       );
+
+  /// The profile system this design is built from.
+  ///
+  /// Resolved from the stored reference; falls back to the material's default
+  /// when the reference names a system this build does not have, so a project
+  /// from a factory with its own catalogue still opens and can still be shown.
+  ProfileSystem get profileSystem =>
+      GenericProfiles.byId(profile.id) ??
+      GenericProfiles.defaultFor(material);
 
   /// The frame size this design manufactures to.
   ///
@@ -251,7 +272,10 @@ class DesignDocument {
   // -- serialisation --------------------------------------------------------
 
   Map<String, dynamic> toJson() => {
-        'schema': schemaVersion,
+        // Always the current version: a document that was migrated on load is
+        // saved forward, so an old file is upgraded the first time it is
+        // touched rather than staying old forever.
+        'schema': currentSchemaVersion,
         'id': id,
         'name': name,
         'createdAt': createdAt.toUtc().toIso8601String(),

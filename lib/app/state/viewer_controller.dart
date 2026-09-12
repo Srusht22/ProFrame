@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design/tokens.dart';
+import '../../domain/rendering/isometric_projection.dart';
 
 /// What the viewer is showing: which panels are open, and where the camera is.
 ///
@@ -15,19 +16,41 @@ class ViewerState {
   final double zoom;
   final Offset pan;
 
+  /// How steeply depth recedes, in degrees. The camera's elevation.
+  final double cameraAngle;
+
+  /// Which side depth recedes towards. Turning the product around.
+  final bool fromTheRight;
+
   const ViewerState({
     this.openPanels = const {},
     this.zoom = 1,
     this.pan = Offset.zero,
+    this.cameraAngle = 30,
+    this.fromTheRight = true,
   });
+
+  /// The projection this camera describes.
+  IsometricProjection get projection => IsometricProjection(
+        depthAngleDegrees: cameraAngle,
+        depthSign: fromTheRight ? 1 : -1,
+      );
 
   bool isOpen(String panelId) => openPanels.contains(panelId);
 
-  ViewerState copyWith({Set<String>? openPanels, double? zoom, Offset? pan}) =>
+  ViewerState copyWith({
+    Set<String>? openPanels,
+    double? zoom,
+    Offset? pan,
+    double? cameraAngle,
+    bool? fromTheRight,
+  }) =>
       ViewerState(
         openPanels: openPanels ?? this.openPanels,
         zoom: zoom ?? this.zoom,
         pan: pan ?? this.pan,
+        cameraAngle: cameraAngle ?? this.cameraAngle,
+        fromTheRight: fromTheRight ?? this.fromTheRight,
       );
 }
 
@@ -73,7 +96,24 @@ class ViewerController extends Notifier<ViewerState> {
 
   void panBy(Offset delta) => state = state.copyWith(pan: state.pan + delta);
 
-  void resetView() => state = state.copyWith(zoom: 1, pan: Offset.zero);
+  /// Raises or lowers the camera.
+  ///
+  /// Clamped short of flat and short of straight down: at 0 the depth faces
+  /// vanish and the view collapses to a plain elevation, and at 90 the
+  /// elevation itself disappears.
+  void setCameraAngle(double degrees) =>
+      state = state.copyWith(cameraAngle: degrees.clamp(8.0, 62.0));
+
+  /// Turns the product around, to see the other jamb.
+  void turnAround() =>
+      state = state.copyWith(fromTheRight: !state.fromTheRight);
+
+  void resetView() => state = state.copyWith(
+        zoom: 1,
+        pan: Offset.zero,
+        cameraAngle: 30,
+        fromTheRight: true,
+      );
 }
 
 final viewerControllerProvider =

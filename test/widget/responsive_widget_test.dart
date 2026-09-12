@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/app.dart';
 import 'package:proframe/app/canvas/drawing_canvas.dart';
+import 'package:proframe/app/state/project_controller.dart';
 import 'package:proframe/app/widgets/workspace_scaffold.dart';
 import 'package:proframe/core/design/app_theme.dart';
 import 'package:proframe/core/design/tokens.dart';
+import 'package:proframe/infrastructure/key_value_store.dart';
 
 /// The sizes spec section 12D names, plus the two orientations.
 const sizes = <String, Size>{
@@ -31,12 +33,21 @@ Future<void> pumpApp(
   await setSize(tester, size);
   await tester.pumpWidget(
     ProviderScope(
+      // The app saves to a store; tests use an in-memory one so nothing
+      // touches a platform channel.
+      overrides: [keyValueStoreProvider.overrideWithValue(InMemoryStore())],
       child: MediaQuery(
         data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
         child: ProFrameApp(idFactory: () => 'test-project'),
       ),
     ),
   );
+  await tester.pumpAndSettle();
+}
+
+/// Walks from the project list into the new-design screen.
+Future<void> startNewDesign(WidgetTester tester) async {
+  await tester.tap(find.text('New design'));
   await tester.pumpAndSettle();
 }
 
@@ -48,6 +59,11 @@ void main() {
       testWidgets(entry.key, (tester) async {
         await pumpApp(tester, entry.value);
 
+        // The project list is the front door now.
+        expect(find.text('New design'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+
+        await startNewDesign(tester);
         expect(find.text('What are you making?'), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
@@ -58,7 +74,9 @@ void main() {
     for (final entry in sizes.entries) {
       testWidgets('${entry.key} at 1.6x text', (tester) async {
         await pumpApp(tester, entry.value, textScale: 1.6);
+        expect(tester.takeException(), isNull);
 
+        await startNewDesign(tester);
         expect(tester.takeException(), isNull);
       });
     }
@@ -68,6 +86,7 @@ void main() {
       // The OS allows well over 2x. The app clamps rather than letting the
       // workspace be squeezed off screen.
       await pumpApp(tester, const Size(360, 800), textScale: 3.0);
+      await startNewDesign(tester);
 
       expect(tester.takeException(), isNull);
     });
@@ -77,6 +96,7 @@ void main() {
     testWidgets('both product choices are offered and neither is preselected',
         (tester) async {
       await pumpApp(tester, const Size(1440, 900));
+      await startNewDesign(tester);
 
       expect(find.text('Door'), findsOneWidget);
       expect(find.text('Window'), findsOneWidget);
@@ -92,6 +112,7 @@ void main() {
     testWidgets('the material choice only appears once it is relevant',
         (tester) async {
       await pumpApp(tester, const Size(1440, 900));
+      await startNewDesign(tester);
 
       // Colour and profile are hidden until a material is chosen, so the first
       // screen stays to two decisions (spec section 3A).
@@ -108,6 +129,7 @@ void main() {
     testWidgets('choosing a material selects that material\'s profile',
         (tester) async {
       await pumpApp(tester, const Size(1440, 900));
+      await startNewDesign(tester);
 
       await tester.tap(find.text('Aluminium'));
       await tester.pumpAndSettle();
@@ -120,6 +142,7 @@ void main() {
     testWidgets('the generic-profile warning is shown, not buried',
         (tester) async {
       await pumpApp(tester, const Size(1440, 900));
+      await startNewDesign(tester);
 
       await tester.tap(find.text('PVC'));
       await tester.pumpAndSettle();
@@ -133,6 +156,7 @@ void main() {
 
     testWidgets('a complete choice opens the drawing canvas', (tester) async {
       await pumpApp(tester, const Size(1440, 900));
+      await startNewDesign(tester);
 
       await tester.tap(find.text('Window'));
       await tester.pumpAndSettle();
@@ -224,6 +248,7 @@ void main() {
   testWidgets('rotating the device keeps the canvas and the design',
       (tester) async {
     await pumpApp(tester, const Size(1440, 900));
+    await startNewDesign(tester);
 
     await tester.tap(find.text('Window'));
     await tester.pumpAndSettle();

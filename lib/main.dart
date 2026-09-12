@@ -2,14 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/app.dart';
+import 'app/state/project_controller.dart';
+import 'infrastructure/key_value_store.dart';
 
 /// Entry point only.
 ///
-/// Nothing but wiring lives here (spec section 9): the widget tree is
-/// `ProFrameApp`, and state lives behind Riverpod providers.
-void main() {
+/// Nothing but wiring lives here (spec section 13): the widget tree is
+/// `ProFrameApp`, state lives behind Riverpod providers, and the one thing
+/// this file decides is which storage the app runs against.
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Opened before the first frame so the project list and any recoverable
+  // draft are available immediately, rather than the app showing an empty list
+  // and then filling it in.
+  final store = await DevicePreferencesStore.open();
+
   runApp(
     ProviderScope(
+      overrides: [keyValueStoreProvider.overrideWithValue(store)],
       child: ProFrameApp(idFactory: newProjectId),
     ),
   );

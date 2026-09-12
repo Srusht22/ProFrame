@@ -54,7 +54,7 @@ void main() {
       final intent = classifier.classify(stroke);
 
       expect(intent, isA<FrameIntent>());
-      final rectangle = (intent as FrameIntent).rectangle;
+      final rectangle = (intent as FrameIntent).outline;
       expect(rectangle.isRectangle, isTrue);
       expect(rectangle.cornerCount, 4);
       // Fitted to the extent of the ink, so a wobbly loop still gives square
@@ -109,6 +109,117 @@ void main() {
 
       expect(intent, isA<DiscardedIntent>());
       expect((intent as DiscardedIntent).reason, contains('frame'));
+    });
+  });
+
+  group('sloping tops are kept, not levelled', () {
+    test('a frame with unequal side heights keeps both', () {
+      // Spec section 4: straight sloping tops with unequal side heights.
+      const classifier = StrokeClassifier();
+      final stroke = handDrawn(
+        const [
+          Point2(0, 200),
+          Point2(1200, 0),
+          Point2(1200, 900),
+          Point2(0, 900),
+          Point2(0, 200),
+        ],
+        wobbleMm: 5,
+      );
+
+      final intent = classifier.classify(stroke);
+
+      expect(intent, isA<FrameIntent>());
+      final frame = intent as FrameIntent;
+      expect(frame.hasSlopingTop, isTrue);
+      expect(frame.outline.isRectangle, isFalse);
+      expect(frame.outline.slopingEdges, hasLength(1));
+      // The left side is taller than the right, and stays that way.
+      final left = frame.outline.vertices.first;
+      final right = frame.outline.vertices[1];
+      expect(left.y, greaterThan(right.y));
+    });
+
+    test('the two heights survive into the outline', () {
+      const classifier = StrokeClassifier();
+      final stroke = handDrawn(
+        const [
+          Point2(0, 300),
+          Point2(1000, 0),
+          Point2(1000, 1000),
+          Point2(0, 1000),
+          Point2(0, 300),
+        ],
+        wobbleMm: 4,
+      );
+
+      final frame = classifier.classify(stroke) as FrameIntent;
+      final edges = frame.outline.edges;
+      final leftEdge = edges.firstWhere(
+        (e) => e.start.x < 50 && e.end.x < 50,
+      );
+      final rightEdge = edges.firstWhere(
+        (e) => e.start.x > 950 && e.end.x > 950,
+      );
+
+      // 700 tall on the left, 1000 on the right, within hand tolerance.
+      expect(leftEdge.length, closeTo(700, 40));
+      expect(rightEdge.length, closeTo(1000, 40));
+    });
+
+    test('a level top drawn by hand is still a rectangle', () {
+      // The wobble on a level line must not be mistaken for a slope.
+      const classifier = StrokeClassifier();
+      final stroke = handDrawn(
+        const [
+          Point2(0, 0),
+          Point2(1200, 14),
+          Point2(1200, 900),
+          Point2(0, 900),
+          Point2(0, 0),
+        ],
+        wobbleMm: 8,
+      );
+
+      final frame = classifier.classify(stroke) as FrameIntent;
+
+      expect(frame.hasSlopingTop, isFalse);
+      expect(frame.outline.isRectangle, isTrue);
+    });
+
+    test('the slope threshold sits between a wobble and an intended slope', () {
+      const classifier = StrokeClassifier();
+
+      // 1200 across with 40 mm of fall is 1.9 degrees — wobble.
+      final shallow = classifier.classify(
+        handDrawn(
+          const [
+            Point2(0, 40),
+            Point2(1200, 0),
+            Point2(1200, 900),
+            Point2(0, 900),
+            Point2(0, 40),
+          ],
+          wobbleMm: 2,
+        ),
+      ) as FrameIntent;
+
+      // 1200 across with 300 mm of fall is 14 degrees — intended.
+      final real = classifier.classify(
+        handDrawn(
+          const [
+            Point2(0, 300),
+            Point2(1200, 0),
+            Point2(1200, 900),
+            Point2(0, 900),
+            Point2(0, 300),
+          ],
+          wobbleMm: 2,
+        ),
+      ) as FrameIntent;
+
+      expect(shallow.hasSlopingTop, isFalse);
+      expect(real.hasSlopingTop, isTrue);
     });
   });
 

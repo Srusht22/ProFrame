@@ -1,4 +1,5 @@
 import 'geometry/polygon.dart';
+import 'panel_note.dart';
 import 'product/infill.dart';
 import 'product/opening.dart';
 
@@ -27,14 +28,18 @@ class Panel {
   /// A short label the user can set, e.g. "kitchen side".
   final String label;
 
-  /// Free text the user attached to this panel — "توري", "فارغ",
-  /// "frosted glass", a customer request (spec Phase 2, item 5).
+  /// Free-text notes attached to this panel — "توري", "فارغ", "frosted
+  /// glass", a customer request (spec section 8B).
   ///
-  /// Deliberately free text rather than a fixed vocabulary: the factory's own
-  /// shorthand is not something this app should try to enumerate, and a note
-  /// the app cannot parse is still a note the fabricator can read. Carried
-  /// through to exports.
-  final String note;
+  /// A list, because one panel can carry several remarks, and each knows where
+  /// its label sits and whether it is currently shown. Deliberately free text
+  /// rather than a fixed vocabulary: the factory's shorthand is not something
+  /// this app should try to enumerate, and a note the app cannot parse is
+  /// still one a fabricator can read.
+  ///
+  /// Kept separate from [behaviour]: a CH/Z assignment is structure, a note is
+  /// an annotation, and mixing them would let a remark change the product.
+  final List<PanelNote> notes;
 
   /// An insect screen (توري) is fitted to this panel.
   final bool hasMesh;
@@ -53,7 +58,7 @@ class Panel {
     required this.infill,
     this.opening,
     this.label = '',
-    this.note = '',
+    this.notes = const [],
     this.hasMesh = false,
     this.isEmpty = false,
   }) {
@@ -79,7 +84,7 @@ class Panel {
     required Polygon boundary,
     Infill infill = Glazing.doubleGlazed,
     String label = '',
-    String note = '',
+    List<PanelNote> notes = const [],
     bool hasMesh = false,
     bool isEmpty = false,
   }) =>
@@ -89,7 +94,7 @@ class Panel {
         behaviour: PanelBehaviour.fixed,
         infill: infill,
         label: label,
-        note: note,
+        notes: notes,
         hasMesh: hasMesh,
         isEmpty: isEmpty,
       );
@@ -101,7 +106,7 @@ class Panel {
     required OpeningSpec opening,
     Infill infill = Glazing.doubleGlazed,
     String label = '',
-    String note = '',
+    List<PanelNote> notes = const [],
     bool hasMesh = false,
     bool isEmpty = false,
   }) =>
@@ -112,7 +117,7 @@ class Panel {
         infill: infill,
         opening: opening,
         label: label,
-        note: note,
+        notes: notes,
         hasMesh: hasMesh,
         isEmpty: isEmpty,
       );
@@ -132,7 +137,7 @@ class Panel {
         behaviour: PanelBehaviour.fixed,
         infill: infill,
         label: label,
-        note: note,
+        notes: notes,
         hasMesh: hasMesh,
         isEmpty: isEmpty,
       );
@@ -145,7 +150,7 @@ class Panel {
         infill: infill,
         opening: spec,
         label: label,
-        note: note,
+        notes: notes,
         hasMesh: hasMesh,
         isEmpty: isEmpty,
       );
@@ -155,7 +160,7 @@ class Panel {
     Infill? infill,
     String? label,
     OpeningSpec? opening,
-    String? note,
+    List<PanelNote>? notes,
     bool? hasMesh,
     bool? isEmpty,
   }) =>
@@ -166,13 +171,39 @@ class Panel {
         infill: infill ?? this.infill,
         opening: behaviour.isOpening ? (opening ?? this.opening) : null,
         label: label ?? this.label,
-        note: note ?? this.note,
+        notes: notes ?? this.notes,
         hasMesh: hasMesh ?? this.hasMesh,
         isEmpty: isEmpty ?? this.isEmpty,
       );
 
-  /// True when there is a note worth showing an icon for.
-  bool get hasNote => note.trim().isNotEmpty;
+  /// True when there is a note worth showing a marker for.
+  bool get hasNote => notes.any((n) => !n.isEmpty);
+
+  /// Notes currently shown on the drawing. Hiding is not deleting.
+  List<PanelNote> get visibleNotes =>
+      notes.where((n) => n.isVisible && !n.isEmpty).toList();
+
+  /// All the note text, joined — for a summary line or an export row.
+  String get noteSummary =>
+      notes.where((n) => !n.isEmpty).map((n) => n.text.trim()).join(' · ');
+
+  PanelNote? noteById(String noteId) =>
+      notes.where((n) => n.id == noteId).firstOrNull;
+
+  /// Adds a note.
+  Panel withNote(PanelNote note) => copyWith(notes: [...notes, note]);
+
+  /// Replaces a note by id, or leaves the panel alone when it has no such
+  /// note.
+  Panel withUpdatedNote(PanelNote note) => copyWith(
+        notes: [
+          for (final existing in notes)
+            if (existing.id == note.id) note else existing,
+        ],
+      );
+
+  Panel withoutNote(String noteId) =>
+      copyWith(notes: [for (final n in notes) if (n.id != noteId) n]);
 
   @override
   bool operator ==(Object other) =>
@@ -183,9 +214,17 @@ class Panel {
       other.opening == opening &&
       other.infill == infill &&
       other.label == label &&
-      other.note == note &&
+      _sameNotes(other.notes) &&
       other.hasMesh == hasMesh &&
       other.isEmpty == isEmpty;
+
+  bool _sameNotes(List<PanelNote> other) {
+    if (other.length != notes.length) return false;
+    for (var i = 0; i < notes.length; i++) {
+      if (notes[i] != other[i]) return false;
+    }
+    return true;
+  }
 
   @override
   int get hashCode => Object.hash(
@@ -195,7 +234,7 @@ class Panel {
         opening,
         infill,
         label,
-        note,
+        Object.hashAll(notes),
         hasMesh,
         isEmpty,
       );
@@ -211,7 +250,7 @@ class Panel {
         if (opening != null) 'opening': opening!.toJson(),
         'infill': infill.toJson(),
         if (label.isNotEmpty) 'label': label,
-        if (note.isNotEmpty) 'note': note,
+        if (notes.isNotEmpty) 'notes': [for (final n in notes) n.toJson()],
         if (hasMesh) 'mesh': true,
         if (isEmpty) 'empty': true,
       };
@@ -235,7 +274,6 @@ class Panel {
       throw FormatException('$path is a Z panel but has no opening settings.');
     }
     final label = json['label'];
-    final note = json['note'];
     return Panel(
       id: id,
       boundary: Polygon.fromJson(json['boundary'], path: '$path.boundary'),
@@ -245,10 +283,31 @@ class Panel {
           ? OpeningSpec.fromJson(openingJson, path: '$path.opening')
           : null,
       label: label is String ? label : '',
-      note: note is String ? note : '',
+      notes: _notesFromJson(json, path),
       hasMesh: json['mesh'] == true,
       isEmpty: json['empty'] == true,
     );
+  }
+
+  /// Reads the notes, accepting both shapes this app has ever written.
+  ///
+  /// Schema 1 stored one note as a plain string on `note`; schema 2 stores a
+  /// list on `notes`. An old project is migrated here rather than rejected,
+  /// because losing a fabricator's remark to a format change is exactly the
+  /// silent data loss the spec forbids (section 10).
+  static List<PanelNote> _notesFromJson(Map<Object?, Object?> json, String path) {
+    final raw = json['notes'];
+    if (raw is List) {
+      return [
+        for (var i = 0; i < raw.length; i++)
+          PanelNote.fromJson(raw[i], path: '$path.notes[$i]'),
+      ];
+    }
+    final legacy = json['note'];
+    if (legacy is String && legacy.trim().isNotEmpty) {
+      return [PanelNote(id: '${json['id']}.note', text: legacy)];
+    }
+    return const [];
   }
 }
 

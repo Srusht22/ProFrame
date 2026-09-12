@@ -49,6 +49,7 @@ class _IsometricView extends StatelessWidget {
         final viewport = SceneViewport.fit(
           scene,
           constraints.biggest,
+          projection: request.projection,
           zoom: request.zoom,
           pan: request.pan,
         );
@@ -73,6 +74,8 @@ class _IsometricView extends StatelessWidget {
               meshColor: AppColors.deepGreen.withValues(alpha: 0.45),
               noteMarkerColor: AppColors.deepGreen,
               noteMarkerInk: scheme.onPrimary,
+              hardwareColor: AppColors.hardware,
+              hardwareEdgeColor: AppColors.hardwareEdge,
             ),
           ),
         );

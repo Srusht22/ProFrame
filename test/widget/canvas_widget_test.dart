@@ -41,7 +41,7 @@ Future<ProviderContainer> pumpCanvas(WidgetTester tester, Size size) async {
       container: container,
       child: MaterialApp(
         theme: AppTheme.light(),
-        home: CanvasScreen(onBack: () {}, onPreview: () {}),
+        home: CanvasScreen(onBack: () {}, onPreview: () {}, onExport: () {}),
       ),
     ),
   );

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../domain/design_document.dart';
 import '../../domain/product/profile_system.dart';
+import '../../domain/rendering/isometric_projection.dart';
 
 /// How far open each panel is, keyed by panel id, 0 closed to 1 open.
 typedef PanelOpenState = Map<String, double>;
@@ -25,6 +26,10 @@ class RenderRequest {
   final double zoom;
   final Offset pan;
 
+  /// Where the camera is. A replacement renderer is free to interpret this
+  /// as a real camera; the isometric one turns it into a depth direction.
+  final IsometricProjection projection;
+
   /// Called when the user taps a panel in the view.
   final void Function(String panelId)? onPanelTapped;
 
@@ -35,6 +40,7 @@ class RenderRequest {
     this.openPanels = const {},
     this.zoom = 1,
     this.pan = Offset.zero,
+    this.projection = const IsometricProjection(),
     this.onPanelTapped,
   });
 }

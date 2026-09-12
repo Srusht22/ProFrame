@@ -6,6 +6,7 @@ import 'package:proframe/domain/geometry/point2.dart';
 import 'package:proframe/domain/geometry/polygon.dart';
 import 'package:proframe/domain/panel.dart';
 import 'package:proframe/domain/panel_divider.dart';
+import 'package:proframe/domain/panel_note.dart';
 import 'package:proframe/domain/product/infill.dart';
 import 'package:proframe/domain/product/opening.dart';
 import 'package:proframe/domain/product/product_basics.dart';
@@ -101,17 +102,22 @@ void main() {
       final aluminium =
           SceneBuilder.build(window(material: FrameMaterial.aluminium));
 
-      double deepest(RenderScene scene) => scene.extent
+      double frameDepth(RenderScene scene) => scene.faces
+          .where((f) => f.role == PartRole.frame)
+          .expand((f) => f.corners)
           .map((p) => p.z)
-          .reduce((a, b) => a > b ? a : b);
+          .reduce(math.max);
       double faceWidth(RenderScene scene) => scene.faces
           .firstWhere((f) => f.role == PartRole.frame && f.kind == FaceKind.front)
           .corners[2]
           .y;
 
-      expect(deepest(pvc), GenericProfiles.pvcCasement.frameDepthMm);
-      expect(deepest(aluminium), GenericProfiles.aluminiumCasement.frameDepthMm);
-      expect(deepest(pvc), greaterThan(deepest(aluminium)));
+      expect(frameDepth(pvc), GenericProfiles.pvcCasement.frameDepthMm);
+      expect(
+        frameDepth(aluminium),
+        GenericProfiles.aluminiumCasement.frameDepthMm,
+      );
+      expect(frameDepth(pvc), greaterThan(frameDepth(aluminium)));
       expect(faceWidth(pvc), greaterThan(faceWidth(aluminium)));
     });
 
@@ -122,7 +128,11 @@ void main() {
       );
 
       expect(
-        scene.extent.map((p) => p.z).reduce(math.max),
+        scene.faces
+            .where((f) => f.role == PartRole.frame)
+            .expand((f) => f.corners)
+            .map((p) => p.z)
+            .reduce(math.max),
         GenericProfiles.aluminiumCasement.frameDepthMm,
       );
     });
@@ -297,7 +307,9 @@ void main() {
           Panel.fixed(
             id: 'p1',
             boundary: Polygon.rectangle(width: 1200, height: 900),
-          ).copyWith(note: 'توري'),
+          ).copyWith(
+            notes: const [PanelNote(id: 'n1', text: 'توري')],
+          ),
         ],
       ));
 

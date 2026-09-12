@@ -39,6 +39,8 @@ abstract final class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: AppColors.cream,
+      fontFamily: AppFonts.family,
+      fontFamilyFallback: AppFonts.fallback,
     );
 
     return base.copyWith(

@@ -30,6 +30,11 @@ abstract final class AppColors {
   /// because a pane has to read as glass against a cream background.
   static const Color glassTint = Color(0xFFBBD2D6);
   static const Color glassHighlight = Color(0xFFE8F2F3);
+
+  /// Handles and hinges. Deliberately not the product finish: hardware is a
+  /// fitting, and showing it in the frame colour would hide it.
+  static const Color hardware = Color(0xFF9AA0A2);
+  static const Color hardwareEdge = Color(0xFF5E6467);
   static const Color mutedText = Color(0xFF5A5F5B);
 
   /// Status colours. These are never the *only* signal — every state that uses
@@ -57,6 +62,20 @@ abstract final class AppSpacing {
   static const double xxl = 48;
 
   const AppSpacing._();
+}
+
+/// The application's type.
+abstract final class AppFonts {
+  /// The interface font. Bundled, so the app looks and reads the same on every
+  /// device rather than inheriting whatever the platform supplies.
+  static const String family = 'Noto Sans';
+
+  /// Tried for anything the Latin face cannot draw — Arabic and Kurdish notes,
+  /// which the factory writes routinely. Without this they would render as
+  /// empty boxes on a device with no Arabic font installed.
+  static const List<String> fallback = ['Noto Sans Arabic'];
+
+  const AppFonts._();
 }
 
 abstract final class AppRadius {

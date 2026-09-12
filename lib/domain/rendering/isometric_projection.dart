@@ -49,15 +49,37 @@ class IsometricProjection {
   /// How much of a millimetre of depth becomes a millimetre on the plane.
   final double depthScale;
 
+  /// Which side the depth recedes towards: 1 is to the right, -1 to the left.
+  ///
+  /// Turning the product around is what "rotate the camera" means in an
+  /// axonometric view — there is no perspective to swing through. Flipping
+  /// this shows the other jamb, which is exactly what a fitter checking a
+  /// hinge side wants (spec section 7).
+  final double depthSign;
+
   const IsometricProjection({
     this.depthAngleDegrees = 30,
     this.depthScale = 0.5,
+    this.depthSign = 1,
   });
+
+  /// The same view seen from the other side.
+  IsometricProjection get mirrored => IsometricProjection(
+        depthAngleDegrees: depthAngleDegrees,
+        depthScale: depthScale,
+        depthSign: -depthSign,
+      );
+
+  IsometricProjection withAngle(double degrees) => IsometricProjection(
+        depthAngleDegrees: degrees,
+        depthScale: depthScale,
+        depthSign: depthSign,
+      );
 
   double get _radians => depthAngleDegrees * math.pi / 180;
 
   /// How far one millimetre of depth shifts a point across the plane.
-  double get depthDx => math.cos(_radians) * depthScale;
+  double get depthDx => math.cos(_radians) * depthScale * depthSign;
 
   /// How far one millimetre of depth shifts a point up the plane.
   ///

@@ -6,6 +6,7 @@ import '../panel.dart';
 import '../panel_divider.dart';
 import '../product/opening.dart';
 import '../recognition/stroke_intent.dart';
+import 'note_resolver.dart';
 import 'panel_splitter.dart';
 
 /// Supplies ids for panels and dividers. Injected so tests are deterministic.
@@ -33,7 +34,7 @@ abstract final class DesignBuilder {
   ) =>
       switch (intent) {
         DiscardedIntent() => design,
-        FrameIntent(:final rectangle) => _setFrame(design, rectangle, nextId),
+        FrameIntent(:final outline) => _setFrame(design, outline, nextId),
         VerticalDividerIntent(:final atX, :final panelId) =>
           _divide(design, panelId, at: atX, vertical: true, ids: nextId),
         HorizontalDividerIntent(:final atY, :final panelId) =>
@@ -48,17 +49,17 @@ abstract final class DesignBuilder {
   /// glass, and the user can immediately mark it CH or Z.
   static DesignDocument _setFrame(
     DesignDocument design,
-    Polygon rectangle,
+    Polygon outline,
     IdFactory nextId,
   ) =>
       design.copyWith(
-        outline: rectangle,
-        panels: [Panel.fixed(id: nextId('panel'), boundary: rectangle)],
+        outline: outline,
+        panels: [Panel.fixed(id: nextId('panel'), boundary: outline)],
         dividers: const [],
         // Proportions, not dimensions. These read as unconfirmed everywhere
         // they are shown until the user enters real numbers.
-        overallWidth: Measurement.estimated(rectangle.width),
-        overallHeight: Measurement.estimated(rectangle.height),
+        overallWidth: Measurement.estimated(outline.width),
+        overallHeight: Measurement.estimated(outline.height),
       );
 
   static DesignDocument _divide(
@@ -96,6 +97,10 @@ abstract final class DesignBuilder {
       return design;
     }
 
+    // Notes go where they were written, and the move is recorded rather than
+    // being silent (spec section 8B).
+    final resolved = NoteResolver.afterSplit(panel, halves);
+
     final box = panel.boundary;
     final divider = PanelDivider(
       id: ids('divider'),
@@ -111,7 +116,7 @@ abstract final class DesignBuilder {
     return design.copyWith(
       panels: [
         for (final existing in design.panels)
-          if (existing.id == panelId) ...halves else existing,
+          if (existing.id == panelId) ...resolved.panels else existing,
       ],
       dividers: [...design.dividers, divider],
     );

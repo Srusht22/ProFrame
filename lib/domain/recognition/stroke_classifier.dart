@@ -104,8 +104,14 @@ class StrokeClassifier {
     final cornerCount = _distinctCornerCount(corners);
     if (cornerCount < 4 || cornerCount > 6) return null;
 
-    // A perfect rectangle fitted to the extent, per the spec. The rough loop
-    // itself stays in the sketch, so the user can still see what they drew.
+    // A deliberate slope across the top is kept exactly as drawn; a shaky
+    // level line is straightened. The 5-degree tolerance is what separates
+    // them (spec section 4, and Tolerances.axisAlignmentDegrees).
+    final slope = _slopingTopOf(cleaned, bounds);
+    if (slope != null) {
+      return FrameIntent(stroke.id, slope, hasSlopingTop: true);
+    }
+
     return FrameIntent(
       stroke.id,
       Polygon.rectangle(
@@ -114,6 +120,45 @@ class StrokeClassifier {
         topLeft: Point2(bounds.left, bounds.top),
       ),
     );
+  }
+
+  /// A sloping-top outline, or null when the top was drawn level.
+  ///
+  /// The two side heights are measured from the ink itself: the highest point
+  /// the stroke reaches near the left edge, and near the right. If they differ
+  /// by enough to clear the axis tolerance across the frame's width, the user
+  /// meant a slope and it is kept — never averaged into a level head, which is
+  /// the thing the spec forbids most plainly (section 2).
+  Polygon? _slopingTopOf(List<Point2> points, _Bounds bounds) {
+    // A narrow band at each side. Narrow on purpose: a wide band samples
+    // points partway along the slope, which are higher than the corner, and
+    // would report a taller side than the user drew. Eight per cent is wide
+    // enough to catch a roughly-drawn corner and narrow enough that the
+    // slope across it is negligible.
+    final band = bounds.width * 0.08;
+    var leftTop = double.infinity;
+    var rightTop = double.infinity;
+    for (final point in points) {
+      if (point.x <= bounds.left + band) {
+        leftTop = math.min(leftTop, point.y);
+      }
+      if (point.x >= bounds.right - band) {
+        rightTop = math.min(rightTop, point.y);
+      }
+    }
+    if (!leftTop.isFinite || !rightTop.isFinite) return null;
+
+    final rise = (leftTop - rightTop).abs();
+    // The angle the two corners actually make across the frame.
+    final degrees = math.atan2(rise, bounds.width) * 180 / math.pi;
+    if (degrees <= Tolerances.axisAlignmentDegrees) return null;
+
+    return Polygon([
+      Point2(bounds.left, leftTop),
+      Point2(bounds.right, rightTop),
+      Point2(bounds.right, bounds.bottom),
+      Point2(bounds.left, bounds.bottom),
+    ]);
   }
 
   /// Corner count ignoring a closing point that lands back on the first.

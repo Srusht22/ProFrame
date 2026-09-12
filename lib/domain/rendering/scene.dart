@@ -30,6 +30,15 @@ enum PartRole {
 
   /// The marker showing a panel carries a note.
   noteMarker,
+
+  /// A handle on an opening leaf.
+  handle,
+
+  /// A hinge knuckle on the hinged edge.
+  hinge,
+
+  /// A door's threshold, or a window's sill.
+  threshold,
 }
 
 /// Which surface of a box a face belongs to. The renderer uses this to shade

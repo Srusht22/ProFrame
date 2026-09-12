@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design/tokens.dart';
 import '../../core/layout/responsive.dart';
 import '../../core/layout/window_size.dart';
 import '../../domain/design_document.dart';
+import '../../domain/product/factory_settings.dart';
 import '../../domain/product/finish.dart';
 import '../../domain/product/product_basics.dart';
 import '../../domain/product/profile_system.dart';
+import '../state/settings_controller.dart';
 import '../widgets/choice_card.dart';
 import '../widgets/notice.dart';
 
@@ -17,28 +20,36 @@ import '../widgets/notice.dart';
 /// material, so a beginner never has to open it — but it is visible and
 /// changeable, and the fact that the shipped systems are generic previews is
 /// stated here rather than buried.
-class NewDesignScreen extends StatefulWidget {
+class NewDesignScreen extends ConsumerStatefulWidget {
   /// Called with the created design. Phase 2 hands this to the drawing canvas.
   final ValueChanged<DesignDocument> onCreated;
 
   /// Supplies the project id. Injected so tests get a stable one.
   final String Function() idFactory;
 
+  /// Returns to the project list.
+  final VoidCallback onBack;
+
   const NewDesignScreen({
     required this.onCreated,
     required this.idFactory,
+    required this.onBack,
     super.key,
   });
 
   @override
-  State<NewDesignScreen> createState() => _NewDesignScreenState();
+  ConsumerState<NewDesignScreen> createState() => _NewDesignScreenState();
 }
 
-class _NewDesignScreenState extends State<NewDesignScreen> {
+class _NewDesignScreenState extends ConsumerState<NewDesignScreen> {
   ProductCategory? _category;
   FrameMaterial? _material;
-  Finish _finish = StockFinishes.factoryDefault;
+  Finish? _finish;
   ProfileSystem? _profile;
+
+  /// The factory's defaults, so a beginner never has to answer a technical
+  /// question that has already been answered once (spec section 9).
+  FactorySettings get _settings => ref.watch(factorySettingsProvider);
 
   bool get _canContinue => _category != null && _material != null;
 
@@ -58,27 +69,44 @@ class _NewDesignScreenState extends State<NewDesignScreen> {
     final material = _material;
     if (category == null || material == null) return;
 
+    final settings = _settings;
     final document = DesignDocument.blank(
       id: widget.idFactory(),
       category: category,
       material: material,
     ).copyWith(
-      finish: _finish,
+      finish: _finish ?? settings.defaultFinish,
       profile: (_profile ?? GenericProfiles.defaultFor(material)).ref,
+      // The factory's conventions, carried onto the project so they are
+      // recorded with it rather than assumed later (spec sections 6 and 9).
+      viewedFrom: settings.defaultViewingSide,
+      dimensionReference: settings.defaultDimensionReference,
+      fittingGapMm:
+          settings.defaultDimensionReference == DimensionReference.wallOpening
+              ? settings.fittingGapMm
+              : 0,
+      displayUnit: settings.displayUnit,
     );
     widget.onCreated(document);
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('New design')),
+        appBar: AppBar(
+          title: const Text('New design'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back to projects',
+            onPressed: widget.onBack,
+          ),
+        ),
         body: SafeArea(
           child: ResponsiveBuilder(
             builder: (context, size) {
               final content = _Choices(
                 category: _category,
                 material: _material,
-                finish: _finish,
+                finish: _finish ?? _settings.defaultFinish,
                 profile: _profile,
                 onCategory: (c) => setState(() => _category = c),
                 onMaterial: _selectMaterial,
