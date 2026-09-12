@@ -62,6 +62,8 @@ screenshot looking right.
 | Requirement | Status | Evidence |
 | --- | --- | --- |
 | Resampling and noise reduction | **Verified** | `StrokeSimplifier`; the classifier tests feed deliberately wobbly input |
+| A hand-drawn box is read as a box | **Verified** | `stroke_classifier_test.dart` "a wobbly box is still a box" — what counts as a corner is measured against the stroke's own size, not in fixed millimetres. A fixed 12 mm was smaller than a three-pixel wobble on a phone, so an ordinary shaky box came out with a dozen corners and was thrown away |
+| A drawing the rules cannot read is not a dead end | **Verified** | `canvas_view_test.dart` "a scribble can be turned into a frame on request" — the app offers to make the frame the box around what was drawn, the user asks for it, and one undo takes it back |
 | A frame drawn as separate strokes | **Verified** | `frame_assembler_test.dart` — four sides, two L shapes, any order or direction, corners that do not meet; `canvas_view_test.dart` "four strokes become one frame, and the preview comes alive". The joined path goes through the same classifier as a single stroke, so a box in four strokes is held to the same rules |
 | Straight-segment recognition, endpoint snapping | **Verified** | Ramer–Douglas–Peucker plus the frame fit; `stroke_classifier_test.dart` |
 | Outer boundary and internal divider identification | **Verified** | Same |

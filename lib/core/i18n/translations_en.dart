@@ -273,6 +273,13 @@ const Map<T, String> englishStrings = {
           'minimum.',
   T.refuseWidestIs: 'The widest it can be is {width}.',
 
+  T.useDrawingAsFrame: 'Use my drawing as the frame',
+  T.frameFromDrawingMade:
+      'The frame is the box around everything you drew. Type the real sizes '
+          'below, or undo and draw it again.',
+  T.drawingTooSmallForFrame:
+      'There is not enough drawn yet to make a frame from.',
+
   // -- panel properties ----------------------------------------------------
   T.panelType: 'Type',
   T.howItOpens: 'How it opens',

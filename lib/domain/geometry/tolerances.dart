@@ -40,9 +40,27 @@ abstract final class Tolerances {
   // rough gesture meant, where being wrong costs one undo.
 
   /// How far a sample may sit off the line between its neighbours before it
-  /// counts as a corner. Large, because a finger wobbles by several
-  /// millimetres and every wobble would otherwise read as a corner.
+  /// counts as a corner — the floor, for a very small mark.
   static const double cornerToleranceMm = 12;
+
+  /// The same thing as a fraction of the stroke's own size, which is what
+  /// actually decides it.
+  ///
+  /// A fixed millimetre figure cannot work at both ends of the range. The
+  /// sheet is three metres across on a phone screen, so a hand that wobbles
+  /// by three pixels wobbles by more than twenty millimetres — and a
+  /// perfectly ordinary box came out with a dozen corners and was thrown away
+  /// for not having four. Measured against the stroke itself, a wobble stays
+  /// a wobble and a corner stays a corner, whether the user is sketching a
+  /// window or a patio door.
+  static const double cornerFraction = 0.05;
+
+  /// How far a sample may sit off the line before it counts as a corner, for
+  /// a stroke whose bounding box has this [diagonalMm].
+  static double cornerToleranceFor(double diagonalMm) =>
+      cornerToleranceMm > diagonalMm * cornerFraction
+          ? cornerToleranceMm
+          : diagonalMm * cornerFraction;
 
   /// A divider stroke is "mostly vertical" when its vertical extent is at
   /// least this many times its horizontal extent, and vice versa.

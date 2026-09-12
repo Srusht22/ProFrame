@@ -493,7 +493,9 @@ void main() {
       await drawLine(tester, container, topRight, bottomRight);
       await drawLine(tester, container, bottomRight, bottomLeft);
       expect(container.read(designControllerProvider).design.outline, isNull);
-      expect(find.text('Draw a frame to preview'), findsOneWidget);
+      // Ink but no frame: the button offers a way out rather than repeating
+      // the instruction.
+      expect(find.text('Use my drawing as the frame'), findsOneWidget);
 
       await drawLine(tester, container, bottomLeft, topLeft);
 
@@ -527,6 +529,87 @@ void main() {
       final design = container.read(designControllerProvider).design;
       expect(design.dividers, hasLength(1));
       expect(design.panels, hasLength(2));
+    });
+  });
+
+  group('a drawing the rules cannot read is not a dead end', () {
+    testWidgets('with nothing drawn, the button just says what to do',
+        (tester) async {
+      await pumpCanvas(tester);
+
+      expect(find.text('Draw a frame to preview'), findsOneWidget);
+      expect(find.text('Use my drawing as the frame'), findsNothing);
+      expect(
+        tester.widget<FilledButton>(find.byType(FilledButton).last).onPressed,
+        isNull,
+        reason: 'there is nothing to preview and nothing to make a frame from',
+      );
+    });
+
+    testWidgets('a scribble can be turned into a frame on request',
+        (tester) async {
+      final container = await pumpCanvas(tester);
+      // A zigzag: too many corners to be a frame, and its ends nowhere near
+      // each other, so no rule reads it as anything.
+      final scribble = [
+        const Point2(700, 600),
+        const Point2(1900, 700),
+        const Point2(800, 1000),
+        const Point2(1900, 1100),
+        const Point2(800, 1300),
+        const Point2(1900, 1400),
+      ];
+      final gesture =
+          await tester.startGesture(pixelOf(tester, container, scribble.first));
+      for (final point in scribble.skip(1)) {
+        await gesture.moveTo(pixelOf(tester, container, point));
+        await tester.pump();
+      }
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(container.read(designControllerProvider).design.outline, isNull);
+
+      await tester.tap(find.text('Use my drawing as the frame'));
+      await tester.pumpAndSettle();
+
+      final design = container.read(designControllerProvider).design;
+      expect(design.outline, isNotNull);
+      expect(design.panels, hasLength(1));
+      // The box around what was drawn, to the millimetre — nothing invented.
+      expect(design.outline!.width, closeTo(1200, 30));
+      expect(design.outline!.height, closeTo(800, 30));
+      // And it says what it did.
+      expect(find.textContaining('the box around everything you drew'),
+          findsOneWidget);
+      expect(find.text('3D Preview'), findsOneWidget);
+    });
+
+    testWidgets('one undo takes the whole thing back', (tester) async {
+      final container = await pumpCanvas(tester);
+      final gesture = await tester.startGesture(
+        pixelOf(tester, container, const Point2(700, 600)),
+      );
+      for (final point in const [
+        Point2(1900, 700),
+        Point2(800, 1000),
+        Point2(1900, 1100),
+        Point2(800, 1300),
+        Point2(1900, 1400),
+      ]) {
+        await gesture.moveTo(pixelOf(tester, container, point));
+        await tester.pump();
+      }
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      container.read(designControllerProvider.notifier).frameFromDrawing();
+      expect(container.read(designControllerProvider).design.outline, isNotNull);
+
+      container.read(designControllerProvider.notifier).undo();
+      final design = container.read(designControllerProvider).design;
+      expect(design.outline, isNull, reason: 'the frame is undone');
+      expect(design.sketch.strokes, hasLength(1), reason: 'the ink is not');
     });
   });
 

@@ -266,6 +266,12 @@ const Map<T, String> arabicStrings = {
           'المجاورة عند {neighbour}، أقل من الحد الأدنى {minimum}.',
   T.refuseWidestIs: 'أقصى عرض ممكن هو {width}.',
 
+  T.useDrawingAsFrame: 'استخدم رسمي كإطار',
+  T.frameFromDrawingMade:
+      'الإطار هو المستطيل المحيط بكل ما رسمته. اكتب القياسات الحقيقية أدناه، '
+          'أو تراجع وارسمه من جديد.',
+  T.drawingTooSmallForFrame: 'ما رُسم حتى الآن لا يكفي لصنع إطار منه.',
+
   // -- panel properties ----------------------------------------------------
   T.panelType: 'النوع',
   T.howItOpens: 'كيف يفتح',

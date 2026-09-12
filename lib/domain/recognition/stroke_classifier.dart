@@ -45,11 +45,16 @@ class StrokeClassifier {
       return DiscardedIntent(stroke.id, 'A tap, not a stroke.');
     }
 
+    final bounds = _boundsOf(cleaned);
+
+    // Measured against the stroke's own size: a wobble is small relative to
+    // what is being drawn, a corner is not (Tolerances.cornerFraction).
     final corners = StrokeSimplifier.simplify(
       cleaned,
-      toleranceMm: Tolerances.cornerToleranceMm,
+      toleranceMm: Tolerances.cornerToleranceFor(
+        math.sqrt(bounds.width * bounds.width + bounds.height * bounds.height),
+      ),
     );
-    final bounds = _boundsOf(cleaned);
 
     // 1. The frame. Only recognised when there is not one already: a second
     //    loop is a correction the user makes by undoing, not by drawing over.

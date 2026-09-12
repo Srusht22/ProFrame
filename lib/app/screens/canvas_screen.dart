@@ -198,6 +198,13 @@ class CanvasScreen extends ConsumerWidget {
                   onHeight: () => _editOverallHeight(context, ref),
                   onSummary: () => _showSummary(context, state.design),
                   onPreview: state.design.hasLayout ? onPreview : null,
+                  // Offered only when there is ink to make a frame from.
+                  onUseDrawing: state.design.hasLayout ||
+                          state.design.sketch.isEmpty
+                      ? null
+                      : () => ref
+                          .read(designControllerProvider.notifier)
+                          .frameFromDrawing(),
                 ),
               ],
             ),
@@ -586,6 +593,10 @@ class _Fact extends StatelessWidget {
 class _Toolbar extends StatelessWidget {
   final DesignDocument design;
   final bool showSummaryButton;
+
+  /// Makes the frame from whatever has been drawn, when the rules could not
+  /// read it. Null when there is a frame already, or nothing drawn yet.
+  final VoidCallback? onUseDrawing;
   final VoidCallback onWidth;
   final VoidCallback onHeight;
   final VoidCallback onSummary;
@@ -600,6 +611,7 @@ class _Toolbar extends StatelessWidget {
     required this.onHeight,
     required this.onSummary,
     required this.onPreview,
+    this.onUseDrawing,
   });
 
   @override
@@ -658,13 +670,22 @@ class _Toolbar extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           SizedBox(
             width: double.infinity,
-            child: FilledButton.icon(
-              icon: const Icon(Icons.view_in_ar_outlined),
-              label: Text(
-                s(onPreview == null ? T.drawFrameToPreview : T.preview3d),
-              ),
-              onPressed: onPreview,
-            ),
+            // With no frame yet, the button offers the way out rather than
+            // repeating the instruction: a drawing the rules could not read
+            // is not a reason to leave the user with nothing to press.
+            child: onPreview == null && onUseDrawing != null
+                ? OutlinedButton.icon(
+                    icon: const Icon(Icons.crop_square),
+                    label: Text(s(T.useDrawingAsFrame)),
+                    onPressed: onUseDrawing,
+                  )
+                : FilledButton.icon(
+                    icon: const Icon(Icons.view_in_ar_outlined),
+                    label: Text(
+                      s(onPreview == null ? T.drawFrameToPreview : T.preview3d),
+                    ),
+                    onPressed: onPreview,
+                  ),
           ),
         ],
       ),

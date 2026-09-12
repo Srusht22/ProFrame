@@ -21,39 +21,47 @@ abstract final class FrameAssembler {
   /// The strokes in [sketch], joined into one closed path, or null when they
   /// do not make one.
   ///
-  /// The most recent strokes are tried first: a scribble drawn before the
-  /// frame should not stop the frame from being read, so the oldest stroke is
-  /// dropped and the rest tried again, down to the last two.
+  /// Every stroke is tried as the starting side, so it does not matter which
+  /// one was drawn first — a line drawn across the middle, or a mark made
+  /// before the frame, does not stop the frame being read.
   static List<Point2>? join(Sketch sketch) {
-    final strokes = sketch.strokes;
-    if (strokes.length < 2) return null;
-
-    for (var from = 0; from <= strokes.length - 2; from++) {
-      final joined = _chain(strokes.sublist(from));
-      if (joined != null) return joined;
-    }
-    return null;
-  }
-
-  /// Chains every stroke in [strokes] end to end, or null when one of them
-  /// does not reach the others, or the chain does not come back to where it
-  /// started.
-  ///
-  /// Every stroke has to be used. A stroke left over is a line the user drew
-  /// for some other reason, and building a frame out of its neighbours while
-  /// ignoring it would be a guess.
-  static List<Point2>? _chain(List<Stroke> strokes) {
     final paths = [
-      for (final stroke in strokes)
+      for (final stroke in sketch.strokes)
         if (stroke.points.length >= 2) stroke.points,
     ];
     if (paths.length < 2) return null;
 
     final reach = _reachOf(paths);
-    final remaining = paths.sublist(1);
-    final chain = [...paths.first];
+    for (var start = 0; start < paths.length; start++) {
+      final joined = _chainFrom(paths, start, reach);
+      if (joined != null) return joined;
+    }
+    return null;
+  }
+
+  /// Chains strokes end to end starting from [start], stopping as soon as the
+  /// chain comes back to where it began.
+  ///
+  /// Strokes that are left over are left alone: they stay as the user's ink
+  /// and nothing is built from them. Requiring every stroke to belong to the
+  /// outline meant one line drawn across the middle — a divider sketched
+  /// early, a slip of the finger — stopped the frame being read at all.
+  static List<Point2>? _chainFrom(
+    List<List<Point2>> paths,
+    int start,
+    double reach,
+  ) {
+    final remaining = [...paths]..removeAt(start);
+    final chain = [...paths[start]];
 
     while (remaining.isNotEmpty) {
+      // Closed already: three sides and a fourth that meets the first is a
+      // box, whatever else is still on the sheet.
+      if (chain.length > paths[start].length &&
+          chain.last.distanceTo(chain.first) <= reach) {
+        return chain;
+      }
+
       final end = chain.last;
 
       var bestIndex = -1;

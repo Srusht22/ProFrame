@@ -438,4 +438,78 @@ void main() {
       (second as VerticalDividerIntent).atX,
     );
   });
+
+
+  group('a hand does not draw straight lines', () {
+    /// A line from [a] to [b] that wobbles by [wobbleMm] either side, the way
+    /// a finger or a mouse actually draws one.
+    List<Point2> wobbly(Point2 a, Point2 b, {double wobbleMm = 30}) {
+      const samples = 12;
+      final points = <Point2>[];
+      for (var i = 0; i <= samples; i++) {
+        final t = i / samples;
+        final off = i == 0 || i == samples ? 0.0 : math.sin(i * 2.1) * wobbleMm;
+        points.add(Point2(
+          a.x + (b.x - a.x) * t + off,
+          a.y + (b.y - a.y) * t - off,
+        ));
+      }
+      return points;
+    }
+
+    test('a wobbly box is still a box', () {
+      // Every side off by up to 30 mm — three or four pixels on a phone, and
+      // completely ordinary. This used to come out with a dozen corners and
+      // be discarded for not having four.
+      const topLeft = Point2(600, 500);
+      const topRight = Point2(2000, 500);
+      const bottomRight = Point2(2000, 1500);
+      const bottomLeft = Point2(600, 1500);
+      final points = [
+        ...wobbly(topLeft, topRight),
+        ...wobbly(topRight, bottomRight),
+        ...wobbly(bottomRight, bottomLeft),
+        ...wobbly(bottomLeft, topLeft),
+      ];
+
+      final intent = const StrokeClassifier().classify(
+        Stroke(id: 'ink', points: points, timestampMs: 0),
+      );
+
+      expect(intent, isA<FrameIntent>());
+      final outline = (intent as FrameIntent).outline;
+      expect(outline.width, closeTo(1400, 60));
+      expect(outline.height, closeTo(1000, 60));
+    });
+
+    test('a wobble is not a sloping top', () {
+      final points = [
+        ...wobbly(const Point2(600, 500), const Point2(2000, 500)),
+        ...wobbly(const Point2(2000, 500), const Point2(2000, 1500)),
+        ...wobbly(const Point2(2000, 1500), const Point2(600, 1500)),
+        ...wobbly(const Point2(600, 1500), const Point2(600, 500)),
+      ];
+
+      final intent = const StrokeClassifier().classify(
+        Stroke(id: 'ink', points: points, timestampMs: 0),
+      );
+
+      expect((intent as FrameIntent).hasSlopingTop, isFalse);
+    });
+
+    test('a real slope still survives a wobbly hand', () {
+      final points = [
+        ...wobbly(const Point2(600, 800), const Point2(2000, 500)),
+        ...wobbly(const Point2(2000, 500), const Point2(2000, 1500)),
+        ...wobbly(const Point2(2000, 1500), const Point2(600, 1500)),
+        ...wobbly(const Point2(600, 1500), const Point2(600, 800)),
+      ];
+
+      final intent = const StrokeClassifier().classify(
+        Stroke(id: 'ink', points: points, timestampMs: 0),
+      );
+
+      expect((intent as FrameIntent).hasSlopingTop, isTrue);
+    });
+  });
 }

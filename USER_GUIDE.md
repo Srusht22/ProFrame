@@ -30,6 +30,11 @@ Draw the way you would on paper.
 | A sloping top | Draw the box with one side taller than the other |
 | An opening panel | Draw a `<` or a `>` inside it. **The point marks the hinges** |
 
+If the app cannot make sense of what you drew, it says so and offers **Use my
+drawing as the frame** — that makes the frame the box around everything on the
+sheet, which you can then measure and draw inside. Nothing is decided without
+you asking for it, and **Undo** takes it back.
+
 Drawing the box **side by side** is fine: draw the top, then a side, then the
 bottom, then the other side. Nothing appears until the box closes, and then
 the whole frame appears at once. The corners do not have to meet exactly.

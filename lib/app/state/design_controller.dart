@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/painting.dart' show Offset;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +9,7 @@ import '../../core/units/length_unit.dart';
 import '../../domain/design_document.dart';
 import '../../domain/geometry/point2.dart';
 import '../../domain/geometry/polygon.dart';
+import '../../domain/geometry/tolerances.dart';
 import '../../domain/layout/design_builder.dart';
 import '../../domain/layout/note_resolver.dart';
 import '../../domain/layout/width_solver.dart';
@@ -279,6 +282,60 @@ class DesignController extends Notifier<DesignState> {
       clearMessage: true,
     );
     return intent;
+  }
+
+  /// Makes the frame the box around everything the user has drawn.
+  ///
+  /// The way out of a drawing the rules could not read. Nothing is guessed:
+  /// the user asks for this, and what they get is the extent of their own
+  /// ink, which they can then measure and redraw inside. Without it a drawing
+  /// the classifier did not recognise was a dead end — the app kept asking
+  /// for a frame that was already on the sheet.
+  ///
+  /// Returns false when there is not enough ink to make one.
+  bool frameFromDrawing() {
+    final design = state.design;
+    if (design.outline != null) return false;
+
+    final points = [
+      for (final stroke in design.sketch.strokes) ...stroke.points,
+    ];
+    if (points.length < 2) return false;
+
+    var left = points.first.x;
+    var top = points.first.y;
+    var right = points.first.x;
+    var bottom = points.first.y;
+    for (final point in points) {
+      left = math.min(left, point.x);
+      top = math.min(top, point.y);
+      right = math.max(right, point.x);
+      bottom = math.max(bottom, point.y);
+    }
+
+    if (right - left < Tolerances.minimumFrameSideMm ||
+        bottom - top < Tolerances.minimumFrameSideMm) {
+      state = state.copyWith(message: _strings(T.drawingTooSmallForFrame));
+      return false;
+    }
+
+    _remember();
+    state = state.copyWith(
+      design: DesignBuilder.apply(
+        design,
+        FrameIntent(
+          design.sketch.strokes.last.id,
+          Polygon.rectangle(
+            width: right - left,
+            height: bottom - top,
+            topLeft: Point2(left, top),
+          ),
+        ),
+        _nextId,
+      ),
+      message: _strings(T.frameFromDrawingMade),
+    );
+    return true;
   }
 
   // -- dimensions -----------------------------------------------------------

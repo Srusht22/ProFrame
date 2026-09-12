@@ -231,6 +231,10 @@ enum T {
   refuseNotEnoughRoom,
   refuseWidestIs,
 
+  useDrawingAsFrame,
+  frameFromDrawingMade,
+  drawingTooSmallForFrame,
+
   // -- panel properties ----------------------------------------------------
   panelType,
   howItOpens,
