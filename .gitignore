@@ -46,3 +46,7 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Golden-test failure artifacts. Written by `flutter test` when a golden
+# does not match, useful locally and never worth committing.
+**/test/**/failures/
