@@ -22,7 +22,15 @@ import '../widgets/panel_sheet.dart';
 class CanvasScreen extends ConsumerWidget {
   final VoidCallback onBack;
 
-  const CanvasScreen({required this.onBack, super.key});
+  /// Opens the 2.5D preview. Null before a frame exists, because there is
+  /// nothing to look at yet.
+  final VoidCallback onPreview;
+
+  const CanvasScreen({
+    required this.onBack,
+    required this.onPreview,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,7 +41,8 @@ class CanvasScreen extends ConsumerWidget {
       builder: (context, size) {
         // Canvas and summary side by side wherever there is room — which
         // includes a tablet in landscape, not only a desktop window.
-        final sideBySide = size.widthClass.hasRoomForSidePanel &&
+        final sideBySide =
+            size.widthClass.hasRoomForSidePanel &&
             (size.isLandscape || size.widthClass.isExpanded);
 
         return Scaffold(
@@ -105,6 +114,7 @@ class CanvasScreen extends ConsumerWidget {
                   onWidth: () => _editOverallWidth(context, ref),
                   onHeight: () => _editOverallHeight(context, ref),
                   onSummary: () => _showSummary(context, state.design),
+                  onPreview: state.design.hasLayout ? onPreview : null,
                 ),
               ],
             ),
@@ -328,13 +338,16 @@ class _Summary extends StatelessWidget {
             _Fact('Dividers', '${design.dividers.length}'),
             const SizedBox(height: AppSpacing.md),
             Text(
-              questions.isEmpty ? 'Nothing left to confirm' : 'Still to confirm',
+              questions.isEmpty
+                  ? 'Nothing left to confirm'
+                  : 'Still to confirm',
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: AppSpacing.xs),
             if (questions.isEmpty)
               const Notice(
-                message: 'Every dimension and opening has been confirmed. The '
+                message:
+                    'Every dimension and opening has been confirmed. The '
                     'profiles are still generic previews, so this is a design, '
                     'not production data.',
               )
@@ -375,28 +388,24 @@ class _Fact extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: AppColors.mutedText),
-              ),
-            ),
-            Text(
-              value,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: AppColors.mutedText),
+          ),
         ),
-      );
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(fontWeight: FontWeight.w700),
+        ),
+      ],
+    ),
+  );
 }
 
 /// The actions the spec wants always reachable: measurements, and the summary
@@ -408,12 +417,16 @@ class _Toolbar extends StatelessWidget {
   final VoidCallback onHeight;
   final VoidCallback onSummary;
 
+  /// Null until there is something to preview.
+  final VoidCallback? onPreview;
+
   const _Toolbar({
     required this.design,
     required this.showSummaryButton,
     required this.onWidth,
     required this.onHeight,
     required this.onSummary,
+    required this.onPreview,
   });
 
   @override
@@ -428,41 +441,57 @@ class _Toolbar extends StatelessWidget {
         color: AppColors.surface,
         border: Border(top: BorderSide(color: AppColors.outline)),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: onWidth,
-              child: Text(
-                width == null
-                    ? 'Width'
-                    : 'Width ${unit.format(width.millimetres)}'
-                        '${width.isConfirmed ? '' : ' ?'}',
-                overflow: TextOverflow.ellipsis,
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onWidth,
+                  child: Text(
+                    width == null
+                        ? 'Width'
+                        : 'Width ${unit.format(width.millimetres)}'
+                              '${width.isConfirmed ? '' : ' ?'}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onHeight,
+                  child: Text(
+                    height == null
+                        ? 'Height'
+                        : 'Height ${unit.format(height.millimetres)}'
+                              '${height.isConfirmed ? '' : ' ?'}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              if (showSummaryButton) ...[
+                const SizedBox(width: AppSpacing.xs),
+                IconButton.filled(
+                  icon: const Icon(Icons.checklist),
+                  tooltip: 'What is still to confirm',
+                  onPressed: onSummary,
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              icon: const Icon(Icons.view_in_ar_outlined),
+              label: Text(
+                onPreview == null ? 'Draw a frame to preview' : '3D Preview',
+              ),
+              onPressed: onPreview,
             ),
           ),
-          const SizedBox(width: AppSpacing.xs),
-          Expanded(
-            child: OutlinedButton(
-              onPressed: onHeight,
-              child: Text(
-                height == null
-                    ? 'Height'
-                    : 'Height ${unit.format(height.millimetres)}'
-                        '${height.isConfirmed ? '' : ' ?'}',
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-          if (showSummaryButton) ...[
-            const SizedBox(width: AppSpacing.xs),
-            IconButton.filled(
-              icon: const Icon(Icons.checklist),
-              tooltip: 'What is still to confirm',
-              onPressed: onSummary,
-            ),
-          ],
         ],
       ),
     );

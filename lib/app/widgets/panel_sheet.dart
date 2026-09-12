@@ -42,9 +42,10 @@ class EditNote extends PanelEdit {
 
 /// The panel properties sheet, opened by a long press (spec Phase 2, item 5).
 ///
-/// Only mechanisms that actually work appear here. Tilt and sliding are absent
-/// rather than greyed out, because their geometry is not built — showing a
-/// choice that does nothing is what the spec forbids (section 3C).
+/// Every mechanism listed here has geometry behind it and an animation that
+/// shows it, because a choice that does nothing is what the spec forbids
+/// (section 3C). Phase 2 offered hinged alone; Phase 3 added tilt and sliding
+/// along with their motion, so they appear now.
 Future<PanelEdit?> showPanelSheet(
   BuildContext context, {
   required Panel panel,
@@ -136,45 +137,56 @@ class _PanelSheet extends StatelessWidget {
                     ?.copyWith(color: AppColors.mutedText),
               ),
               const SizedBox(height: AppSpacing.xs),
-              _OptionRow<HingeSide>(
-                options: HingeSide.values,
-                labelOf: (side) => side.label,
-                selected: opening.hingeSide,
-                onSelected: (side) => _close(
+              _OptionRow<OpeningMechanism>(
+                options: OpeningMechanism.values,
+                labelOf: (mechanism) => mechanism.label,
+                selected: opening.mechanism,
+                onSelected: (mechanism) => _close(
                   context,
                   SetOpening(
-                    opening.copyWith(hingeSide: side, isConfirmed: true),
+                    opening.copyWith(mechanism: mechanism, isConfirmed: true),
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.xs),
-              _OptionRow<OpeningDirection>(
-                options: OpeningDirection.values,
-                labelOf: (direction) => direction.label,
-                selected: opening.direction,
-                onSelected: (direction) => _close(
-                  context,
-                  SetOpening(
-                    opening.copyWith(direction: direction, isConfirmed: true),
+              // A hinge side is only asked for when the mechanism has one: a
+              // tilt is always bottom-hung and a slide has a direction
+              // instead, so the question would have no answer.
+              if (opening.mechanism.needsHingeSide) ...[
+                const SizedBox(height: AppSpacing.xs),
+                _OptionRow<HingeSide>(
+                  options: HingeSide.values,
+                  labelOf: (side) => side.label,
+                  selected: opening.hingeSide,
+                  onSelected: (side) => _close(
+                    context,
+                    SetOpening(
+                      opening.copyWith(hingeSide: side, isConfirmed: true),
+                    ),
                   ),
                 ),
-              ),
+              ],
+              if (opening.mechanism.needsSwingDirection) ...[
+                const SizedBox(height: AppSpacing.xs),
+                _OptionRow<OpeningDirection>(
+                  options: OpeningDirection.values,
+                  labelOf: (direction) => direction.label,
+                  selected: opening.direction,
+                  onSelected: (direction) => _close(
+                    context,
+                    SetOpening(
+                      opening.copyWith(direction: direction, isConfirmed: true),
+                    ),
+                  ),
+                ),
+              ],
               if (!opening.isConfirmed) ...[
                 const SizedBox(height: AppSpacing.xs),
                 const Notice(
                   tone: NoticeTone.caution,
                   message: 'The chevron said which edge the hinges are on. '
-                      'Confirm which way it swings.',
+                      'Confirm how it opens.',
                 ),
               ],
-              const SizedBox(height: AppSpacing.xs),
-              // Every mechanism that exists is shown; there are no others,
-              // and none are greyed out (spec section 3C).
-              Text(
-                'Sliding and tilt are not built yet, so they are not offered.',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: AppColors.mutedText),
-              ),
             ],
 
             const SizedBox(height: AppSpacing.md),

@@ -5,13 +5,15 @@ import '../core/design/app_theme.dart';
 import '../core/layout/responsive.dart';
 import 'screens/canvas_screen.dart';
 import 'screens/new_design_screen.dart';
+import 'screens/viewer_screen.dart';
 import 'state/design_controller.dart';
+import 'state/viewer_controller.dart';
 
 /// The application root.
 ///
-/// Phase 2 runs from the product choices to a drawn, measured, assigned
-/// design. Generating 3D, saving and exporting are Phases 3 to 5 and are not
-/// present in any form.
+/// Phase 3 runs from the product choices, through drawing and measuring, to a
+/// 2.5D preview that opens and closes. Saving and exporting are Phases 4 and 5
+/// and are not present in any form.
 class ProFrameApp extends StatelessWidget {
   /// Supplies project ids. Injected so a test can make them deterministic.
   final String Function() idFactory;
@@ -39,24 +41,44 @@ class _Entry extends ConsumerStatefulWidget {
 }
 
 class _EntryState extends ConsumerState<_Entry> {
-  /// True once a design has been created and handed to the controller.
+  /// Which screen is showing.
   ///
-  /// The design itself lives in the Riverpod provider, not here, which is what
-  /// lets it survive a rotation: this flag is the only thing the widget owns
-  /// (spec Phase 2, item 10).
-  bool _drawing = false;
+  /// The design and the viewer's camera both live in Riverpod providers, not
+  /// here, which is what makes the canvas-to-preview round trip lossless
+  /// however many times it is made, and what lets both survive a rotation
+  /// (spec Phase 3, item 4).
+  _Step _step = _Step.choosing;
 
   @override
-  Widget build(BuildContext context) {
-    if (!_drawing) {
-      return NewDesignScreen(
-        idFactory: widget.idFactory,
-        onCreated: (document) {
-          ref.read(designControllerProvider.notifier).open(document);
-          setState(() => _drawing = true);
-        },
-      );
-    }
-    return CanvasScreen(onBack: () => setState(() => _drawing = false));
-  }
+  Widget build(BuildContext context) => switch (_step) {
+        _Step.choosing => NewDesignScreen(
+            idFactory: widget.idFactory,
+            onCreated: (document) {
+              ref.read(designControllerProvider.notifier).open(document);
+              ref.read(viewerControllerProvider.notifier).closeAll();
+              setState(() => _step = _Step.drawing);
+            },
+          ),
+        _Step.drawing => CanvasScreen(
+            onBack: () => setState(() => _step = _Step.choosing),
+            onPreview: () {
+              // A divider moved on the canvas can merge two panels into a new
+              // one; the viewer must not keep holding the old ids open.
+              ref.read(viewerControllerProvider.notifier).retainOnly(
+                    ref
+                        .read(designControllerProvider)
+                        .design
+                        .panels
+                        .map((panel) => panel.id),
+                  );
+              setState(() => _step = _Step.previewing);
+            },
+          ),
+        _Step.previewing => ViewerScreen(
+            onBack: () => setState(() => _step = _Step.drawing),
+          ),
+      };
 }
+
+/// Where the user is in the flow.
+enum _Step { choosing, drawing, previewing }

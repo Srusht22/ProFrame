@@ -25,6 +25,11 @@ abstract final class AppColors {
   static const Color surface = Color(0xFFFBFAF5);
   static const Color canvasSurface = Color(0xFFFFFFFF);
   static const Color outline = Color(0xFFD6D2C4);
+
+  /// Glazing in the 2.5D viewer. A cool tint rather than a transparent hole,
+  /// because a pane has to read as glass against a cream background.
+  static const Color glassTint = Color(0xFFBBD2D6);
+  static const Color glassHighlight = Color(0xFFE8F2F3);
   static const Color mutedText = Color(0xFF5A5F5B);
 
   /// Status colours. These are never the *only* signal — every state that uses
@@ -119,13 +124,43 @@ abstract final class AppCanvasMetrics {
   const AppCanvasMetrics._();
 }
 
+/// Line weights for the 2.5D viewer, in logical pixels.
+///
+/// Separate from [AppCanvasMetrics] because the viewer draws a solid object
+/// and the canvas draws a sketch; sharing one set of weights would make one of
+/// them wrong.
+abstract final class AppViewerMetrics {
+  /// The outline around every solid surface, so shape survives shading.
+  static const double surfaceEdge = 1;
+
+  /// The dashed opening symbol.
+  static const double glyphWidth = 2;
+  static const double glyphDash = 9;
+  static const double glyphGap = 6;
+
+  /// The insect-screen hatch.
+  static const double meshWidth = 0.7;
+
+  /// Padding around the product inside the viewport, as a fraction of the
+  /// smaller axis — room for a sash to swing out without clipping.
+  static const double viewportMargin = 0.14;
+
+  /// Zoom limits for the pinch gesture.
+  static const double minZoom = 0.5;
+  static const double maxZoom = 5;
+
+  const AppViewerMetrics._();
+}
+
 abstract final class AppDurations {
   static const Duration fast = Duration(milliseconds: 120);
   static const Duration medium = Duration(milliseconds: 240);
 
-  /// How long a sash takes to swing in the 3D preview. Long enough to read the
-  /// hinge side from the motion.
-  static const Duration sashSwing = Duration(milliseconds: 900);
+  /// How long a sash takes to swing in the 2.5D preview.
+  ///
+  /// 320 ms: inside the 250-400 ms the spec asks for, and long enough that the
+  /// hinge side can be read from the motion rather than only from the symbol.
+  static const Duration sashSwing = Duration(milliseconds: 320);
 
   const AppDurations._();
 }

@@ -477,3 +477,43 @@ this specification.
   with their geometry and tests.
 - `Section` is renamed **`Panel`**, the word the factory uses.
   `DesignDocument` keeps its name.
+- `Divider` is renamed **`PanelDivider`**: the bare name collides with
+  Material's `Divider` widget in every UI file.
+
+### Phase 3 scope as commissioned
+
+1. **Renderer architecture.** An abstract `DesignRenderer` at the
+   domain/presentation boundary, implemented by the 2.5D isometric renderer. A
+   real 3D engine must be able to replace it without any other layer changing.
+   The renderer consumes only the design entity, never raw strokes.
+2. **2.5D isometric rendering** with real profile depth (PVC thicker,
+   aluminium slimmer, from the Phase 1 profile data); surfaces in the user's
+   finish with derived shading on the depth faces; glass with a reflection
+   gradient; empty panels (فارغ) visually distinct; mesh panels (توري) hatched;
+   note markers that open the note; no symbol on CH panels; the standard dashed
+   opening glyph on Z panels, with the view convention permanently on screen.
+3. **Open/close animation**, 250–400 ms: hinged swings about its hinge edge,
+   tilt raises the top inward, sliding travels across its neighbour.
+4. **Screen and navigation** — a primary "3D Preview" button from the canvas, a
+   lossless "Back to edit", a summary strip (dimensions in cm, material,
+   colour, design note), pinch to zoom and drag to pan.
+5. **Responsive** — full-screen on a phone, canvas or summary beside the viewer
+   on tablet and landscape, state surviving rotation.
+6. **Tests** — geometry mapping, hinge resolution per mechanism, and a golden.
+
+**Resolved during Phase 3 planning:**
+
+- *Tilt and slide are now implemented*, so `OpeningMechanism` gains `tilt`,
+  `slidingLeft` and `slidingRight` alongside `hinged`, and the panel sheet
+  offers them. The slide direction is part of the mechanism, so a sliding sash
+  cannot be stored without saying which way it goes.
+- *Golden tests:* committed PNGs plus deterministic paint-command assertions.
+  The PNG is rasterised on the machine that generated it, so on another
+  platform regenerate it with `flutter test --update-goldens` rather than
+  assuming a real regression.
+- *The tablet split* shows the canvas or the panel list beside the viewer.
+- **The projection keeps the elevation true.** A textbook isometric would skew
+  the user's rectangle into a rhombus; §2 forbids redrawing the design into
+  something else, so depth is an oblique offset and the front face projects to
+  exactly what was drawn. The view is therefore called a **2.5D preview**, not
+  3D, everywhere the user can see it (§9).

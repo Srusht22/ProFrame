@@ -10,9 +10,9 @@ into a parametric product they can measure, assign, edit and save.
 
 ---
 
-## Status: Phase 2 of 6
+## Status: Phase 3 of 6
 
-This repository is at the **end of Phase 2**. What that means concretely is set
+This repository is at the **end of Phase 3**. What that means concretely is set
 out in [What works](#what-works) and [What is not built yet](#what-is-not-built-yet).
 Nothing below describes a feature that does not exist.
 
@@ -22,7 +22,7 @@ The full requirements live in [SPEC.md](SPEC.md).
 | --- | --- | --- |
 | 1 | Project skeleton, theme, responsive system, domain models + tests | **Done** |
 | 2 | Smart drawing canvas, stroke classification, panel and dimension logic | **Done** |
-| 3 | 3D viewer with open/close animation | Not started |
+| 3 | 2.5D viewer with open/close animation | **Done** |
 | 4 | Persistence and the saved-designs list | Not started |
 | 5 | PDF export and cutting list | Not started |
 | 6 | Localisation (AR / CKB / EN), numeral setting, polish | Not started |
@@ -224,6 +224,43 @@ note shows a marker on the canvas.
 is a stack of documents rather than a log of reversible operations — there is
 no way for an action to be half-undone.
 
+### Phase 3 — the 2.5D viewer
+
+**One seam, and only one.** `DesignRenderer` is an abstract interface at the
+domain/presentation boundary. `IsometricRenderer` implements it today; a real
+3D engine can implement it tomorrow and **no other file changes** — everything
+upstream deals in `DesignDocument`, everything downstream in the widget it
+returns. A test proves the seam by swapping in a stub renderer and checking the
+screen still works.
+
+**The elevation is kept true.** A textbook isometric would skew a 1200 mm
+rectangle into a rhombus. §2 forbids redrawing the user's design into something
+else, so depth is an oblique offset: the front face projects to exactly what
+was drawn, at exactly the millimetres confirmed, and depth recedes at 30° on a
+half scale. That is why the view is called a **2.5D preview** rather than 3D
+everywhere the user can see it — §9 says not to describe a thing as something
+it is not.
+
+**Material is visible.** Frame depth and face width come from the Phase 1
+profile data, so a 70 mm PVC frame genuinely reads thicker than a 65 mm
+aluminium one. Asserted, not eyeballed.
+
+**Shading is derived, never invented.** Every tone comes from the finish the
+user picked, shifted in HSL — working in HSL rather than multiplying RGB is
+what keeps anthracite from collapsing to a flat black. A near-black finish
+flips the shift instead of clipping, so its faces stay distinguishable.
+
+**Motion is model geometry, not a canvas transform.** A hinged sash keeps its
+hinge edge exactly still and swings the free edge through the frame depth; a
+tilt keeps the bottom edge down; a slide keeps its size and travels sideways.
+Each is plain trigonometry in millimetres, so each is asserted by a unit test
+rather than by looking at it. CH panels never move, whatever fraction they are
+given.
+
+**Round trips are lossless** because there is nothing to convert: the canvas
+and the viewer read the same document. A test goes back and forth three times
+and compares every field.
+
 ### Phase 1 — foundations
 
 Verified by tests:
@@ -252,12 +289,14 @@ Verified by tests:
 Stated plainly, because a screen that pretends to be finished is exactly what
 this project is not doing.
 
-- **There is no 3D view, no persistence, no export and no localisation.** Those
-  are Phases 3–6. A design exists only while the app is open — closing it loses
-  the work, because saving is Phase 4.
-- **Only fixed and hinged.** `OpeningMechanism` contains exactly one value.
-  Sliding and tilt are **absent, not greyed out**, and the panel sheet says so
-  in one line. They arrive in Phase 3 with their geometry and their tests.
+- **There is no persistence, no export and no localisation.** Those are Phases
+  4–6. A design exists only while the app is open — closing it loses the work,
+  because saving is Phase 4.
+- **It is a 2.5D preview, not a 3D engine.** No camera orbit, no perspective,
+  no lighting model. The geometry is real and the projection is honest, but
+  nothing here is a CAD kernel.
+- **No hardware.** Handles, hinges and locks are not drawn. §3E allows "basic
+  hardware where supported"; none is supported yet, so none is shown.
 - **Curves, sloping tops and partial transoms are modelled but not yet
   drawable.** The domain supports all three; the Phase 2 classifier reads
   rectangles, full dividers and chevrons only. A curve is discarded, never
@@ -284,7 +323,7 @@ Everything below was executed in this environment, with the results shown.
 | Check | Result |
 | --- | --- |
 | `flutter analyze` | **No issues found** |
-| `flutter test` | **175 tests, all passing** |
+| `flutter test` | **250 tests, all passing** |
 | `flutter build web --release` | **Succeeds** |
 | Android build | **Not verified** — no Android SDK in this environment |
 | iOS build | **Not verified** — requires macOS and Xcode |
@@ -324,7 +363,10 @@ flutter build web --release
 | `test/domain/recognition/stroke_classifier_test.dart` | The five outcomes, on deliberately wobbly hand-drawn input |
 | `test/domain/layout/panel_math_test.dart` | Proportional splitting, width solving, refusals, equal distribution |
 | `test/domain/layout/design_builder_test.dart` | Intents applied to the document, rescaling, the live summary |
+| `test/domain/rendering/isometric_projection_test.dart` | The projection, and that the elevation stays true |
+| `test/domain/rendering/scene_builder_test.dart` | Frame corners, divider positions, panel rectangles, every mechanism's motion |
 | `test/widget/canvas_widget_test.dart` | Drawing through the real canvas, undo/redo, labels, notes, rotation |
+| `test/widget/viewer_widget_test.dart` | Rendering, opening, pan/zoom, round trips, renderer swap, the golden |
 | `test/widget/responsive_widget_test.dart` | Every size and orientation, large text, the create-a-design flow |
 
 Run one file with `flutter test test/domain/measurement_test.dart`, or one test
@@ -333,6 +375,15 @@ with `--plain-name "a sloping-top frame keeps both side heights exactly"`.
 The classifier tests build their input with a seeded `handDrawn` helper that
 adds real wobble to every stroke, so they exercise rough input rather than
 perfect input.
+
+The render is covered two ways. `test/support/recording_canvas.dart` captures
+the painter's actual draw calls, which is deterministic on every machine —
+Flutter's own `paints` matcher checks calls strictly in order, so it breaks
+whenever drawing order changes for an unrelated reason. There is also one
+committed PNG golden, `test/widget/goldens/two_bay_window.png`. **It was
+rasterised in a Linux container**; font hinting differs across platforms, so if
+it fails on a Mac regenerate it with `flutter test --update-goldens` rather
+than assuming a real regression.
 
 ---
 
