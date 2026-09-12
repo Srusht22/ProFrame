@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/design/tokens.dart';
+import '../../core/i18n/numerals.dart';
+import '../../core/i18n/strings.dart';
 import '../../core/units/length_unit.dart';
 
 /// Asks for a length with a numeric keypad.
@@ -27,6 +29,7 @@ Future<double?> askForLengthMm(
         helper: helper,
         currentMm: currentMm,
         unit: unit,
+        numerals: context.s.numerals,
       ),
     );
 
@@ -35,11 +38,13 @@ class _LengthDialog extends StatefulWidget {
   final String helper;
   final double? currentMm;
   final LengthUnit unit;
+  final NumeralSystem numerals;
 
   const _LengthDialog({
     required this.title,
     required this.helper,
     required this.unit,
+    required this.numerals,
     this.currentMm,
   });
 
@@ -51,7 +56,7 @@ class _LengthDialogState extends State<_LengthDialog> {
   late final TextEditingController _controller = TextEditingController(
     text: widget.currentMm == null
         ? ''
-        : widget.unit.formatValue(widget.currentMm!),
+        : widget.numerals.format(widget.unit.formatValue(widget.currentMm!)),
   );
 
   String? _error;
@@ -65,11 +70,15 @@ class _LengthDialogState extends State<_LengthDialog> {
   void _submit() {
     final millimetres = widget.unit.parseToMillimetres(_controller.text);
     if (millimetres == null) {
-      setState(() => _error = 'Type a number, for example 120.');
+      setState(
+        () => _error = context.s(T.typeANumber, {
+          'example': context.s.number(120),
+        }),
+      );
       return;
     }
     if (millimetres <= 0) {
-      setState(() => _error = 'A size has to be more than zero.');
+      setState(() => _error = context.s(T.sizeMustBePositive));
       return;
     }
     Navigator.of(context).pop(millimetres);
@@ -91,14 +100,18 @@ class _LengthDialogState extends State<_LengthDialog> {
               // entering a number with gloves on.
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                // Both sets of digits: the setting says what is *shown*, not
+                // what a keyboard is allowed to send.
+                FilteringTextInputFormatter.allow(
+                  RegExp('[0-9${NumeralSystem.arabicIndic.digits}.,]'),
+                ),
               ],
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
               decoration: InputDecoration(
-                suffixText: widget.unit.symbol,
+                suffixText: context.s.unitSymbol(widget.unit),
                 errorText: _error,
-                labelText: 'Size',
+                labelText: context.s(T.size),
               ),
             ),
           ],
@@ -106,9 +119,9 @@ class _LengthDialogState extends State<_LengthDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(context.s(T.cancel)),
           ),
-          FilledButton(onPressed: _submit, child: const Text('Set')),
+          FilledButton(onPressed: _submit, child: Text(context.s(T.set))),
         ],
       );
 }
@@ -173,21 +186,20 @@ class _NoteDialogState extends State<_NoteDialog> {
               minLines: 2,
               maxLines: 5,
               // No textDirection is set: Flutter resolves it per paragraph
-              // from the text itself, so an Arabic or Kurdish note lays out
-              // right-to-left without the app being localised, which is
-              // Phase 6.
-              decoration: const InputDecoration(labelText: 'Note'),
+              // from the text itself, so a note written in another language
+              // than the app is set to still lays out the right way round.
+              decoration: InputDecoration(labelText: context.s(T.note)),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(context.s(T.cancel)),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
-            child: const Text('Save note'),
+            child: Text(context.s(T.saveNote)),
           ),
         ],
       );

@@ -144,8 +144,12 @@ void main() {
       final list = await repository.list();
 
       expect(list.map((p) => p.name), ['Newer', 'Older']);
-      expect(list.first.description, contains('Window'));
-      expect(list.first.description, contains('1200 × 1500 mm'));
+      // Facts, not a sentence: the card writes the sentence in whatever
+      // language the app is set to.
+      expect(list.first.category, ProductCategory.window);
+      expect(list.first.widthMm, 1200);
+      expect(list.first.heightMm, 1500);
+      expect(list.first.panelCount, greaterThan(0));
     });
 
     test('a damaged project is listed as damaged, not hidden', () async {

@@ -12,6 +12,7 @@ import 'package:proframe/app/state/project_controller.dart';
 import 'package:proframe/app/state/viewer_controller.dart';
 import 'package:proframe/core/design/app_theme.dart';
 import 'package:proframe/core/design/tokens.dart';
+import 'package:proframe/core/i18n/strings.dart';
 import 'package:proframe/domain/design_document.dart';
 import 'package:proframe/domain/geometry/point2.dart';
 import 'package:proframe/domain/geometry/polygon.dart';
@@ -659,7 +660,7 @@ class _StubRenderer implements DesignRenderer {
   const _StubRenderer();
 
   @override
-  String get label => 'Stub engine';
+  String labelIn(AppStrings strings) => 'Stub engine';
 
   @override
   bool get supportsOpeningAnimation => false;

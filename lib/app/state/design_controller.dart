@@ -1,6 +1,8 @@
 import 'package:flutter/painting.dart' show Offset;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/strings.dart';
+import '../../core/units/length_unit.dart';
 import '../../domain/design_document.dart';
 import '../../domain/geometry/point2.dart';
 import '../../domain/geometry/polygon.dart';
@@ -17,6 +19,7 @@ import '../../domain/recognition/stroke_classifier.dart';
 import '../../domain/recognition/stroke_intent.dart';
 import '../../domain/sketch.dart';
 import '../canvas/canvas_projection.dart';
+import 'preferences_controller.dart';
 
 /// What the finger does on the canvas.
 ///
@@ -129,6 +132,11 @@ class DesignState {
 /// [StrokeClassifier] and layout in [DesignBuilder], both pure domain code, so
 /// the rules can be tested without a widget (spec section 9).
 class DesignController extends Notifier<DesignState> {
+  /// What the app says, in the user's language. Read fresh each time rather
+  /// than cached, so a message written after a language change is in the new
+  /// language.
+  AppStrings get _strings => ref.read(appStringsProvider);
+
   final List<DesignDocument> _undoStack = [];
   final List<DesignDocument> _redoStack = [];
   int _idCounter = 0;
@@ -301,7 +309,12 @@ class DesignController extends Notifier<DesignState> {
           ),
           message: adjustmentMm == 0 || neighbour == null
               ? null
-              : 'The panel beside it is now ${neighbour.widthMm.round()} mm.',
+              : _strings(T.neighbourNowWide, {
+                  'width': _strings.length(
+                    neighbour.widthMm,
+                    LengthUnit.millimetre,
+                  ),
+                }),
           clearMessage: adjustmentMm == 0 || neighbour == null,
         );
     }
@@ -485,7 +498,7 @@ class DesignController extends Notifier<DesignState> {
     final high = vertical ? after.boundary.right : after.boundary.bottom;
     if (toMm - low < 50 || high - toMm < 50) {
       state = state.copyWith(
-        message: 'A divider cannot go that close to the edge.',
+        message: _strings(T.dividerTooClose),
       );
       return;
     }
@@ -676,7 +689,7 @@ class DesignController extends Notifier<DesignState> {
     }
     final panelId = state.selectedPanelId;
     if (panelId == null) {
-      state = state.copyWith(message: 'Tap something first, then delete it.');
+      state = state.copyWith(message: _strings(T.tapSomethingFirst));
       return;
     }
     // A panel cannot be deleted — it is a region of the frame, not an object.
@@ -685,12 +698,11 @@ class DesignController extends Notifier<DesignState> {
     if (panel == null) return;
     if (panel.behaviour.isOpening) {
       makeFixed(panelId);
-      state = state.copyWith(message: 'That panel is fixed (CH) again.');
+      state = state.copyWith(message: _strings(T.panelFixedAgain));
       return;
     }
     state = state.copyWith(
-      message: 'A panel is part of the frame. Delete the divider beside it to '
-          'join it to its neighbour.',
+      message: _strings(T.panelIsPartOfFrame),
     );
   }
 

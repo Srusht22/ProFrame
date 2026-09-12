@@ -4,6 +4,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/errors/app_exception.dart';
+import '../../core/i18n/strings.dart';
 import '../../domain/design_document.dart';
 import '../../infrastructure/export/project_file.dart';
 import '../export/export_service.dart';
@@ -24,7 +25,12 @@ Future<DesignDocument?> showImportDialog(BuildContext context) async {
   try {
     file = await openFile(acceptedTypeGroups: const [typeGroup]);
   } on Object catch (error) {
-    if (context.mounted) await _explain(context, 'That file could not be opened: $error');
+    if (context.mounted) {
+      await _explain(
+        context,
+        context.s(T.fileCouldNotOpen, {'error': error}),
+      );
+    }
     return null;
   }
   if (file == null) return null;
@@ -34,10 +40,7 @@ Future<DesignDocument?> showImportDialog(BuildContext context) async {
     contents = utf8.decode(await file.readAsBytes());
   } on Object {
     if (context.mounted) {
-      await _explain(
-        context,
-        'That file is not text, so it is not a ProFrame project.',
-      );
+      await _explain(context, context.s(T.fileNotText));
     }
     return null;
   }
@@ -53,12 +56,12 @@ Future<DesignDocument?> showImportDialog(BuildContext context) async {
 Future<void> _explain(BuildContext context, String message) => showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('That project could not be opened'),
+        title: Text(context.s(T.projectCouldNotOpen)),
         content: Notice(tone: NoticeTone.problem, message: message),
         actions: [
           FilledButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+            child: Text(context.s(T.close)),
           ),
         ],
       ),

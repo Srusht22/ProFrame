@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design/tokens.dart';
+import '../../core/i18n/strings.dart';
 import '../../core/layout/responsive.dart';
 import '../../core/units/length_unit.dart';
 import '../../domain/design_document.dart';
@@ -11,6 +12,7 @@ import '../../domain/panel_divider.dart';
 import '../canvas/canvas_projection.dart';
 import '../canvas/dimension_labels.dart';
 import '../canvas/drawing_canvas.dart';
+import '../i18n/labels.dart';
 import '../state/design_controller.dart';
 import '../state/project_controller.dart';
 import '../widgets/dimension_input.dart';
@@ -60,7 +62,7 @@ class CanvasScreen extends ConsumerWidget {
           appBar: AppBar(
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
-              tooltip: 'Back',
+              tooltip: context.s(T.back),
               onPressed: onBack,
             ),
             title: InkWell(
@@ -87,12 +89,12 @@ class CanvasScreen extends ConsumerWidget {
             actions: [
               IconButton(
                 icon: const Icon(Icons.undo),
-                tooltip: 'Undo',
+                tooltip: context.s(T.undo),
                 onPressed: state.canUndo ? controller.undo : null,
               ),
               IconButton(
                 icon: const Icon(Icons.redo),
-                tooltip: 'Redo',
+                tooltip: context.s(T.redo),
                 onPressed: state.canRedo ? controller.redo : null,
               ),
               IconButton(
@@ -103,7 +105,7 @@ class CanvasScreen extends ConsumerWidget {
                       ? Icons.sticky_note_2
                       : Icons.sticky_note_2_outlined,
                 ),
-                tooltip: 'Note for the whole design',
+                tooltip: context.s(T.designNoteTooltip),
                 onPressed: () => _editDesignNote(context, ref),
               ),
               IconButton(
@@ -114,12 +116,12 @@ class CanvasScreen extends ConsumerWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.save_outlined),
-                tooltip: 'Save this project',
+                tooltip: context.s(T.saveThisProject),
                 onPressed: save.isSaving ? null : () => _save(context, ref),
               ),
               IconButton(
                 icon: const Icon(Icons.ios_share),
-                tooltip: 'Export',
+                tooltip: context.s(T.export),
                 onPressed: onExport,
               ),
             ],
@@ -137,7 +139,7 @@ class CanvasScreen extends ConsumerWidget {
                     ),
                     child: Notice(
                       tone: NoticeTone.problem,
-                      title: 'Not saved',
+                      title: context.s(T.notSaved),
                       message: save.error!,
                     ),
                   ),
@@ -270,7 +272,11 @@ class CanvasScreen extends ConsumerWidget {
     if (saved) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Saved "${ref.read(designControllerProvider).design.name}".'),
+          content: Text(
+            context.s(T.projectSaved, {
+              'name': ref.read(designControllerProvider).design.name,
+            }),
+          ),
         ),
       );
     }
@@ -282,8 +288,8 @@ class CanvasScreen extends ConsumerWidget {
     final design = ref.read(designControllerProvider).design;
     final name = await askForNote(
       context,
-      title: 'Rename project',
-      helper: 'What should this design be called?',
+      title: context.s(T.renameProject),
+      helper: context.s(T.whatShouldItBeCalled),
       current: design.name,
     );
     if (name == null || name.trim().isEmpty) return;
@@ -316,8 +322,8 @@ class CanvasScreen extends ConsumerWidget {
 
     final millimetres = await askForLengthMm(
       context,
-      title: 'Panel width',
-      helper: 'The panel beside it changes to keep the total the same.',
+      title: context.s(T.panelWidth),
+      helper: context.s(T.panelWidthHelp),
       currentMm: label.valueMm,
     );
     if (millimetres == null) return;
@@ -330,8 +336,8 @@ class CanvasScreen extends ConsumerWidget {
     final design = ref.read(designControllerProvider).design;
     final millimetres = await askForLengthMm(
       context,
-      title: 'Total width',
-      helper: design.dimensionReference.description,
+      title: context.s(T.totalWidth),
+      helper: context.s.dimensionReferenceHelp(design.dimensionReference),
       currentMm: design.overallWidth?.millimetres,
     );
     if (millimetres == null) return;
@@ -342,8 +348,8 @@ class CanvasScreen extends ConsumerWidget {
     final design = ref.read(designControllerProvider).design;
     final millimetres = await askForLengthMm(
       context,
-      title: 'Total height',
-      helper: design.dimensionReference.description,
+      title: context.s(T.totalHeight),
+      helper: context.s.dimensionReferenceHelp(design.dimensionReference),
       currentMm: design.overallHeight?.millimetres,
     );
     if (millimetres == null) return;
@@ -354,8 +360,8 @@ class CanvasScreen extends ConsumerWidget {
     final design = ref.read(designControllerProvider).design;
     final note = await askForNote(
       context,
-      title: 'Note for this design',
-      helper: 'General remarks or anything the customer asked for.',
+      title: context.s(T.noteForThisDesign),
+      helper: context.s(T.noteForThisDesignHelp),
       current: design.designNote,
     );
     if (note == null) return;
@@ -391,9 +397,8 @@ class CanvasScreen extends ConsumerWidget {
         final existing = noteId == null ? null : panel.noteById(noteId);
         final text = await askForNote(
           context,
-          title: existing == null ? 'Add a note' : 'Edit this note',
-          helper: 'For example: توري, فارغ, frosted glass. A note describes '
-              'the panel; it never changes it.',
+          title: context.s(existing == null ? T.addNote : T.editNote),
+          helper: context.s(T.noteExample),
           current: existing?.text ?? '',
         );
         if (text == null) return;
@@ -427,14 +432,14 @@ class CanvasScreen extends ConsumerWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.open_with),
-              title: const Text('Move this divider'),
-              subtitle: const Text('Drag it on the drawing'),
+              title: Text(context.s(T.moveThisDivider)),
+              subtitle: Text(context.s(T.dragItOnTheDrawing)),
               onTap: () => Navigator.of(context).pop('move'),
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline),
-              title: const Text('Delete this divider'),
-              subtitle: const Text('The two panels become one'),
+              title: Text(context.s(T.deleteThisDivider)),
+              subtitle: Text(context.s(T.twoPanelsBecomeOne)),
               onTap: () => Navigator.of(context).pop('delete'),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -473,6 +478,7 @@ class _Summary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = context.s;
     final questions = design.outstandingQuestions;
     // Reported, never corrected: the app does not silently change a confirmed
     // dimension to make a layout fit (spec section 6).
@@ -486,17 +492,17 @@ class _Summary extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('This design', style: theme.textTheme.titleMedium),
+            Text(s(T.thisDesign), style: theme.textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
-            _Fact('Panels', '${design.panels.length}'),
-            _Fact('Fixed (CH)', '${design.fixedPanelCount}'),
-            _Fact('Opening (Z)', '${design.openingPanelCount}'),
-            _Fact('Dividers', '${design.dividers.length}'),
+            _Fact(s(T.panels), s.number(design.panels.length)),
+            _Fact(s(T.fixedCount), s.number(design.fixedPanelCount)),
+            _Fact(s(T.openingCount), s.number(design.openingPanelCount)),
+            _Fact(s(T.dividers), s.number(design.dividers.length)),
             const SizedBox(height: AppSpacing.md),
             // Contradictions first: an unfinished design is normal, a
             // contradictory one has to be resolved (spec section 6).
             if (conflicts.isNotEmpty) ...[
-              Text('Problems', style: theme.textTheme.titleMedium),
+              Text(s(T.problems), style: theme.textTheme.titleMedium),
               const SizedBox(height: AppSpacing.xs),
               for (final finding in conflicts)
                 Padding(
@@ -510,19 +516,12 @@ class _Summary extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
             ],
             Text(
-              questions.isEmpty
-                  ? 'Nothing left to confirm'
-                  : 'Still to confirm',
+              s(questions.isEmpty ? T.nothingLeftToConfirm : T.stillToConfirm),
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: AppSpacing.xs),
             if (questions.isEmpty)
-              const Notice(
-                message:
-                    'Every dimension and opening has been confirmed. The '
-                    'profiles are still generic previews, so this is a design, '
-                    'not production data.',
-              )
+              Notice(message: s(T.everythingConfirmed))
             else
               for (final question in questions)
                 Padding(
@@ -537,7 +536,7 @@ class _Summary extends StatelessWidget {
                 ),
             if (design.allNotes.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.md),
-              Text('Notes', style: theme.textTheme.titleMedium),
+              Text(s(T.notes), style: theme.textTheme.titleMedium),
               const SizedBox(height: AppSpacing.xs),
               for (final note in design.allNotes)
                 Padding(
@@ -603,7 +602,8 @@ class _Toolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final unit = LengthUnit.centimetre;
+    const unit = LengthUnit.centimetre;
+    final s = context.s;
     final width = design.overallWidth;
     final height = design.overallHeight;
 
@@ -623,9 +623,10 @@ class _Toolbar extends StatelessWidget {
                   onPressed: onWidth,
                   child: Text(
                     width == null
-                        ? 'Width'
-                        : 'Width ${unit.format(width.millimetres)}'
-                              '${width.isConfirmed ? '' : ' ?'}',
+                        ? s(T.width)
+                        : '${s(T.width)} '
+                            '${s.length(width.millimetres, unit)}'
+                            '${width.isConfirmed ? '' : ' ?'}',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -636,9 +637,10 @@ class _Toolbar extends StatelessWidget {
                   onPressed: onHeight,
                   child: Text(
                     height == null
-                        ? 'Height'
-                        : 'Height ${unit.format(height.millimetres)}'
-                              '${height.isConfirmed ? '' : ' ?'}',
+                        ? s(T.height)
+                        : '${s(T.height)} '
+                            '${s.length(height.millimetres, unit)}'
+                            '${height.isConfirmed ? '' : ' ?'}',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -647,7 +649,7 @@ class _Toolbar extends StatelessWidget {
                 const SizedBox(width: AppSpacing.xs),
                 IconButton.filled(
                   icon: const Icon(Icons.checklist),
-                  tooltip: 'What is still to confirm',
+                  tooltip: s(T.whatIsStillToConfirm),
                   onPressed: onSummary,
                 ),
               ],
@@ -659,7 +661,7 @@ class _Toolbar extends StatelessWidget {
             child: FilledButton.icon(
               icon: const Icon(Icons.view_in_ar_outlined),
               label: Text(
-                onPreview == null ? 'Draw a frame to preview' : '3D Preview',
+                s(onPreview == null ? T.drawFrameToPreview : T.preview3d),
               ),
               onPressed: onPreview,
             ),
@@ -711,40 +713,46 @@ class _ToolPalette extends StatelessWidget {
                     CanvasTool.pan => Icons.open_with,
                     CanvasTool.select => Icons.touch_app_outlined,
                   },
-                  label: option.label,
-                  tooltip: option.hint,
+                  label: context.s(switch (option) {
+                    CanvasTool.draw => T.toolDraw,
+                    CanvasTool.pan => T.toolMove,
+                    CanvasTool.select => T.toolSelect,
+                  }),
+                  tooltip: context.s(switch (option) {
+                    CanvasTool.draw => T.toolDrawHelp,
+                    CanvasTool.pan => T.toolMoveHelp,
+                    CanvasTool.select => T.toolSelectHelp,
+                  }),
                   selected: tool == option,
                   onPressed: () => onTool(option),
                 ),
               const VerticalDivider(width: AppSpacing.sm),
               _ToolButton(
                 icon: Icons.fit_screen_outlined,
-                label: 'Fit',
-                tooltip: 'Fit the drawing to the screen',
+                label: context.s(T.fit),
+                tooltip: context.s(T.fitHelp),
                 onPressed: onFit,
               ),
               _ToolButton(
                 icon: Icons.zoom_out_map,
-                label: 'Whole sheet',
-                tooltip: 'Show the whole sheet again',
+                label: context.s(T.wholeSheet),
+                tooltip: context.s(T.wholeSheetHelp),
                 onPressed: onResetView,
               ),
               _ToolButton(
                 icon: notesVisible
                     ? Icons.speaker_notes_outlined
                     : Icons.speaker_notes_off_outlined,
-                label: notesVisible ? 'Notes on' : 'Notes off',
-                tooltip: notesVisible
-                    ? 'Hide the note labels'
-                    : 'Show the note labels',
+                label: context.s(notesVisible ? T.notesOn : T.notesOff),
+                tooltip: context
+                    .s(notesVisible ? T.hideNoteLabels : T.showNoteLabels),
                 onPressed: () => onToggleNotes(!notesVisible),
               ),
               _ToolButton(
                 icon: Icons.delete_outline,
-                label: 'Delete',
-                tooltip: hasSelection
-                    ? 'Delete what is selected'
-                    : 'Select something first',
+                label: context.s(T.delete),
+                tooltip: context
+                    .s(hasSelection ? T.deleteSelected : T.selectSomethingFirst),
                 onPressed: onDelete,
               ),
             ],
@@ -779,7 +787,7 @@ class _ToolButton extends StatelessWidget {
       child: Semantics(
         button: true,
         selected: selected,
-        label: selected ? '$label, selected' : label,
+        label: selected ? '$label, ${context.s(T.selected)}' : label,
         child: ExcludeSemantics(
           child: Tooltip(
             message: tooltip,

@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design/tokens.dart';
+import '../../core/i18n/strings.dart';
 import '../../core/layout/responsive.dart';
 import '../../core/units/length_unit.dart';
 import '../../domain/design_document.dart';
 import '../../domain/panel.dart';
 import '../../domain/product/profile_system.dart';
+import '../i18n/labels.dart';
 import '../rendering/animated_design_view.dart';
 import '../rendering/design_renderer.dart';
 import '../rendering/isometric_renderer.dart';
@@ -49,27 +51,27 @@ class ViewerScreen extends ConsumerWidget {
           appBar: AppBar(
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
-              tooltip: 'Back to edit',
+              tooltip: context.s(T.backToEdit),
               onPressed: onBack,
             ),
-            title: Text(renderer.label),
+            title: Text(renderer.labelIn(context.s)),
             actions: [
               IconButton(
                 icon: const Icon(Icons.flip_camera_android_outlined),
-                tooltip: 'Turn the product around',
+                tooltip: context.s(T.turnAround),
                 onPressed:
                     ref.read(viewerControllerProvider.notifier).turnAround,
               ),
               if (viewer.openPanels.isNotEmpty)
                 IconButton(
                   icon: const Icon(Icons.close_fullscreen),
-                  tooltip: 'Close every panel',
+                  tooltip: context.s(T.closeEveryPanel),
                   onPressed:
                       ref.read(viewerControllerProvider.notifier).closeAll,
                 ),
               IconButton(
                 icon: const Icon(Icons.center_focus_strong),
-                tooltip: 'Fit the view',
+                tooltip: context.s(T.fitTheView),
                 onPressed:
                     ref.read(viewerControllerProvider.notifier).resetView,
               ),
@@ -190,7 +192,7 @@ class _ViewerState extends ConsumerState<_Viewer> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'This panel is ${panel.behaviour.code} — fixed, so it does not open.',
+          context.s(T.panelIsFixed, {'code': panel.behaviour.code}),
         ),
       ),
     );
@@ -208,21 +210,25 @@ class _ViewerState extends ConsumerState<_Viewer> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${panel.widthMm.round()} × ${panel.heightMm.round()} mm '
-                  '· ${panel.behaviour.code}',
+                  '${context.s.number(panel.widthMm)} × '
+                  '${context.s.number(panel.heightMm)} '
+                  '${context.s(T.unitMillimetre)} · ${panel.behaviour.code}',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 for (final note in panel.notes)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                    child: Notice(title: 'Note', message: note.text),
+                    child: Notice(
+                      title: context.s(T.note),
+                      message: note.text,
+                    ),
                   ),
                 if (panel.behaviour.isOpening) ...[
                   const SizedBox(height: AppSpacing.sm),
                   FilledButton.icon(
                     icon: const Icon(Icons.open_in_full),
-                    label: const Text('Open this panel'),
+                    label: Text(context.s(T.openThisPanel)),
                     onPressed: () {
                       Navigator.of(context).pop();
                       ref
@@ -249,10 +255,11 @@ class _SummaryStrip extends StatelessWidget {
     const unit = LengthUnit.centimetre;
     final width = design.overallWidth;
     final height = design.overallHeight;
+    final s = context.s;
     final size = width == null || height == null
-        ? 'Not measured'
-        : '${unit.format(width.millimetres)} × '
-            '${unit.format(height.millimetres)}';
+        ? s(T.notMeasured)
+        : '${s.length(width.millimetres, unit)} × '
+            '${s.length(height.millimetres, unit)}';
 
     return Container(
       width: double.infinity,
@@ -283,24 +290,24 @@ class _SummaryStrip extends StatelessWidget {
               if (!design.hasConfirmedSize)
                 _Chip(
                   icon: Icons.help_outline,
-                  text: 'Not confirmed',
+                  text: s(T.notConfirmed),
                   maxWidth: cap,
                 ),
               _Chip(
                 icon: Icons.layers_outlined,
-                text: design.material.label,
+                text: s.frameMaterial(design.material),
                 maxWidth: cap,
               ),
               _Chip(
                 icon: Icons.palette_outlined,
-                text: design.finish.name,
+                text: s.finishName(design.finish),
                 maxWidth: cap,
               ),
               // Handing is meaningless without it, so it is permanently on
               // screen here too (spec Phase 3, item 2).
               _Chip(
                 icon: Icons.visibility_outlined,
-                text: design.viewedFrom.label,
+                text: s.viewingSide(design.viewedFrom),
                 maxWidth: cap,
               ),
               if (design.hasDesignNote) _NoteChip(note: design.designNote),
@@ -351,7 +358,7 @@ class _NoteChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) => TextButton.icon(
         icon: const Icon(Icons.sticky_note_2, size: 18),
-        label: const Text('Design note'),
+        label: Text(context.s(T.designNote)),
         onPressed: () => showModalBottomSheet<void>(
           context: context,
           showDragHandle: true,
@@ -359,7 +366,7 @@ class _NoteChip extends StatelessWidget {
           builder: (context) => SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
-              child: Notice(title: 'Design note', message: note),
+              child: Notice(title: context.s(T.designNote), message: note),
             ),
           ),
         ),
@@ -375,6 +382,7 @@ class _SidePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = context.s;
     final opening = design.panels.where((p) => p.behaviour.isOpening).toList();
 
     return ColoredBox(
@@ -384,7 +392,7 @@ class _SidePanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Panels', style: theme.textTheme.titleMedium),
+            Text(s(T.panels), style: theme.textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
             for (final panel in design.panels)
               Padding(
@@ -407,20 +415,24 @@ class _SidePanel extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${panel.widthMm.round()} × '
-                            '${panel.heightMm.round()} mm',
+                            '${s.number(panel.widthMm)} × '
+                            '${s.number(panel.heightMm)} '
+                            '${s(T.unitMillimetre)}',
                           ),
                           if (panel.opening != null)
                             Text(
-                              panel.opening!.describe(design.viewedFrom),
+                              s.openingSummary(
+                                panel.opening!,
+                                design.viewedFrom,
+                              ),
                               style: theme.textTheme.bodySmall
                                   ?.copyWith(color: AppColors.mutedText),
                             ),
                           if (panel.hasMesh || panel.isEmpty)
                             Text(
                               [
-                                if (panel.hasMesh) 'Mesh',
-                                if (panel.isEmpty) 'Empty',
+                                if (panel.hasMesh) s(T.mesh),
+                                if (panel.isEmpty) s(T.emptyPanel),
                               ].join(' · '),
                               style: theme.textTheme.bodySmall
                                   ?.copyWith(color: AppColors.mutedText),
@@ -439,10 +451,7 @@ class _SidePanel extends StatelessWidget {
               ),
             if (opening.isEmpty) ...[
               const SizedBox(height: AppSpacing.xs),
-              const Notice(
-                message: 'Nothing in this design opens. Long-press a panel on '
-                    'the drawing to make it a Z.',
-              ),
+              Notice(message: s(T.nothingOpens)),
             ],
           ],
         ),
@@ -471,10 +480,7 @@ class _ViewerFooter extends StatelessWidget {
         border: Border(top: BorderSide(color: AppColors.outline)),
       ),
       child: Text(
-        opening == 0
-            ? 'Preview only — the profiles are generic, not manufacturing data.'
-            : 'Tap a Z panel to open it. Preview only — the profiles are '
-                'generic, not manufacturing data.',
+        context.s(opening == 0 ? T.previewOnly : T.previewOnlyTapToOpen),
         style: Theme.of(context)
             .textTheme
             .bodySmall
@@ -511,7 +517,7 @@ class _CameraBar extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.xs),
             Text(
-              'View angle',
+              context.s(T.viewAngle),
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
@@ -522,14 +528,14 @@ class _CameraBar extends StatelessWidget {
                 value: angle,
                 min: 8,
                 max: 62,
-                label: '${angle.round()}°',
+                label: '${context.s.number(angle)}°',
                 onChanged: onAngle,
               ),
             ),
             SizedBox(
               width: 34,
               child: Text(
-                '${angle.round()}°',
+                '${context.s.number(angle)}°',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),

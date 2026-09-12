@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/design/tokens.dart';
+import '../../core/i18n/strings.dart';
 import '../../core/layout/responsive.dart';
 import '../../core/layout/window_size.dart';
 
@@ -224,9 +225,9 @@ class _PanelToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
         button: true,
-        label: open ? 'Hide the properties panel' : 'Show the properties panel',
+        label: open ? context.s(T.hidePropertiesPanel) : context.s(T.showPropertiesPanel),
         child: IconButton(
-          tooltip: open ? 'Hide properties' : 'Show properties',
+          tooltip: open ? context.s(T.hideProperties) : context.s(T.showProperties),
           icon: Icon(open ? Icons.chevron_right : Icons.chevron_left),
           onPressed: () => onChanged(!open),
         ),
@@ -250,7 +251,7 @@ class _PropertiesSheetButton extends StatelessWidget {
           width: double.infinity,
           child: OutlinedButton.icon(
             icon: const Icon(Icons.tune),
-            label: const Text('Properties'),
+            label: Text(context.s(T.properties)),
             onPressed: () => showModalBottomSheet<void>(
               context: context,
               showDragHandle: true,

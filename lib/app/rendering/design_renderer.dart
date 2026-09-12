@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import '../../core/i18n/strings.dart';
+
 import '../../domain/design_document.dart';
 import '../../domain/product/profile_system.dart';
 import '../../domain/rendering/isometric_projection.dart';
@@ -59,7 +61,10 @@ class RenderRequest {
 abstract interface class DesignRenderer {
   /// A name for the view, shown to the user so they know what they are
   /// looking at — "2.5D preview" is an honest label and "3D" would not be.
-  String get label;
+  ///
+  /// Takes the app's phrases, because a renderer has to be able to name
+  /// itself in the language the user reads.
+  String labelIn(AppStrings strings);
 
   /// Whether this renderer can show a panel opening. A renderer that cannot
   /// must say so rather than silently ignoring the request.

@@ -1,3 +1,5 @@
+import '../i18n/numerals.dart';
+
 /// Display and input units.
 ///
 /// The model stores millimetres and only millimetres (spec section 3D). This
@@ -38,7 +40,10 @@ enum LengthUnit {
   /// that cannot be parsed must stay unconfirmed rather than quietly becoming
   /// zero (spec section 2).
   double? parseToMillimetres(String text) {
-    final cleaned = text.trim().replaceAll(',', '.');
+    // Arabic-Indic digits are accepted whatever the numeral setting says: the
+    // keyboard in someone's hand is not always the one the setting expects.
+    final cleaned =
+        NumeralSystem.toWestern(text.trim()).replaceAll(',', '.');
     if (cleaned.isEmpty) return null;
     final value = double.tryParse(cleaned);
     if (value == null || !value.isFinite) return null;

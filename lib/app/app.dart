@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/design/app_theme.dart';
+import '../core/i18n/app_language.dart';
+import '../core/i18n/strings.dart';
 import '../core/layout/responsive.dart';
 import '../domain/design_document.dart';
+import 'i18n/kurdish_delegates.dart';
 import 'screens/canvas_screen.dart';
 import 'screens/export_sheet.dart';
 import 'screens/new_design_screen.dart';
@@ -11,6 +15,7 @@ import 'screens/projects_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/viewer_screen.dart';
 import 'state/design_controller.dart';
+import 'state/preferences_controller.dart';
 import 'state/project_controller.dart';
 import 'state/viewer_controller.dart';
 import 'widgets/import_dialog.dart';
@@ -19,21 +24,41 @@ import 'widgets/import_dialog.dart';
 ///
 /// The whole agreed workflow is here: projects → choose → draw → measure and
 /// assign → 2.5D → notes → save and export.
-class ProFrameApp extends StatelessWidget {
+class ProFrameApp extends ConsumerWidget {
   /// Supplies project ids. Injected so a test can make them deterministic.
   final String Function() idFactory;
 
   const ProFrameApp({required this.idFactory, super.key});
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        title: 'ProFrame',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light(),
-        builder: (context, child) =>
-            BoundedTextScale(child: child ?? const SizedBox.shrink()),
-        home: _Flow(idFactory: idFactory),
-      );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strings = ref.watch(appStringsProvider);
+
+    return MaterialApp(
+      title: strings(T.appName),
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light(),
+      // Arabic and Kurdish read right to left, so the whole layout mirrors —
+      // app bars, back arrows, list rows and all (spec section 7).
+      locale: strings.language.locale,
+      supportedLocales: [for (final l in AppLanguage.values) l.locale],
+      localizationsDelegates: const [
+        // Kurdish first: it borrows Arabic's, and the first delegate that
+        // supports the locale is the one used.
+        KurdishMaterialLocalisations(),
+        KurdishWidgetLocalisations(),
+        KurdishCupertinoLocalisations(),
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      builder: (context, child) => AppStringsScope(
+        strings: strings,
+        child: BoundedTextScale(child: child ?? const SizedBox.shrink()),
+      ),
+      home: _Flow(idFactory: idFactory),
+    );
+  }
 }
 
 /// Where the user is.
@@ -74,22 +99,20 @@ class _FlowState extends ConsumerState<_Flow> {
     final choice = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Save before leaving?'),
-        content: const Text(
-          'This design has changes that are not saved yet.',
-        ),
+        title: Text(context.s(T.saveBeforeLeaving)),
+        content: Text(context.s(T.unsavedChanges)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop('cancel'),
-            child: const Text('Keep editing'),
+            child: Text(context.s(T.keepEditing)),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop('discard'),
-            child: const Text('Leave without saving'),
+            child: Text(context.s(T.leaveWithoutSaving)),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop('save'),
-            child: const Text('Save'),
+            child: Text(context.s(T.save)),
           ),
         ],
       ),
@@ -124,19 +147,16 @@ class _FlowState extends ConsumerState<_Flow> {
       final recover = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Recover unfinished design?'),
-          content: Text(
-            '"${draft.name}" was being worked on when the app last closed. '
-            'It has not been saved as a project yet.',
-          ),
+          title: Text(context.s(T.recoverTitle)),
+          content: Text(context.s(T.recoverBody, {'name': draft.name})),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Discard it'),
+              child: Text(context.s(T.discardIt)),
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Recover'),
+              child: Text(context.s(T.recover)),
             ),
           ],
         ),

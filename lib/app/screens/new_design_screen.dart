@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design/tokens.dart';
+import '../../core/i18n/strings.dart';
 import '../../core/layout/responsive.dart';
 import '../../core/layout/window_size.dart';
 import '../../domain/design_document.dart';
@@ -9,6 +10,7 @@ import '../../domain/product/factory_settings.dart';
 import '../../domain/product/finish.dart';
 import '../../domain/product/product_basics.dart';
 import '../../domain/product/profile_system.dart';
+import '../i18n/labels.dart';
 import '../state/settings_controller.dart';
 import '../widgets/choice_card.dart';
 import '../widgets/notice.dart';
@@ -93,10 +95,10 @@ class _NewDesignScreenState extends ConsumerState<NewDesignScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: const Text('New design'),
+          title: Text(context.s(T.newDesign)),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            tooltip: 'Back to projects',
+            tooltip: context.s(T.backToProjects),
             onPressed: widget.onBack,
           ),
         ),
@@ -166,13 +168,13 @@ class _Choices extends StatelessWidget {
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Heading('What are you making?'),
+          _Heading(context.s(T.whatAreYouMaking)),
           _ChoiceRow(
             twoColumn: twoColumn,
             children: [
               for (final option in ProductCategory.values)
                 ChoiceCard(
-                  label: option.label,
+                  label: context.s.product(option),
                   icon: option == ProductCategory.door
                       ? Icons.door_front_door_outlined
                       : Icons.window_outlined,
@@ -182,13 +184,13 @@ class _Choices extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
-          _Heading('What is it made from?'),
+          _Heading(context.s(T.whatIsItMadeFrom)),
           _ChoiceRow(
             twoColumn: twoColumn,
             children: [
               for (final option in FrameMaterial.values)
                 ChoiceCard(
-                  label: option.label,
+                  label: context.s.frameMaterial(option),
                   icon: Icons.layers_outlined,
                   selected: material == option,
                   onPressed: () => onMaterial(option),
@@ -197,9 +199,9 @@ class _Choices extends StatelessWidget {
           ),
           if (material != null) ...[
             const SizedBox(height: AppSpacing.lg),
-            _Heading('Colour'),
+            _Heading(context.s(T.colour)),
             Text(
-              'The colour of the door or window itself.',
+              context.s(T.colourHelp),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.mutedText,
                   ),
@@ -207,20 +209,17 @@ class _Choices extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             _FinishPicker(selected: finish, onSelected: onFinish),
             const SizedBox(height: AppSpacing.lg),
-            _Heading('Profile system'),
+            _Heading(context.s(T.profileSystem)),
             _ProfilePicker(
               material: material!,
               selected: profile,
               onSelected: onProfile,
             ),
             const SizedBox(height: AppSpacing.sm),
-            const Notice(
+            Notice(
               tone: NoticeTone.caution,
-              title: 'These are preview profiles',
-              message: 'No manufacturer data is included in this app. The '
-                  'profile sizes are generic examples so the 3D preview looks '
-                  'right. They must be replaced with your supplier\'s figures '
-                  'before anything is manufactured.',
+              title: context.s(T.previewProfilesTitle),
+              message: context.s(T.previewProfilesHelp),
             ),
           ],
         ],
@@ -312,7 +311,9 @@ class _FinishSwatch extends StatelessWidget {
   Widget build(BuildContext context) => Semantics(
         button: true,
         selected: selected,
-        label: selected ? '${finish.name}, selected' : finish.name,
+        label: selected
+            ? '${context.s.finishName(finish)}, ${context.s(T.selected)}'
+            : context.s.finishName(finish),
         child: ExcludeSemantics(
           child: InkWell(
             onTap: onPressed,
@@ -345,7 +346,7 @@ class _FinishSwatch extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.xs),
-                  Text(finish.name),
+                  Text(context.s.finishName(finish)),
                   if (selected) ...[
                     const SizedBox(width: AppSpacing.xxs),
                     const Icon(Icons.check, size: 18, color: AppColors.deepGreen),
@@ -379,9 +380,11 @@ class _ProfilePicker extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.xs),
             child: ChoiceCard(
-              label: option.name,
-              description: '${option.frameFaceMm.round()} mm frame face, '
-                  '${option.frameDepthMm.round()} mm deep',
+              label: context.s.profileName(option),
+              description: context.s(T.profileFaceAndDepth, {
+                'face': context.s.number(option.frameFaceMm),
+                'depth': context.s.number(option.frameDepthMm),
+              }),
               icon: Icons.view_in_ar_outlined,
               selected: selected?.id == option.id,
               onPressed: () => onSelected(option),
@@ -414,7 +417,7 @@ class _ContinueBar extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                 child: Text(
-                  'Choose a product and a material to continue.',
+                  context.s(T.chooseProductAndMaterial),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.mutedText,
@@ -423,7 +426,7 @@ class _ContinueBar extends StatelessWidget {
               ),
             FilledButton(
               onPressed: enabled ? onPressed : null,
-              child: const Text('Start drawing'),
+              child: Text(context.s(T.startDrawing)),
             ),
           ],
         ),

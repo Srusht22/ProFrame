@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../core/errors/app_exception.dart';
 import '../domain/design_document.dart';
+import '../domain/product/product_basics.dart';
 import 'key_value_store.dart';
 
 /// A saved project, as it appears in the list, without loading the whole
@@ -11,8 +12,14 @@ class ProjectSummary {
   final String name;
   final DateTime updatedAt;
 
-  /// What it is, in a few words, for the card.
-  final String description;
+  /// What it is, as facts rather than as a sentence — the card writes the
+  /// sentence, in whatever language the app is set to. A summary that carried
+  /// its own English description could not be translated.
+  final ProductCategory? category;
+  final FrameMaterial? material;
+  final double? widthMm;
+  final double? heightMm;
+  final int panelCount;
 
   /// True when the file could not be read. It is listed anyway, so a damaged
   /// project is visible rather than silently absent (spec section 10).
@@ -22,9 +29,16 @@ class ProjectSummary {
     required this.id,
     required this.name,
     required this.updatedAt,
-    required this.description,
+    this.category,
+    this.material,
+    this.widthMm,
+    this.heightMm,
+    this.panelCount = 0,
     this.isDamaged = false,
   });
+
+  /// Whether both overall sizes were entered.
+  bool get isMeasured => widthMm != null && heightMm != null;
 }
 
 /// Saves and reopens projects.
@@ -106,7 +120,11 @@ class ProjectRepository {
             id: design.id,
             name: design.name,
             updatedAt: design.updatedAt,
-            description: _describe(design),
+            category: design.category,
+            material: design.material,
+            widthMm: design.overallWidth?.millimetres,
+            heightMm: design.overallHeight?.millimetres,
+            panelCount: design.panels.length,
           ),
         );
       } on Object {
@@ -115,7 +133,6 @@ class ProjectRepository {
             id: id,
             name: 'Damaged project',
             updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
-            description: 'This project cannot be opened.',
             isDamaged: true,
           ),
         );
@@ -195,13 +212,4 @@ class ProjectRepository {
     return DesignDocument.fromJson(decoded);
   }
 
-  static String _describe(DesignDocument design) {
-    final size = design.overallWidth == null || design.overallHeight == null
-        ? 'not measured'
-        : '${design.overallWidth!.millimetres.round()} × '
-            '${design.overallHeight!.millimetres.round()} mm';
-    return '${design.category.label} · ${design.material.label} · $size · '
-        '${design.panels.length} '
-        '${design.panels.length == 1 ? 'panel' : 'panels'}';
-  }
 }

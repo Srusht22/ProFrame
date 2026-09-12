@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design/tokens.dart';
+import '../../core/i18n/app_language.dart';
+import '../../core/i18n/numerals.dart';
+import '../../core/i18n/strings.dart';
 import '../../core/units/length_unit.dart';
 import '../../domain/product/finish.dart';
 import '../../domain/product/product_basics.dart';
 import '../../domain/product/profile_system.dart';
+import '../i18n/labels.dart';
+import '../state/preferences_controller.dart';
 import '../state/settings_controller.dart';
 import '../widgets/dimension_input.dart';
 import '../widgets/notice.dart';
@@ -24,20 +29,24 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(factorySettingsProvider);
     final controller = ref.read(settingsControllerProvider.notifier);
+    final preferences = ref.watch(appPreferencesProvider);
+    final preferencesController =
+        ref.read(preferencesControllerProvider.notifier);
     final theme = Theme.of(context);
+    final s = context.s;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Factory settings'),
+        title: Text(s(T.factorySettings)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
+          tooltip: s(T.back),
           onPressed: onBack,
         ),
         actions: [
           TextButton(
             onPressed: controller.restoreDefaults,
-            child: const Text('Restore defaults'),
+            child: Text(s(T.restoreDefaults)),
           ),
         ],
       ),
@@ -45,73 +54,72 @@ class SettingsScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.md),
           children: [
-            const Notice(
-              message: 'These are the starting points for a new design. '
-                  'Designs already saved are not changed.',
-            ),
+            Notice(message: s(T.settingsNotice)),
             const SizedBox(height: AppSpacing.md),
 
-            Text('Defaults for a new design', style: theme.textTheme.titleMedium),
+            Text(s(T.defaultsForNewDesign), style: theme.textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
             _Choice<FrameMaterial>(
-              label: 'Material',
+              label: s(T.material),
               options: FrameMaterial.values,
-              labelOf: (m) => m.label,
+              labelOf: s.frameMaterial,
               selected: settings.defaultMaterial,
               onSelected: (m) =>
                   controller.save(settings.copyWith(defaultMaterial: m)),
             ),
             _Choice<Finish>(
-              label: 'Colour',
+              label: s(T.colour),
               options: StockFinishes.all,
-              labelOf: (f) => f.name,
+              labelOf: s.finishName,
               selected: settings.defaultFinish,
               onSelected: (f) =>
                   controller.save(settings.copyWith(defaultFinishId: f.id)),
             ),
             _Choice<LengthUnit>(
-              label: 'Staff type and read',
+              label: s(T.staffTypeAndRead),
               options: LengthUnit.values,
-              labelOf: (u) => '${u.name} (${u.symbol})',
+              labelOf: (u) => '${s.unitName(u)} (${s.unitSymbol(u)})',
               selected: settings.displayUnit,
               onSelected: (u) =>
                   controller.save(settings.copyWith(displayUnit: u)),
             ),
 
             const SizedBox(height: AppSpacing.md),
-            Text('How this factory measures', style: theme.textTheme.titleMedium),
+            Text(
+              s(T.howThisFactoryMeasures),
+              style: theme.textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.xs),
             _Choice<ViewingSide>(
-              label: 'Drawings are read from',
+              label: s(T.drawingsReadFrom),
               options: ViewingSide.values,
-              labelOf: (v) => v.label,
+              labelOf: s.viewingSide,
               selected: settings.defaultViewingSide,
               onSelected: (v) =>
                   controller.save(settings.copyWith(defaultViewingSide: v)),
             ),
             _Choice<DimensionReference>(
-              label: 'Sizes mean',
+              label: s(T.sizesMean),
               options: DimensionReference.values,
-              labelOf: (r) => r.label,
+              labelOf: s.dimensionReference,
               selected: settings.defaultDimensionReference,
               onSelected: (r) => controller
                   .save(settings.copyWith(defaultDimensionReference: r)),
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Fitting gap'),
+              title: Text(s(T.fittingGap)),
               subtitle: Text(
-                'Left each side when a size is a wall opening. '
-                'Currently ${settings.fittingGapMm.round()} mm.',
+                s(T.fittingGapNow, {
+                  'gap': s.length(settings.fittingGapMm, LengthUnit.millimetre),
+                }),
               ),
               trailing: const Icon(Icons.edit_outlined),
               onTap: () async {
                 final millimetres = await askForLengthMm(
                   context,
-                  title: 'Fitting gap',
-                  helper: 'The gap left on each side between the frame and the '
-                      'wall opening. It is always shown in the design, never '
-                      'applied invisibly.',
+                  title: s(T.fittingGap),
+                  helper: s(T.fittingGapHelp),
                   currentMm: settings.fittingGapMm,
                   unit: LengthUnit.millimetre,
                 );
@@ -122,7 +130,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
 
             const SizedBox(height: AppSpacing.md),
-            Text('Profile systems', style: theme.textTheme.titleMedium),
+            Text(s(T.profileSystems), style: theme.textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
             for (final profile in GenericProfiles.all)
               Card(
@@ -132,21 +140,27 @@ class SettingsScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(profile.name, style: theme.textTheme.titleSmall),
+                      Text(
+                        s.profileName(profile),
+                        style: theme.textTheme.titleSmall,
+                      ),
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
-                        'Frame ${profile.frameFaceMm.round()} × '
-                        '${profile.frameDepthMm.round()} mm · '
-                        'sash ${profile.sashFaceMm.round()} mm · '
-                        'divider ${profile.dividerFaceMm.round()} mm · '
-                        'rebate ${profile.glazingRebateMm.round()} mm',
+                        s(T.profileSizes, {
+                          'face': s.number(profile.frameFaceMm),
+                          'depth': s.number(profile.frameDepthMm),
+                          'sash': s.number(profile.sashFaceMm),
+                          'divider': s.number(profile.dividerFaceMm),
+                          'rebate': s.number(profile.glazingRebateMm),
+                        }),
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: AppColors.mutedText),
                       ),
                       Text(
-                        'Largest opening leaf '
-                        '${profile.maxSashWidthMm.round()} × '
-                        '${profile.maxSashHeightMm.round()} mm',
+                        s(T.largestLeaf, {
+                          'width': s.number(profile.maxSashWidthMm),
+                          'height': s.number(profile.maxSashHeightMm),
+                        }),
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: AppColors.mutedText),
                       ),
@@ -154,7 +168,7 @@ class SettingsScreen extends ConsumerWidget {
                         const SizedBox(height: AppSpacing.xs),
                         Notice(
                           tone: NoticeTone.caution,
-                          title: 'Generic preview profile',
+                          title: s(T.genericPreviewProfile),
                           message: profile.assumptions,
                         ),
                       ],
@@ -162,14 +176,46 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-            const Notice(
+            Notice(
               tone: NoticeTone.caution,
-              title: 'Replacing these with real data',
-              message: 'The profile systems above are built into this version. '
-                  'They are read through one interface, so a supplier '
-                  'catalogue can replace them without the rest of the app '
-                  'changing — but that work has not been done, because no '
-                  'catalogue has been supplied.',
+              title: s(T.replacingWithRealData),
+              message: s(T.replacingWithRealDataHelp),
+            ),
+
+            const SizedBox(height: AppSpacing.md),
+            Text(s(T.appLanguageSection), style: theme.textTheme.titleMedium),
+            const SizedBox(height: AppSpacing.xs),
+            // Each language names itself in its own script, so it can be found
+            // by someone who does not read the current one.
+            _Choice<AppLanguage>(
+              label: s(T.language),
+              options: AppLanguage.values,
+              labelOf: (l) => l.nativeName,
+              selected: preferences.language,
+              onSelected: preferencesController.setLanguage,
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: Text(
+                s(T.languageHelp),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: AppColors.mutedText),
+              ),
+            ),
+            _Choice<NumeralSystem>(
+              label: s(T.numerals),
+              options: NumeralSystem.values,
+              labelOf: (n) => s(switch (n) {
+                NumeralSystem.western => T.numeralsWestern,
+                NumeralSystem.arabicIndic => T.numeralsArabicIndic,
+              }),
+              selected: preferences.numerals,
+              onSelected: preferencesController.setNumerals,
+            ),
+            Text(
+              s(T.numeralsHelp),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: AppColors.mutedText),
             ),
             const SizedBox(height: AppSpacing.xl),
           ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/design/tokens.dart';
+import '../../core/i18n/strings.dart';
 
 /// How seriously to take a [Notice].
 enum NoticeTone { information, caution, problem }
@@ -31,19 +32,19 @@ class Notice extends StatelessWidget {
           AppColors.surface,
           AppColors.deepGreen,
           Icons.info_outline,
-          'Information',
+          context.s(T.noticeInformation),
         ),
       NoticeTone.caution => (
           AppColors.cautionSurface,
           AppColors.caution,
           Icons.warning_amber_outlined,
-          'Check this',
+          context.s(T.noticeCaution),
         ),
       NoticeTone.problem => (
           AppColors.dangerSurface,
           AppColors.danger,
           Icons.error_outline,
-          'Problem',
+          context.s(T.noticeProblem),
         ),
     };
 

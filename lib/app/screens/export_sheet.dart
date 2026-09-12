@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design/tokens.dart';
+import '../../core/i18n/strings.dart';
 import '../../domain/design_document.dart';
 import '../export/elevation_painter.dart';
 import '../export/export_service.dart';
@@ -51,25 +52,26 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
       if (!mounted) return;
       setState(() {
         _busy = null;
-        _message = '${result.fileName} — ${_size(result.byteCount)}';
+        _message = '${result.fileName} — ${_size(context, result.byteCount)}';
       });
     } on Object catch (error) {
       if (!mounted) return;
       setState(() {
         _busy = null;
-        _message = 'That export failed: $error';
+        _message = context.s(T.exportFailed, {'error': error});
       });
     }
   }
 
-  static String _size(int bytes) => bytes < 1024
-      ? '$bytes bytes'
-      : '${(bytes / 1024).toStringAsFixed(0)} KB';
+  static String _size(BuildContext context, int bytes) => bytes < 1024
+      ? context.s(T.fileBytes, {'size': context.s.number(bytes)})
+      : context.s(T.fileKilobytes, {'size': context.s.number(bytes / 1024)});
 
   @override
   Widget build(BuildContext context) {
     final service = ref.watch(exportServiceProvider);
     final theme = Theme.of(context);
+    final s = context.s;
     final design = widget.design;
 
     return SafeArea(
@@ -83,47 +85,47 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Export', style: theme.textTheme.titleLarge),
+            Text(s(T.export), style: theme.textTheme.titleLarge),
             const SizedBox(height: AppSpacing.xs),
 
             if (!design.hasConfirmedSize)
-              const Padding(
-                padding: EdgeInsets.only(bottom: AppSpacing.xs),
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                 child: Notice(
                   tone: NoticeTone.caution,
-                  title: 'Measurements are incomplete',
-                  message: 'Every export will be labelled as a preview.',
+                  title: s(T.measurementsIncomplete),
+                  message: s(T.everyExportPreview),
                 ),
               ),
 
-            Text('Drawing', style: theme.textTheme.titleMedium),
+            Text(s(T.drawing), style: theme.textTheme.titleMedium),
             SwitchListTile(
               value: _options.showDimensions,
               onChanged: (v) =>
                   setState(() => _options = _options.copyWith(showDimensions: v)),
-              title: const Text('Include dimensions'),
+              title: Text(s(T.includeDimensions)),
               contentPadding: EdgeInsets.zero,
             ),
             SwitchListTile(
               value: _options.showNotes,
               onChanged: (v) =>
                   setState(() => _options = _options.copyWith(showNotes: v)),
-              title: const Text('Include note markers'),
+              title: Text(s(T.includeNoteMarkers)),
               contentPadding: EdgeInsets.zero,
             ),
 
             const SizedBox(height: AppSpacing.sm),
             _ExportRow(
               icon: Icons.description_outlined,
-              title: 'Design sheet (PDF)',
-              subtitle: 'Drawing, dimensions, CH/Z legend and every note.',
+              title: s(T.designSheetPdf),
+              subtitle: s(T.designSheetPdfHelp),
               busy: _busy == 'pdf',
               onPressed: () => _run('pdf', () => service.exportPdf(design)),
             ),
             _ExportRow(
               icon: Icons.image_outlined,
-              title: 'Drawing (PNG)',
-              subtitle: 'The front view as a picture.',
+              title: s(T.drawingPng),
+              subtitle: s(T.drawingPngHelp),
               busy: _busy == 'png',
               onPressed: () => _run(
                 'png',
@@ -132,9 +134,8 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
             ),
             _ExportRow(
               icon: Icons.inventory_2_outlined,
-              title: 'Project file (.proframe)',
-              subtitle: 'The editable design itself — the only one that '
-                  'reopens for editing.',
+              title: s(T.projectFileProframe),
+              subtitle: s(T.projectFileHelp),
               busy: _busy == 'project',
               onPressed: () =>
                   _run('project', () => service.exportProject(design)),
@@ -146,12 +147,7 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
             ],
 
             const SizedBox(height: AppSpacing.sm),
-            const Notice(
-              tone: NoticeTone.caution,
-              message: 'A PDF or a PNG is a picture of this design. Only the '
-                  'project file carries the dimensions, the CH/Z settings and '
-                  'the notes, and only it can be opened and edited again.',
-            ),
+            Notice(tone: NoticeTone.caution, message: s(T.exportFooter)),
             const SizedBox(height: AppSpacing.md),
           ],
         ),

@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # State management. One approach across the whole app (spec section 9).
   # Riverpod is compile-safe, testable without a widget tree, and has no

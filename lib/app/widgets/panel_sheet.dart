@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../core/design/tokens.dart';
+import '../../core/i18n/strings.dart';
 import '../../domain/panel.dart';
 import '../../domain/product/opening.dart';
 import '../../domain/product/product_basics.dart';
+import '../i18n/labels.dart';
 import 'notice.dart';
 
 /// What the user asked to change about a panel.
@@ -87,6 +89,7 @@ class _PanelSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = context.s;
     final opening = panel.opening;
 
     return SafeArea(
@@ -101,12 +104,13 @@ class _PanelSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '${panel.widthMm.round()} × ${panel.heightMm.round()} mm',
+              '${s.number(panel.widthMm)} × ${s.number(panel.heightMm)} '
+              '${s(T.unitMillimetre)}',
               style: theme.textTheme.titleLarge,
             ),
             const SizedBox(height: AppSpacing.md),
 
-            Text('Type', style: theme.textTheme.titleMedium),
+            Text(s(T.panelType), style: theme.textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
             Row(
               children: [
@@ -115,7 +119,7 @@ class _PanelSheet extends StatelessWidget {
                     // Both the factory code and the plain word, because a new
                     // salesperson does not yet know what CH means.
                     code: PanelBehaviour.fixed.code,
-                    label: PanelBehaviour.fixed.label,
+                    label: s.behaviour(PanelBehaviour.fixed),
                     selected: panel.behaviour.isFixed,
                     onPressed: () => _close(context, const MakeFixed()),
                   ),
@@ -124,7 +128,7 @@ class _PanelSheet extends StatelessWidget {
                 Expanded(
                   child: _BigChoice(
                     code: PanelBehaviour.opening.code,
-                    label: PanelBehaviour.opening.label,
+                    label: s.behaviour(PanelBehaviour.opening),
                     selected: panel.behaviour.isOpening,
                     onPressed: () => _close(
                       context,
@@ -144,18 +148,18 @@ class _PanelSheet extends StatelessWidget {
 
             if (opening != null) ...[
               const SizedBox(height: AppSpacing.md),
-              Text('How it opens', style: theme.textTheme.titleMedium),
+              Text(s(T.howItOpens), style: theme.textTheme.titleMedium),
               // Handing is meaningless without saying which side you are
               // looking from, so it is stated here every time.
               Text(
-                viewedFrom.label,
+                s.viewingSide(viewedFrom),
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: AppColors.mutedText),
               ),
               const SizedBox(height: AppSpacing.xs),
               _OptionRow<OpeningMechanism>(
                 options: OpeningMechanism.values,
-                labelOf: (mechanism) => mechanism.label,
+                labelOf: s.mechanism,
                 selected: opening.mechanism,
                 onSelected: (mechanism) => _close(
                   context,
@@ -171,7 +175,7 @@ class _PanelSheet extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xs),
                 _OptionRow<HingeSide>(
                   options: HingeSide.values,
-                  labelOf: (side) => side.label,
+                  labelOf: s.hingeSide,
                   selected: opening.hingeSide,
                   onSelected: (side) => _close(
                     context,
@@ -185,7 +189,7 @@ class _PanelSheet extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xs),
                 _OptionRow<OpeningDirection>(
                   options: OpeningDirection.values,
-                  labelOf: (direction) => direction.label,
+                  labelOf: s.openingDirection,
                   selected: opening.direction,
                   onSelected: (direction) => _close(
                     context,
@@ -197,33 +201,32 @@ class _PanelSheet extends StatelessWidget {
               ],
               if (!opening.isConfirmed) ...[
                 const SizedBox(height: AppSpacing.xs),
-                const Notice(
+                Notice(
                   tone: NoticeTone.caution,
-                  message: 'The chevron said which edge the hinges are on. '
-                      'Confirm how it opens.',
+                  message: s(T.confirmHowItOpens),
                 ),
               ],
             ],
 
             const SizedBox(height: AppSpacing.md),
-            Text('Glass', style: theme.textTheme.titleMedium),
+            Text(s(T.glass), style: theme.textTheme.titleMedium),
             SwitchListTile(
               value: panel.hasMesh,
               onChanged: (value) => _close(context, SetMesh(value)),
-              title: const Text('Mesh (توري)'),
-              subtitle: const Text('An insect screen on this panel'),
+              title: Text(s(T.mesh)),
+              subtitle: Text(s(T.meshHelp)),
               contentPadding: EdgeInsets.zero,
             ),
             SwitchListTile(
               value: panel.isEmpty,
               onChanged: (value) => _close(context, SetEmpty(value)),
-              title: const Text('Empty (فارغ)'),
-              subtitle: const Text('No glass and no panel in this opening'),
+              title: Text(s(T.emptyOpening)),
+              subtitle: Text(s(T.emptyOpeningHelp)),
               contentPadding: EdgeInsets.zero,
             ),
 
             const SizedBox(height: AppSpacing.sm),
-            Text('Note', style: theme.textTheme.titleMedium),
+            Text(s(T.note), style: theme.textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
             for (final note in panel.notes)
               Padding(
@@ -245,7 +248,7 @@ class _PanelSheet extends StatelessWidget {
                             ? Icons.visibility_outlined
                             : Icons.visibility_off_outlined,
                       ),
-                      tooltip: note.isVisible ? 'Hide this note' : 'Show it',
+                      tooltip: note.isVisible ? s(T.hideNote) : s(T.showNote),
                       onPressed: () => _close(
                         context,
                         ToggleNoteVisible(note.id, !note.isVisible),
@@ -253,12 +256,12 @@ class _PanelSheet extends StatelessWidget {
                     ),
                     IconButton(
                       icon: const Icon(Icons.edit_outlined),
-                      tooltip: 'Edit this note',
+                      tooltip: s(T.editNote),
                       onPressed: () => _close(context, EditNote(note.id)),
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete_outline),
-                      tooltip: 'Delete this note',
+                      tooltip: s(T.deleteNote),
                       onPressed: () => _close(context, DeleteNote(note.id)),
                     ),
                   ],
@@ -266,7 +269,7 @@ class _PanelSheet extends StatelessWidget {
               ),
             OutlinedButton.icon(
               icon: const Icon(Icons.add_comment_outlined),
-              label: const Text('Add a note'),
+              label: Text(s(T.addNote)),
               onPressed: () => _close(context, const EditNote(null)),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -297,7 +300,9 @@ class _BigChoice extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: selected ? '$code, $label, selected' : '$code, $label',
+      label: selected
+          ? '$code, $label, ${context.s(T.selected)}'
+          : '$code, $label',
       child: ExcludeSemantics(
         child: Material(
           color: selected ? AppColors.deepGreen : AppColors.canvasSurface,

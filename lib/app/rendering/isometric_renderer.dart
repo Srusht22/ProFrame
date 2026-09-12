@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/design/tokens.dart';
+import '../../core/i18n/strings.dart';
 import '../../domain/rendering/scene_builder.dart';
 import 'design_renderer.dart';
 import 'scene_painter.dart';
@@ -19,7 +20,7 @@ class IsometricRenderer implements DesignRenderer {
   const IsometricRenderer();
 
   @override
-  String get label => '2.5D preview';
+  String labelIn(AppStrings strings) => strings(T.preview25d);
 
   @override
   bool get supportsOpeningAnimation => true;

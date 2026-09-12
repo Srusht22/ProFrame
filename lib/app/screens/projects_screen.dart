@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design/tokens.dart';
+import '../../core/i18n/strings.dart';
 import '../../core/layout/responsive.dart';
 import '../../domain/design_document.dart';
 import '../../infrastructure/project_repository.dart';
+import '../i18n/labels.dart';
 import '../state/project_controller.dart';
 import '../widgets/dimension_input.dart';
 import '../widgets/notice.dart';
@@ -37,19 +39,20 @@ class ProjectsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final projects = ref.watch(projectListProvider);
+    final s = context.s;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ProFrame'),
+        title: Text(s(T.appName)),
         actions: [
           IconButton(
             icon: const Icon(Icons.file_open_outlined),
-            tooltip: 'Open a project file',
+            tooltip: s(T.openProjectFile),
             onPressed: onImport,
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Factory settings',
+            tooltip: s(T.factorySettings),
             onPressed: onSettings,
           ),
         ],
@@ -57,7 +60,7 @@ class ProjectsScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: onNew,
         icon: const Icon(Icons.add),
-        label: const Text('New design'),
+        label: Text(s(T.newDesign)),
       ),
       body: SafeArea(
         child: ResponsiveBuilder(
@@ -70,7 +73,7 @@ class ProjectsScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Notice(
                 tone: NoticeTone.problem,
-                title: 'Saved projects could not be read',
+                title: s(T.projectsUnreadable),
                 message: _shorten('$error'),
               ),
             ),
@@ -99,7 +102,7 @@ class ProjectsScreen extends ConsumerWidget {
     try {
       final design = await repository.load(summary.id);
       if (design == null) {
-        if (context.mounted) _say(context, 'That project is no longer there.');
+        if (context.mounted) _say(context, context.s(T.projectGone));
         return;
       }
       onOpen(design);
@@ -115,8 +118,8 @@ class ProjectsScreen extends ConsumerWidget {
   ) async {
     final name = await askForNote(
       context,
-      title: 'Rename project',
-      helper: 'What should this design be called?',
+      title: context.s(T.renameProject),
+      helper: context.s(T.whatShouldItBeCalled),
       current: summary.name,
     );
     if (name == null || name.trim().isEmpty) return;
@@ -143,7 +146,9 @@ class ProjectsScreen extends ConsumerWidget {
       newId: 'p${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}',
     );
     ref.invalidate(projectListProvider);
-    if (context.mounted) _say(context, 'Copied "${summary.name}".');
+    if (context.mounted) {
+      _say(context, context.s(T.projectCopied, {'name': summary.name}));
+    }
   }
 
   Future<void> _delete(
@@ -157,20 +162,19 @@ class ProjectsScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete this project?'),
+        title: Text(context.s(T.deleteProjectTitle)),
         content: Text(
-          '"${summary.name}" will be removed from this device. '
-          'This cannot be undone.',
+          context.s(T.deleteProjectBody, {'name': summary.name}),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Keep it'),
+            child: Text(context.s(T.keepIt)),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
+            child: Text(context.s(T.delete)),
           ),
         ],
       ),
@@ -179,7 +183,9 @@ class ProjectsScreen extends ConsumerWidget {
 
     await ref.read(projectRepositoryProvider).delete(summary.id);
     ref.invalidate(projectListProvider);
-    if (context.mounted) _say(context, 'Deleted "${summary.name}".');
+    if (context.mounted) {
+      _say(context, context.s(T.projectDeleted, {'name': summary.name}));
+    }
   }
 
   /// Keeps a message to something a person will actually read.
@@ -212,13 +218,12 @@ class _EmptyState extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'No saved designs yet',
+                context.s(T.noSavedDesigns),
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Tap New design, choose a door or a window, and draw it the '
-                'way you would on paper.',
+                context.s(T.noSavedDesignsHelp),
                 textAlign: TextAlign.center,
                 style: Theme.of(context)
                     .textTheme
@@ -274,6 +279,30 @@ class _ProjectList extends StatelessWidget {
       );
 }
 
+/// What a project is, in a few words, in the app's language.
+///
+/// Built here rather than stored with the project, so changing language
+/// changes the card — and so a saved file never carries an English sentence
+/// that cannot be translated later.
+String _describe(BuildContext context, ProjectSummary project) {
+  final s = context.s;
+  if (project.isDamaged) return s(T.projectDamaged);
+
+  final size = project.isMeasured
+      ? '${s.number(project.widthMm!)} × ${s.number(project.heightMm!)} '
+          '${s(T.unitMillimetre)}'
+      : s(T.notMeasured);
+  final category = project.category;
+  final material = project.material;
+
+  return [
+    if (category != null) s.product(category),
+    if (material != null) s.frameMaterial(material),
+    size,
+    s(T.panelCount, {'count': s.number(project.panelCount)}),
+  ].join(' · ');
+}
+
 class _ProjectCard extends StatelessWidget {
   final ProjectSummary project;
   final VoidCallback onOpen;
@@ -321,7 +350,9 @@ class _ProjectCard extends StatelessWidget {
                         ],
                         Expanded(
                           child: Text(
-                            project.name,
+                            project.isDamaged
+                                ? context.s(T.damagedProject)
+                                : project.name,
                             style: theme.textTheme.titleMedium,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -330,7 +361,7 @@ class _ProjectCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      project.description,
+                      _describe(context, project),
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: AppColors.mutedText),
                       maxLines: 2,
@@ -340,18 +371,27 @@ class _ProjectCard extends StatelessWidget {
                 ),
               ),
               PopupMenuButton<String>(
-                tooltip: 'More for ${project.name}',
+                tooltip: context.s(T.moreForProject, {'name': project.name}),
                 onSelected: (choice) => switch (choice) {
                   'rename' => onRename(),
                   'duplicate' => onDuplicate(),
                   _ => onDelete(),
                 },
                 itemBuilder: (context) => [
-                  if (!project.isDamaged) ...const [
-                    PopupMenuItem(value: 'rename', child: Text('Rename')),
-                    PopupMenuItem(value: 'duplicate', child: Text('Duplicate')),
+                  if (!project.isDamaged) ...[
+                    PopupMenuItem(
+                      value: 'rename',
+                      child: Text(context.s(T.rename)),
+                    ),
+                    PopupMenuItem(
+                      value: 'duplicate',
+                      child: Text(context.s(T.duplicate)),
+                    ),
                   ],
-                  const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Text(context.s(T.delete)),
+                  ),
                 ],
               ),
             ],
