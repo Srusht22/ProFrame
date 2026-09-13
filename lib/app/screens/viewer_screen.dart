@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 import '../../core/design/tokens.dart';
 import '../../core/i18n/product_labels.dart';
 import '../../core/i18n/strings.dart';
@@ -10,6 +9,8 @@ import '../../core/units/length_unit.dart';
 import '../../domain/design_document.dart';
 import '../../domain/panel.dart';
 import '../../domain/product/profile_system.dart';
+import '../../domain/rendering/front_elevation.dart';
+import '../export/elevation_painter.dart';
 import '../rendering/animated_design_view.dart';
 import '../rendering/design_renderer.dart';
 import '../rendering/isometric_renderer.dart';
@@ -40,12 +41,14 @@ class ViewerScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final design = ref.watch(designControllerProvider).design;
     final viewer = ref.watch(viewerControllerProvider);
-    final profile = GenericProfiles.byId(design.profile.id) ??
+    final profile =
+        GenericProfiles.byId(design.profile.id) ??
         GenericProfiles.defaultFor(design.material);
 
     return ResponsiveBuilder(
       builder: (context, size) {
-        final sideBySide = size.widthClass.hasRoomForSidePanel &&
+        final sideBySide =
+            size.widthClass.hasRoomForSidePanel &&
             (size.isLandscape || size.widthClass.isExpanded);
 
         return Scaffold(
@@ -57,24 +60,41 @@ class ViewerScreen extends ConsumerWidget {
             ),
             title: Text(renderer.labelIn(context.s)),
             actions: [
+              if (!sideBySide)
+                IconButton(
+                  icon: Icon(
+                    viewer.showingSketch
+                        ? Icons.view_in_ar_outlined
+                        : Icons.draw_outlined,
+                  ),
+                  tooltip: context.s(
+                    viewer.showingSketch ? T.showProduct : T.showSketch,
+                  ),
+                  onPressed: () => ref
+                      .read(viewerControllerProvider.notifier)
+                      .showSketch(!viewer.showingSketch),
+                ),
               IconButton(
                 icon: const Icon(Icons.flip_camera_android_outlined),
                 tooltip: context.s(T.turnAround),
-                onPressed:
-                    ref.read(viewerControllerProvider.notifier).turnAround,
+                onPressed: ref
+                    .read(viewerControllerProvider.notifier)
+                    .turnAround,
               ),
               if (viewer.openPanels.isNotEmpty)
                 IconButton(
                   icon: const Icon(Icons.close_fullscreen),
                   tooltip: context.s(T.closeEveryPanel),
-                  onPressed:
-                      ref.read(viewerControllerProvider.notifier).closeAll,
+                  onPressed: ref
+                      .read(viewerControllerProvider.notifier)
+                      .closeAll,
                 ),
               IconButton(
                 icon: const Icon(Icons.center_focus_strong),
                 tooltip: context.s(T.fitTheView),
-                onPressed:
-                    ref.read(viewerControllerProvider.notifier).resetView,
+                onPressed: ref
+                    .read(viewerControllerProvider.notifier)
+                    .resetView,
               ),
             ],
           ),
@@ -87,7 +107,15 @@ class ViewerScreen extends ConsumerWidget {
                       ? Row(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+                            // The drawing beside the product, so the preview
+                            // can be checked against it without leaving.
                             Expanded(
+                              flex: 2,
+                              child: _SketchPanel(design: design),
+                            ),
+                            const VerticalDivider(width: 1),
+                            Expanded(
+                              flex: 3,
                               child: _Viewer(
                                 renderer: renderer,
                                 design: design,
@@ -101,6 +129,9 @@ class ViewerScreen extends ConsumerWidget {
                             ),
                           ],
                         )
+                      // Only room for one: the app bar switches between them.
+                      : viewer.showingSketch
+                      ? _SketchPanel(design: design)
                       : _Viewer(
                           renderer: renderer,
                           design: design,
@@ -199,7 +230,8 @@ class _ViewerState extends ConsumerState<_Viewer> {
     );
   }
 
-  void _showNote(BuildContext context, Panel panel) => showModalBottomSheet<void>(
+  void _showNote(BuildContext context, Panel panel) =>
+      showModalBottomSheet<void>(
         context: context,
         showDragHandle: true,
         backgroundColor: AppColors.surface,
@@ -220,10 +252,7 @@ class _ViewerState extends ConsumerState<_Viewer> {
                 for (final note in panel.notes)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                    child: Notice(
-                      title: context.s(T.note),
-                      message: note.text,
-                    ),
+                    child: Notice(title: context.s(T.note), message: note.text),
                   ),
                 if (panel.behaviour.isOpening) ...[
                   const SizedBox(height: AppSpacing.sm),
@@ -260,7 +289,7 @@ class _SummaryStrip extends StatelessWidget {
     final size = width == null || height == null
         ? s(T.notMeasured)
         : '${s.length(width.millimetres, unit)} × '
-            '${s.length(height.millimetres, unit)}';
+              '${s.length(height.millimetres, unit)}';
 
     return Container(
       width: double.infinity,
@@ -325,30 +354,26 @@ class _Chip extends StatelessWidget {
   final String text;
   final double maxWidth;
 
-  const _Chip({
-    required this.icon,
-    required this.text,
-    required this.maxWidth,
-  });
+  const _Chip({required this.icon, required this.text, required this.maxWidth});
 
   @override
   Widget build(BuildContext context) => ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: AppColors.mutedText),
-            const SizedBox(width: AppSpacing.xxs),
-            Flexible(
-              child: Text(
-                text,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-          ],
+    constraints: BoxConstraints(maxWidth: maxWidth),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: AppColors.mutedText),
+        const SizedBox(width: AppSpacing.xxs),
+        Flexible(
+          child: Text(
+            text,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 class _NoteChip extends StatelessWidget {
@@ -358,20 +383,103 @@ class _NoteChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => TextButton.icon(
-        icon: const Icon(Icons.sticky_note_2, size: 18),
-        label: Text(context.s(T.designNote)),
-        onPressed: () => showModalBottomSheet<void>(
-          context: context,
-          showDragHandle: true,
-          backgroundColor: AppColors.surface,
-          builder: (context) => SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Notice(title: context.s(T.designNote), message: note),
-            ),
-          ),
+    icon: const Icon(Icons.sticky_note_2, size: 18),
+    label: Text(context.s(T.designNote)),
+    onPressed: () => showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: AppColors.surface,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Notice(title: context.s(T.designNote), message: note),
         ),
-      );
+      ),
+    ),
+  );
+}
+
+/// The user's own drawing, beside the product.
+///
+/// The question this answers is the one every user asks of a preview: is that
+/// what I drew? Both are drawn to the same size from the same design, so the
+/// two can be read against each other line for line — the pencil underneath
+/// is the stroke, the solid shape on top is what was made of it.
+class _SketchPanel extends StatelessWidget {
+  final DesignDocument design;
+
+  const _SketchPanel({required this.design});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.s;
+    final theme = Theme.of(context);
+
+    return ColoredBox(
+      color: AppColors.canvasSurface,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // The caption explains the panel, but the drawing is the panel: on
+          // a short screen the words go and the drawing stays.
+          final room =
+              constraints.maxHeight > 260 && constraints.maxWidth > 220;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                  AppSpacing.sm,
+                  0,
+                ),
+                child: Text(
+                  s(T.sketchPanelTitle),
+                  style: theme.textTheme.titleSmall,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.xs),
+                  child: CustomPaint(
+                    painter: ElevationPainter(
+                      elevation: FrontElevation.of(design),
+                      ink: [
+                        for (final stroke in design.sketch.strokes)
+                          stroke.points,
+                      ],
+                      inkColor: AppColors.deepGreen,
+                      glassColor: AppColors.glassTint,
+                      mutedColor: AppColors.mutedText,
+                      backgroundColor: AppColors.canvasSurface,
+                      strings: s,
+                    ),
+                    size: Size.infinite,
+                  ),
+                ),
+              ),
+              if (room)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.sm,
+                    0,
+                    AppSpacing.sm,
+                    AppSpacing.sm,
+                  ),
+                  child: Text(
+                    s(T.sketchPanelHelp),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.mutedText,
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
 
 /// What sits beside the viewer where there is room for it.
@@ -407,8 +515,9 @@ class _SidePanel extends StatelessWidget {
                       width: 32,
                       child: Text(
                         panel.behaviour.code,
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     Expanded(
@@ -426,8 +535,9 @@ class _SidePanel extends StatelessWidget {
                                 panel.opening!,
                                 design.viewedFrom,
                               ),
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(color: AppColors.mutedText),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: AppColors.mutedText,
+                              ),
                             ),
                           if (panel.hasMesh || panel.isEmpty)
                             Text(
@@ -435,14 +545,16 @@ class _SidePanel extends StatelessWidget {
                                 if (panel.hasMesh) s(T.mesh),
                                 if (panel.isEmpty) s(T.emptyPanel),
                               ].join(' · '),
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(color: AppColors.mutedText),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: AppColors.mutedText,
+                              ),
                             ),
                           if (panel.hasNote)
                             Text(
                               panel.noteSummary,
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(color: AppColors.mutedText),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: AppColors.mutedText,
+                              ),
                             ),
                         ],
                       ),
@@ -482,9 +594,7 @@ class _ViewerFooter extends StatelessWidget {
       ),
       child: Text(
         context.s(opening == 0 ? T.previewOnly : T.previewOnlyTapToOpen),
-        style: Theme.of(context)
-            .textTheme
-            .bodySmall
+        style: Theme.of(context).textTheme.bodySmall
             ?.copyWith(color: AppColors.mutedText),
       ),
     );
@@ -504,43 +614,46 @@ class _CameraBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.outline)),
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+    decoration: const BoxDecoration(
+      color: AppColors.surface,
+      border: Border(top: BorderSide(color: AppColors.outline)),
+    ),
+    child: Row(
+      children: [
+        const Icon(
+          Icons.threed_rotation_outlined,
+          size: 18,
+          color: AppColors.mutedText,
         ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.threed_rotation_outlined,
-              size: 18,
-              color: AppColors.mutedText,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              context.s(T.viewAngle),
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.mutedText),
-            ),
-            Expanded(
-              child: Slider(
-                value: angle,
-                min: 8,
-                max: 62,
-                label: '${context.s.number(angle)}°',
-                onChanged: onAngle,
-              ),
-            ),
-            SizedBox(
-              width: 34,
-              child: Text(
-                '${context.s.number(angle)}°',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-          ],
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          context.s(T.viewAngle),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: AppColors.mutedText),
         ),
-      );
+        Expanded(
+          child: Slider(
+            // The same range the controller accepts: a slider that can be
+            // dragged to a value the app refuses is a slider that crashes.
+            value: angle.clamp(
+              ViewerState.minTurnDegrees,
+              ViewerState.maxTurnDegrees,
+            ),
+            min: ViewerState.minTurnDegrees,
+            max: ViewerState.maxTurnDegrees,
+            label: '${context.s.number(angle)}°',
+            onChanged: onAngle,
+          ),
+        ),
+        SizedBox(
+          width: 34,
+          child: Text(
+            '${context.s.number(angle)}°',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+      ],
+    ),
+  );
 }

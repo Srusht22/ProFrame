@@ -144,6 +144,13 @@ on, and the app tells you it moved.
 Tap **3D Preview**.
 
 - **Tap a Z panel** and it opens. Tap it again and it closes.
+**Your drawing is shown beside it**, at the same size, so you can check the
+preview against what you drew without leaving the screen. On a phone there is
+only room for one at a time — the button in the top bar swaps between them.
+
+**View angle** turns the product. All the way left is square on, which is the
+plain elevation; further round shows the frame depth and the sill.
+
 - **Tap a panel with a note** to read the note.
 - **Drag** to move the view, **pinch** to zoom.
 - **The slider at the bottom** raises and lowers the view angle.

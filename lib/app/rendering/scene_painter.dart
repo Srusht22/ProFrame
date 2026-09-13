@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/design/tokens.dart';
-import '../../domain/rendering/isometric_projection.dart';
 import '../../domain/rendering/point3.dart';
+import '../../domain/rendering/product_projection.dart';
 import '../../domain/rendering/scene.dart';
 import 'surface_shading.dart';
 
@@ -13,7 +13,7 @@ import 'surface_shading.dart';
 /// under the finger.
 @immutable
 class SceneViewport {
-  final IsometricProjection projection;
+  final ProductProjection projection;
   final double scale;
   final Offset origin;
 
@@ -27,7 +27,7 @@ class SceneViewport {
   factory SceneViewport.fit(
     RenderScene scene,
     Size size, {
-    IsometricProjection projection = const IsometricProjection(),
+    ProductProjection projection = const ProductProjection(),
     double zoom = 1,
     Offset pan = Offset.zero,
   }) {
@@ -39,7 +39,10 @@ class SceneViewport {
       );
     }
 
-    final (left, top, right, bottom) = projection.projectedBounds(scene.extent);
+    // Bound to this product: it turns about its own middle, and the camera
+    // stands back by something proportional to its size.
+    final bound = projection.forExtent(scene.extent);
+    final (left, top, right, bottom) = bound.projectedBounds(scene.extent);
     final width = (right - left).abs();
     final height = (bottom - top).abs();
     if (width <= 0 || height <= 0) {
@@ -54,7 +57,7 @@ class SceneViewport {
     final scale = fit * zoom;
 
     return SceneViewport(
-      projection: projection,
+      projection: bound,
       scale: scale,
       origin: Offset(
             (size.width - width * scale) / 2 - left * scale,
@@ -90,16 +93,31 @@ class SceneViewport {
       other is SceneViewport &&
       other.scale == scale &&
       other.origin == origin &&
-      other.projection.depthAngleDegrees == projection.depthAngleDegrees &&
-      other.projection.depthScale == projection.depthScale;
+      other.projection.turnDegrees == projection.turnDegrees &&
+      other.projection.turnSign == projection.turnSign &&
+      other.projection.tiltDegrees == projection.tiltDegrees;
 
   @override
   int get hashCode => Object.hash(
         scale,
         origin,
-        projection.depthAngleDegrees,
-        projection.depthScale,
+        projection.turnDegrees,
+        projection.turnSign,
+        projection.tiltDegrees,
       );
+
+  /// How far a face sits from the viewer, once the product has been turned.
+  ///
+  /// The mean of its corners: faces here are flat quadrilaterals that do not
+  /// cross one another, so their middles order them correctly.
+  double depthOf(List<Point3> corners) {
+    if (corners.isEmpty) return 0;
+    var total = 0.0;
+    for (final corner in corners) {
+      total += projection.project(corner).depth;
+    }
+    return total / corners.length;
+  }
 
   /// The panel under [pixels], nearest first, or null.
   ///
@@ -153,13 +171,31 @@ class ScenePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (final face in scene.faces) {
+    // Back to front, for this angle. The builder's own order is right for a
+    // product seen square on, but once it is turned the far jamb and the near
+    // one change places — so what is behind what is decided here, where the
+    // angle is known. The builder's key breaks ties, which is what keeps a
+    // sash swung towards the viewer in front of the frame it sits in.
+    for (final face in _backToFront(scene.faces, (f) => f.corners,
+        (f) => f.sortDepth)) {
       _paintFace(canvas, face);
     }
-    for (final line in scene.lines) {
+    for (final line in _backToFront(scene.lines, (l) => [l.from, l.to],
+        (l) => l.sortDepth)) {
       _paintLine(canvas, line);
     }
   }
+
+  List<T> _backToFront<T>(
+    List<T> items,
+    List<Point3> Function(T) cornersOf,
+    double Function(T) tieBreak,
+  ) =>
+      [...items]..sort((a, b) {
+        final depth =
+            viewport.depthOf(cornersOf(b)).compareTo(viewport.depthOf(cornersOf(a)));
+        return depth != 0 ? depth : tieBreak(a).compareTo(tieBreak(b));
+      });
 
   void _paintFace(Canvas canvas, SceneFace face) {
     final path = viewport.pathOf(face.corners);

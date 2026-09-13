@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design/tokens.dart';
-import '../../domain/rendering/isometric_projection.dart';
+import '../../domain/rendering/product_projection.dart';
 
 /// What the viewer is showing: which panels are open, and where the camera is.
 ///
@@ -10,30 +10,46 @@ import '../../domain/rendering/isometric_projection.dart';
 /// rotation and a trip back to the canvas and forward again — the round trip
 /// the spec requires to work indefinitely (spec Phase 3, item 4).
 class ViewerState {
+  /// The turn the viewer opens at: enough to read as solid, not so much that
+  /// the elevation is hard to compare with the drawing beside it.
+  static const double defaultTurnDegrees = 26;
+
+  /// How far the product can be turned. Zero is square on — the elevation,
+  /// which is a view worth having — and sixty is as far round as a preview
+  /// stays readable.
+  static const double minTurnDegrees = 0;
+  static const double maxTurnDegrees = 60;
+
   /// Panels the user has opened, by id. A panel not listed is closed.
   final Set<String> openPanels;
 
   final double zoom;
   final Offset pan;
 
-  /// How steeply depth recedes, in degrees. The camera's elevation.
+  /// How far the product is turned, in degrees. Zero is square on, which is
+  /// the elevation exactly.
   final double cameraAngle;
 
-  /// Which side depth recedes towards. Turning the product around.
+  /// Which way it is turned. Turning the product around.
   final bool fromTheRight;
+
+  /// On a screen with room for only one, whether the drawing is shown instead
+  /// of the product.
+  final bool showingSketch;
 
   const ViewerState({
     this.openPanels = const {},
     this.zoom = 1,
     this.pan = Offset.zero,
-    this.cameraAngle = 30,
+    this.cameraAngle = defaultTurnDegrees,
     this.fromTheRight = true,
+    this.showingSketch = false,
   });
 
   /// The projection this camera describes.
-  IsometricProjection get projection => IsometricProjection(
-        depthAngleDegrees: cameraAngle,
-        depthSign: fromTheRight ? 1 : -1,
+  ProductProjection get projection => ProductProjection(
+        turnDegrees: cameraAngle,
+        turnSign: fromTheRight ? 1 : -1,
       );
 
   bool isOpen(String panelId) => openPanels.contains(panelId);
@@ -44,6 +60,7 @@ class ViewerState {
     Offset? pan,
     double? cameraAngle,
     bool? fromTheRight,
+    bool? showingSketch,
   }) =>
       ViewerState(
         openPanels: openPanels ?? this.openPanels,
@@ -51,6 +68,7 @@ class ViewerState {
         pan: pan ?? this.pan,
         cameraAngle: cameraAngle ?? this.cameraAngle,
         fromTheRight: fromTheRight ?? this.fromTheRight,
+        showingSketch: showingSketch ?? this.showingSketch,
       );
 }
 
@@ -102,16 +120,27 @@ class ViewerController extends Notifier<ViewerState> {
   /// vanish and the view collapses to a plain elevation, and at 90 the
   /// elevation itself disappears.
   void setCameraAngle(double degrees) =>
-      state = state.copyWith(cameraAngle: degrees.clamp(8.0, 62.0));
+      // Square on is a real, useful view — it is the elevation — so the range
+      // starts at zero rather than at a permanent slight lean.
+      state = state.copyWith(
+        cameraAngle: degrees.clamp(
+          ViewerState.minTurnDegrees,
+          ViewerState.maxTurnDegrees,
+        ),
+      );
 
   /// Turns the product around, to see the other jamb.
+  /// Swaps the product for the drawing, where there is room for only one.
+  void showSketch(bool showing) =>
+      state = state.copyWith(showingSketch: showing);
+
   void turnAround() =>
       state = state.copyWith(fromTheRight: !state.fromTheRight);
 
   void resetView() => state = state.copyWith(
         zoom: 1,
         pan: Offset.zero,
-        cameraAngle: 30,
+        cameraAngle: ViewerState.defaultTurnDegrees,
         fromTheRight: true,
       );
 }

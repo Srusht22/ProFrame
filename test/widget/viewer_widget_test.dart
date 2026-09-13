@@ -164,9 +164,11 @@ void main() {
     testWidgets('it renders and names itself honestly', (tester) async {
       await pumpViewer(tester, phone);
 
-      // "2.5D preview", not "3D": the label says what it actually is
-      // (spec section 9).
-      expect(find.text('2.5D preview'), findsOneWidget);
+      // The label says what it actually is (spec section 9). It is a
+      // perspective view of a turned solid, so "3D preview" is the honest
+      // name — it was "2.5D" while the view was an oblique projection that
+      // never turned anything.
+      expect(find.text('3D preview'), findsOneWidget);
       expect(sceneCanvas(), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
@@ -429,6 +431,78 @@ void main() {
         find.textContaining('generic, not manufacturing data'),
         findsOneWidget,
       );
+    });
+  });
+
+  group('the drawing is shown beside the product', () {
+    testWidgets('a wide screen shows both at once', (tester) async {
+      await pumpViewer(tester, tabletLandscape);
+
+      expect(find.text('Your drawing'), findsOneWidget);
+      expect(sceneCanvas(), findsOneWidget, reason: 'and the product too');
+    });
+
+    testWidgets('a phone shows one, and swaps between them', (tester) async {
+      await pumpViewer(tester, phone);
+
+      // The product first: that is what the button said it would show.
+      expect(sceneCanvas(), findsOneWidget);
+      expect(find.text('Your drawing'), findsNothing);
+
+      await tester.tap(find.byTooltip('Show your drawing'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Your drawing'), findsOneWidget);
+      expect(sceneCanvas(), findsNothing);
+
+      await tester.tap(find.byTooltip('Show the product'));
+      await tester.pumpAndSettle();
+
+      expect(sceneCanvas(), findsOneWidget);
+    });
+  });
+
+  group('the product turns', () {
+    testWidgets('the angle the user sets is the angle it is drawn at',
+        (tester) async {
+      final container = await pumpViewer(tester, tabletLandscape);
+
+      expect(
+        container.read(viewerControllerProvider).projection.turnDegrees,
+        ViewerState.defaultTurnDegrees,
+      );
+
+      container.read(viewerControllerProvider.notifier).setCameraAngle(50);
+      await tester.pumpAndSettle();
+
+      expect(
+        container.read(viewerControllerProvider).projection.turnDegrees,
+        50,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('square on is a view the user can ask for', (tester) async {
+      final container = await pumpViewer(tester, tabletLandscape);
+
+      container.read(viewerControllerProvider.notifier).setCameraAngle(0);
+      await tester.pumpAndSettle();
+
+      // Zero is allowed: it is the elevation, and it is useful.
+      expect(container.read(viewerControllerProvider).cameraAngle, 0);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('turning it round swaps which side is shown', (tester) async {
+      final container = await pumpViewer(tester, tabletLandscape);
+      final before = container.read(viewerControllerProvider).projection;
+
+      await tester.tap(find.byTooltip('Turn the product around'));
+      await tester.pumpAndSettle();
+
+      final after = container.read(viewerControllerProvider).projection;
+      expect(after.turnSign, -before.turnSign);
+      expect(tester.takeException(), isNull);
     });
   });
 

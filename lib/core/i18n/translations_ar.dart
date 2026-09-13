@@ -177,7 +177,7 @@ const Map<T, String> arabicStrings = {
   T.whatIsStillToConfirm: 'ما الذي بقي للتأكيد',
   T.drawFrameToPreview: 'ارسم إطاراً للمعاينة',
   T.preview3d: 'معاينة ثلاثية الأبعاد',
-  T.preview25d: 'معاينة 2.5 بعد',
+  T.preview25d: 'معاينة ثلاثية الأبعاد',
   T.toolDraw: 'رسم',
   T.toolDrawHelp: 'ارسم الإطار والفواصل وعلامات الفتح',
   T.toolMove: 'تحريك',
@@ -307,6 +307,13 @@ const Map<T, String> arabicStrings = {
   T.previewOnlyTapToOpen:
       'اضغط على خانة Z لفتحها. معاينة فقط — البروفيلات عامة وليست بيانات تصنيع.',
   T.viewAngle: 'زاوية النظر',
+
+  T.sketchPanelTitle: 'رسمك',
+  T.sketchPanelHelp:
+      'ما رسمته، وفوقه ما فُهم منه. كلاهما بالقياس نفسه، فيمكن مقارنتهما خطاً '
+          'بخط.',
+  T.showSketch: 'إظهار رسمك',
+  T.showProduct: 'إظهار المنتج',
 
   // -- export --------------------------------------------------------------
   T.measurementsIncomplete: 'القياسات غير مكتملة',

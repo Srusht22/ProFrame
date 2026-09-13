@@ -176,7 +176,7 @@ const Map<T, String> englishStrings = {
   T.whatIsStillToConfirm: 'What is still to confirm',
   T.drawFrameToPreview: 'Draw a frame to preview',
   T.preview3d: '3D Preview',
-  T.preview25d: '2.5D preview',
+  T.preview25d: '3D preview',
   T.toolDraw: 'Draw',
   T.toolDrawHelp: 'Draw the frame, dividers and opening marks',
   T.toolMove: 'Move',
@@ -318,6 +318,13 @@ const Map<T, String> englishStrings = {
       'Tap a Z panel to open it. Preview only — the profiles are generic, not '
           'manufacturing data.',
   T.viewAngle: 'View angle',
+
+  T.sketchPanelTitle: 'Your drawing',
+  T.sketchPanelHelp:
+      'What you drew, with what was made of it on top. Both are the same '
+          'size, so they can be compared line for line.',
+  T.showSketch: 'Show your drawing',
+  T.showProduct: 'Show the product',
 
   // -- export --------------------------------------------------------------
   T.measurementsIncomplete: 'Measurements are incomplete',

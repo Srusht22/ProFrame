@@ -4,7 +4,7 @@ import '../../core/i18n/strings.dart';
 
 import '../../domain/design_document.dart';
 import '../../domain/product/profile_system.dart';
-import '../../domain/rendering/isometric_projection.dart';
+import '../../domain/rendering/product_projection.dart';
 
 /// How far open each panel is, keyed by panel id, 0 closed to 1 open.
 typedef PanelOpenState = Map<String, double>;
@@ -30,7 +30,7 @@ class RenderRequest {
 
   /// Where the camera is. A replacement renderer is free to interpret this
   /// as a real camera; the isometric one turns it into a depth direction.
-  final IsometricProjection projection;
+  final ProductProjection projection;
 
   /// Called when the user taps a panel in the view.
   final void Function(String panelId)? onPanelTapped;
@@ -42,7 +42,7 @@ class RenderRequest {
     this.openPanels = const {},
     this.zoom = 1,
     this.pan = Offset.zero,
-    this.projection = const IsometricProjection(),
+    this.projection = const ProductProjection(),
     this.onPanelTapped,
   });
 }
@@ -60,7 +60,10 @@ class RenderRequest {
 /// extend whatever it needs to.
 abstract interface class DesignRenderer {
   /// A name for the view, shown to the user so they know what they are
-  /// looking at — "2.5D preview" is an honest label and "3D" would not be.
+  /// looking at. It was "2.5D preview" while the view was an oblique
+  /// projection that never actually turned anything; it is a perspective view
+  /// of a turned solid now, so "3D preview" is the honest label and "2.5D"
+  /// would be the misleading one.
   ///
   /// Takes the app's phrases, because a renderer has to be able to name
   /// itself in the language the user reads.

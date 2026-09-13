@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../../core/design/tokens.dart';
 import '../../core/i18n/strings.dart';
 import '../../domain/design_document.dart';
+import '../../domain/geometry/point2.dart';
 import '../../domain/product/opening.dart';
 import '../../domain/rendering/front_elevation.dart';
 
@@ -54,6 +55,10 @@ class ElevationPainter extends CustomPainter {
   /// picture matches the screen it was exported from.
   final AppStrings strings;
 
+  /// The user's own strokes, in model millimetres, drawn faintly underneath.
+  /// Empty leaves the drawing as the product alone.
+  final List<List<Point2>> ink;
+
   const ElevationPainter({
     required this.elevation,
     required this.inkColor,
@@ -62,6 +67,7 @@ class ElevationPainter extends CustomPainter {
     required this.backgroundColor,
     this.options = const ElevationOptions(),
     this.strings = const AppStrings(),
+    this.ink = const [],
   });
 
   @override
@@ -88,6 +94,25 @@ class ElevationPainter extends CustomPainter {
 
     double px(double mm) => originX + (mm - outline.left) * scale;
     double py(double mm) => originY + (mm - outline.top) * scale;
+
+    // The user's own lines, under the product, so the two can be compared at
+    // a glance: this is the drawing, that is what was made of it.
+    if (ink.isNotEmpty) {
+      final pencil = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = AppCanvasMetrics.keptInkWidth
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..color = inkColor.withValues(alpha: AppCanvasMetrics.keptInkOpacity);
+      for (final stroke in ink) {
+        if (stroke.length < 2) continue;
+        final path = Path()..moveTo(px(stroke.first.x), py(stroke.first.y));
+        for (final point in stroke.skip(1)) {
+          path.lineTo(px(point.x), py(point.y));
+        }
+        canvas.drawPath(path, pencil);
+      }
+    }
 
     // Glass.
     for (final panel in elevation.panels) {
@@ -172,12 +197,13 @@ class ElevationPainter extends CustomPainter {
     }
 
     if (options.showDimensions) {
-      _paintDimensions(canvas, px, py);
+      _paintDimensions(canvas, size, px, py);
     }
   }
 
   void _paintDimensions(
     Canvas canvas,
+    Size size,
     double Function(double) px,
     double Function(double) py,
   ) {
@@ -206,6 +232,7 @@ class ElevationPainter extends CustomPainter {
           label,
           Offset((px(dimension.fromMm) + px(dimension.toMm)) / 2, y - 9),
           mutedColor,
+          within: size,
         );
       } else {
         final x = px(outline.left) - AppCanvasMetrics.dimensionOffset;
@@ -221,6 +248,7 @@ class ElevationPainter extends CustomPainter {
           label,
           Offset(x - 20, (py(dimension.fromMm) + py(dimension.toMm)) / 2),
           mutedColor,
+          within: size,
         );
       }
     }
@@ -305,6 +333,7 @@ class ElevationPainter extends CustomPainter {
     Offset centre,
     Color color, {
     bool bold = false,
+    Size? within,
   }) {
     final painter = TextPainter(
       text: TextSpan(
@@ -321,14 +350,21 @@ class ElevationPainter extends CustomPainter {
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    painter.paint(
-      canvas,
-      centre - Offset(painter.width / 2, painter.height / 2),
-    );
+
+    // Kept on the drawing. A size written down the side sits in a gutter that
+    // is a fraction of the width, and in a narrow panel the label is wider
+    // than the gutter — so it ran off the edge and the reader lost the digit
+    // that mattered.
+    var left = centre.dx - painter.width / 2;
+    if (within != null) {
+      left = left.clamp(0.0, math.max(0.0, within.width - painter.width));
+    }
+    painter.paint(canvas, Offset(left, centre.dy - painter.height / 2));
   }
 
   @override
   bool shouldRepaint(ElevationPainter old) =>
+      old.ink.length != ink.length ||
       old.elevation != elevation ||
       old.options.showDimensions != options.showDimensions ||
       old.options.showNotes != options.showNotes ||

@@ -7,7 +7,7 @@
 ///   inward (towards the room).
 ///
 /// Nothing here knows about pixels or about any projection; that is
-/// [IsometricProjection]'s job, which is what lets a real 3D engine consume
+/// [ProductProjection]'s job, which is what lets a real 3D engine consume
 /// exactly this and draw it differently.
 class Point3 {
   final double x;

@@ -268,6 +268,11 @@ enum T {
   previewOnlyTapToOpen,
   viewAngle,
 
+  sketchPanelTitle,
+  sketchPanelHelp,
+  showSketch,
+  showProduct,
+
   // -- export --------------------------------------------------------------
   measurementsIncomplete,
   everyExportPreview,

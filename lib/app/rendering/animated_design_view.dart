@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/design/tokens.dart';
 import '../../domain/design_document.dart';
 import '../../domain/product/profile_system.dart';
-import '../../domain/rendering/isometric_projection.dart';
+import '../../domain/rendering/product_projection.dart';
 import 'design_renderer.dart';
 
 /// Drives the open/close animation and hands the result to a [DesignRenderer].
@@ -27,7 +27,7 @@ class AnimatedDesignView extends StatefulWidget {
   final Offset pan;
 
   /// Where the camera is.
-  final IsometricProjection projection;
+  final ProductProjection projection;
 
   final void Function(String panelId) onPanelTapped;
 
@@ -40,7 +40,7 @@ class AnimatedDesignView extends StatefulWidget {
     required this.onPanelTapped,
     this.zoom = 1,
     this.pan = Offset.zero,
-    this.projection = const IsometricProjection(),
+    this.projection = const ProductProjection(),
     super.key,
   });
 

@@ -95,6 +95,8 @@ screenshot looking right.
 | Frame members, dividers, glazing, sashes | **Verified** | `scene_builder_test.dart` (33 tests) |
 | Hardware — handles and hinges | **Verified** | `scene_builder_test.dart` hardware group — the handle on the moving edge, a door handle 1050 mm above the floor, 2 hinges or 3 by leaf height, and hardware that swings with the leaf |
 | Door vs Window respected | **Verified** | `acceptance_test.dart` — a door gets a flush threshold, a window a sill that noses out |
+| The preview turns, and looks like something solid | **Verified** | `product_projection_test.dart` — the product turns about its own middle and is drawn in perspective, so the near jamb is taller than the far one; `viewer_widget_test.dart` "the angle the user sets is the angle it is drawn at". The old projection slid depth sideways without turning anything: on a 70 mm-deep window that is four per cent of the width, so it looked flat at every angle and the angle control appeared dead |
+| The drawing beside the preview | **Verified** | `viewer_widget_test.dart` "a wide screen shows both at once" and "a phone shows one, and swaps between them" — the question "is that what I drew?" is answerable without leaving the screen |
 | Rotate, pan, zoom, reset | **Verified** | `viewer_widget_test.dart` pan-and-zoom group; camera angle and turn-around in `ViewerController` |
 | Return to the drawing editor | **Verified** | `viewer_widget_test.dart` "canvas to viewer and back loses nothing" (three round trips) |
 | Select a section and edit its properties | **Verified** | `viewer_widget_test.dart` note and open/close groups |
