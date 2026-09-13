@@ -96,6 +96,28 @@ class Polygon {
   }
 
   /// The same shape with its corners the other way round.
+  /// The same shape with corners that are not corners taken out.
+  ///
+  /// A junction where a bar meets the frame lands on the outline as a point
+  /// in the middle of a straight edge. It is a real junction, but it is not a
+  /// corner of the shape, and leaving it in makes a four-sided frame report
+  /// ten sides. Only points that lie on the line between their neighbours are
+  /// dropped; a real corner, at any angle, is kept.
+  Polygon simplified(double tolerance) {
+    if (corners.length < 4) return this;
+    final kept = <Vec2>[];
+    for (var i = 0; i < corners.length; i++) {
+      final before = kept.isNotEmpty
+          ? kept.last
+          : corners[(i - 1 + corners.length) % corners.length];
+      final after = corners[(i + 1) % corners.length];
+      if (Segment(before, after).distanceTo(corners[i]) > tolerance) {
+        kept.add(corners[i]);
+      }
+    }
+    return kept.length >= 3 ? Polygon(kept) : this;
+  }
+
   Polygon get reversed => Polygon(corners.reversed.toList());
 
   /// The same shape, moved.

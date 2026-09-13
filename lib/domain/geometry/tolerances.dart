@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 /// Every tolerance the geometry uses, in one place, each with the reason it
 /// is the size it is.
 ///
@@ -40,6 +42,23 @@ abstract final class Tol {
   /// How close a stroke's two ends must be, relative to its own size, for it
   /// to count as closed.
   static const double closeFraction = 0.25;
+
+  /// How near two ends must be to count as the same point, on a drawing
+  /// whose overall size is [spanMm].
+  ///
+  /// Relative, for the same reason as [cornerFraction]: a hand that lands
+  /// three pixels away from where it meant to lands twenty-three millimetres
+  /// away on a three-metre sheet. A fixed half-millimetre leaves every
+  /// hand-drawn junction hanging open.
+  static double weldFor(double spanMm, {double fraction = weldFraction}) =>
+      math.max(spanMm * fraction, samePointMm);
+
+  /// The fraction above, for a raw drawing.
+  static const double weldFraction = 0.01;
+
+  /// The fraction for geometry that has already been cleaned up, where the
+  /// ends are where the user put them and only arithmetic is in the way.
+  static const double weldFractionClean = 0.004;
 
   /// A section smaller than this is a sliver where two lines nearly met, not
   /// something anybody meant to build.

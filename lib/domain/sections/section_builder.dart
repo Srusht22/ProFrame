@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../geometry/polygon.dart';
 import '../geometry/segment.dart';
 import '../geometry/tolerances.dart';
@@ -30,7 +32,13 @@ abstract final class SectionBuilder {
         ..._clipToBounds(divider.segment, bounds),
     ];
 
-    final faces = PlanarSubdivision.facesOf(lines);
+    // The ends are already where the user put them, so this only has to
+    // cover arithmetic and the width of a drawn line, not a shaky hand.
+    final weld = Tol.weldFor(
+      math.sqrt(bounds.width * bounds.width + bounds.height * bounds.height),
+      fraction: Tol.weldFractionClean,
+    );
+    final faces = PlanarSubdivision.facesOf(lines, weldTolerance: weld);
     var counter = 0;
     String nextId() => newId?.call() ?? 'section-${design.id}-${counter++}';
 
