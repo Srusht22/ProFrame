@@ -1,108 +1,50 @@
-/// Documented geometric tolerances (spec section 12).
+/// Every tolerance the geometry uses, in one place, each with the reason it
+/// is the size it is.
 ///
-/// "Exact" in this application means matching the confirmed specification
-/// within these numbers — not reproducing shaky strokes literally
-/// (spec section 2). Every comparison in the geometry layer uses one of these
-/// rather than an inline epsilon, so the tolerances can be reviewed in one
-/// place and cited in test failures.
-abstract final class Tolerances {
-  /// Two model points closer than this are the same point. 0.5 mm is below
-  /// what any fabrication process resolves and well under a profile wall
-  /// thickness, so merging within it cannot change a cut length.
-  static const double pointCoincidenceMm = 0.5;
+/// They are all about reading a *drawing*, not about manufacturing. Being
+/// wrong here costs the user one undo; being wrong about what they meant
+/// costs them a window.
+abstract final class Tol {
+  /// Two points closer than this are the same point. Half a millimetre is
+  /// below anything a workshop cuts to.
+  static const double samePointMm = 0.5;
 
-  /// A length difference under this is not a difference. Matches
-  /// [pointCoincidenceMm] so a segment and its endpoints agree.
-  static const double lengthMm = 0.5;
+  /// Lengths within this of each other are the same length.
+  static const double sameLengthMm = 0.5;
 
-  /// An edge within this of horizontal or vertical is treated as axis-aligned.
+  /// How far off horizontal or vertical a line may be and still be treated as
+  /// straight along that axis.
   ///
-  /// Chosen from the drawing side, not the manufacturing side: hand strokes in
-  /// the reference sketches wobble by two to three degrees, while a deliberate
-  /// sloping top in a real door is at least eight. Five degrees separates them
-  /// with margin on both sides, which is what keeps shaky lines straight
-  /// without flattening an intended slope (spec section 4).
-  static const double axisAlignmentDegrees = 5;
-
-  /// Below this a region is not a panel — it is a gap between strokes.
-  /// 100 mm² is a 10 mm square, smaller than any real glazed area.
-  static const double minimumPanelAreaMmSq = 100;
-
-  /// The smallest panel side the app will accept without objecting.
-  static const double minimumPanelSideMm = 50;
-
-  // -- stroke recognition ---------------------------------------------------
-  //
-  // These govern reading a finger drawing, which is a looser problem than
-  // measuring a product. They are deliberately separate from
-  // [axisAlignmentDegrees]: that one decides whether a *frame edge* is a
-  // deliberate slope, where being wrong scraps a frame. These decide what a
-  // rough gesture meant, where being wrong costs one undo.
+  /// Cleaning, not redesigning: a hand wobbles two or three degrees, a line
+  /// somebody meant to slope is drawn at eight or more. Five separates them
+  /// with margin either side, and a line further off than this keeps the
+  /// angle it was drawn at, exactly.
+  static const double axisSnapDegrees = 5;
 
   /// How far a sample may sit off the line between its neighbours before it
-  /// counts as a corner — the floor, for a very small mark.
-  static const double cornerToleranceMm = 12;
-
-  /// The same thing as a fraction of the stroke's own size, which is what
-  /// actually decides it.
+  /// counts as a corner, as a fraction of the stroke's own size.
   ///
-  /// A fixed millimetre figure cannot work at both ends of the range. The
-  /// sheet is three metres across on a phone screen, so a hand that wobbles
-  /// by three pixels wobbles by more than twenty millimetres — and a
-  /// perfectly ordinary box came out with a dozen corners and was thrown away
-  /// for not having four. Measured against the stroke itself, a wobble stays
-  /// a wobble and a corner stays a corner, whether the user is sketching a
-  /// window or a patio door.
+  /// Relative, because the sheet is metres across on a screen a few hundred
+  /// pixels wide: a fixed millimetre figure is either blind to real corners
+  /// on a small drawing or sees a corner in every wobble on a large one.
   static const double cornerFraction = 0.05;
 
-  /// How far a sample may sit off the line before it counts as a corner, for
-  /// a stroke whose bounding box has this [diagonalMm].
-  static double cornerToleranceFor(double diagonalMm) =>
-      cornerToleranceMm > diagonalMm * cornerFraction
-          ? cornerToleranceMm
-          : diagonalMm * cornerFraction;
+  /// The floor for the above, for a very small mark.
+  static const double cornerFloorMm = 10;
 
-  /// A divider stroke is "mostly vertical" when its vertical extent is at
-  /// least this many times its horizontal extent, and vice versa.
-  ///
-  /// 2.0 is about 26 degrees off axis. Well beyond any hand wobble, and well
-  /// short of the 45 degrees at which the two axes become a coin toss — so a
-  /// stroke that is genuinely diagonal is discarded rather than snapped to
-  /// whichever axis it leans towards.
-  static const double dividerAxisDominance = 2.0;
+  /// How near two ends must be, as a fraction of the size of the thing being
+  /// drawn, to be treated as meeting. A box drawn side by side rarely has its
+  /// corners meet exactly.
+  static const double joinFraction = 0.12;
 
-  /// How close a stroke's ends must be, relative to its own size, for the
-  /// loop to count as closed.
-  ///
-  /// A frame drawn by hand rarely meets itself exactly; 0.25 of the diagonal
-  /// accepts a visible gap while still rejecting an open L shape.
-  static const double loopClosureFraction = 0.25;
+  /// How close a stroke's two ends must be, relative to its own size, for it
+  /// to count as closed.
+  static const double closeFraction = 0.25;
 
-  /// How near two stroke ends must be, relative to the size of the loop they
-  /// would make, for one to carry on where the other stopped.
-  ///
-  /// A frame is often drawn as several strokes — one side at a time, the way
-  /// anybody draws a box on paper — and the corners rarely meet. This is the
-  /// gap that still counts as a corner. It sits well under
-  /// [loopClosureFraction]: joining strokes that were never meant to be one
-  /// outline is worse than asking for one more line, and whatever the strokes
-  /// join into still has to pass every frame test on its own.
-  static const double strokeJoinFraction = 0.12;
+  /// A section smaller than this is a sliver where two lines nearly met, not
+  /// something anybody meant to build.
+  static const double minSectionAreaMmSq = 400;
 
-  /// The smallest a drawn frame may be before it is treated as a stray mark.
-  static const double minimumFrameSideMm = 200;
-
-  /// How far the point of a chevron must stick out sideways past its ends,
-  /// as a fraction of its own arm length.
-  ///
-  /// Expressed as a fraction so it holds at any drawing scale. A quarter is
-  /// comfortably past the few millimetres a hand wobbles when drawing what was
-  /// meant to be a straight line, so a kinked vertical stroke is not read as a
-  /// `<`.
-  static const double chevronReachFraction = 0.25;
-
-  /// Whether [a] and [b] are the same length within [lengthMm].
-  static bool sameLength(double a, double b) => (a - b).abs() <= lengthMm;
-
-  const Tolerances._();
+  /// The shortest line that is a line rather than a slip of the finger.
+  static const double minLineMm = 30;
 }

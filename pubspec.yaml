@@ -1,7 +1,7 @@
 name: proframe
-description: "Draw a door or window by hand and get your own editable parametric 3D design."
+description: "Draw a door or window by hand. The drawing becomes editable geometry, and the geometry becomes the 2D design and the 3D model — exactly as drawn."
 publish_to: 'none'
-version: 0.1.0+1
+version: 1.0.0+1
 
 environment:
   sdk: ^3.13.2
@@ -9,19 +9,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_localizations:
-    sdk: flutter
 
-  # State management. One approach across the whole app (spec section 9).
-  # Riverpod is compile-safe, testable without a widget tree, and has no
-  # platform channels of its own, so it cannot restrict the target platforms.
+  # State management. One approach across the whole app: compile-safe,
+  # testable without a widget tree, and with no platform channels of its own.
   flutter_riverpod: ^3.0.2
+
+  # The design is saved as its own structured document.
   shared_preferences: ^2.3.0
-  pdf: ^3.11.0
-  printing: ^5.13.0
-  share_plus: ^13.0.0
-  path_provider: ^2.1.0
-  file_selector: ^1.0.0
 
 dev_dependencies:
   flutter_test:
@@ -31,19 +25,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # Bundled rather than downloaded at run time: the app must work offline
-  # (spec section 10), and a PDF that silently lost its Arabic text because a
-  # font download failed would be worse than a larger binary. SIL Open Font
-  # Licence — see assets/fonts/OFL.txt.
-  #
-  # Also declared as assets, because the PDF builder reads the raw TTF bytes
-  # rather than going through Flutter's text stack.
-  assets:
-    - assets/fonts/
-
-  # Used for the whole interface, so an Arabic or Kurdish note renders the
-  # same in the app, in an exported PNG and in a PDF — rather than depending
-  # on whatever the device happens to have installed.
+  # Bundled rather than downloaded at run time: the app must work with no
+  # internet, and text the user typed must never fall back to a font the
+  # device does not have. SIL Open Font Licence — see assets/fonts/OFL.txt.
   fonts:
     - family: Noto Sans
       fonts:
