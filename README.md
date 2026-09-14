@@ -95,7 +95,7 @@ test/
 ```sh
 flutter pub get
 flutter run                 # a device, a tablet, or a desktop
-flutter test                # 175 tests
+flutter test                # 191 tests
 flutter analyze             # strict: casts, inference, raw types
 ```
 
@@ -190,6 +190,56 @@ horizontal divider is one horizontal bar spanning exactly the column it was
 drawn across; glass is in the section the glass was put in and the panel in
 the section the panel was put in; and nothing exists in the model whose id
 is not in the drawing.
+
+## Editing
+
+Everything in the drawing is a part you can pick: the frame and each of its
+sides — head, sill, left jamb, right jamb, or the raking sides of a frame
+that is not four-sided — every bar, every pane, every opening, every piece
+of hardware, every dimension, note and arrow. Tap it on the drawing, or find
+it in the component tree. Tapping the frame picks the side you tapped.
+
+Each part shows what it is and what can be changed about it, and each field
+changes the one thing it names:
+
+```
+Selected: Section          Selected: Left jamb        Selected: Horizontal divider
+
+Width    910 mm            Length   1731 mm           Length   1394 mm
+Height   818 mm            Angle    89.9°             Angle    0.0°
+Material Clear glass       From     521, 1905 mm      Bar width 48 mm
+Colour   ▢▢▢▢▢             To       518, 174 mm       Material uPVC
+Opens    Fixed             Profile  60 mm             Colour   ▢▢▢▢▢
+```
+
+### Dragging and typing are the same edit
+
+A selected part shows handles. A pane's handles sit on its own edges but move
+the bar or the frame side that *makes* each edge — because a pane is the
+space between those and has no edges of its own:
+
+```
+┌──────────┬──────────┐
+│          ▪          │     grab the boundary
+│   pane   ▪   pane   │  ←  and the bar moves
+│          ▪          │
+└──────────┴──────────┘
+```
+
+Typing a width and dragging that boundary reach the same geometry by the
+same route, and a test asserts they agree to a hundredth of a millimetre. A
+bar only moves across itself; a drag along its length changes nothing,
+because for a bar it means nothing. A frame side moves square to itself, so
+a raking head on a five-sided frame keeps its angle.
+
+### Nothing else moves
+
+The rule the editing is built to: **an edit changes what it names and what
+follows from it mathematically, and nothing else.** Moving a bar moves that
+bar and the panes it bounds — because a pane *is* the space between bars —
+and leaves the other bar, the hardware, the dimensions, the notes and every
+finish untouched. Tests take a fingerprint of every other element in the
+design and require it to come back byte for byte identical.
 
 ## Snapping
 

@@ -461,6 +461,12 @@ class DesignPainter extends CustomPainter {
           );
         case TextElement():
           canvas.drawCircle(view.toScreen(element.at), 18, paint);
+        case FrameMemberElement():
+          canvas.drawLine(
+            view.toScreen(element.run.a),
+            view.toScreen(element.run.b),
+            paint,
+          );
         case OpeningElement():
           final section = design.sectionById(element.sectionId);
           if (section != null) {

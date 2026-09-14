@@ -21,6 +21,7 @@ abstract final class AppTheme {
   /// What a selected part is outlined in.
   static const Color selection = Color(0xFFB8860B);
 
+
   static const String fontFamily = 'Noto Sans';
 
   /// Buttons in Material 3 replace the inherited text style rather than

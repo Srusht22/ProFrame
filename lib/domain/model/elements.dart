@@ -88,6 +88,54 @@ class FrameElement extends DesignElement {
       );
 }
 
+/// One side of the frame: the head, the sill, a jamb, or a rake on a frame
+/// that is not four-sided.
+///
+/// Derived from the frame rather than stored beside it, because the frame is
+/// one closed shape and its members are its edges. Selecting a member is a
+/// way of pointing at one edge of that shape; moving it moves that edge and
+/// leaves the rest of the outline where it is.
+class FrameMemberElement extends DesignElement {
+  final String frameId;
+
+  /// Which edge of the frame outline this is.
+  final int index;
+
+  final Segment run;
+
+  /// Where it sits on the frame, for naming it.
+  final String placement;
+
+  const FrameMemberElement({
+    required super.id,
+    required this.frameId,
+    required this.index,
+    required this.run,
+    required this.placement,
+  });
+
+  /// The id a member of [frameId] at [index] has. Derived, so it is the same
+  /// every time rather than something to store and keep in step.
+  static String idFor(String frameId, int index) => '$frameId::member::$index';
+
+  static int? indexIn(String elementId) {
+    final at = elementId.indexOf('::member::');
+    if (at < 0) return null;
+    return int.tryParse(elementId.substring(at + '::member::'.length));
+  }
+
+  double get lengthMm => run.length;
+
+  @override
+  String get label => placement;
+
+  @override
+  Vec2 get anchor => run.midpoint;
+
+  @override
+  Map<String, Object?> toJson() => const {};
+}
+
 /// A line inside the design: a mullion, a transom, a glazing bar — whatever
 /// the user drew.
 ///

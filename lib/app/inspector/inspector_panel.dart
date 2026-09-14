@@ -80,6 +80,42 @@ class InspectorPanel extends ConsumerWidget {
               glazing: false,
             ),
           ],
+        FrameMemberElement() => [
+            _Readout('Length', '${element.lengthMm.round()} mm'),
+            _Readout(
+              'Angle',
+              '${element.run.headingDegrees.toStringAsFixed(1)}°',
+            ),
+            _Readout(
+              'From',
+              '${element.run.a.x.round()}, ${element.run.a.y.round()} mm',
+            ),
+            _Readout(
+              'To',
+              '${element.run.b.x.round()}, ${element.run.b.y.round()} mm',
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Drag its handle to move this side of the frame square to '
+              'itself. The other sides stay where they are.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 16),
+            if (state.design.frame case final frame?) ...[
+              _NumberField(
+                label: 'Frame profile',
+                valueMm: frame.profileMm,
+                help: 'One figure for the whole frame, as it is cut from one '
+                    'section of material.',
+                onSet: controller.setProfile,
+              ),
+              _FinishFields(
+                finish: frame.finish,
+                onChanged: (f) => controller.setFinish(frame.id, f),
+                glazing: false,
+              ),
+            ],
+          ],
         DividerElement() => [
             _Readout('Length', '${element.lengthMm.round()} mm'),
             _Readout(
@@ -590,12 +626,7 @@ class _HardwareField extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              for (final kind in [
-                HardwareKind.lever,
-                HardwareKind.handle,
-                HardwareKind.knob,
-                HardwareKind.lock,
-              ])
+              for (final kind in HardwareKind.values)
                 OutlinedButton(
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(0, 38),

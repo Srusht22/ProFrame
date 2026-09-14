@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../geometry/polygon.dart';
+import '../geometry/segment.dart';
 import '../geometry/tolerances.dart';
 import '../geometry/vec2.dart';
 import '../model/design.dart';
@@ -162,6 +163,111 @@ abstract final class DesignEdits {
     ));
   }
 
+  /// Moves one side of the frame by [byMm] along its own normal.
+  ///
+  /// Works on any outline, not just a rectangle: a raking head on a
+  /// five-sided frame moves square to itself, which is what taking hold of
+  /// that edge and pulling it means. Only the two corners of that edge move;
+  /// every other corner stays exactly where it was.
+  static Design moveFrameMember(Design design, int index, double byMm) {
+    final frame = design.frame;
+    if (frame == null) return design;
+    final corners = frame.outline.corners;
+    if (index < 0 || index >= corners.length) return design;
+    if (byMm.abs() < 1e-9) return design;
+
+    final a = index;
+    final b = (index + 1) % corners.length;
+    final edge = Segment(corners[a], corners[b]);
+    if (edge.length < 1e-9) return design;
+
+    // Outward is away from the middle of the shape.
+    var normal = edge.unit.perpendicular;
+    if ((edge.midpoint + normal).distanceTo(frame.outline.centroid) <
+        edge.midpoint.distanceTo(frame.outline.centroid)) {
+      normal = -normal;
+    }
+
+    final moved = [
+      for (var i = 0; i < corners.length; i++)
+        if (i == a || i == b) corners[i] + normal * byMm else corners[i],
+    ];
+    final outline = Polygon(moved);
+    // An edge pushed through the other side is not a frame.
+    if (outline.area < frame.profileMm * frame.profileMm * 4) return design;
+
+    return _rebuild(design.copyWith(frame: frame.copyWith(outline: outline)));
+  }
+
+  /// How far [index]'s edge would have to move for its midpoint to land on
+  /// [to]. Only the part of the drag square to the edge counts.
+  static double frameMemberOffset(Design design, int index, Vec2 to) {
+    final frame = design.frame;
+    if (frame == null) return 0;
+    final corners = frame.outline.corners;
+    if (index < 0 || index >= corners.length) return 0;
+
+    final edge = Segment(corners[index], corners[(index + 1) % corners.length]);
+    if (edge.length < 1e-9) return 0;
+    var normal = edge.unit.perpendicular;
+    if ((edge.midpoint + normal).distanceTo(frame.outline.centroid) <
+        edge.midpoint.distanceTo(frame.outline.centroid)) {
+      normal = -normal;
+    }
+    return (to - edge.midpoint).dot(normal);
+  }
+
+  /// Moves a bar square to itself, so that its centre line lands on [to].
+  ///
+  /// Dragging the boundary between two panes moves the bar that makes it,
+  /// and only along the one direction that means anything for a bar: across
+  /// itself. A drag along its length would change nothing and is ignored.
+  static Design moveDividerAcross(
+    Design design,
+    String dividerId,
+    Vec2 to,
+  ) {
+    final divider = _divider(design, dividerId);
+    if (divider == null) return design;
+    final normal = divider.segment.unit.perpendicular;
+    final across = (to - divider.segment.midpoint).dot(normal);
+    if (across.abs() < 1e-9) return design;
+    return moveDivider(design, dividerId, normal * across);
+  }
+
+  /// Moves one end of a dimension, leaving the other where it is.
+  static Design moveDimensionEnd(
+    Design design,
+    String dimensionId,
+    Vec2 to, {
+    required bool startEnd,
+  }) {
+    for (final dimension in design.dimensions) {
+      if (dimension.id != dimensionId) continue;
+      return design.withElement(
+        startEnd ? dimension.copyWith(a: to) : dimension.copyWith(b: to),
+      );
+    }
+    return design;
+  }
+
+  /// Slides a dimension line off the thing it measures, without changing
+  /// what it measures.
+  static Design setDimensionOffset(
+    Design design,
+    String dimensionId,
+    Vec2 to,
+  ) {
+    for (final dimension in design.dimensions) {
+      if (dimension.id != dimensionId) continue;
+      final line = Segment(dimension.a, dimension.b);
+      if (line.length < 1e-9) return design;
+      final off = (to - line.midpoint).dot(line.unit.perpendicular);
+      return design.withElement(dimension.copyWith(offsetMm: off));
+    }
+    return design;
+  }
+
   /// Moves one side of the frame to where the user dragged it.
   ///
   /// Direct, not proportional: dragging the head of a frame in a drawing
@@ -187,7 +293,9 @@ abstract final class DesignEdits {
     };
 
     // Only the corners on that side move, so a frame drawn at an angle keeps
-    // the shape it was drawn with.
+    // the shape it was drawn with. This is the same movement the grip makes,
+    // stated as a position rather than as a distance, so typing a figure and
+    // dragging to it reach the same geometry.
     final was = switch (edge) {
       FrameEdge.left => box.left,
       FrameEdge.right => box.right,
@@ -432,13 +540,21 @@ abstract final class DesignEdits {
     }
     final section = SectionBuilder.sectionAt(design, point);
     if (section != null) return section;
+    // Tapping the frame picks the side you tapped — the head, the sill, a
+    // jamb — because that is the part you are pointing at. The frame as a
+    // whole is reached from the component tree.
     final frame = design.frame;
     if (frame != null) {
-      for (final edge in frame.outline.edges) {
-        if (edge.distanceTo(point) <= math.max(slopMm, frame.profileMm)) {
-          return frame;
+      FrameMemberElement? nearest;
+      var best = double.infinity;
+      for (final member in design.frameMembers) {
+        final away = member.run.distanceTo(point);
+        if (away <= math.max(slopMm, frame.profileMm) && away < best) {
+          best = away;
+          nearest = member;
         }
       }
+      if (nearest != null) return nearest;
     }
     return null;
   }
@@ -454,6 +570,7 @@ abstract final class DesignEdits {
           element.copyWith(from: element.from + by, to: element.to + by)),
       DimensionElement() => design.withElement(
           element.copyWith(a: element.a + by, b: element.b + by)),
+      FrameMemberElement() => design,
       FrameElement() => _rebuild(design.copyWith(
           frame: element.copyWith(outline: element.outline.translated(by)),
           dividers: [

@@ -1,9 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/editing/design_edits.dart';
 import '../../domain/geometry/polygon.dart';
+import '../../domain/geometry/segment.dart';
 import '../../domain/geometry/vec2.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
@@ -192,6 +195,11 @@ class _CadViewState extends ConsumerState<CadView> {
   // ------------------------------------------------------------------ grips
 
   /// The handles for whatever is selected.
+  ///
+  /// A section's handles sit on its own edges but move the bars and frame
+  /// sides that make them, because a pane is the space between those and has
+  /// no edges of its own. That is what lets a boundary be dragged from
+  /// either side of it.
   List<Grip> _gripsFor(Design design, String? selectedId) {
     if (selectedId == null) return const [];
     final element = design.elementById(selectedId);
@@ -201,42 +209,112 @@ class _CadViewState extends ConsumerState<CadView> {
           Grip(
             at: element.segment.midpoint,
             elementId: element.id,
-            kind: GripKind.move,
+            kind: GripKind.boundary,
+            dividerId: element.id,
           ),
           Grip(at: element.b, elementId: element.id, kind: GripKind.endFinish),
         ],
-      FrameElement() => () {
-          final box = element.outline;
-          final midX = (box.left + box.right) / 2;
-          final midY = (box.top + box.bottom) / 2;
-          return [
+      FrameElement() => [
+          for (final member in design.frameMembers)
             Grip(
-              at: Vec2(box.left, midY),
+              at: member.run.midpoint,
               elementId: element.id,
-              kind: GripKind.frameLeft,
+              kind: GripKind.boundary,
+              memberIndex: member.index,
             ),
-            Grip(
-              at: Vec2(box.right, midY),
-              elementId: element.id,
-              kind: GripKind.frameRight,
-            ),
-            Grip(
-              at: Vec2(midX, box.top),
-              elementId: element.id,
-              kind: GripKind.frameTop,
-            ),
-            Grip(
-              at: Vec2(midX, box.bottom),
-              elementId: element.id,
-              kind: GripKind.frameBottom,
-            ),
-          ];
+        ],
+      FrameMemberElement() => [
+          Grip(
+            at: element.run.midpoint,
+            elementId: element.id,
+            kind: GripKind.boundary,
+            memberIndex: element.index,
+          ),
+        ],
+      SectionElement() => _sectionGrips(design, element),
+      OpeningElement() => () {
+          final section = design.sectionById(element.sectionId);
+          return section == null
+              ? const <Grip>[]
+              : _sectionGrips(design, section, on: element.id);
         }(),
       HardwareElement() => [
           Grip(at: element.at, elementId: element.id, kind: GripKind.move),
         ],
+      DimensionElement() => [
+          Grip(at: element.a, elementId: element.id, kind: GripKind.endStart),
+          Grip(at: element.b, elementId: element.id, kind: GripKind.endFinish),
+          Grip(
+            at: element.anchor +
+                Segment(element.a, element.b).unit.perpendicular *
+                    element.offsetMm,
+            elementId: element.id,
+            kind: GripKind.offset,
+          ),
+        ],
+      TextElement() => [
+          Grip(at: element.at, elementId: element.id, kind: GripKind.move),
+        ],
+      ArrowElement() => [
+          Grip(at: element.from, elementId: element.id, kind: GripKind.endStart),
+          Grip(at: element.to, elementId: element.id, kind: GripKind.endFinish),
+        ],
       _ => const [],
     };
+  }
+
+  /// A handle on the middle of each of a section's edges, moving whatever
+  /// makes that edge.
+  List<Grip> _sectionGrips(
+    Design design,
+    SectionElement section, {
+    String? on,
+  }) {
+    final grips = <Grip>[];
+    final elementId = on ?? section.id;
+
+    for (final edge in section.outline.edges) {
+      final middle = edge.midpoint;
+
+      // A bar whose face runs along this edge.
+      String? dividerId;
+      for (final divider in design.dividers) {
+        final half = divider.widthMm / 2;
+        final across = divider.segment.unit.perpendicular;
+        for (final side in [across * half, -across * half]) {
+          final face = Segment(divider.a + side, divider.b + side);
+          if (face.distanceTo(middle) <= math.max(2, divider.widthMm * 0.15)) {
+            dividerId = divider.id;
+          }
+        }
+      }
+      if (dividerId != null) {
+        grips.add(Grip(
+          at: middle,
+          elementId: elementId,
+          kind: GripKind.boundary,
+          dividerId: dividerId,
+        ));
+        continue;
+      }
+
+      // Otherwise it is the daylight edge of the frame, and moving it moves
+      // that side of the frame.
+      for (final member in design.frameMembers) {
+        if (member.run.distanceTo(middle) >
+            (design.frame!.profileMm * 1.4)) {
+          continue;
+        }
+        grips.add(Grip(
+          at: middle,
+          elementId: elementId,
+          kind: GripKind.boundary,
+          memberIndex: member.index,
+        ));
+        break;
+      }
+    }
+    return grips;
   }
 
   // --------------------------------------------------------------- pointers
@@ -304,33 +382,51 @@ class _CadViewState extends ConsumerState<CadView> {
     final at = Vec2(snapX ?? raw.x, snapY ?? raw.y);
 
     switch (grip.kind) {
+      case GripKind.boundary:
+        if (grip.dividerId != null) {
+          controller.moveDividerAcross(grip.dividerId!, at);
+        } else if (grip.memberIndex != null) {
+          controller.moveFrameMember(
+            grip.memberIndex!,
+            DesignEdits.frameMemberOffset(design, grip.memberIndex!, at),
+          );
+        }
+        setState(() => _snapped = snapX != null || snapY != null ? at : null);
       case GripKind.move:
         final element = design.elementById(grip.elementId);
         if (element is DividerElement) {
           controller.moveDividerTo(grip.elementId, at);
-          setState(() => _snapped = snapX != null || snapY != null ? at : null);
-        } else if (element is HardwareElement) {
-          controller.dragSelected(at - element.at);
-          setState(() => _snapped = null);
+        } else if (element != null) {
+          controller.select(grip.elementId);
+          controller.dragElement(grip.elementId, at - element.anchor);
         }
+        setState(() => _snapped = snapX != null || snapY != null ? at : null);
       case GripKind.endStart:
-        controller.moveDividerEnd(grip.elementId, startEnd: true, to: at);
-        setState(() => _snapped = snapX != null || snapY != null ? at : null);
       case GripKind.endFinish:
-        controller.moveDividerEnd(grip.elementId, startEnd: false, to: at);
+        final start = grip.kind == GripKind.endStart;
+        final element = design.elementById(grip.elementId);
+        switch (element) {
+          case DividerElement():
+            controller.moveDividerEnd(
+              grip.elementId,
+              startEnd: start,
+              to: at,
+            );
+          case DimensionElement():
+            controller.moveDimensionEnd(
+              grip.elementId,
+              to: at,
+              startEnd: start,
+            );
+          case ArrowElement():
+            controller.moveArrowEnd(grip.elementId, to: at, startEnd: start);
+          default:
+            break;
+        }
         setState(() => _snapped = snapX != null || snapY != null ? at : null);
-      case GripKind.frameLeft:
-        controller.moveFrameEdge(FrameEdge.left, snapX ?? raw.x);
-        setState(() => _snapped = snapX == null ? null : Vec2(snapX, raw.y));
-      case GripKind.frameRight:
-        controller.moveFrameEdge(FrameEdge.right, snapX ?? raw.x);
-        setState(() => _snapped = snapX == null ? null : Vec2(snapX, raw.y));
-      case GripKind.frameTop:
-        controller.moveFrameEdge(FrameEdge.top, snapY ?? raw.y);
-        setState(() => _snapped = snapY == null ? null : Vec2(raw.x, snapY));
-      case GripKind.frameBottom:
-        controller.moveFrameEdge(FrameEdge.bottom, snapY ?? raw.y);
-        setState(() => _snapped = snapY == null ? null : Vec2(raw.x, snapY));
+      case GripKind.offset:
+        controller.setDimensionOffset(grip.elementId, raw);
+        setState(() => _snapped = null);
     }
   }
 

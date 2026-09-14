@@ -38,6 +38,17 @@ class ComponentTree extends ConsumerWidget {
           selected: state.selectedId == design.frame!.id,
           onTap: () => controller.select(design.frame!.id),
         ),
+        for (final member in design.frameMembers)
+          _Row(
+            element: member,
+            detail: '${member.lengthMm.round()} mm',
+            icon: member.run.isVerticalish
+                ? Icons.vertical_align_center
+                : Icons.horizontal_rule,
+            indent: 1,
+            selected: state.selectedId == member.id,
+            onTap: () => controller.select(member.id),
+          ),
         if (design.dividers.isNotEmpty) const _GroupLabel('Bars'),
         for (final divider in design.dividers)
           _Row(

@@ -549,6 +549,70 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     );
   }
 
+  /// Moves one side of the frame square to itself, by a distance.
+  void moveFrameMember(int index, double byMm) {
+    _remember(coalesce: 'frame-member-$index');
+    state = state.copyWith(
+      design: DesignEdits.moveFrameMember(state.design, index, byMm),
+    );
+  }
+
+  /// Moves a bar square to itself, so its centre line lands on [to].
+  void moveDividerAcross(String dividerId, Vec2 to) {
+    _remember(coalesce: 'boundary-$dividerId');
+    state = state.copyWith(
+      design: DesignEdits.moveDividerAcross(state.design, dividerId, to),
+    );
+  }
+
+  /// Drags any element by a distance, without needing it selected first.
+  void dragElement(String elementId, Vec2 by) {
+    _remember(coalesce: 'drag-$elementId');
+    state = state.copyWith(
+      design: DesignEdits.dragElement(state.design, elementId, by),
+    );
+  }
+
+  void moveDimensionEnd(
+    String dimensionId, {
+    required Vec2 to,
+    required bool startEnd,
+  }) {
+    _remember(coalesce: 'dim-end-$dimensionId-$startEnd');
+    state = state.copyWith(
+      design: DesignEdits.moveDimensionEnd(
+        state.design,
+        dimensionId,
+        to,
+        startEnd: startEnd,
+      ),
+    );
+  }
+
+  void setDimensionOffset(String dimensionId, Vec2 to) {
+    _remember(coalesce: 'dim-offset-$dimensionId');
+    state = state.copyWith(
+      design: DesignEdits.setDimensionOffset(state.design, dimensionId, to),
+    );
+  }
+
+  void moveArrowEnd(
+    String arrowId, {
+    required Vec2 to,
+    required bool startEnd,
+  }) {
+    for (final arrow in state.design.arrows) {
+      if (arrow.id != arrowId) continue;
+      _remember(coalesce: 'arrow-end-$arrowId-$startEnd');
+      state = state.copyWith(
+        design: state.design.withElement(
+          startEnd ? arrow.copyWith(from: to) : arrow.copyWith(to: to),
+        ),
+      );
+      return;
+    }
+  }
+
   void deleteSelected() {
     final id = state.selectedId;
     if (id == null) return;

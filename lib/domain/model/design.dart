@@ -1,4 +1,5 @@
 import '../geometry/polygon.dart';
+import '../geometry/segment.dart';
 import '../geometry/vec2.dart';
 import '../sketch/stroke.dart';
 import 'elements.dart';
@@ -80,6 +81,7 @@ class Design {
   /// Everything selectable, in the order the component tree shows it.
   List<DesignElement> get allElements => [
         ?frame,
+        ...frameMembers,
         ...dividers,
         ...sections,
         ...openings,
@@ -88,6 +90,44 @@ class Design {
         ...texts,
         ...arrows,
       ];
+
+  /// The sides of the frame — head, sill, jambs — as separate parts.
+  ///
+  /// Worked out from the outline each time rather than stored, so they can
+  /// never disagree with the shape they are the sides of.
+  List<FrameMemberElement> get frameMembers {
+    final outline = frame?.outline;
+    if (outline == null || outline.isEmpty) return const [];
+
+    final edges = outline.edges;
+    final middleY = (outline.top + outline.bottom) / 2;
+    final middleX = (outline.left + outline.right) / 2;
+
+    return [
+      for (var i = 0; i < edges.length; i++)
+        FrameMemberElement(
+          id: FrameMemberElement.idFor(frame!.id, i),
+          frameId: frame!.id,
+          index: i,
+          run: edges[i],
+          placement: _placementOf(edges[i], middleX, middleY),
+        ),
+    ];
+  }
+
+  static String _placementOf(Segment edge, double middleX, double middleY) {
+    final at = edge.midpoint;
+    if (edge.isHorizontalish) return at.y < middleY ? 'Head' : 'Sill';
+    if (edge.isVerticalish) {
+      return at.x < middleX ? 'Left jamb' : 'Right jamb';
+    }
+    // A frame that is not four-sided has sides that are neither. They are
+    // named for where they are rather than for what they would be on a
+    // rectangle, because there is no honest name for them there.
+    final vertical = at.y < middleY ? 'upper' : 'lower';
+    final horizontal = at.x < middleX ? 'left' : 'right';
+    return 'Raking $vertical $horizontal side';
+  }
 
   bool get hasGeometry => frame != null || dividers.isNotEmpty;
 
@@ -172,6 +212,10 @@ class Design {
   /// Replaces one element with an edited copy of itself, wherever it lives.
   Design withElement(DesignElement element) => switch (element) {
         FrameElement() => copyWith(frame: element),
+        // A member is a view of one edge of the frame, not a thing of its
+        // own to store. Moving it means moving that edge, which is what
+        // DesignEdits.moveFrameMember does.
+        FrameMemberElement() => this,
         DividerElement() => copyWith(dividers: [
             for (final d in dividers) if (d.id == element.id) element else d,
           ]),

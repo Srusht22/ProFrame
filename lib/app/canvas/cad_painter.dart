@@ -697,6 +697,19 @@ class CadPainter extends CustomPainter {
       switch (element) {
         case FrameElement():
           canvas.drawPath(view.pathOf(element.outline), paint);
+        case FrameMemberElement():
+          // The one side, drawn as thick as the profile it is, so picking a
+          // jamb shows the jamb rather than a line through the middle of it.
+          canvas.drawLine(
+            view.toScreen(element.run.a),
+            view.toScreen(element.run.b),
+            paint
+              ..strokeWidth = math.max(
+                3,
+                view.lengthToScreen(design.frame?.profileMm ?? 60),
+              )
+              ..color = Cad.selection.withValues(alpha: 0.4),
+          );
         case SectionElement():
           canvas.drawPath(view.pathOf(element.outline), paint);
         case DividerElement():
@@ -759,25 +772,48 @@ class CadPainter extends CustomPainter {
 }
 
 /// A point you can take hold of to change the geometry.
+///
+/// A grip says what it moves, not what it belongs to: taking hold of the
+/// edge of a pane moves the bar that makes that edge, because the pane is
+/// the space between the bars and has no edges of its own to move.
 class Grip {
   final Vec2 at;
+
+  /// The element the grip is shown on.
   final String elementId;
+
   final GripKind kind;
 
-  const Grip({required this.at, required this.elementId, required this.kind});
+  /// The bar this grip actually moves, where it moves one.
+  final String? dividerId;
+
+  /// The frame edge this grip actually moves, where it moves one.
+  final int? memberIndex;
+
+  const Grip({
+    required this.at,
+    required this.elementId,
+    required this.kind,
+    this.dividerId,
+    this.memberIndex,
+  });
+
+  /// True where the grip moves something square to itself rather than to a
+  /// point — a boundary, which has one direction that means anything.
+  bool get isBoundary => kind == GripKind.boundary;
 }
 
 enum GripKind {
   /// Moves the whole thing.
   move,
 
-  /// Moves one end of a bar.
+  /// Moves one end of a bar, or one end of a dimension.
   endStart,
   endFinish,
 
-  /// Moves one side of the frame.
-  frameLeft,
-  frameRight,
-  frameTop,
-  frameBottom,
+  /// Moves a boundary square to itself: a bar, or one side of the frame.
+  boundary,
+
+  /// Slides a dimension line away from what it measures.
+  offset,
 }
