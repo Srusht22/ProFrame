@@ -121,7 +121,7 @@ test/
 ```sh
 flutter pub get
 flutter run                 # a device, a tablet, or a desktop
-flutter test                # 241 tests
+flutter test                # 249 tests
 flutter analyze             # strict: casts, inference, raw types
 ```
 
@@ -244,6 +244,23 @@ can be seen, and they are the design rather than the view. How far the leaves
 are swung open is the only control that is purely a way of looking: it
 changes the picture and nothing else, and a test asserts the design is
 identical before and after.
+
+## Nothing in the output is a picture
+
+```
+MY DRAWING  →  MY GEOMETRY  →  MY CAD DESIGN  →  MY 3D MODEL
+```
+
+Every pixel of the design is drawn from that geometry. There is no stock
+photograph, no generated picture, no ready-made 3D asset and no model file
+anywhere in this repository. `pubspec.yaml` bundles two typefaces and
+nothing else; `lib/` contains no call that loads a picture from the bundle,
+the network, disk or memory. When there is nothing to show, the application
+says so rather than reaching for something that looks like a door.
+
+`test/no_stock_content_test.dart` guards it. Add a stock picture and three
+of its tests fail: the asset declaration, the code that loads it, and the
+picture appearing where a design should be.
 
 ## What the 3D view is not
 

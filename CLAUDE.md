@@ -45,6 +45,30 @@ then that is what gets built. A narrow left column split by a transom, and a
 wide right column running the full height. The application must never decide
 that it would look better with the columns equal.
 
+## Nothing in the output is a picture
+
+The pipeline is:
+
+```
+MY DRAWING  →  MY GEOMETRY  →  MY CAD DESIGN  →  MY 3D MODEL
+```
+
+Every pixel the user sees of their design is drawn from that geometry. There
+is no stock door photograph, no stock window photograph, no generated
+picture, no ready-made 3D asset and no model file anywhere in this
+repository — and none is to be added. A picture standing in for a design is
+a lie about what was built, however good it looks, and it is worse than
+showing nothing.
+
+When there is nothing to show, the application says so. It does not reach
+for something that looks like a door.
+
+`test/no_stock_content_test.dart` enforces this on the repository itself: it
+fails if `pubspec.yaml` declares any bundled asset other than a typeface, if
+any file under `lib/` loads a picture from the bundle, the network, disk or
+memory, if a model file appears anywhere, or if a picture is put on screen
+where a design should be.
+
 ## Where the line falls
 
 The boundary between cleaning and redesigning is the whole design of this
