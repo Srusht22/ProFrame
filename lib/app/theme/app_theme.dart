@@ -100,6 +100,10 @@ abstract final class AppTheme {
         thumbColor: primary,
         overlayColor: primary.withValues(alpha: 0.12),
         trackHeight: 4,
+        // Small enough that the halo stays inside the slider's own box and
+        // does not print over whatever is beside it.
+        overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,

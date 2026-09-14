@@ -95,7 +95,7 @@ test/
 ```sh
 flutter pub get
 flutter run                 # a device, a tablet, or a desktop
-flutter test                # 191 tests
+flutter test                # 214 tests
 flutter analyze             # strict: casts, inference, raw types
 ```
 
@@ -175,6 +175,49 @@ own.
 Where you change a direction you drew, both are kept: the drawing shows what
 is built now, and the panel says *"You drew > here. You have since changed
 it to <."*
+
+## One model
+
+There is one document. The sheet, the technical drawing and the solid are
+three ways of looking at what is in it, not three things to keep in step:
+
+```
+                   Design
+                     |
+       +-------------+-------------+
+       |             |             |
+    the sheet    CAD drawing    3D model
+     (sketch)     (painter)      (mesh)
+```
+
+Each view is a function of that object and holds no geometry of its own. The
+CAD painter reads the design and draws. `MeshBuilder.build` reads the design
+and returns a mesh that nothing keeps — it is rebuilt from scratch on every
+frame, so there is nowhere for a stale copy to live. Change a bar and both
+views show it, because there is nowhere else for either of them to look.
+
+Tests state it rather than trusting it: the same design gives a byte-for-byte
+identical mesh; building the mesh does not touch the design; two designs that
+differ give meshes that differ; and after each of a run of edits, the set of
+panes in the model equals the set of panes in the drawing and the set of bars
+equals the set of bars.
+
+| Change | Reaches |
+| --- | --- |
+| A dimension typed in the drawing | the model, scaled in proportion |
+| A divider moved | the model, the bar in its new place |
+| An opening's direction | the model, the leaf on its new hinge |
+| A section from panel to glass | the model, as a see-through pane |
+| A colour | the model, on that pane's faces |
+| One side of the frame | the model, that side only |
+| **Depth, set in the 3D view** | the design, and so the parts list |
+| **Frame profile, set in the 3D view** | the drawing, as a heavier frame and smaller daylight openings |
+
+Depth and frame profile are edited in the 3D view because that is where they
+can be seen, and they are the design rather than the view. How far the leaves
+are swung open is the only control that is purely a way of looking: it
+changes the picture and nothing else, and a test asserts the design is
+identical before and after.
 
 ## What the 3D view is not
 

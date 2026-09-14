@@ -15,10 +15,27 @@ enum DesignKind {
 
 /// One design: the user's drawing, and the structured geometry read from it.
 ///
-/// The three things §13 asks for live side by side here — the original
-/// sketch, the structured geometry, and everything the 3D model is built
-/// from. The sketch is never overwritten by the geometry, so the user can
-/// always compare what they drew with what was made of it.
+/// **This is the only model.** The sketch, the technical drawing and the
+/// solid are three ways of looking at what is in here, not three documents
+/// that have to be kept in step:
+///
+/// ```
+///                    Design
+///                      |
+///        +-------------+-------------+
+///        |             |             |
+///     the sheet    CAD drawing    3D model
+///      (sketch)     (painter)     (mesh)
+/// ```
+///
+/// Each view is a function of this object and holds no geometry of its own.
+/// The CAD painter reads it and draws; `MeshBuilder.build` reads it and
+/// returns a mesh that nothing keeps. Change a bar here and both views show
+/// it, because there is nowhere else for either of them to be looking.
+///
+/// The one thing that is not a view of this is the user's own sketch, which
+/// lives inside it and is never overwritten by the geometry read from it —
+/// so what they drew can always be compared with what was made of it.
 class Design {
   final String id;
   final String name;

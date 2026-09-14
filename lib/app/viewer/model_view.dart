@@ -1,7 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/model/design.dart';
 import '../../domain/solid/camera.dart';
 import '../../domain/solid/mesh_builder.dart';
 import '../state/workspace.dart';
@@ -59,6 +61,12 @@ class _ModelViewState extends ConsumerState<ModelView> {
               zoom: looking.zoomToFit(mesh),
             );
           },
+        ),
+        const Divider(height: 1),
+        _SolidBar(
+          design: state.design,
+          openFraction: state.openFraction,
+          controller: controller,
         ),
         const Divider(height: 1),
         Expanded(
@@ -152,6 +160,173 @@ class _ModelViewState extends ConsumerState<ModelView> {
       ],
     );
   }
+}
+
+/// The parts of the design that belong to the solid, edited where they can
+/// be seen, and the one control that is only a way of looking.
+///
+/// Depth and profile are the design, not the view: changing either here
+/// changes the same object the technical drawing is drawn from, so the
+/// drawing changes with them. How far the leaves are swung is a way of
+/// looking at the model and changes nothing.
+class _SolidBar extends StatelessWidget {
+  final Design design;
+  final double openFraction;
+  final WorkspaceController controller;
+
+  const _SolidBar({
+    required this.design,
+    required this.openFraction,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+        color: AppTheme.surface,
+        padding: const EdgeInsets.fromLTRB(14, 7, 10, 7),
+        child: Row(
+          children: [
+            _SolidNumber(
+              label: 'Depth',
+              valueMm: design.depthMm,
+              onSet: controller.setDepth,
+            ),
+            const SizedBox(width: 14),
+            if (design.frame case final frame?)
+              _SolidNumber(
+                label: 'Profile',
+                valueMm: frame.profileMm,
+                onSet: controller.setProfile,
+              ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                'Both are the design. The drawing changes with them.',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            if (design.openings.isNotEmpty) ...[
+              const SizedBox(width: 16),
+              Tooltip(
+                message: 'How far the leaves are swung. A way of looking at '
+                    'the model; it changes nothing.',
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Open',
+                      style: TextStyle(
+                        fontFamily: AppTheme.fontFamily,
+                        fontSize: 12.5,
+                        color: AppTheme.muted,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 128,
+                      child: Slider(
+                        value: openFraction,
+                        onChanged: controller.setOpenFraction,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+}
+
+/// A small number field for a millimetre figure.
+class _SolidNumber extends StatefulWidget {
+  final String label;
+  final double valueMm;
+  final ValueChanged<double> onSet;
+
+  const _SolidNumber({
+    required this.label,
+    required this.valueMm,
+    required this.onSet,
+  });
+
+  @override
+  State<_SolidNumber> createState() => _SolidNumberState();
+}
+
+class _SolidNumberState extends State<_SolidNumber> {
+  late final TextEditingController _field =
+      TextEditingController(text: widget.valueMm.round().toString());
+  late final FocusNode _focus = FocusNode()
+    ..addListener(() {
+      if (!_focus.hasFocus) _commit();
+    });
+
+  @override
+  void didUpdateWidget(_SolidNumber old) {
+    super.didUpdateWidget(old);
+    if (!_focus.hasFocus && (widget.valueMm - old.valueMm).abs() > 0.5) {
+      _field.text = widget.valueMm.round().toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _field.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _commit() {
+    final value = double.tryParse(_field.text.trim());
+    if (value == null) {
+      _field.text = widget.valueMm.round().toString();
+      return;
+    }
+    if ((value - widget.valueMm).abs() < 0.5) return;
+    widget.onSet(value);
+  }
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            widget.label,
+            style: const TextStyle(
+              fontFamily: AppTheme.fontFamily,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.muted,
+            ),
+          ),
+          const SizedBox(width: 7),
+          SizedBox(
+            width: 92,
+            child: TextField(
+              controller: _field,
+              focusNode: _focus,
+              keyboardType: const TextInputType.numberWithOptions(),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+              ],
+              onSubmitted: (_) => _commit(),
+              style: const TextStyle(
+                fontFamily: AppTheme.fontFamily,
+                fontSize: 13.5,
+              ),
+              decoration: const InputDecoration(
+                suffixText: 'mm',
+                isDense: true,
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              ),
+            ),
+          ),
+        ],
+      );
 }
 
 /// The views, the projection and the way the model is drawn.

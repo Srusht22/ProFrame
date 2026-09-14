@@ -202,16 +202,6 @@ class _ViewBar extends StatelessWidget {
                   controller.showView(values.first),
             ),
             const Spacer(),
-            if (state.view == WorkspaceView.model) ...[
-              const Text('Open', style: TextStyle(color: AppTheme.muted)),
-              SizedBox(
-                width: compact ? 90 : 150,
-                child: Slider(
-                  value: state.openFraction,
-                  onChanged: controller.setOpenFraction,
-                ),
-              ),
-            ],
             if (state.design.frame != null)
               TextButton.icon(
                 onPressed: controller.readDrawing,
