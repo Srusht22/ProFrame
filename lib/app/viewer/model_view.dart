@@ -1,6 +1,4 @@
-import 'dart:math' as math;
-import 'dart:ui' as ui;
-
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,11 +6,15 @@ import '../../domain/solid/camera.dart';
 import '../../domain/solid/mesh_builder.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
+import 'display_style.dart';
+import 'model_painter.dart';
 
-/// The model, turned by dragging.
+/// The model, and the means to walk round it.
 ///
-/// Tapping a face picks the part of the design that face came from, so the
-/// 3D view is another way into the same design rather than a picture of it.
+/// Everything here is built from the design's own geometry: the frame along
+/// the outline that was drawn, a bar for every bar, a pane for every section
+/// the bars enclose. Tapping a face picks the part of the design it came
+/// from, so the model is another way into the same document.
 class ModelView extends ConsumerStatefulWidget {
   const ModelView({super.key});
 
@@ -20,17 +22,19 @@ class ModelView extends ConsumerStatefulWidget {
   ConsumerState<ModelView> createState() => _ModelViewState();
 }
 
+enum _Drag { orbit, pan }
+
 class _ModelViewState extends ConsumerState<ModelView> {
   Offset? _from;
+  _Drag _mode = _Drag.orbit;
+  double _mmPerPixel = 1;
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(workspaceProvider);
     final controller = ref.read(workspaceProvider.notifier);
 
-    if (state.design.frame == null) {
-      return const _NothingYet();
-    }
+    if (state.design.frame == null) return const _NothingYet();
 
     final mesh = MeshBuilder.build(
       state.design,
@@ -38,230 +42,354 @@ class _ModelViewState extends ConsumerState<ModelView> {
     );
     final faces = state.camera.project(mesh);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final size = Size(constraints.maxWidth, constraints.maxHeight);
-        final painter = ModelPainter(
-          faces: faces,
-          size: size,
-          selectedId: state.selectedId,
-        );
-
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onPanStart: (details) => _from = details.localPosition,
-          onPanUpdate: (details) {
-            final from = _from ?? details.localPosition;
-            final delta = details.localPosition - from;
-            _from = details.localPosition;
-            // Kept well inside a right angle. Past about fifty degrees a
-            // window is being looked at edge-on, which tells the user
-            // nothing and reads as the model falling over.
-            controller.turnCamera(
-              turn: (state.camera.turnDegrees + delta.dx * 0.22)
-                  .clamp(-52.0, 52.0),
-              tilt: (state.camera.tiltDegrees - delta.dy * 0.14)
-                  .clamp(-28.0, 28.0),
+    return Column(
+      children: [
+        _ViewToolbar(
+          camera: state.camera,
+          style: state.displayStyle,
+          groundPlane: state.groundPlane,
+          controller: controller,
+          // A named view frames the model from that side, because a window
+          // seen from the side is seventy millimetres deep and would
+          // otherwise arrive as a sliver in the middle of an empty screen.
+          onLook: (view) {
+            final looking = state.camera.lookingFrom(view);
+            controller.lookFrom(
+              view,
+              zoom: looking.zoomToFit(mesh),
             );
           },
-          onPanEnd: (_) => _from = null,
-          onTapUp: (details) {
-            final id = painter.elementAt(details.localPosition);
-            controller.select(id);
-          },
-          child: CustomPaint(size: size, painter: painter),
-        );
-      },
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final size = Size(constraints.maxWidth, constraints.maxHeight);
+              final painter = ModelPainter(
+                faces: faces,
+                size: size,
+                viewSpan: Camera.viewSpan(mesh),
+                style: state.displayStyle,
+                groundPlane: state.groundPlane,
+                selectedId: state.selectedId,
+              );
+              _mmPerPixel = painter.millimetresPerPixel;
+
+              return Listener(
+                onPointerSignal: (event) {
+                  if (event is PointerScrollEvent) {
+                    controller.zoomCamera(
+                      event.scrollDelta.dy > 0 ? 0.9 : 1.1,
+                    );
+                  }
+                },
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onScaleStart: (details) {
+                    _from = details.localFocalPoint;
+                    // Two fingers pan and zoom, one orbits — the same
+                    // division the drawing sheet uses, so the hands do not
+                    // have to learn two habits.
+                    _mode =
+                        details.pointerCount >= 2 ? _Drag.pan : _Drag.orbit;
+                  },
+                  onScaleUpdate: (details) {
+                    final from = _from ?? details.localFocalPoint;
+                    final delta = details.localFocalPoint - from;
+                    _from = details.localFocalPoint;
+
+                    if (details.pointerCount >= 2) {
+                      _mode = _Drag.pan;
+                      if (details.scale != 1) {
+                        controller
+                            .zoomCamera(1 + (details.scale - 1) * 0.28);
+                      }
+                    }
+
+                    switch (_mode) {
+                      case _Drag.orbit:
+                        // Well inside a right angle: past about fifty
+                        // degrees a window is being looked at edge on, which
+                        // tells the user nothing.
+                        controller.orbit(delta.dx * 0.28, -delta.dy * 0.18);
+                      case _Drag.pan:
+                        controller.panCamera(
+                          delta.dx * _mmPerPixel,
+                          delta.dy * _mmPerPixel,
+                        );
+                    }
+                  },
+                  onScaleEnd: (_) => _from = null,
+                  onTapUp: (details) =>
+                      controller.select(painter.elementAt(details.localPosition)),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: CustomPaint(size: size, painter: painter),
+                      ),
+                      Positioned(
+                        right: 12,
+                        bottom: 12,
+                        child: _Navigation(
+                          onIn: () => controller.zoomCamera(1.25),
+                          onOut: () => controller.zoomCamera(0.8),
+                          onExtents: () =>
+                              controller.zoomToFit(state.camera.zoomToFit(mesh)),
+                        ),
+                      ),
+                      Positioned(
+                        left: 14,
+                        bottom: 12,
+                        child: _Readout(state: state),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
 
-/// Paints the projected faces, far ones first.
-class ModelPainter extends CustomPainter {
-  final List<ProjectedFacet> faces;
-  final Size size;
-  final String? selectedId;
+/// The views, the projection and the way the model is drawn.
+class _ViewToolbar extends StatelessWidget {
+  final Camera camera;
+  final DisplayStyle style;
+  final bool groundPlane;
+  final WorkspaceController controller;
+  final ValueChanged<Camera> onLook;
 
-  late final double _scale;
-  late final Offset _centre;
+  const _ViewToolbar({
+    required this.camera,
+    required this.style,
+    required this.groundPlane,
+    required this.controller,
+    required this.onLook,
+  });
 
-  ModelPainter({
-    required this.faces,
-    required this.size,
-    this.selectedId,
-  }) {
-    var left = double.infinity, right = -double.infinity;
-    var top = double.infinity, bottom = -double.infinity;
-    for (final face in faces) {
-      for (final c in face.corners) {
-        left = math.min(left, c.x);
-        right = math.max(right, c.x);
-        top = math.min(top, c.y);
-        bottom = math.max(bottom, c.y);
-      }
-    }
-    if (!left.isFinite) {
-      _scale = 1;
-      _centre = Offset.zero;
-      return;
-    }
-    final width = math.max(right - left, 1.0);
-    final height = math.max(bottom - top, 1.0);
-    _scale = math.min(size.width * 0.82 / width, size.height * 0.82 / height);
-    _centre = Offset(
-      size.width / 2 - (left + width / 2) * _scale,
-      size.height / 2 - (top + height / 2) * _scale,
-    );
-  }
+  static const _views = <(String, Camera, IconData)>[
+    ('Iso', Camera.isometric, Icons.view_in_ar_outlined),
+    ('Front', Camera.front, Icons.crop_square),
+    ('Back', Camera.back, Icons.flip_to_back),
+    ('Left', Camera.left, Icons.chevron_left),
+    ('Right', Camera.right, Icons.chevron_right),
+    ('Top', Camera.top, Icons.vertical_align_top),
+    ('Bottom', Camera.bottom, Icons.vertical_align_bottom),
+  ];
 
-  Offset _place(double x, double y) =>
-      Offset(_centre.dx + x * _scale, _centre.dy + y * _scale);
+  bool _isAt(Camera view) =>
+      (camera.yawDegrees - view.yawDegrees).abs() < 0.5 &&
+      (camera.pitchDegrees - view.pitchDegrees).abs() < 0.5;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()
-        ..shader = ui.Gradient.linear(
-          Offset.zero,
-          Offset(0, size.height),
-          const [Color(0xFFF7F8F7), Color(0xFFE4E9E7)],
+  Widget build(BuildContext context) => Container(
+        color: AppTheme.surface,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              // Icons alone for the views: seven labels will not fit beside
+              // the projection and the styles on a tablet, and a scrolling
+              // toolbar hides the very controls it holds.
+              for (final (label, view, icon) in _views)
+                _Chip(
+                  icon: icon,
+                  on: _isAt(view),
+                  tooltip: '$label view',
+                  onTap: () => onLook(view),
+                ),
+              const SizedBox(width: 6),
+              const SizedBox(height: 22, child: VerticalDivider(width: 12)),
+              _Chip(
+                label: camera.projection.label,
+                icon: camera.projection == Projection.perspective
+                    ? Icons.filter_center_focus
+                    : Icons.grid_goldenratio,
+                on: true,
+                onTap: () => controller.setProjection(
+                  camera.projection == Projection.perspective
+                      ? Projection.parallel
+                      : Projection.perspective,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const SizedBox(height: 22, child: VerticalDivider(width: 12)),
+              for (final option in DisplayStyle.values)
+                _Chip(
+                  label: option == style ? option.label : null,
+                  icon: switch (option) {
+                    DisplayStyle.shaded => Icons.format_color_fill,
+                    DisplayStyle.shadedWithEdges => Icons.deblur,
+                    DisplayStyle.wireframe => Icons.grid_on,
+                    DisplayStyle.monochrome => Icons.contrast,
+                  },
+                  on: style == option,
+                  tooltip: option.hint,
+                  onTap: () => controller.setDisplayStyle(option),
+                ),
+              const SizedBox(width: 6),
+              const SizedBox(height: 22, child: VerticalDivider(width: 12)),
+              _Chip(
+                tooltip: 'Ground plane',
+                icon: Icons.horizontal_rule,
+                on: groundPlane,
+                onTap: () => controller.setGroundPlane(!groundPlane),
+              ),
+            ],
+          ),
         ),
-    );
-
-    if (faces.isEmpty) return;
-
-    // A soft shadow on the ground, so the thing sits somewhere rather than
-    // floating.
-    var lowest = -double.infinity;
-    var left = double.infinity, right = -double.infinity;
-    for (final face in faces) {
-      for (final c in face.corners) {
-        lowest = math.max(lowest, c.y);
-        left = math.min(left, c.x);
-        right = math.max(right, c.x);
-      }
-    }
-    final ground = _place((left + right) / 2, lowest);
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: ground + const Offset(6, 10),
-        width: (right - left) * _scale * 0.95,
-        height: math.max(12, (right - left) * _scale * 0.09),
-      ),
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.14)
-        ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 14),
-    );
-
-    for (final face in faces) {
-      final path = Path();
-      final first = _place(face.corners.first.x, face.corners.first.y);
-      path.moveTo(first.dx, first.dy);
-      for (final corner in face.corners.skip(1)) {
-        final at = _place(corner.x, corner.y);
-        path.lineTo(at.dx, at.dy);
-      }
-      path.close();
-
-      final base = Color(face.source.colour);
-      final lit = Color.from(
-        alpha: base.a,
-        red: (base.r * face.light).clamp(0.0, 1.0),
-        green: (base.g * face.light).clamp(0.0, 1.0),
-        blue: (base.b * face.light).clamp(0.0, 1.0),
       );
-      final opacity = 1 - face.source.transparency;
+}
 
-      canvas.drawPath(
-        path,
-        Paint()
-          ..style = PaintingStyle.fill
-          ..color = lit.withValues(alpha: opacity.clamp(0.12, 1.0)),
-      );
+class _Chip extends StatelessWidget {
+  /// Shown beside the icon. Left off where the icon and a tooltip say it.
+  final String? label;
+  final IconData icon;
+  final bool on;
+  final String? tooltip;
+  final VoidCallback onTap;
 
-      // Glass is mostly what it reflects. Without this it is a hole showing
-      // the dark inside of the frame, which reads as grey metal rather than
-      // as a pane.
-      if (face.source.transparency > 0.2) {
-        final bounds = path.getBounds();
-        canvas.drawPath(
-          path,
-          Paint()
-            ..style = PaintingStyle.fill
-            ..shader = ui.Gradient.linear(
-              bounds.topLeft,
-              bounds.bottomRight,
-              [
-                const Color(0xFFEAF3F8)
-                    .withValues(alpha: 0.72 * face.source.transparency),
-                const Color(0xFFBFD4DE)
-                    .withValues(alpha: 0.34 * face.source.transparency),
-                const Color(0xFFE8F1F4)
-                    .withValues(alpha: 0.52 * face.source.transparency),
-              ],
-              const [0, 0.55, 1],
-            ),
-        );
-      }
-
-      // A highlight on a glossy face, which is what makes aluminium read as
-      // metal rather than as painted board.
-      if (face.source.gloss > 0.4 && face.light > 0.72) {
-        canvas.drawPath(
-          path,
-          Paint()
-            ..style = PaintingStyle.fill
-            ..color = Colors.white
-                .withValues(alpha: (face.source.gloss - 0.4) * 0.3),
-        );
-      }
-
-      canvas.drawPath(
-        path,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 0.7
-          ..color = Colors.black.withValues(alpha: 0.16),
-      );
-
-      if (face.elementId == selectedId) {
-        canvas.drawPath(
-          path,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.2
-            ..color = AppTheme.selection,
-        );
-      }
-    }
-  }
-
-  /// Which part of the design is under [pixel] — the nearest face, since the
-  /// list is painted far to near.
-  String? elementAt(Offset pixel) {
-    for (final face in faces.reversed) {
-      final path = Path();
-      final first = _place(face.corners.first.x, face.corners.first.y);
-      path.moveTo(first.dx, first.dy);
-      for (final corner in face.corners.skip(1)) {
-        final at = _place(corner.x, corner.y);
-        path.lineTo(at.dx, at.dy);
-      }
-      path.close();
-      if (path.contains(pixel)) return face.elementId;
-    }
-    return null;
-  }
+  const _Chip({
+    required this.icon,
+    required this.on,
+    required this.onTap,
+    this.label,
+    this.tooltip,
+  });
 
   @override
-  bool shouldRepaint(ModelPainter old) =>
-      old.faces.length != faces.length ||
-      old.selectedId != selectedId ||
-      old.size != size ||
-      (faces.isNotEmpty &&
-          old.faces.isNotEmpty &&
-          old.faces.first.depth != faces.first.depth);
+  Widget build(BuildContext context) {
+    final chip = Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: Material(
+        color:
+            on ? AppTheme.primary.withValues(alpha: 0.1) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: label == null ? 9 : 10,
+              vertical: 7,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 16,
+                  color: on ? AppTheme.primary : AppTheme.muted,
+                ),
+                if (label != null) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    label!,
+                    style: TextStyle(
+                      fontFamily: AppTheme.fontFamily,
+                      fontSize: 12.5,
+                      fontWeight: on ? FontWeight.w600 : FontWeight.w500,
+                      color: on ? AppTheme.primary : AppTheme.muted,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    return tooltip == null ? chip : Tooltip(message: tooltip!, child: chip);
+  }
+}
+
+class _Navigation extends StatelessWidget {
+  final VoidCallback onIn;
+  final VoidCallback onOut;
+  final VoidCallback onExtents;
+
+  const _Navigation({
+    required this.onIn,
+    required this.onOut,
+    required this.onExtents,
+  });
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: AppTheme.surface,
+        elevation: 1,
+        borderRadius: BorderRadius.circular(10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: onIn,
+              icon: const Icon(Icons.add),
+              tooltip: 'Zoom in',
+              color: AppTheme.primary,
+              visualDensity: VisualDensity.compact,
+            ),
+            IconButton(
+              onPressed: onOut,
+              icon: const Icon(Icons.remove),
+              tooltip: 'Zoom out',
+              color: AppTheme.primary,
+              visualDensity: VisualDensity.compact,
+            ),
+            IconButton(
+              onPressed: onExtents,
+              icon: const Icon(Icons.fit_screen_outlined),
+              tooltip: 'Zoom extents',
+              color: AppTheme.primary,
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+      );
+}
+
+/// Where the view is, and how big the thing being looked at is.
+class _Readout extends StatelessWidget {
+  final WorkspaceState state;
+  const _Readout({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final design = state.design;
+    final camera = state.camera;
+    return DefaultTextStyle(
+      style: const TextStyle(
+        fontFamily: AppTheme.fontFamily,
+        fontSize: 11.5,
+        color: AppTheme.muted,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.surface.withValues(alpha: 0.86),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('${design.widthMm.round()} × ${design.heightMm.round()} × '
+                '${design.depthMm.round()} mm'),
+            const SizedBox(height: 2),
+            Text('${design.sections.length} sections · '
+                '${design.dividers.length} bars'),
+            const SizedBox(height: 2),
+            Text('yaw ${camera.yawDegrees.round()}°  '
+                'pitch ${camera.pitchDegrees.round()}°  '
+                '×${camera.zoom.toStringAsFixed(2)}'),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _NothingYet extends StatelessWidget {

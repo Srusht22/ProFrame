@@ -12,8 +12,10 @@ import '../../domain/recognition/interpreter.dart';
 import '../../domain/sections/section_builder.dart';
 import '../../domain/sketch/stroke.dart';
 import '../../domain/solid/camera.dart';
+import '../../domain/solid/mesh.dart';
 import '../../infrastructure/design_store.dart';
 import '../canvas/cad_layers.dart';
+import '../viewer/display_style.dart';
 import 'tools.dart';
 
 /// Everything on screen at once.
@@ -48,6 +50,10 @@ class WorkspaceState {
   /// never a change to it.
   final CadLayers layers;
 
+  /// How the model is drawn. Also only a way of looking at it.
+  final DisplayStyle displayStyle;
+  final bool groundPlane;
+
   const WorkspaceState({
     required this.design,
     this.tool = Tool.pen,
@@ -60,6 +66,8 @@ class WorkspaceState {
     this.openFraction = 0,
     this.penColour = 0xFF013E37,
     this.layers = const CadLayers(),
+    this.displayStyle = DisplayStyle.shadedWithEdges,
+    this.groundPlane = true,
   });
 
   DesignElement? get selected =>
@@ -78,6 +86,8 @@ class WorkspaceState {
     double? openFraction,
     int? penColour,
     CadLayers? layers,
+    DisplayStyle? displayStyle,
+    bool? groundPlane,
   }) =>
       WorkspaceState(
         design: design ?? this.design,
@@ -91,6 +101,8 @@ class WorkspaceState {
         openFraction: openFraction ?? this.openFraction,
         penColour: penColour ?? this.penColour,
         layers: layers ?? this.layers,
+        displayStyle: displayStyle ?? this.displayStyle,
+        groundPlane: groundPlane ?? this.groundPlane,
       );
 }
 
@@ -177,14 +189,42 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
   void setLayers(CadLayers layers) => state = state.copyWith(layers: layers);
 
-  void turnCamera({double? turn, double? tilt, double? distance}) =>
-      state = state.copyWith(
-        camera: state.camera.copyWith(
-          turnDegrees: turn,
-          tiltDegrees: tilt,
-          distanceInSpans: distance,
-        ),
+  /// Swings the view round the model.
+  void orbit(double byYaw, double byPitch) => state = state.copyWith(
+        camera: state.camera.orbited(byYaw, byPitch),
       );
+
+  /// Slides the view across the model, in millimetres of model.
+  void panCamera(double acrossMm, double downMm) => state = state.copyWith(
+        camera: state.camera.pannedBy(acrossMm, downMm),
+      );
+
+  void zoomCamera(double factor) => state = state.copyWith(
+        camera: state.camera.zoomedBy(factor),
+      );
+
+  /// Looks at the model from one of the named views, keeping the zoom and
+  /// the pan so it reads as walking round it rather than starting again.
+  void lookFrom(Camera view, {double? zoom}) => state = state.copyWith(
+        camera: state.camera.lookingFrom(view).copyWith(zoom: zoom),
+      );
+
+  /// Frames the whole model from where it is being looked at now.
+  void zoomToFit(double zoom) => state = state.copyWith(
+        camera: state.camera.copyWith(zoom: zoom, target: Vec3.zero),
+      );
+
+  void setProjection(Projection projection) => state = state.copyWith(
+        camera: state.camera.copyWith(projection: projection),
+      );
+
+  /// Back to the whole model, centred.
+  void zoomExtents() => state = state.copyWith(camera: state.camera.reset());
+
+  void setDisplayStyle(DisplayStyle style) =>
+      state = state.copyWith(displayStyle: style);
+
+  void setGroundPlane(bool on) => state = state.copyWith(groundPlane: on);
 
   void setOpenFraction(double value) =>
       state = state.copyWith(openFraction: value.clamp(0.0, 1.0));

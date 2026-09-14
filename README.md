@@ -58,7 +58,11 @@ you draw  →  strokes kept exactly  →  read as geometry  →  you confirm or 
 6. **The model** is built from that geometry — the frame along your outline,
    bars along your bars, panes filling what they enclose, hardware only where
    you put it. Every face knows which part it came from, so tapping a pane in
-   the model selects the same pane as tapping it in the drawing.
+   the model selects the same pane as tapping it in the drawing. Orbit, pan
+   and zoom it; look at it from the front, back, either side, above, below or
+   three-quarters; switch between perspective and parallel; draw it shaded,
+   shaded with edges, as a wireframe, or in one colour. Wireframe is the
+   proof it is a solid: every edge is there, including the ones behind.
 
 ## Layout
 
@@ -91,13 +95,28 @@ test/
 ```sh
 flutter pub get
 flutter run                 # a device, a tablet, or a desktop
-flutter test                # 101 tests
+flutter test                # 123 tests
 flutter analyze             # strict: casts, inference, raw types
 ```
 
 The web build runs offline: `web/flutter_bootstrap.js` points Flutter at the
 copy of its renderer inside the bundle rather than at a CDN, so it opens in a
 workshop with no internet.
+
+## What the 3D view is not
+
+It is not a picture of the drawing tipped into perspective, and there is no
+stock model anywhere in the repository to stretch to fit. The mesh is built
+face by face from the design: a ring following the outline's own corners, a
+box for each bar at the angle it was drawn, a slab filling each section the
+bars enclose. Turn on wireframe and count the edges.
+
+Tests assert the correspondence directly: every section in the drawing is a
+pane in the model and no more; every bar is a bar and no more; the one
+horizontal divider is one horizontal bar spanning exactly the column it was
+drawn across; glass is in the section the glass was put in and the panel in
+the section the panel was put in; and nothing exists in the model whose id
+is not in the drawing.
 
 ## Snapping
 

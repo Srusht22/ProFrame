@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/domain/geometry/polygon.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
@@ -192,7 +194,7 @@ void main() {
   group('camera', () {
     test('turning brings one side forward and takes the other back', () {
       final mesh = MeshBuilder.build(build());
-      const camera = Camera(turnDegrees: 35, tiltDegrees: 0);
+      const camera = Camera(yawDegrees: 35, pitchDegrees: 0);
       final faces = camera.project(mesh);
       expect(faces, isNotEmpty);
 
@@ -215,7 +217,7 @@ void main() {
     test('turning the model moves the light with it, not against it', () {
       final mesh = MeshBuilder.build(build());
       double lightOn(double turn) {
-        final faces = Camera(turnDegrees: turn).project(mesh);
+        final faces = Camera(yawDegrees: turn).project(mesh);
         return faces
                 .where((f) => f.source.role == FacetRole.frame)
                 .map((f) => f.light)
@@ -226,7 +228,7 @@ void main() {
       expect(lightOn(0), isNot(closeTo(lightOn(50), 0.001)));
     });
 
-    test('a straight-on view is wider than a near one', () {
+    test('standing closer makes the model loom larger', () {
       final mesh = MeshBuilder.build(build());
       double width(Camera camera) {
         final faces = camera.project(mesh);
@@ -240,9 +242,175 @@ void main() {
         return right - left;
       }
 
-      // Standing closer with the same model makes it loom larger.
       expect(width(const Camera(distanceInSpans: 1.8)),
           greaterThan(width(const Camera(distanceInSpans: 6))));
+    });
+
+    test('zoom changes the size of what comes back', () {
+      final mesh = MeshBuilder.build(build());
+      double width(Camera camera) {
+        final faces = camera.project(mesh);
+        var left = 1e9, right = -1e9;
+        for (final f in faces) {
+          for (final c in f.corners) {
+            if (c.x < left) left = c.x;
+            if (c.x > right) right = c.x;
+          }
+        }
+        return right - left;
+      }
+
+      // Without this the view would refit itself every frame and zooming
+      // would do nothing at all.
+      expect(width(const Camera(zoom: 2)),
+          closeTo(width(const Camera()) * 2, 1));
+    });
+
+    test('a parallel view keeps parallel edges parallel', () {
+      final mesh = MeshBuilder.build(build());
+      final faces = const Camera(
+        yawDegrees: 35,
+        pitchDegrees: 20,
+        projection: Projection.parallel,
+      ).project(mesh);
+
+      // The two long edges of the outer frame face are the same length in a
+      // parallel view, whatever the angle. In perspective they are not.
+      double heightAt(List<ProjectedFacet> faces, bool nearSide) {
+        var best = nearSide ? -1e9 : 1e9;
+        var found = 0.0;
+        for (final face in faces) {
+          for (final c in face.corners) {
+            if (nearSide ? c.x > best : c.x < best) {
+              best = c.x;
+              var low = -1e9, high = 1e9;
+              for (final o in face.corners) {
+                if (o.y > low) low = o.y;
+                if (o.y < high) high = o.y;
+              }
+              found = low - high;
+            }
+          }
+        }
+        return found;
+      }
+
+      expect(heightAt(faces, true), closeTo(heightAt(faces, false), 60));
+
+      final perspective = const Camera(yawDegrees: 35, pitchDegrees: 20)
+          .project(mesh);
+      expect(
+        (heightAt(perspective, true) - heightAt(perspective, false)).abs(),
+        greaterThan(1),
+      );
+    });
+
+    test('the named views look from where they say', () {
+      expect(Camera.front.yawDegrees, 0);
+      expect(Camera.back.yawDegrees, 180);
+      expect(Camera.left.yawDegrees, -90);
+      expect(Camera.right.yawDegrees, 90);
+      expect(Camera.top.pitchDegrees, greaterThan(80));
+      expect(Camera.bottom.pitchDegrees, lessThan(-80));
+      expect(Camera.isometric.yawDegrees, isNot(0));
+      expect(Camera.isometric.pitchDegrees, isNot(0));
+    });
+
+    test('switching view keeps the zoom and the pan', () {
+      const looking = Camera(
+        zoom: 2.5,
+        target: Vec3(120, -40, 0),
+        projection: Projection.parallel,
+      );
+      final front = looking.lookingFrom(Camera.front);
+      expect(front.yawDegrees, 0);
+      expect(front.zoom, 2.5);
+      expect(front.target.x, 120);
+      expect(front.projection, Projection.parallel);
+    });
+
+    test('orbiting never tips the model past straight up or down', () {
+      var camera = const Camera();
+      for (var i = 0; i < 40; i++) {
+        camera = camera.orbited(30, 30);
+      }
+      expect(camera.pitchDegrees, lessThanOrEqualTo(89));
+      expect(camera.pitchDegrees, greaterThanOrEqualTo(-89));
+      expect(camera.yawDegrees.abs(), lessThanOrEqualTo(180));
+    });
+
+    test('the scale the viewport uses does not move with the zoom', () {
+      final mesh = MeshBuilder.build(build());
+      // The zoom lives in the projected coordinates. If it were in here as
+      // well the viewport would divide it straight back out and the zoom
+      // buttons would do nothing at all — which is exactly what happened.
+      expect(Camera.viewSpan(mesh), closeTo(mesh.span, 0.001));
+    });
+
+    test('zooming to fit fills the view from whatever side it is seen', () {
+      final mesh = MeshBuilder.build(build());
+
+      double filled(Camera camera) {
+        final faces = camera.project(mesh);
+        var left = 1e9, right = -1e9, top = 1e9, bottom = -1e9;
+        for (final f in faces) {
+          for (final c in f.corners) {
+            if (c.x < left) left = c.x;
+            if (c.x > right) right = c.x;
+            if (c.y < top) top = c.y;
+            if (c.y > bottom) bottom = c.y;
+          }
+        }
+        return math.max(right - left, bottom - top) / Camera.viewSpan(mesh);
+      }
+
+      // Every named view frames the model. Without this, a view that looks
+      // along a short axis — the seventy millimetres of a window's depth —
+      // arrives as a sliver in the middle of an empty screen.
+      for (final view in [
+        Camera.front,
+        Camera.left,
+        Camera.top,
+        Camera.isometric,
+      ]) {
+        expect(
+          filled(view.copyWith(zoom: view.zoomToFit(mesh))),
+          closeTo(0.9 / 0.92, 0.02),
+          reason: 'the ${view.yawDegrees}/${view.pitchDegrees} view should '
+              'be framed',
+        );
+      }
+    });
+
+    test('a pan stays on the same part of the model when it is orbited', () {
+      final panned = const Camera().pannedBy(300, 0);
+      // The target moved in the model, not on the screen, so the offset
+      // survives the orbit rather than being reinterpreted by it.
+      final orbited = panned.orbited(90, 0);
+      expect(orbited.target.x, closeTo(panned.target.x, 1e-9));
+      expect(orbited.target.z, closeTo(panned.target.z, 1e-9));
+      expect(panned.target.x, isNot(closeTo(0, 1e-6)));
+    });
+
+    test('panning moves the view across the model, not the model', () {
+      final mesh = MeshBuilder.build(build());
+      double middleX(Camera camera) {
+        final faces = camera.project(mesh);
+        var left = 1e9, right = -1e9;
+        for (final f in faces) {
+          for (final c in f.corners) {
+            if (c.x < left) left = c.x;
+            if (c.x > right) right = c.x;
+          }
+        }
+        return (left + right) / 2;
+      }
+
+      const straight = Camera(yawDegrees: 0, pitchDegrees: 0);
+      expect(
+        middleX(straight.pannedBy(200, 0)),
+        greaterThan(middleX(straight) + 100),
+      );
     });
   });
 }

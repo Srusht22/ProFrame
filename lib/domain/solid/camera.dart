@@ -3,10 +3,24 @@ import 'dart:math' as math;
 import '../geometry/vec2.dart';
 import 'mesh.dart';
 
-/// A face ready to be painted: where it lands on the screen, how far away it
-/// is, and how much light falls on it.
+/// How the model is flattened onto the screen.
+enum Projection {
+  /// What an eye sees: the near side of a reveal is wider than the far side.
+  perspective('Perspective'),
+
+  /// What a drawing uses: parallel edges stay parallel, so sizes can be
+  /// compared across the model.
+  parallel('Parallel');
+
+  const Projection(this.label);
+  final String label;
+}
+
+/// A face ready to be painted: where it lands, how far away it is, and how
+/// much light falls on it.
 class ProjectedFacet {
-  /// The corners on screen, in the same units the caller works in.
+  /// The corners in view units — millimetres at the model's own scale,
+  /// before the viewport decides how many pixels a millimetre is.
   final List<Vec2> corners;
 
   /// How far the face is from the eye. Bigger is further away.
@@ -27,60 +41,137 @@ class ProjectedFacet {
   String get elementId => source.elementId;
 }
 
-/// Looks at the model from somewhere.
+/// Where the model is being looked at from.
 ///
-/// A real perspective camera, not a flattened projection: turning the model
-/// actually brings one jamb towards the viewer and takes the other away, and
-/// the near end of a long reveal is genuinely wider than the far end. That is
-/// the difference between a picture of a window and a diagram of one.
+/// Yaw swings round it, pitch rises over it, the target is what the view is
+/// centred on, and the zoom is how close it looks. The target is kept in the
+/// model's own space rather than on the screen, so panning and then orbiting
+/// leaves the view centred on the same part of the model — which is what a
+/// modelling program does and what makes a model feel solid rather than like
+/// a picture being dragged about.
 class Camera {
-  /// Turn about the upright axis, in degrees. 0 looks straight on.
-  final double turnDegrees;
+  /// Degrees round the upright axis. 0 faces the front of the design.
+  final double yawDegrees;
 
-  /// Tilt up or down, in degrees. Positive looks down on it.
-  final double tiltDegrees;
+  /// Degrees above the horizon. Positive looks down on the model.
+  final double pitchDegrees;
 
-  /// How strong the perspective is: how many model-widths back the eye sits.
-  /// Smaller is a wider lens and a stronger effect.
+  /// How far back the eye sits, in model-widths. Only perspective uses it:
+  /// smaller is a wider lens and a stronger effect.
   final double distanceInSpans;
 
+  /// How close the view is. 1 fits the model.
+  final double zoom;
+
+  /// What the view is centred on, as an offset in millimetres from the
+  /// middle of the model.
+  final Vec3 target;
+
+  final Projection projection;
+
   const Camera({
-    this.turnDegrees = 24,
-    this.tiltDegrees = 9,
-    this.distanceInSpans = 3.1,
+    this.yawDegrees = 30,
+    this.pitchDegrees = 17,
+    this.distanceInSpans = 4.2,
+    this.zoom = 1,
+    this.target = Vec3.zero,
+    this.projection = Projection.perspective,
   });
 
-  static const Camera straightOn =
-      Camera(turnDegrees: 0, tiltDegrees: 0, distanceInSpans: 6);
+  // The views a modelling program puts on its toolbar. Each keeps whatever
+  // zoom and pan the user already had, so switching between them is a look
+  // from a different side rather than a reset.
+  static const Camera front = Camera(yawDegrees: 0, pitchDegrees: 0);
+  static const Camera back = Camera(yawDegrees: 180, pitchDegrees: 0);
+  static const Camera left = Camera(yawDegrees: -90, pitchDegrees: 0);
+  static const Camera right = Camera(yawDegrees: 90, pitchDegrees: 0);
+  static const Camera top = Camera(yawDegrees: 0, pitchDegrees: 89);
+  static const Camera bottom = Camera(yawDegrees: 0, pitchDegrees: -89);
+
+  /// The three-quarter view a model is usually shown in.
+  static const Camera isometric = Camera(yawDegrees: 35, pitchDegrees: 25);
 
   Camera copyWith({
-    double? turnDegrees,
-    double? tiltDegrees,
+    double? yawDegrees,
+    double? pitchDegrees,
     double? distanceInSpans,
+    double? zoom,
+    Vec3? target,
+    Projection? projection,
   }) =>
       Camera(
-        turnDegrees: turnDegrees ?? this.turnDegrees,
-        tiltDegrees: tiltDegrees ?? this.tiltDegrees,
+        yawDegrees: yawDegrees ?? this.yawDegrees,
+        pitchDegrees: pitchDegrees ?? this.pitchDegrees,
         distanceInSpans: distanceInSpans ?? this.distanceInSpans,
+        zoom: zoom ?? this.zoom,
+        target: target ?? this.target,
+        projection: projection ?? this.projection,
       );
+
+  /// Swings the view, keeping everything else.
+  ///
+  /// Pitch stops just short of straight up and straight down, where the
+  /// horizon would flip over and the model would appear to spin.
+  Camera orbited(double byYaw, double byPitch) => copyWith(
+        yawDegrees: _wrap(yawDegrees + byYaw),
+        pitchDegrees: (pitchDegrees + byPitch).clamp(-89.0, 89.0),
+      );
+
+  /// Moves what the view is centred on, by a distance in millimetres across
+  /// and down the screen.
+  ///
+  /// The move is worked out in the model's own space, so the view stays on
+  /// the same part of the model when it is next orbited.
+  Camera pannedBy(double acrossMm, double downMm) =>
+      copyWith(target: target - screenRight * acrossMm - screenDown * downMm);
+
+  Camera zoomedBy(double factor) =>
+      copyWith(zoom: (zoom * factor).clamp(0.05, 60.0));
+
+  /// Takes a named view and keeps the zoom, the pan and the projection.
+  Camera lookingFrom(Camera view) => view.copyWith(
+        zoom: zoom,
+        target: target,
+        projection: projection,
+        distanceInSpans: distanceInSpans,
+      );
+
+  Camera reset() => copyWith(zoom: 1, target: Vec3.zero);
+
+  /// The direction that is to the right on screen, in the model's space.
+  Vec3 get screenRight {
+    final yaw = yawDegrees * math.pi / 180;
+    return Vec3(math.cos(yaw), 0, math.sin(yaw));
+  }
+
+  /// The direction that is down the screen, in the model's space.
+  Vec3 get screenDown {
+    final yaw = yawDegrees * math.pi / 180;
+    final pitch = pitchDegrees * math.pi / 180;
+    return Vec3(
+      math.sin(yaw) * math.sin(pitch),
+      math.cos(pitch),
+      -math.cos(yaw) * math.sin(pitch),
+    );
+  }
 
   /// Every face of [mesh], projected, and sorted so the far ones are painted
   /// first.
   ///
-  /// The sort is on the projected depth, not on the depth the face has in the
+  /// The sort is on the projected depth, not on the depth a face has in the
   /// model, because turning the model changes which jamb is the near one.
   /// Sorting on the wrong one is what makes a turned frame look inside out.
   List<ProjectedFacet> project(Mesh mesh, {Vec3? lightFrom}) {
     if (mesh.isEmpty) return const [];
 
-    final centre = mesh.centre;
+    final centre = mesh.centre + target;
     final span = math.max(mesh.span, 1);
     final eyeDistance = span * distanceInSpans;
 
-    final turn = turnDegrees * math.pi / 180;
-    final tilt = tiltDegrees * math.pi / 180;
-    final cosTurn = math.cos(turn), sinTurn = math.sin(turn);
-    final cosTilt = math.cos(tilt), sinTilt = math.sin(tilt);
+    final yaw = yawDegrees * math.pi / 180;
+    final pitch = pitchDegrees * math.pi / 180;
+    final cosYaw = math.cos(yaw), sinYaw = math.sin(yaw);
+    final cosPitch = math.cos(pitch), sinPitch = math.sin(pitch);
 
     // Light from over the viewer's left shoulder, which is where a window is
     // usually photographed from.
@@ -88,12 +179,10 @@ class Camera {
 
     Vec3 toEye(Vec3 point) {
       final p = point - centre;
-      // Turn about the upright axis.
-      final x = p.x * cosTurn + p.z * sinTurn;
-      final z = -p.x * sinTurn + p.z * cosTurn;
-      // Then tilt.
-      final y = p.y * cosTilt - z * sinTilt;
-      final zz = p.y * sinTilt + z * cosTilt;
+      final x = p.x * cosYaw + p.z * sinYaw;
+      final z = -p.x * sinYaw + p.z * cosYaw;
+      final y = p.y * cosPitch - z * sinPitch;
+      final zz = p.y * sinPitch + z * cosPitch;
       return Vec3(x, y, zz);
     }
 
@@ -107,20 +196,21 @@ class Camera {
       for (final corner in facet.corners) {
         final eye = toEye(corner);
         final away = eyeDistance - eye.z;
-        if (away <= span * 0.02) {
+        if (projection == Projection.perspective && away <= span * 0.02) {
           behind = true;
           break;
         }
-        final scale = eyeDistance / away;
-        corners.add(Vec2(eye.x * scale, eye.y * scale));
+        final scale = projection == Projection.perspective
+            ? eyeDistance / away
+            : 1.0;
+        corners.add(Vec2(eye.x * scale * zoom, eye.y * scale * zoom));
         depthSum += away;
       }
       if (behind || corners.length < 3) continue;
 
       // The normal has to be turned too, or the shading stays put while the
       // model moves.
-      final normal = facet.normal;
-      final turned = toEye(normal + centre) - toEye(centre);
+      final turned = toEye(facet.normal + centre) - toEye(centre);
       final facing = turned.normalised;
 
       // Light either side: a face turned away from the viewer is the inside
@@ -138,5 +228,46 @@ class Camera {
 
     projected.sort((a, b) => b.depth.compareTo(a.depth));
     return projected;
+  }
+
+  /// How many view units across the model is, looked at from any angle.
+  ///
+  /// Taken from the model's own diagonal rather than from what happens to be
+  /// on screen, so the view does not quietly rescale itself every time it is
+  /// orbited — which would make zooming and panning impossible.
+  ///
+  /// Deliberately independent of [zoom]. The zoom is already in the
+  /// projected coordinates; putting it here too would divide it straight
+  /// back out again and the zoom would do nothing at all.
+  static double viewSpan(Mesh mesh) => math.max(mesh.span, 1);
+
+  /// The zoom that makes the model fill [fraction] of the view from where it
+  /// is being looked at now.
+  ///
+  /// Worked out from this view in particular, because a window seen from the
+  /// side is seventy millimetres deep and would otherwise be a sliver.
+  double zoomToFit(Mesh mesh, {double fraction = 0.9}) {
+    final faces = copyWith(zoom: 1).project(mesh);
+    if (faces.isEmpty) return zoom;
+    var left = double.infinity, right = -double.infinity;
+    var top = double.infinity, bottom = -double.infinity;
+    for (final face in faces) {
+      for (final c in face.corners) {
+        left = math.min(left, c.x);
+        right = math.max(right, c.x);
+        top = math.min(top, c.y);
+        bottom = math.max(bottom, c.y);
+      }
+    }
+    final extent = math.max(right - left, bottom - top);
+    if (extent <= 0) return zoom;
+    return (viewSpan(mesh) / extent * fraction / 0.92).clamp(0.05, 60.0);
+  }
+
+  static double _wrap(double degrees) {
+    var value = degrees % 360;
+    if (value > 180) value -= 360;
+    if (value < -180) value += 360;
+    return value;
   }
 }
