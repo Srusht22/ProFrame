@@ -1,5 +1,30 @@
 # ProFrame
 
+## What the application is
+
+```
+I DRAW MY DOOR/WINDOW
+        ↓
+MY EXACT DRAWING IS PRESERVED
+        ↓
+CAD / SKETCHUP-STYLE DRAWING
+        ↓
+I MARK OPENINGS USING < OR >
+        ↓
+I EDIT ANY PART
+        ↓
+3D SKETCHUP-STYLE MODEL
+        ↓
+THE 3D MODEL IS THE SAME DESIGN I DREW
+```
+
+That chain is the product. Every step of it is a conversion, never a
+decision: the drawing becomes geometry, the geometry becomes a technical
+drawing and a solid, and at no point does anything get designed.
+
+**DO NOT DESIGN THE DOOR OR WINDOW FOR THE USER. THEY DESIGN IT. THE
+APPLICATION ONLY CONVERTS THEIR DESIGN INTO EDITABLE CAD AND 3D.**
+
 ## The rule
 
 **THE USER'S DRAWING IS THE SOURCE OF TRUTH.**

@@ -3,11 +3,32 @@
 Draw a door or a window by hand. The drawing becomes editable geometry, and
 the geometry becomes the 2D design and the 3D model — exactly as drawn.
 
+## What it does
+
+```
+I DRAW MY DOOR/WINDOW
+        ↓
+MY EXACT DRAWING IS PRESERVED
+        ↓
+CAD / SKETCHUP-STYLE DRAWING
+        ↓
+I MARK OPENINGS USING < OR >
+        ↓
+I EDIT ANY PART
+        ↓
+3D SKETCHUP-STYLE MODEL
+        ↓
+THE 3D MODEL IS THE SAME DESIGN I DREW
+```
+
+Every step is a conversion, never a decision.
+
 ## The rule the whole thing is built on
 
-**THE USER'S DRAWING IS THE SOURCE OF TRUTH.**
+**DO NOT DESIGN THE DOOR OR WINDOW FOR ME. I DESIGN IT. THE APPLICATION
+ONLY CONVERTS MY DESIGN INTO EDITABLE CAD AND 3D.**
 
-It is not a preference and it is not negotiable against any other goal here.
+THE USER'S DRAWING IS THE SOURCE OF TRUTH. It is not a preference and it is not negotiable against any other goal here.
 A change that makes the output prettier, more regular or easier to build, at
 the cost of it no longer being what the user drew, is a bug — however good it
 looks.
