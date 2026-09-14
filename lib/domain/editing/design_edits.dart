@@ -302,6 +302,9 @@ abstract final class DesignEdits {
     required String openingId,
     required OpeningMechanism mechanism,
     OpeningDirection direction = OpeningDirection.inward,
+    Vec2? markAt,
+    String? markGlyph,
+    String? fromStrokeId,
   }) {
     final without = [
       for (final o in design.openings) if (o.sectionId != sectionId) o,
@@ -317,6 +320,9 @@ abstract final class DesignEdits {
         mechanism: mechanism,
         direction: direction,
         confirmed: true,
+        markAt: markAt,
+        markGlyph: markGlyph,
+        fromStrokeId: fromStrokeId,
       ),
     ]);
   }

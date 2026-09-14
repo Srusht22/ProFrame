@@ -95,13 +95,50 @@ test/
 ```sh
 flutter pub get
 flutter run                 # a device, a tablet, or a desktop
-flutter test                # 123 tests
+flutter test                # 155 tests
 flutter analyze             # strict: casts, inference, raw types
 ```
 
 The web build runs offline: `web/flutter_bootstrap.js` points Flutter at the
 copy of its renderer inside the bundle rather than at a CDN, so it opens in a
 workshop with no internet.
+
+## Openings
+
+**Only the user decides which section opens.** There is no rule anywhere
+that picks a door leaf, nothing that decides the lower section is probably
+the door, and no template. A design with nothing marked comes back with no
+openings, however door-shaped it is.
+
+You mark a section by drawing `<` or `>` inside it:
+
+```
+┌────────────────────────┐        ┌──────────┬─────────────┐
+│                        │        │          │             │
+│         GLASS          │        │    <     │             │
+│                        │        │          │    GLASS    │
+├────────────────────────┤        │          │             │
+│           >            │        └──────────┴─────────────┘
+│                        │
+│       DOOR PART        │        The section holding the < opens.
+│                        │        The other one does not.
+└────────────────────────┘
+```
+
+`>` is the elevation symbol for a leaf hinged on the left, opening from the
+right — the point is at the edge that moves. `<` is its mirror. Both
+readings agree: `>` hinges left, and it opens rightward.
+
+The mark never becomes a bar; it is an instruction, not something to build.
+It stays in your sketch like every other stroke, and the drawing shows the
+glyph where you made it, so the design can always be checked against the
+instruction it came from.
+
+If the mark is not clearly inside one section — it crosses a bar, or sits
+outside the frame — **nothing is opened** and you are asked which section
+you meant, with every candidate offered and none chosen. An opening made
+from a mark lasts exactly as long as the mark does: rub it out, or say it
+was not one, and the opening goes with it.
 
 ## What the 3D view is not
 

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../editing/design_edits.dart';
 import '../geometry/polygon.dart';
 import '../geometry/segment.dart';
 import '../geometry/tolerances.dart';
@@ -11,6 +12,7 @@ import '../model/question.dart';
 import '../sections/planar_graph.dart';
 import '../sections/section_builder.dart';
 import '../sketch/stroke.dart';
+import 'opening_symbol.dart';
 import 'stroke_fit.dart';
 
 /// What was read from a drawing, and what could not be read with confidence.
@@ -26,10 +28,15 @@ class Interpretation {
   /// They stay in the sketch. Nothing is deleted on their account.
   final List<String> unusedStrokeIds;
 
+  /// The `<` and `>` marks that were read, whether or not they could be
+  /// placed in a section.
+  final List<OpeningSymbol> symbols;
+
   const Interpretation({
     required this.design,
     this.questions = const [],
     this.unusedStrokeIds = const [],
+    this.symbols = const [],
   });
 
   bool get hasQuestions => questions.isNotEmpty;
@@ -43,10 +50,34 @@ class Interpretation {
 /// usually looks like. Where the drawing is ambiguous it produces a question
 /// rather than an answer.
 abstract final class SketchInterpreter {
-  static Interpretation interpret(Design design, {String Function()? newId}) {
+  /// Reads [design]'s sketch.
+  ///
+  /// [notSymbols] holds the ids of strokes the user has said are lines to
+  /// build rather than opening marks. Their answer is kept, so a mark they
+  /// have already ruled on is not asked about again.
+  static Interpretation interpret(
+    Design design, {
+    String Function()? newId,
+    Set<String> notSymbols = const {},
+  }) {
+    // The opening marks come out first. A `>` is two strokes' worth of
+    // straight lines to a line-fitter, and building it as two bars would put
+    // something in the design that the user drew as an instruction.
+    final symbols = <OpeningSymbol>[];
+    final symbolStrokes = <String>{};
+    for (final stroke in design.sketch.strokes) {
+      if (!_isStructural(stroke)) continue;
+      if (notSymbols.contains(stroke.id)) continue;
+      final symbol = OpeningSymbolReader.read(stroke);
+      if (symbol == null) continue;
+      symbols.add(symbol);
+      symbolStrokes.add(stroke.id);
+    }
+
     final structural = [
       for (final stroke in design.sketch.strokes)
-        if (_isStructural(stroke)) stroke,
+        if (_isStructural(stroke) && !symbolStrokes.contains(stroke.id))
+          stroke,
     ];
     if (structural.isEmpty) {
       return Interpretation(
@@ -123,7 +154,22 @@ abstract final class SketchInterpreter {
     var read = design.copyWith(frame: frame, dividers: dividers);
     read = SectionBuilder.rebuild(read, newId: newId);
 
+    // An opening that came from a mark lasts exactly as long as the mark
+    // does. Rub the mark out, or say it was never one, and the opening goes
+    // with it — otherwise the drawing and the design would disagree about
+    // who decided what.
+    read = read.copyWith(openings: [
+      for (final opening in read.openings)
+        if (opening.fromStrokeId == null ||
+            symbolStrokes.contains(opening.fromStrokeId))
+          opening,
+    ]);
+
+    final placed = _placeSymbols(read, symbols, nextId);
+    read = placed.design;
+
     final questions = <DesignQuestion>[
+      ...placed.questions,
       ..._openingQuestions(read, fits, outline),
       ..._scaleQuestion(read),
     ];
@@ -134,11 +180,107 @@ abstract final class SketchInterpreter {
     return Interpretation(
       design: read,
       questions: questions,
+      symbols: symbols,
       unusedStrokeIds: [
         for (final stroke in structural)
           if (!usedStrokes.contains(stroke.id)) stroke.id,
       ],
     );
+  }
+
+  /// Gives each mark the section it was drawn in.
+  ///
+  /// A mark opens the section it is inside and no other. Where every part of
+  /// the mark lies in one section there is nothing to decide, so the opening
+  /// is made. Where it does not — the mark straddles a bar, sits over the
+  /// frame, or falls outside the design — nothing is decided at all and the
+  /// user is asked which section they meant.
+  static _Placed _placeSymbols(
+    Design design,
+    List<OpeningSymbol> symbols,
+    String Function(String) nextId,
+  ) {
+    var read = design;
+    final questions = <DesignQuestion>[];
+
+    for (final symbol in symbols) {
+      final holding = <SectionElement>[];
+      for (final section in read.sections) {
+        if (symbol.points.every(section.outline.contains)) {
+          holding.add(section);
+        }
+      }
+
+      if (holding.length == 1) {
+        read = DesignEdits.setOpening(
+          read,
+          holding.single.id,
+          openingId: nextId('opening'),
+          mechanism: symbol.mechanism,
+          markAt: symbol.centre,
+          markGlyph: symbol.glyph,
+          fromStrokeId: symbol.strokeId,
+        );
+        continue;
+      }
+
+      // Not certain. Every section the mark touches at all is offered, so
+      // the user picks rather than the application guessing.
+      final touched = <SectionElement>[
+        for (final section in read.sections)
+          if (symbol.points.any(section.outline.contains)) section,
+      ];
+      final choices = touched.isEmpty ? read.sections : touched;
+
+      questions.add(DesignQuestion(
+        id: 'symbol-${symbol.strokeId}',
+        prompt: 'Which section does this ${symbol.glyph} belong to?',
+        detail: touched.isEmpty
+            ? 'The mark is not inside any one section, so nothing has been '
+                'opened. Say which section you meant.'
+            : 'The mark crosses more than one section, so nothing has been '
+                'opened. Say which section you meant.',
+        aboutIds: [symbol.strokeId, for (final s in choices) s.id],
+        options: [
+          for (final section in choices)
+            QuestionOption(
+              key: section.id,
+              label: _describe(section, read),
+              detail: 'Open this one, ${symbol.meaning}.',
+            ),
+          const QuestionOption(
+            key: 'not-a-symbol',
+            label: 'It is not an opening mark',
+            detail: 'Build it as lines, exactly where it was drawn.',
+          ),
+        ],
+      ));
+    }
+
+    return _Placed(read, questions);
+  }
+
+  /// A section named the way somebody would point at it.
+  static String _describe(SectionElement section, Design design) {
+    final frame = design.frame;
+    final where = StringBuffer();
+    if (frame != null) {
+      final middleY = (frame.outline.top + frame.outline.bottom) / 2;
+      final middleX = (frame.outline.left + frame.outline.right) / 2;
+      final centre = section.outline.centroid;
+      final rows = design.sections.map((s) => s.outline.top.round()).toSet();
+      final columns =
+          design.sections.map((s) => s.outline.left.round()).toSet();
+      if (rows.length > 1) {
+        where.write(centre.y < middleY ? 'upper ' : 'lower ');
+      }
+      if (columns.length > 1) {
+        where.write(centre.x < middleX ? 'left' : 'right');
+      }
+    }
+    final place = where.toString().trim();
+    final size = '${section.widthMm.round()} × ${section.heightMm.round()} mm';
+    return place.isEmpty ? size : 'The $place section — $size';
   }
 
   /// A stroke made with a tool that draws structure. Notes, arrows and
@@ -376,4 +518,10 @@ class _Run {
   final Segment segment;
   final String strokeId;
   const _Run(this.segment, this.strokeId);
+}
+
+class _Placed {
+  final Design design;
+  final List<DesignQuestion> questions;
+  const _Placed(this.design, this.questions);
 }

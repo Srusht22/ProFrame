@@ -9,6 +9,7 @@ import '../../domain/model/elements.dart';
 import '../../domain/model/materials.dart';
 import '../../domain/model/question.dart';
 import '../../domain/recognition/interpreter.dart';
+import '../../domain/recognition/opening_symbol.dart';
 import '../../domain/sections/section_builder.dart';
 import '../../domain/sketch/stroke.dart';
 import '../../domain/solid/camera.dart';
@@ -54,6 +55,10 @@ class WorkspaceState {
   final DisplayStyle displayStyle;
   final bool groundPlane;
 
+  /// Strokes the user has said are lines to build rather than opening marks.
+  /// Their answer is kept, so the same mark is never asked about twice.
+  final Set<String> notSymbols;
+
   const WorkspaceState({
     required this.design,
     this.tool = Tool.pen,
@@ -68,6 +73,7 @@ class WorkspaceState {
     this.layers = const CadLayers(),
     this.displayStyle = DisplayStyle.shadedWithEdges,
     this.groundPlane = true,
+    this.notSymbols = const {},
   });
 
   DesignElement? get selected =>
@@ -88,6 +94,7 @@ class WorkspaceState {
     CadLayers? layers,
     DisplayStyle? displayStyle,
     bool? groundPlane,
+    Set<String>? notSymbols,
   }) =>
       WorkspaceState(
         design: design ?? this.design,
@@ -103,6 +110,7 @@ class WorkspaceState {
         layers: layers ?? this.layers,
         displayStyle: displayStyle ?? this.displayStyle,
         groundPlane: groundPlane ?? this.groundPlane,
+        notSymbols: notSymbols ?? this.notSymbols,
       );
 }
 
@@ -350,7 +358,10 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   /// is unsure about comes back as a question for the user.
   void readDrawing() {
     _remember();
-    final result = SketchInterpreter.interpret(state.design);
+    final result = SketchInterpreter.interpret(
+      state.design,
+      notSymbols: state.notSymbols,
+    );
     state = state.copyWith(
       design: result.design,
       questions: result.questions,
@@ -368,7 +379,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     );
     if (question.id.isEmpty) return;
 
-    if (questionId.startsWith('opening-bar-')) {
+    if (questionId.startsWith('symbol-')) {
+      _answerSymbol(questionId.substring('symbol-'.length), optionKey);
+    } else if (questionId.startsWith('opening-bar-')) {
       _answerDiagonal(
         questionId.substring('opening-bar-'.length),
         optionKey,
@@ -394,6 +407,47 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
     state = state.copyWith(
       questions: [for (final q in state.questions) if (q.id != questionId) q],
+    );
+  }
+
+  /// Which section the user says a `<` or `>` belongs to.
+  ///
+  /// The mark is theirs and so is the answer: the section they name opens,
+  /// and no other. Saying it is not a mark puts the strokes back as lines,
+  /// exactly where they were drawn, and the answer is remembered so the
+  /// question is not asked again.
+  void _answerSymbol(String strokeId, String optionKey) {
+    if (optionKey == 'not-a-symbol') {
+      _remember();
+      final notSymbols = {...state.notSymbols, strokeId};
+      final result = SketchInterpreter.interpret(
+        state.design,
+        notSymbols: notSymbols,
+      );
+      state = state.copyWith(
+        design: result.design,
+        notSymbols: notSymbols,
+        questions: result.questions,
+      );
+      return;
+    }
+
+    final stroke = state.design.sketch.byId(strokeId);
+    final symbol = stroke == null ? null : OpeningSymbolReader.read(stroke);
+    if (symbol == null) return;
+    if (state.design.sectionById(optionKey) == null) return;
+
+    _remember();
+    state = state.copyWith(
+      design: DesignEdits.setOpening(
+        state.design,
+        optionKey,
+        openingId: _newId('opening'),
+        mechanism: symbol.mechanism,
+        markAt: symbol.centre,
+        markGlyph: symbol.glyph,
+        fromStrokeId: strokeId,
+      ),
     );
   }
 
@@ -575,18 +629,35 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     state = state.copyWith(design: state.design.copyWith(depthMm: depthMm));
   }
 
+  /// Sets by hand what a section does.
+  ///
+  /// Where the section was opened by a `<` or `>`, turning it back to fixed
+  /// is the user overruling their own mark. The mark is remembered as not
+  /// being one, or reading the drawing again would put the opening straight
+  /// back and their decision would not stick.
   void setOpening(String sectionId, OpeningMechanism mechanism,
       {OpeningDirection direction = OpeningDirection.inward}) {
     _remember();
-    state = state.copyWith(
+    final existing = state.design.openingOf(sectionId);
+    final markStroke = existing?.fromStrokeId;
+
+    var next = state.copyWith(
       design: DesignEdits.setOpening(
         state.design,
         sectionId,
         openingId: _newId('opening'),
         mechanism: mechanism,
         direction: direction,
+        markAt: mechanism == OpeningMechanism.fixed ? null : existing?.markAt,
+        markGlyph:
+            mechanism == OpeningMechanism.fixed ? null : existing?.markGlyph,
+        fromStrokeId: mechanism == OpeningMechanism.fixed ? null : markStroke,
       ),
     );
+    if (mechanism == OpeningMechanism.fixed && markStroke != null) {
+      next = next.copyWith(notSymbols: {...state.notSymbols, markStroke});
+    }
+    state = next;
   }
 
   void addHardware(HardwareKind kind, Vec2 at) {

@@ -323,9 +323,60 @@ class CadPainter extends CustomPainter {
         size: Cad.smallTextSize,
         weight: FontWeight.w600,
       );
-      final at = view.toScreen(apex);
-      tag.paint(canvas, at + const Offset(6, -6));
+      // Inside the section, not hanging off the apex — the apex sits on the
+      // section's own edge, so anything placed outside it lands on the frame
+      // or off the drawing altogether.
+      // The apex sits on the edge opposite the hinge, so the tag steps back
+      // towards the middle of the section: away from the apex, not past it.
+      final inward = switch (edge) {
+        OpeningEdge.left => Offset(-tag.width - 8, -tag.height / 2),
+        OpeningEdge.right => Offset(8, -tag.height / 2),
+        OpeningEdge.top => Offset(-tag.width / 2, -tag.height - tagGap),
+        OpeningEdge.bottom => Offset(-tag.width / 2, tagGap),
+      };
+      tag.paint(canvas, view.toScreen(apex) + inward);
+
+      _openingMark(canvas, opening);
     }
+  }
+
+  /// The `<` or `>` the user drew, shown where they drew it.
+  ///
+  /// Not decoration: it is the record of who decided this section opens. The
+  /// mark stays at the point it was made, so the drawing can be checked
+  /// against the instruction it came from.
+  /// How far above a bottom-hinged apex the direction tag sits.
+  static const double tagGap = 18;
+
+  void _openingMark(Canvas canvas, OpeningElement opening) {
+    final at = opening.markAt;
+    final glyph = opening.markGlyph;
+    if (at == null || glyph == null) return;
+
+    final on = view.toScreen(at);
+    final text = Cad.label(
+      glyph,
+      colour: Cad.dimension,
+      size: 15,
+      weight: FontWeight.w700,
+    );
+    final box = Rect.fromCenter(
+      center: on,
+      width: text.width + 13,
+      height: text.height + 7,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(box, const Radius.circular(5)),
+      Cad.fill(Cad.sheet),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(box, const Radius.circular(5)),
+      Cad.stroke(Cad.dimension.withValues(alpha: 0.6), Cad.annotation),
+    );
+    text.paint(
+      canvas,
+      Offset(on.dx - text.width / 2, on.dy - text.height / 2),
+    );
   }
 
   void _hardware(Canvas canvas) {
@@ -439,7 +490,12 @@ class CadPainter extends CustomPainter {
         size: Cad.smallTextSize,
         weight: FontWeight.w600,
       );
-      final at = view.toScreen(section.outline.centroid);
+      // Where the user marked this section, their mark has the middle and
+      // the size steps aside. Their instruction is the more important of
+      // the two things written there.
+      final marked = design.openingOf(section.id)?.markAt != null;
+      final at = view.toScreen(section.outline.centroid) +
+          (marked ? const Offset(0, -19) : Offset.zero);
       final box = Rect.fromCenter(
         center: at,
         width: text.width + 9,

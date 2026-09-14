@@ -266,9 +266,16 @@ class OpeningElement extends DesignElement {
   final OpeningMechanism mechanism;
   final OpeningDirection direction;
 
-  /// True when the user confirmed this rather than it being read off the
-  /// drawing. An unconfirmed opening is shown as a question, not as fact.
+  /// True when the user said so — by marking the section with a symbol, or
+  /// by answering. Nothing else sets it, because nothing else creates an
+  /// opening.
   final bool confirmed;
+
+  /// Where the user put the mark that says this section opens, and which
+  /// mark it was. Kept so the drawing can show that the mark was honoured,
+  /// in the place it was made.
+  final Vec2? markAt;
+  final String? markGlyph;
 
   const OpeningElement({
     required super.id,
@@ -276,19 +283,24 @@ class OpeningElement extends DesignElement {
     required this.mechanism,
     this.direction = OpeningDirection.inward,
     this.confirmed = false,
+    this.markAt,
+    this.markGlyph,
     super.fromStrokeId,
   });
 
   @override
-  String get label => mechanism.label;
+  String get label =>
+      markGlyph == null ? mechanism.label : '${mechanism.label}  $markGlyph';
 
   @override
-  Vec2 get anchor => Vec2.zero;
+  Vec2 get anchor => markAt ?? Vec2.zero;
 
   OpeningElement copyWith({
     OpeningMechanism? mechanism,
     OpeningDirection? direction,
     bool? confirmed,
+    Vec2? markAt,
+    String? markGlyph,
   }) =>
       OpeningElement(
         id: id,
@@ -296,6 +308,8 @@ class OpeningElement extends DesignElement {
         mechanism: mechanism ?? this.mechanism,
         direction: direction ?? this.direction,
         confirmed: confirmed ?? this.confirmed,
+        markAt: markAt ?? this.markAt,
+        markGlyph: markGlyph ?? this.markGlyph,
         fromStrokeId: fromStrokeId,
       );
 
@@ -308,6 +322,8 @@ class OpeningElement extends DesignElement {
         'mechanism': mechanism.name,
         'direction': direction.name,
         'confirmed': confirmed,
+        if (markAt != null) 'markAt': markAt!.toJson(),
+        if (markGlyph != null) 'markGlyph': markGlyph,
       };
 
   static OpeningElement fromJson(Map<String, Object?> map) => OpeningElement(
@@ -323,6 +339,8 @@ class OpeningElement extends DesignElement {
           orElse: () => OpeningDirection.inward,
         ),
         confirmed: map['confirmed'] as bool? ?? false,
+        markAt: map['markAt'] == null ? null : Vec2.fromJson(map['markAt']),
+        markGlyph: map['markGlyph'] as String?,
       );
 }
 

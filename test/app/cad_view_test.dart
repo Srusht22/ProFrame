@@ -240,6 +240,122 @@ void main() {
     });
   });
 
+  group('overruling a mark sticks', () {
+    test('setting a marked section back to fixed survives reading again', () {
+      final container = makeContainer();
+      final controller = container.read(workspaceProvider.notifier)
+        ..startDesign(DesignKind.door)
+        ..addStroke(
+          const [
+            StrokeSample(Vec2(0, 0)),
+            StrokeSample(Vec2(1000, 0)),
+            StrokeSample(Vec2(1000, 2200)),
+            StrokeSample(Vec2(0, 2200)),
+            StrokeSample(Vec2(0, 0)),
+          ],
+          tool: Tool.pen,
+        )
+        ..addStroke(
+          const [
+            StrokeSample(Vec2(380, 900)),
+            StrokeSample(Vec2(640, 1100)),
+            StrokeSample(Vec2(380, 1300)),
+          ],
+          tool: Tool.pen,
+        )
+        ..readDrawing();
+
+      var design = container.read(workspaceProvider).design;
+      expect(design.openings, hasLength(1));
+      final section = design.sections.single;
+
+      // The user overrules their own mark.
+      controller.setOpening(section.id, OpeningMechanism.fixed);
+      expect(container.read(workspaceProvider).design.openings, isEmpty);
+
+      // And it stays overruled, rather than the mark putting it straight
+      // back the next time the drawing is read.
+      controller.readDrawing();
+      design = container.read(workspaceProvider).design;
+      expect(design.openings, isEmpty);
+    });
+
+    test('overruled, the mark is built as the lines it is', () {
+      final container = makeContainer();
+      final controller = container.read(workspaceProvider.notifier)
+        ..startDesign(DesignKind.window)
+        ..addStroke(
+          const [
+            StrokeSample(Vec2(0, 0)),
+            StrokeSample(Vec2(1200, 0)),
+            StrokeSample(Vec2(1200, 1200)),
+            StrokeSample(Vec2(0, 1200)),
+            StrokeSample(Vec2(0, 0)),
+          ],
+          tool: Tool.pen,
+        )
+        ..addStroke(
+          const [
+            StrokeSample(Vec2(300, 300)),
+            StrokeSample(Vec2(700, 600)),
+            StrokeSample(Vec2(300, 900)),
+          ],
+          tool: Tool.pen,
+        )
+        ..readDrawing();
+
+      expect(container.read(workspaceProvider).design.openings, hasLength(1));
+      final section = container.read(workspaceProvider).design.sections.single;
+
+      controller
+        ..setOpening(section.id, OpeningMechanism.fixed)
+        ..readDrawing();
+
+      final design = container.read(workspaceProvider).design;
+      expect(design.openings, isEmpty);
+      // Having been told it is not a mark, it is built exactly as drawn.
+      expect(design.dividers, hasLength(2));
+      expect(design.sketch.strokes, hasLength(2));
+    });
+
+    test('erasing the mark takes the opening with it', () {
+      final container = makeContainer();
+      final controller = container.read(workspaceProvider.notifier)
+        ..startDesign(DesignKind.door)
+        ..addStroke(
+          const [
+            StrokeSample(Vec2(0, 0)),
+            StrokeSample(Vec2(1000, 0)),
+            StrokeSample(Vec2(1000, 2200)),
+            StrokeSample(Vec2(0, 2200)),
+            StrokeSample(Vec2(0, 0)),
+          ],
+          tool: Tool.pen,
+        )
+        ..addStroke(
+          const [
+            StrokeSample(Vec2(380, 900)),
+            StrokeSample(Vec2(640, 1100)),
+            StrokeSample(Vec2(380, 1300)),
+          ],
+          tool: Tool.pen,
+        )
+        ..readDrawing();
+
+      expect(container.read(workspaceProvider).design.openings, hasLength(1));
+
+      final mark =
+          container.read(workspaceProvider).design.sketch.strokes.last.id;
+      controller
+        ..eraseStroke(mark)
+        ..readDrawing();
+
+      final design = container.read(workspaceProvider).design;
+      expect(design.openings, isEmpty);
+      expect(design.sketch.strokes, hasLength(1));
+    });
+  });
+
   testWidgets('the CAD drawing shows its layers and its status bar',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(1500, 950));

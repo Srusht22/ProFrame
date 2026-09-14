@@ -243,6 +243,39 @@ class _OpeningField extends StatelessWidget {
       children: [
         const _Label('Opens'),
         const SizedBox(height: 6),
+        if (opening?.markGlyph != null) ...[
+          Container(
+            padding: const EdgeInsets.fromLTRB(11, 9, 11, 9),
+            decoration: BoxDecoration(
+              color: AppTheme.accent.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  opening!.markGlyph!,
+                  style: const TextStyle(
+                    fontFamily: AppTheme.fontFamily,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Text(
+                    'You marked this section with a '
+                    '${opening.markGlyph}. Nothing else opens.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.primary.withValues(alpha: 0.85),
+                        ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
         DropdownButtonFormField<OpeningMechanism>(
           initialValue: mechanism,
           isExpanded: true,
