@@ -660,6 +660,38 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     state = next;
   }
 
+  /// Changes what a selected opening does.
+  void setOpeningMechanism(String openingId, OpeningMechanism mechanism) {
+    _remember();
+    state = state.copyWith(
+      design: DesignEdits.setOpeningMechanism(
+        state.design,
+        openingId,
+        mechanism,
+      ),
+      clearSelection: mechanism == OpeningMechanism.fixed,
+    );
+  }
+
+  void setOpeningSwing(String openingId, OpeningDirection direction) {
+    _remember();
+    state = state.copyWith(
+      design: DesignEdits.setOpeningSwing(state.design, openingId, direction),
+    );
+  }
+
+  /// Puts the opening on a different section.
+  void moveOpeningToSection(String openingId, String sectionId) {
+    _remember();
+    state = state.copyWith(
+      design: DesignEdits.moveOpeningToSection(
+        state.design,
+        openingId,
+        sectionId,
+      ),
+    );
+  }
+
   void addHardware(HardwareKind kind, Vec2 at) {
     _remember();
     state = state.copyWith(

@@ -240,6 +240,18 @@ enum OpeningMechanism {
   final String label;
   final String description;
 
+  /// The mark that says this mechanism, where one of the four does.
+  ///
+  /// The point is at the edge that moves, which is the edge opposite the
+  /// hinge — the same rule for all four.
+  String? get glyph => switch (this) {
+        hingedLeft => '>',
+        hingedRight => '<',
+        bottomHung => '^',
+        topHung => 'v',
+        _ => null,
+      };
+
   /// Which edge the hinges are on, for drawing the opening symbol and for
   /// placing the leaf in 3D. Null when the mechanism has no single hinge edge.
   OpeningEdge? get hingeEdge => switch (this) {
@@ -289,8 +301,13 @@ class OpeningElement extends DesignElement {
   });
 
   @override
-  String get label =>
-      markGlyph == null ? mechanism.label : '${mechanism.label}  $markGlyph';
+  String get label {
+    // The glyph of what it does now, not the one that was drawn. Where they
+    // differ the inspector shows both; a heading has room for one, and the
+    // current state is the one worth showing.
+    final glyph = mechanism.glyph ?? markGlyph;
+    return glyph == null ? mechanism.label : '${mechanism.label}  $glyph';
+  }
 
   @override
   Vec2 get anchor => markAt ?? Vec2.zero;

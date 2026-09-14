@@ -95,7 +95,7 @@ test/
 ```sh
 flutter pub get
 flutter run                 # a device, a tablet, or a desktop
-flutter test                # 155 tests
+flutter test                # 175 tests
 flutter analyze             # strict: casts, inference, raw types
 ```
 
@@ -110,7 +110,17 @@ that picks a door leaf, nothing that decides the lower section is probably
 the door, and no template. A design with nothing marked comes back with no
 openings, however door-shaped it is.
 
-You mark a section by drawing `<` or `>` inside it:
+You mark a section by drawing one of four marks inside it:
+
+| Mark | Meaning |
+| --- | --- |
+| `>` | hinged on the left, opening from the right |
+| `<` | hinged on the right, opening from the left |
+| `^` | hinged at the bottom, opening at the top |
+| `v` | hinged at the top, opening at the bottom |
+
+One rule covers all four: **the point is at the edge that moves**, and the
+hinge is opposite it. That is how they are read on an elevation.
 
 ```
 ┌────────────────────────┐        ┌──────────┬─────────────┐
@@ -125,10 +135,6 @@ You mark a section by drawing `<` or `>` inside it:
 └────────────────────────┘
 ```
 
-`>` is the elevation symbol for a leaf hinged on the left, opening from the
-right — the point is at the edge that moves. `<` is its mirror. Both
-readings agree: `>` hinges left, and it opens rightward.
-
 The mark never becomes a bar; it is an instruction, not something to build.
 It stays in your sketch like every other stroke, and the drawing shows the
 glyph where you made it, so the design can always be checked against the
@@ -139,6 +145,36 @@ outside the frame — **nothing is opened** and you are asked which section
 you meant, with every candidate offered and none chosen. An opening made
 from a mark lasts exactly as long as the mark does: rub it out, or say it
 was not one, and the opening goes with it.
+
+### Editing an opening
+
+The marked section becomes an object you can select — from its mark on the
+drawing, from the component tree, or from the section's own panel. Selected,
+it shows what it is and lets you change it:
+
+```
+Hinged left  >
+
+Direction      <   >   ^   v
+               You marked this section with a >.
+Opening type   Hinged left · Hinges on the left, opens from the right
+               Inward | Outward
+Width          819 mm
+Height         1689 mm
+Position       left section — 819 × 1689 mm
+```
+
+Changing the direction changes which edge the leaf swings about, in the CAD
+drawing and in the model, and nothing else: the sections keep their shapes,
+the bars keep their places, the finishes keep their colours. Width and
+height move the bar beside the section, as they do everywhere else. Position
+moves the opening to a different section — neither section changes shape,
+because an opening is a property of a section rather than a shape of its
+own.
+
+Where you change a direction you drew, both are kept: the drawing shows what
+is built now, and the panel says *"You drew > here. You have since changed
+it to <."*
 
 ## What the 3D view is not
 

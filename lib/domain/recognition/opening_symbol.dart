@@ -7,18 +7,42 @@ import '../sketch/stroke.dart';
 import 'stroke_fit.dart';
 
 /// Which way the symbol points.
+///
+/// The point is always at the edge that moves, which is the edge opposite
+/// the hinge. That one rule covers all four marks.
 enum SymbolDirection {
-  /// `<` — the apex is on the left.
-  pointsLeft('<'),
+  /// `<` — the apex is on the left, so the left edge opens.
+  pointsLeft('<', OpeningMechanism.hingedRight,
+      'hinged on the right, opening from the left'),
 
-  /// `>` — the apex is on the right.
-  pointsRight('>');
+  /// `>` — the apex is on the right, so the right edge opens.
+  pointsRight('>', OpeningMechanism.hingedLeft,
+      'hinged on the left, opening from the right'),
 
-  const SymbolDirection(this.glyph);
+  /// `^` — the apex is at the top, so the top edge opens.
+  pointsUp('^', OpeningMechanism.bottomHung,
+      'hinged at the bottom, opening at the top'),
+
+  /// `v` — the apex is at the bottom, so the bottom edge opens.
+  pointsDown('v', OpeningMechanism.topHung,
+      'hinged at the top, opening at the bottom');
+
+  const SymbolDirection(this.glyph, this.mechanism, this.meaning);
+
   final String glyph;
+  final OpeningMechanism mechanism;
+  final String meaning;
+
+  /// The mark that says this mechanism, where one of the four does.
+  static SymbolDirection? forMechanism(OpeningMechanism mechanism) {
+    for (final direction in values) {
+      if (direction.mechanism == mechanism) return direction;
+    }
+    return null;
+  }
 }
 
-/// A `<` or a `>` the user drew to say that a section opens.
+/// A `<`, `>`, `^` or `v` the user drew to say that a section opens.
 ///
 /// This is the only thing in the application that creates an opening. There
 /// is no rule anywhere that decides a section ought to open, no door leaf
@@ -62,25 +86,18 @@ class OpeningSymbol {
 
   /// What the mark means.
   ///
-  /// A chevron pointing right is the standard elevation symbol for a leaf
-  /// hinged on the left and opening from the right — the point is at the
-  /// edge that moves. Pointing left is its mirror. Both readings of `>`
-  /// agree: it hinges left, and it opens rightward.
-  OpeningMechanism get mechanism => direction == SymbolDirection.pointsRight
-      ? OpeningMechanism.hingedLeft
-      : OpeningMechanism.hingedRight;
+  /// The point is at the edge that moves and the hinge is opposite it, which
+  /// is how these are read on an elevation. Both readings of `>` agree: it
+  /// hinges left, and it opens rightward.
+  OpeningMechanism get mechanism => direction.mechanism;
 
-  String get meaning => direction == SymbolDirection.pointsRight
-      ? 'hinged on the left, opening from the right'
-      : 'hinged on the right, opening from the left';
+  String get meaning => direction.meaning;
 }
 
-/// Reads `<` and `>` out of the user's strokes.
+/// Reads `<`, `>`, `^` and `v` out of the user's strokes.
 ///
-/// It recognises those two marks and nothing else. A stroke that is nearly a
-/// chevron but not clearly one is left alone to be a line, and a chevron
-/// pointing up or down is not one of the two documented symbols, so it is
-/// not treated as one.
+/// It recognises those four marks and nothing else. A stroke that is nearly
+/// a chevron but not clearly one is left alone to be a line.
 abstract final class OpeningSymbolReader {
   /// The mark [stroke] is, or null when it is not one.
   static OpeningSymbol? read(Stroke stroke) {
@@ -109,32 +126,37 @@ abstract final class OpeningSymbolReader {
     final toStart = start - apex;
     final toFinish = finish - apex;
 
-    // Both ends the same side of the apex across, and opposite sides down.
-    // That is what makes a chevron a chevron rather than a hook or a vee.
-    if (toStart.x.sign != toFinish.x.sign) return null;
-    if (toStart.y.sign == toFinish.y.sign) return null;
-    if (toStart.x.abs() < longer * 0.3) return null;
-    if (toFinish.x.abs() < longer * 0.3) return null;
-    if (toStart.y.abs() < longer * 0.15) return null;
-    if (toFinish.y.abs() < longer * 0.15) return null;
+    // A chevron has both arms leaving the point on the same side of one axis
+    // and opposite sides of the other. Which axis that is decides which of
+    // the four marks it is. A corner — part of a frame drawn in pieces —
+    // has its arms on perpendicular axes and matches neither pattern.
+    bool sameSide(double a, double b) =>
+        a.abs() >= longer * 0.3 && b.abs() >= longer * 0.3 && a * b > 0;
+    bool eitherSide(double a, double b) =>
+        a.abs() >= longer * 0.15 && b.abs() >= longer * 0.15 && a * b < 0;
 
-    // A mark that is wider than it is tall is pointing up or down, which is
-    // neither of the two symbols the user was given.
-    final width = math.max(start.x, math.max(apex.x, finish.x)) -
-        math.min(start.x, math.min(apex.x, finish.x));
-    final height = math.max(start.y, math.max(apex.y, finish.y)) -
-        math.min(start.y, math.min(apex.y, finish.y));
-    if (height <= 0 || width / height > 2.2) return null;
+    final SymbolDirection direction;
+    if (sameSide(toStart.x, toFinish.x) && eitherSide(toStart.y, toFinish.y)) {
+      // The ends sit to the left of the apex, so the apex points right.
+      direction = toStart.x < 0
+          ? SymbolDirection.pointsRight
+          : SymbolDirection.pointsLeft;
+    } else if (sameSide(toStart.y, toFinish.y) &&
+        eitherSide(toStart.x, toFinish.x)) {
+      // The ends sit below the apex, so the apex points up.
+      direction = toStart.y > 0
+          ? SymbolDirection.pointsUp
+          : SymbolDirection.pointsDown;
+    } else {
+      return null;
+    }
 
     return OpeningSymbol(
       strokeId: stroke.id,
       apex: apex,
       armA: start,
       armB: finish,
-      // The ends sit to the left of the apex, so the apex points right.
-      direction: toStart.x < 0
-          ? SymbolDirection.pointsRight
-          : SymbolDirection.pointsLeft,
+      direction: direction,
     );
   }
 

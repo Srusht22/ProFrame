@@ -327,6 +327,78 @@ abstract final class DesignEdits {
     ]);
   }
 
+  /// Changes what an opening does.
+  ///
+  /// The mark the user drew is kept as the record of how the section came to
+  /// open in the first place. What the opening does now is this, and the
+  /// drawing and the model both follow it.
+  static Design setOpeningMechanism(
+    Design design,
+    String openingId,
+    OpeningMechanism mechanism,
+  ) {
+    final opening = _opening(design, openingId);
+    if (opening == null) return design;
+    if (mechanism == OpeningMechanism.fixed) {
+      return design.copyWith(openings: [
+        for (final o in design.openings) if (o.id != openingId) o,
+      ]);
+    }
+    return design.withElement(opening.copyWith(mechanism: mechanism));
+  }
+
+  static Design setOpeningSwing(
+    Design design,
+    String openingId,
+    OpeningDirection direction,
+  ) {
+    final opening = _opening(design, openingId);
+    if (opening == null) return design;
+    return design.withElement(opening.copyWith(direction: direction));
+  }
+
+  /// Moves an opening to a different section.
+  ///
+  /// The section it leaves stops opening and the section it arrives at
+  /// starts. Nothing about either section's geometry changes: an opening is
+  /// a property of a section, not a shape of its own.
+  static Design moveOpeningToSection(
+    Design design,
+    String openingId,
+    String sectionId,
+  ) {
+    final opening = _opening(design, openingId);
+    if (opening == null) return design;
+    if (opening.sectionId == sectionId) return design;
+    if (design.sectionById(sectionId) == null) return design;
+
+    final section = design.sectionById(sectionId)!;
+    return design.copyWith(openings: [
+      for (final o in design.openings)
+        if (o.id != openingId && o.sectionId != sectionId) o,
+      OpeningElement(
+        id: opening.id,
+        sectionId: sectionId,
+        mechanism: opening.mechanism,
+        direction: opening.direction,
+        confirmed: true,
+        // The mark itself does not move — it stays where it was drawn — but
+        // an opening on a section it is not inside would have nothing to
+        // point at, so the record of where it was is dropped with it.
+        markGlyph: opening.markGlyph,
+        markAt: section.outline.centroid,
+        fromStrokeId: opening.fromStrokeId,
+      ),
+    ]);
+  }
+
+  static OpeningElement? _opening(Design design, String id) {
+    for (final opening in design.openings) {
+      if (opening.id == id) return opening;
+    }
+    return null;
+  }
+
   /// Which element, if any, is at [point] — for tapping on the canvas.
   ///
   /// Ordered so that the small things on top of a section are reachable: a
@@ -336,6 +408,10 @@ abstract final class DesignEdits {
     Vec2 point, {
     required double slopMm,
   }) {
+    for (final opening in design.openings) {
+      final at = opening.markAt;
+      if (at != null && at.distanceTo(point) <= slopMm * 1.6) return opening;
+    }
     for (final piece in design.hardware) {
       if (piece.at.distanceTo(point) <= slopMm * 2) return piece;
     }

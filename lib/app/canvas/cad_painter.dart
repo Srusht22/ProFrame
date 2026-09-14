@@ -350,8 +350,13 @@ class CadPainter extends CustomPainter {
 
   void _openingMark(Canvas canvas, OpeningElement opening) {
     final at = opening.markAt;
-    final glyph = opening.markGlyph;
+    // The glyph of what the opening does now. Where the user has changed it
+    // since drawing the mark, the drawing shows what is built rather than
+    // what was first asked for — the inspector keeps the record of both.
+    final glyph = opening.mechanism.glyph ?? opening.markGlyph;
     if (at == null || glyph == null) return;
+
+    final chosen = opening.id == selectedId;
 
     final on = view.toScreen(at);
     final text = Cad.label(
@@ -371,7 +376,9 @@ class CadPainter extends CustomPainter {
     );
     canvas.drawRRect(
       RRect.fromRectAndRadius(box, const Radius.circular(5)),
-      Cad.stroke(Cad.dimension.withValues(alpha: 0.6), Cad.annotation),
+      chosen
+          ? Cad.stroke(Cad.selection, 2.2)
+          : Cad.stroke(Cad.dimension.withValues(alpha: 0.6), Cad.annotation),
     );
     text.paint(
       canvas,

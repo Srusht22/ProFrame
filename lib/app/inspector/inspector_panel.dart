@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import '../../domain/model/materials.dart';
+import '../../domain/sections/section_bands.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'colour_picker.dart';
@@ -177,7 +179,11 @@ class InspectorPanel extends ConsumerWidget {
             ),
           ],
         OpeningElement() => [
-            _Readout('Opens', element.mechanism.description),
+            _OpeningFields(
+              opening: element,
+              state: state,
+              controller: controller,
+            ),
           ],
       };
 }
@@ -222,6 +228,234 @@ class _DesignFields extends StatelessWidget {
   }
 }
 
+/// Everything about a selected opening.
+///
+/// Which way it opens, what kind it is, how big the section holding it is,
+/// and which section that is. Each field changes the one thing it names and
+/// the drawing and the model follow it. Nothing else is touched.
+class _OpeningFields extends StatelessWidget {
+  final OpeningElement opening;
+  final WorkspaceState state;
+  final WorkspaceController controller;
+
+  const _OpeningFields({
+    required this.opening,
+    required this.state,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final section = state.design.sectionById(opening.sectionId);
+    final drawn = opening.markGlyph;
+    final now = opening.mechanism.glyph;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _Label('Direction'),
+        const SizedBox(height: 7),
+        _DirectionPicker(
+          mechanism: opening.mechanism,
+          onChanged: (mechanism) =>
+              controller.setOpeningMechanism(opening.id, mechanism),
+        ),
+        if (drawn != null && now != null && drawn != now) ...[
+          const SizedBox(height: 7),
+          Text(
+            'You drew $drawn here. You have since changed it to $now.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ] else if (drawn != null) ...[
+          const SizedBox(height: 7),
+          Text(
+            'You marked this section with a $drawn.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+        const SizedBox(height: 18),
+        const _Label('Opening type'),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<OpeningMechanism>(
+          initialValue: opening.mechanism,
+          isExpanded: true,
+          items: [
+            for (final option in OpeningMechanism.values)
+              if (option != OpeningMechanism.fixed)
+                DropdownMenuItem(
+                  value: option,
+                  child: Text(option.label, overflow: TextOverflow.ellipsis),
+                ),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              controller.setOpeningMechanism(opening.id, value);
+            }
+          },
+        ),
+        const SizedBox(height: 7),
+        Text(
+          opening.mechanism.description,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 14),
+        SegmentedButton<OpeningDirection>(
+          segments: const [
+            ButtonSegment(
+              value: OpeningDirection.inward,
+              label: Text('Inward'),
+            ),
+            ButtonSegment(
+              value: OpeningDirection.outward,
+              label: Text('Outward'),
+            ),
+          ],
+          selected: {opening.direction},
+          showSelectedIcon: false,
+          onSelectionChanged: (values) =>
+              controller.setOpeningSwing(opening.id, values.first),
+        ),
+        if (section != null) ...[
+          const SizedBox(height: 20),
+          _NumberField(
+            label: 'Width',
+            valueMm: section.widthMm,
+            onSet: (v) => controller.setSectionWidth(section.id, v),
+          ),
+          _NumberField(
+            label: 'Height',
+            valueMm: section.heightMm,
+            onSet: (v) => controller.setSectionHeight(section.id, v),
+          ),
+        ],
+        const SizedBox(height: 6),
+        const _Label('Position'),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          initialValue: opening.sectionId,
+          isExpanded: true,
+          items: [
+            for (final option in state.design.sections)
+              DropdownMenuItem(
+                value: option.id,
+                child: Text(
+                  describeSection(option, state.design),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              controller.moveOpeningToSection(opening.id, value);
+            }
+          },
+        ),
+        const SizedBox(height: 7),
+        Text(
+          'Moving the opening changes which section opens. Neither section '
+          'changes shape.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 18),
+        _DeleteButton(
+          label: 'This section does not open',
+          onPressed: () => controller.setOpeningMechanism(
+            opening.id,
+            OpeningMechanism.fixed,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The four marks, as buttons.
+class _DirectionPicker extends StatelessWidget {
+  final OpeningMechanism mechanism;
+  final ValueChanged<OpeningMechanism> onChanged;
+
+  const _DirectionPicker({
+    required this.mechanism,
+    required this.onChanged,
+  });
+
+  static const _options = <OpeningMechanism>[
+    OpeningMechanism.hingedRight,
+    OpeningMechanism.hingedLeft,
+    OpeningMechanism.bottomHung,
+    OpeningMechanism.topHung,
+  ];
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          for (final option in _options)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 7),
+                child: Tooltip(
+                  message: '${option.glyph}  ${option.description}',
+                  child: Material(
+                    color: option == mechanism
+                        ? AppTheme.primary
+                        : AppTheme.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    child: InkWell(
+                      onTap: () => onChanged(option),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        height: 46,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: option == mechanism
+                                ? AppTheme.primary
+                                : AppTheme.hairline,
+                            width: 1.4,
+                          ),
+                        ),
+                        child: Text(
+                          option.glyph ?? '?',
+                          style: TextStyle(
+                            fontFamily: AppTheme.fontFamily,
+                            fontSize: 21,
+                            fontWeight: FontWeight.w700,
+                            color: option == mechanism
+                                ? AppTheme.accent
+                                : AppTheme.ink,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+}
+
+/// A section named the way somebody would point at it.
+String describeSection(SectionElement section, Design design) {
+  final frame = design.frame;
+  final where = StringBuffer();
+  if (frame != null) {
+    final middleY = (frame.outline.top + frame.outline.bottom) / 2;
+    final middleX = (frame.outline.left + frame.outline.right) / 2;
+    final centre = section.outline.centroid;
+    if (SectionBands.rows(design) > 1) {
+      where.write(centre.y < middleY ? 'Upper ' : 'Lower ');
+    }
+    if (SectionBands.columns(design) > 1) {
+      where.write(centre.x < middleX ? 'left' : 'right');
+    }
+  }
+  final place = where.toString().trim();
+  final size = '${section.widthMm.round()} × ${section.heightMm.round()} mm';
+  return place.isEmpty ? size : '$place section — $size';
+}
+
 class _OpeningField extends StatelessWidget {
   final SectionElement section;
   final WorkspaceState state;
@@ -243,6 +477,18 @@ class _OpeningField extends StatelessWidget {
       children: [
         const _Label('Opens'),
         const SizedBox(height: 6),
+        if (opening != null) ...[
+          OutlinedButton.icon(
+            onPressed: () => controller.select(opening.id),
+            icon: const Icon(Icons.open_in_new, size: 17),
+            label: const Text('Edit this opening'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(0, 42),
+              textStyle: AppTheme.buttonLabel.copyWith(fontSize: 13.5),
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
         if (opening?.markGlyph != null) ...[
           Container(
             padding: const EdgeInsets.fromLTRB(11, 9, 11, 9),

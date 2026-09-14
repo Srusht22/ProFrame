@@ -10,6 +10,7 @@ import '../model/elements.dart';
 import '../model/materials.dart';
 import '../model/question.dart';
 import '../sections/planar_graph.dart';
+import '../sections/section_bands.dart';
 import '../sections/section_builder.dart';
 import '../sketch/stroke.dart';
 import 'opening_symbol.dart';
@@ -268,13 +269,10 @@ abstract final class SketchInterpreter {
       final middleY = (frame.outline.top + frame.outline.bottom) / 2;
       final middleX = (frame.outline.left + frame.outline.right) / 2;
       final centre = section.outline.centroid;
-      final rows = design.sections.map((s) => s.outline.top.round()).toSet();
-      final columns =
-          design.sections.map((s) => s.outline.left.round()).toSet();
-      if (rows.length > 1) {
+      if (SectionBands.rows(design) > 1) {
         where.write(centre.y < middleY ? 'upper ' : 'lower ');
       }
-      if (columns.length > 1) {
+      if (SectionBands.columns(design) > 1) {
         where.write(centre.x < middleX ? 'left' : 'right');
       }
     }
