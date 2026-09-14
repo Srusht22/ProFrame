@@ -36,8 +36,9 @@ enum WorkspaceView {
   /// The drawing, with the geometry read from it over the top.
   draw('Draw'),
 
-  /// The clean 2D design.
-  plan('2D design'),
+  /// The technical drawing: the same geometry, drawn to drafting
+  /// conventions and editable by taking hold of it.
+  plan('CAD drawing'),
 
   /// The model.
   model('3D model');

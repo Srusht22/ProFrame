@@ -291,57 +291,52 @@ abstract final class SketchInterpreter {
 
   /// Asks about anything that looks like an opening symbol.
   ///
-  /// A diagonal or a chevron drawn across a section is how an opening is
-  /// marked on a drawing, but the same mark could be a glazing bar. The
-  /// reading never decides: it says what it saw and lets the user say what
-  /// they meant.
+  /// A line drawn at an angle across a pane is how an opening is marked on
+  /// an elevation — but the same line could be a glazing bar somebody wants
+  /// built. The reading treats it as a bar, because that is what a line is,
+  /// and asks. Saying it marks an opening takes the bar out again and makes
+  /// the pane open; saying it is a bar leaves it exactly where it is.
   static List<DesignQuestion> _openingQuestions(
     Design design,
     List<StrokeFit> fits,
     Polygon outline,
   ) {
     final questions = <DesignQuestion>[];
-    for (final section in design.sections) {
-      final marks = <StrokeFit>[];
-      for (final fit in fits) {
-        if (fit.kind == FitKind.mark || fit.isClosed) continue;
-        final inside = fit.segments.where((s) =>
-            section.outline.contains(s.midpoint) &&
-            s.offAxisDegrees > Tol.axisSnapDegrees * 3);
-        if (inside.isNotEmpty) marks.add(fit);
-      }
-      if (marks.isEmpty) continue;
+    for (final divider in design.dividers) {
+      if (divider.isVertical || divider.isHorizontal) continue;
+      if (divider.segment.offAxisDegrees <= Tol.axisSnapDegrees * 3) continue;
 
       questions.add(DesignQuestion(
-        id: 'opening-${section.id}',
-        prompt: 'Does this section open?',
-        detail: 'There is a diagonal mark across it. On a drawing that '
-            'usually means an opening, but it could be a bar you meant to '
-            'keep. Nothing has been decided.',
-        aboutIds: [
-          section.id,
-          for (final mark in marks) mark.stroke.id,
-        ],
+        id: 'opening-bar-${divider.id}',
+        prompt: 'Is this diagonal line a bar, or does it mark an opening?',
+        detail: 'It is being built as a bar, exactly where you drew it. On a '
+            'drawing a diagonal often means the panel opens instead. Say '
+            'which you meant.',
+        aboutIds: [divider.id, ?divider.fromStrokeId],
         options: [
           QuestionOption(
             key: OpeningMechanism.hingedLeft.name,
-            label: OpeningMechanism.hingedLeft.label,
-            detail: OpeningMechanism.hingedLeft.description,
+            label: 'Opens — ${OpeningMechanism.hingedLeft.label.toLowerCase()}',
+            detail: '${OpeningMechanism.hingedLeft.description}. The line is '
+                'removed and the panel becomes one opening leaf.',
           ),
           QuestionOption(
             key: OpeningMechanism.hingedRight.name,
-            label: OpeningMechanism.hingedRight.label,
-            detail: OpeningMechanism.hingedRight.description,
+            label:
+                'Opens — ${OpeningMechanism.hingedRight.label.toLowerCase()}',
+            detail: '${OpeningMechanism.hingedRight.description}. The line is '
+                'removed and the panel becomes one opening leaf.',
           ),
           QuestionOption(
             key: OpeningMechanism.topHung.name,
-            label: OpeningMechanism.topHung.label,
-            detail: OpeningMechanism.topHung.description,
+            label: 'Opens — ${OpeningMechanism.topHung.label.toLowerCase()}',
+            detail: '${OpeningMechanism.topHung.description}. The line is '
+                'removed and the panel becomes one opening leaf.',
           ),
           const QuestionOption(
             key: 'keep-line',
-            label: 'No — it is a bar',
-            detail: 'Keep the line exactly where it is as part of the design.',
+            label: 'It is a bar',
+            detail: 'Keep the line exactly where it is, as part of the design.',
           ),
         ],
       ));

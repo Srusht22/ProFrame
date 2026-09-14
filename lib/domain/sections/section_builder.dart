@@ -26,11 +26,24 @@ abstract final class SectionBuilder {
     }
 
     final bounds = frame.innerOutline;
-    final lines = <Segment>[
-      ...bounds.edges,
-      for (final divider in design.dividers)
-        ..._clipToBounds(divider.segment, bounds),
-    ];
+
+    // Every bar is cut in as its two faces and its two ends, not as its
+    // centre line. A bar is a real piece of material with a width: the glass
+    // stops at its face, not at the middle of it. Subdividing on the centre
+    // line made every daylight opening half a bar too wide, which nobody
+    // notices on a coloured picture and everybody notices on a drawing with
+    // dimensions on it.
+    final bodies = <Polygon>[];
+    final lines = <Segment>[...bounds.edges];
+    for (final divider in design.dividers) {
+      final run = _clipToBounds(divider.segment, bounds);
+      if (run.isEmpty) continue;
+      final body = _bodyOf(run.single, divider.widthMm);
+      bodies.add(body);
+      for (final edge in body.edges) {
+        lines.addAll(_clipToBounds(edge, bounds));
+      }
+    }
 
     // The ends are already where the user put them, so this only has to
     // cover arithmetic and the width of a drawn line, not a shaky hand.
@@ -38,7 +51,14 @@ abstract final class SectionBuilder {
       math.sqrt(bounds.width * bounds.width + bounds.height * bounds.height),
       fraction: Tol.weldFractionClean,
     );
-    final faces = PlanarSubdivision.facesOf(lines, weldTolerance: weld);
+    final all = PlanarSubdivision.facesOf(lines, weldTolerance: weld);
+
+    // What is left once the bars themselves are taken out is the daylight.
+    final faces = [
+      for (final face in all)
+        if (!bodies.any((body) => body.contains(face.centroid))) face,
+    ];
+
     var counter = 0;
     String nextId() => newId?.call() ?? 'section-${design.id}-${counter++}';
 
@@ -141,6 +161,17 @@ abstract final class SectionBuilder {
     }
     if (tested == 0) return other.contains(face.centroid) ? 1 : 0;
     return inside / tested;
+  }
+
+  /// The rectangle a bar actually occupies.
+  static Polygon _bodyOf(Segment run, double widthMm) {
+    final side = run.unit.perpendicular * (widthMm / 2);
+    return Polygon([
+      run.a + side,
+      run.b + side,
+      run.b - side,
+      run.a - side,
+    ]);
   }
 
   /// Trims a divider to the part of it that is actually inside the frame.

@@ -40,7 +40,7 @@ void main() {
 
     expect(find.text('Untitled window'), findsOneWidget);
     expect(find.text('Draw'), findsOneWidget);
-    expect(find.text('2D design'), findsOneWidget);
+    expect(find.text('CAD drawing'), findsOneWidget);
     expect(find.text('3D model'), findsOneWidget);
 
     // Every tool is reachable.

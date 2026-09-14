@@ -13,6 +13,7 @@ import '../../domain/sections/section_builder.dart';
 import '../../domain/sketch/stroke.dart';
 import '../../domain/solid/camera.dart';
 import '../../infrastructure/design_store.dart';
+import '../canvas/cad_layers.dart';
 import 'tools.dart';
 
 /// Everything on screen at once.
@@ -43,6 +44,10 @@ class WorkspaceState {
   /// The colour the pen draws in.
   final int penColour;
 
+  /// What the technical drawing is showing. A way of looking at the design,
+  /// never a change to it.
+  final CadLayers layers;
+
   const WorkspaceState({
     required this.design,
     this.tool = Tool.pen,
@@ -54,6 +59,7 @@ class WorkspaceState {
     this.camera = const Camera(),
     this.openFraction = 0,
     this.penColour = 0xFF013E37,
+    this.layers = const CadLayers(),
   });
 
   DesignElement? get selected =>
@@ -71,6 +77,7 @@ class WorkspaceState {
     Camera? camera,
     double? openFraction,
     int? penColour,
+    CadLayers? layers,
   }) =>
       WorkspaceState(
         design: design ?? this.design,
@@ -83,6 +90,7 @@ class WorkspaceState {
         camera: camera ?? this.camera,
         openFraction: openFraction ?? this.openFraction,
         penColour: penColour ?? this.penColour,
+        layers: layers ?? this.layers,
       );
 }
 
@@ -166,6 +174,8 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       state = state.copyWith(showSketch: !state.showSketch);
 
   void setPenColour(int colour) => state = state.copyWith(penColour: colour);
+
+  void setLayers(CadLayers layers) => state = state.copyWith(layers: layers);
 
   void turnCamera({double? turn, double? tilt, double? distance}) =>
       state = state.copyWith(
@@ -318,7 +328,12 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     );
     if (question.id.isEmpty) return;
 
-    if (questionId.startsWith('opening-')) {
+    if (questionId.startsWith('opening-bar-')) {
+      _answerDiagonal(
+        questionId.substring('opening-bar-'.length),
+        optionKey,
+      );
+    } else if (questionId.startsWith('opening-')) {
       final sectionId = questionId.substring('opening-'.length);
       if (optionKey != 'keep-line') {
         final mechanism = OpeningMechanism.values.firstWhere(
@@ -340,6 +355,40 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     state = state.copyWith(
       questions: [for (final q in state.questions) if (q.id != questionId) q],
     );
+  }
+
+  /// A diagonal the user says was an opening symbol, not a bar.
+  ///
+  /// The line comes out and the panel it was drawn across becomes one leaf.
+  /// This is the one place a line the user drew is removed by an answer, and
+  /// it only happens because they said the line was never meant to be built.
+  void _answerDiagonal(String dividerId, String optionKey) {
+    if (optionKey == 'keep-line') return;
+    final mechanism = OpeningMechanism.values.firstWhere(
+      (m) => m.name == optionKey,
+      orElse: () => OpeningMechanism.fixed,
+    );
+    if (mechanism == OpeningMechanism.fixed) return;
+
+    DividerElement? divider;
+    for (final candidate in state.design.dividers) {
+      if (candidate.id == dividerId) divider = candidate;
+    }
+    if (divider == null) return;
+
+    _remember();
+    final at = divider.segment.midpoint;
+    var design = DesignEdits.delete(state.design, dividerId);
+    final section = SectionBuilder.sectionAt(design, at);
+    if (section != null) {
+      design = DesignEdits.setOpening(
+        design,
+        section.id,
+        openingId: _newId('opening'),
+        mechanism: mechanism,
+      );
+    }
+    state = state.copyWith(design: design);
   }
 
   void dismissQuestion(String questionId) => state = state.copyWith(
@@ -364,6 +413,46 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     if (id == null) return;
     _remember(coalesce: 'drag-$id');
     state = state.copyWith(design: DesignEdits.dragElement(state.design, id, by));
+  }
+
+  /// Moves a bar so that its middle lands on [to].
+  void moveDividerTo(String dividerId, Vec2 to) {
+    for (final divider in state.design.dividers) {
+      if (divider.id != dividerId) continue;
+      _remember(coalesce: 'grip-$dividerId');
+      state = state.copyWith(
+        design: DesignEdits.moveDivider(
+          state.design,
+          dividerId,
+          to - divider.segment.midpoint,
+        ),
+      );
+      return;
+    }
+  }
+
+  void moveDividerEnd(
+    String dividerId, {
+    required bool startEnd,
+    required Vec2 to,
+  }) {
+    _remember(coalesce: 'grip-end-$dividerId-$startEnd');
+    state = state.copyWith(
+      design: DesignEdits.moveDividerEnd(
+        state.design,
+        dividerId,
+        startEnd: startEnd,
+        to: to,
+      ),
+    );
+  }
+
+  /// Moves one side of the frame, leaving everything inside it where it is.
+  void moveFrameEdge(FrameEdge edge, double toMm) {
+    _remember(coalesce: 'frame-edge-$edge');
+    state = state.copyWith(
+      design: DesignEdits.moveFrameEdge(state.design, edge, toMm),
+    );
   }
 
   void deleteSelected() {

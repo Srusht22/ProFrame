@@ -34,6 +34,11 @@ class ToolRail extends ConsumerWidget {
     final controller = ref.read(workspaceProvider.notifier);
     final width = compact ? 62.0 : 76.0;
 
+    // The pen belongs to the sheet. On the technical drawing and on the
+    // model there is nothing to draw on, so the tools say so rather than
+    // quietly doing nothing when tapped.
+    final drawing = state.view == WorkspaceView.draw;
+
     return Container(
       width: width,
       color: AppTheme.surface,
@@ -44,9 +49,15 @@ class ToolRail extends ConsumerWidget {
             _ToolButton(
               tool: tool,
               icon: _icons[tool]!,
-              selected: state.tool == tool,
+              selected: drawing && state.tool == tool,
+              dimmed: !drawing && tool != Tool.select,
               compact: compact,
-              onTap: () => controller.useTool(tool),
+              onTap: () {
+                if (!drawing && tool != Tool.select) {
+                  controller.showView(WorkspaceView.draw);
+                }
+                controller.useTool(tool);
+              },
             ),
           const Divider(height: 22, indent: 14, endIndent: 14),
           _PenColour(
@@ -86,6 +97,7 @@ class _ToolButton extends StatelessWidget {
   final Tool tool;
   final IconData icon;
   final bool selected;
+  final bool dimmed;
   final bool compact;
   final VoidCallback onTap;
 
@@ -95,11 +107,14 @@ class _ToolButton extends StatelessWidget {
     required this.selected,
     required this.compact,
     required this.onTap,
+    this.dimmed = false,
   });
 
   @override
   Widget build(BuildContext context) => Tooltip(
-        message: '${tool.label}\n${tool.hint}',
+        message: dimmed
+            ? '${tool.label}\nTap to go back to the drawing and use it.'
+            : '${tool.label}\n${tool.hint}',
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           child: Material(
@@ -115,7 +130,11 @@ class _ToolButton extends StatelessWidget {
                     Icon(
                       icon,
                       size: 21,
-                      color: selected ? AppTheme.accent : AppTheme.ink,
+                      color: selected
+                          ? AppTheme.accent
+                          : dimmed
+                              ? AppTheme.muted.withValues(alpha: 0.45)
+                              : AppTheme.ink,
                     ),
                     if (!compact) ...[
                       const SizedBox(height: 3),
@@ -129,7 +148,8 @@ class _ToolButton extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                           color: selected
                               ? AppTheme.accent
-                              : AppTheme.muted,
+                              : AppTheme.muted
+                                  .withValues(alpha: dimmed ? 0.45 : 1),
                         ),
                       ),
                     ],

@@ -1,0 +1,646 @@
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../domain/editing/design_edits.dart';
+import '../../domain/geometry/polygon.dart';
+import '../../domain/geometry/vec2.dart';
+import '../../domain/model/design.dart';
+import '../../domain/model/elements.dart';
+import '../state/workspace.dart';
+import '../theme/app_theme.dart';
+import 'cad_layers.dart';
+import 'cad_painter.dart';
+import 'cad_style.dart';
+import 'view_transform.dart';
+
+/// The technical drawing, and the drafting board it sits on.
+///
+/// The same design as every other view, drawn to drafting conventions and
+/// editable by taking hold of it. Opening this view changes nothing: it
+/// reads the design and draws it.
+class CadView extends ConsumerStatefulWidget {
+  final Set<String> highlighted;
+
+  const CadView({super.key, this.highlighted = const {}});
+
+  @override
+  ConsumerState<CadView> createState() => _CadViewState();
+}
+
+class _CadViewState extends ConsumerState<CadView> {
+  ViewTransform? _view;
+  Size _size = Size.zero;
+  Polygon? _fittedTo;
+
+  Grip? _holding;
+  Vec2? _pointer;
+  Vec2? _snapped;
+  Offset? _panFrom;
+
+  /// Room round the drawing for the things that sit beside it: two rows of
+  /// dimensions and their names along the bottom and down the left, and the
+  /// status bar under everything.
+  static const EdgeInsets _sheetPadding =
+      EdgeInsets.only(left: 118, right: 70, top: 20, bottom: 150);
+
+  ViewTransform _fitted(Polygon? content, Size size) => ViewTransform.fit(
+        content,
+        size,
+        marginFraction: 0.06,
+        padding: _sheetPadding,
+      );
+
+  ViewTransform get _transform => _view ?? _fitted(_fittedTo, _size);
+
+  void _fitIfNeeded(Polygon? content) {
+    if (content == null) return;
+    final previous = _fittedTo;
+    final changed = previous == null ||
+        (previous.width - content.width).abs() > previous.width * 0.35 ||
+        (previous.height - content.height).abs() > previous.height * 0.35;
+    if (!changed) return;
+    _fittedTo = content;
+    _view = _fitted(content, _size);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(workspaceProvider);
+    final controller = ref.read(workspaceProvider.notifier);
+    final layers = state.layers;
+
+    return Column(
+      children: [
+        _LayerBar(
+          layers: layers,
+          onChanged: controller.setLayers,
+          onFit: () => setState(() {
+            _fittedTo = state.design.bounds;
+            _view = _fitted(state.design.bounds, _size);
+          }),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final size = Size(constraints.maxWidth, constraints.maxHeight);
+              if (size != _size) {
+                _size = size;
+                _view ??= _fitted(_fittedTo, size);
+              }
+              _fitIfNeeded(state.design.bounds);
+              final view = _transform;
+              final grips = _gripsFor(state.design, state.selectedId);
+
+              return ClipRect(
+                child: MouseRegion(
+                  cursor: _holding == null
+                      ? SystemMouseCursors.precise
+                      : SystemMouseCursors.move,
+                  onHover: (event) => setState(
+                    () => _pointer = view.toSheet(event.localPosition),
+                  ),
+                  onExit: (_) => setState(() => _pointer = null),
+                  child: Listener(
+                    onPointerDown: (event) =>
+                        _down(event, view, grips, controller),
+                    onPointerMove: (event) => _move(event, view, controller),
+                    onPointerUp: (_) => _up(controller),
+                    onPointerCancel: (_) => _up(controller),
+                    onPointerSignal: (event) {
+                      if (event is PointerScrollEvent) {
+                        setState(() {
+                          _view = view.zoomed(
+                            event.scrollDelta.dy > 0 ? 0.9 : 1.1,
+                            event.localPosition,
+                          );
+                        });
+                      }
+                    },
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onScaleStart: (details) {
+                        if (details.pointerCount < 2) return;
+                        _panFrom = details.localFocalPoint;
+                      },
+                      onScaleUpdate: (details) {
+                        if (details.pointerCount < 2) return;
+                        final from = _panFrom ?? details.localFocalPoint;
+                        setState(() {
+                          _view = _transform
+                              .panned(details.localFocalPoint - from)
+                              .zoomed(
+                                details.scale == 0
+                                    ? 1
+                                    : 1 + (details.scale - 1) * 0.25,
+                                details.localFocalPoint,
+                              );
+                        });
+                        _panFrom = details.localFocalPoint;
+                      },
+                      onScaleEnd: (_) => _panFrom = null,
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: CustomPaint(
+                              size: size,
+                              painter: CadPainter(
+                                design: state.design,
+                                view: view,
+                                layers: layers,
+                                selectedId: state.selectedId,
+                                highlighted: widget.highlighted,
+                                snapAt: _snapped,
+                                grips: grips,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: _StatusBar(
+                              state: state,
+                              pointer: _pointer,
+                              scale: view.scale,
+                            ),
+                          ),
+                          Positioned(
+                            right: 12,
+                            top: 12,
+                            child: _ZoomStack(
+                              onIn: () => setState(() => _view = _transform
+                                  .zoomed(1.25, size.center(Offset.zero))),
+                              onOut: () => setState(() => _view = _transform
+                                  .zoomed(0.8, size.center(Offset.zero))),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ------------------------------------------------------------------ grips
+
+  /// The handles for whatever is selected.
+  List<Grip> _gripsFor(Design design, String? selectedId) {
+    if (selectedId == null) return const [];
+    final element = design.elementById(selectedId);
+    return switch (element) {
+      DividerElement() => [
+          Grip(at: element.a, elementId: element.id, kind: GripKind.endStart),
+          Grip(
+            at: element.segment.midpoint,
+            elementId: element.id,
+            kind: GripKind.move,
+          ),
+          Grip(at: element.b, elementId: element.id, kind: GripKind.endFinish),
+        ],
+      FrameElement() => () {
+          final box = element.outline;
+          final midX = (box.left + box.right) / 2;
+          final midY = (box.top + box.bottom) / 2;
+          return [
+            Grip(
+              at: Vec2(box.left, midY),
+              elementId: element.id,
+              kind: GripKind.frameLeft,
+            ),
+            Grip(
+              at: Vec2(box.right, midY),
+              elementId: element.id,
+              kind: GripKind.frameRight,
+            ),
+            Grip(
+              at: Vec2(midX, box.top),
+              elementId: element.id,
+              kind: GripKind.frameTop,
+            ),
+            Grip(
+              at: Vec2(midX, box.bottom),
+              elementId: element.id,
+              kind: GripKind.frameBottom,
+            ),
+          ];
+        }(),
+      HardwareElement() => [
+          Grip(at: element.at, elementId: element.id, kind: GripKind.move),
+        ],
+      _ => const [],
+    };
+  }
+
+  // --------------------------------------------------------------- pointers
+
+  void _down(
+    PointerDownEvent event,
+    ViewTransform view,
+    List<Grip> grips,
+    WorkspaceController controller,
+  ) {
+    final at = view.toSheet(event.localPosition);
+    final reach = view.lengthToSheet(13);
+
+    for (final grip in grips) {
+      if (grip.at.distanceTo(at) <= reach) {
+        setState(() => _holding = grip);
+        return;
+      }
+    }
+
+    controller.selectAt(at, slopMm: view.lengthToSheet(12));
+    setState(() {
+      _holding = null;
+      _pointer = at;
+    });
+  }
+
+  void _move(
+    PointerMoveEvent event,
+    ViewTransform view,
+    WorkspaceController controller,
+  ) {
+    final raw = view.toSheet(event.localPosition);
+    setState(() => _pointer = raw);
+
+    final grip = _holding;
+    if (grip == null) return;
+
+    final state = ref.read(workspaceProvider);
+    final design = state.design;
+    final within = view.lengthToSheet(11);
+
+    double? snapX;
+    double? snapY;
+    if (state.layers.snap) {
+      snapX = DesignEdits.snapTo(
+        DesignEdits.snapCandidates(
+          design,
+          horizontal: true,
+          ignoreId: grip.elementId,
+        ),
+        raw.x,
+        withinMm: within,
+      );
+      snapY = DesignEdits.snapTo(
+        DesignEdits.snapCandidates(
+          design,
+          horizontal: false,
+          ignoreId: grip.elementId,
+        ),
+        raw.y,
+        withinMm: within,
+      );
+    }
+    final at = Vec2(snapX ?? raw.x, snapY ?? raw.y);
+
+    switch (grip.kind) {
+      case GripKind.move:
+        final element = design.elementById(grip.elementId);
+        if (element is DividerElement) {
+          controller.moveDividerTo(grip.elementId, at);
+          setState(() => _snapped = snapX != null || snapY != null ? at : null);
+        } else if (element is HardwareElement) {
+          controller.dragSelected(at - element.at);
+          setState(() => _snapped = null);
+        }
+      case GripKind.endStart:
+        controller.moveDividerEnd(grip.elementId, startEnd: true, to: at);
+        setState(() => _snapped = snapX != null || snapY != null ? at : null);
+      case GripKind.endFinish:
+        controller.moveDividerEnd(grip.elementId, startEnd: false, to: at);
+        setState(() => _snapped = snapX != null || snapY != null ? at : null);
+      case GripKind.frameLeft:
+        controller.moveFrameEdge(FrameEdge.left, snapX ?? raw.x);
+        setState(() => _snapped = snapX == null ? null : Vec2(snapX, raw.y));
+      case GripKind.frameRight:
+        controller.moveFrameEdge(FrameEdge.right, snapX ?? raw.x);
+        setState(() => _snapped = snapX == null ? null : Vec2(snapX, raw.y));
+      case GripKind.frameTop:
+        controller.moveFrameEdge(FrameEdge.top, snapY ?? raw.y);
+        setState(() => _snapped = snapY == null ? null : Vec2(raw.x, snapY));
+      case GripKind.frameBottom:
+        controller.moveFrameEdge(FrameEdge.bottom, snapY ?? raw.y);
+        setState(() => _snapped = snapY == null ? null : Vec2(raw.x, snapY));
+    }
+  }
+
+  void _up(WorkspaceController controller) {
+    controller.endGesture();
+    setState(() {
+      _holding = null;
+      _snapped = null;
+    });
+  }
+}
+
+/// What the drawing is showing, as a row of switches.
+class _LayerBar extends StatelessWidget {
+  final CadLayers layers;
+  final ValueChanged<CadLayers> onChanged;
+  final VoidCallback onFit;
+
+  const _LayerBar({
+    required this.layers,
+    required this.onChanged,
+    required this.onFit,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+        color: AppTheme.surface,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _Chip(
+                label: 'Dimensions',
+                icon: Icons.straighten,
+                on: layers.dimensions,
+                onTap: () =>
+                    onChanged(layers.copyWith(dimensions: !layers.dimensions)),
+              ),
+              _Chip(
+                label: 'Hatching',
+                icon: Icons.texture,
+                on: layers.hatching,
+                onTap: () =>
+                    onChanged(layers.copyWith(hatching: !layers.hatching)),
+              ),
+              _Chip(
+                label: 'Openings',
+                icon: Icons.door_sliding_outlined,
+                on: layers.openings,
+                onTap: () =>
+                    onChanged(layers.copyWith(openings: !layers.openings)),
+              ),
+              _Chip(
+                label: 'Centre lines',
+                icon: Icons.more_vert,
+                on: layers.centreLines,
+                onTap: () => onChanged(
+                  layers.copyWith(centreLines: !layers.centreLines),
+                ),
+              ),
+              _Chip(
+                label: 'Notes',
+                icon: Icons.short_text,
+                on: layers.annotations,
+                onTap: () => onChanged(
+                  layers.copyWith(annotations: !layers.annotations),
+                ),
+              ),
+              _Chip(
+                label: 'My drawing',
+                icon: Icons.gesture,
+                on: layers.sketch,
+                onTap: () => onChanged(layers.copyWith(sketch: !layers.sketch)),
+              ),
+              _Chip(
+                label: 'Grid',
+                icon: Icons.grid_4x4,
+                on: layers.grid,
+                onTap: () => onChanged(layers.copyWith(grid: !layers.grid)),
+              ),
+              const SizedBox(width: 6),
+              const SizedBox(
+                height: 22,
+                child: VerticalDivider(width: 12),
+              ),
+              _Chip(
+                label: 'Handles',
+                icon: Icons.open_with,
+                on: layers.grips,
+                onTap: () => onChanged(layers.copyWith(grips: !layers.grips)),
+              ),
+              _Chip(
+                label: 'Snap',
+                icon: Icons.control_point,
+                on: layers.snap,
+                onTap: () => onChanged(layers.copyWith(snap: !layers.snap)),
+              ),
+              const SizedBox(width: 6),
+              TextButton.icon(
+                onPressed: onFit,
+                icon: const Icon(Icons.fit_screen_outlined, size: 17),
+                label: const Text('Fit'),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _Chip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool on;
+  final VoidCallback onTap;
+
+  const _Chip({
+    required this.label,
+    required this.icon,
+    required this.on,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(right: 6),
+        child: Material(
+          color: on
+              ? AppTheme.primary.withValues(alpha: 0.1)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 15,
+                    color: on ? AppTheme.primary : AppTheme.muted,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: on ? FontWeight.w600 : FontWeight.w500,
+                      color: on ? AppTheme.primary : AppTheme.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+/// The strip along the bottom that a drafting program has: where the pointer
+/// is, what is selected, what the drawing is at.
+class _StatusBar extends StatelessWidget {
+  final WorkspaceState state;
+  final Vec2? pointer;
+  final double scale;
+
+  const _StatusBar({
+    required this.state,
+    required this.pointer,
+    required this.scale,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = state.selected;
+    final design = state.design;
+
+    // The drawing scale, as a drawing states it: one to something.
+    final ratio = scale <= 0 ? 0 : (1 / scale);
+    final rounded = _nearestDrawingScale(ratio.toDouble());
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppTheme.surface,
+        border: Border(top: BorderSide(color: Cad.border)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      child: DefaultTextStyle(
+        // The family has to be named. A DefaultTextStyle replaces the
+        // inherited one rather than merging with it, so leaving it out drops
+        // the theme's font and the text renders blank on the web.
+        style: const TextStyle(
+          fontFamily: AppTheme.fontFamily,
+          fontSize: 12,
+          color: AppTheme.muted,
+          fontFeatures: [FontFeature.tabularFigures()],
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // A status bar that overflows is worse than one that says less,
+            // so the middle of it goes first as the panel narrows.
+            final roomy = constraints.maxWidth > 620;
+            return Row(
+              // Space between, with a group either end: the readings belong
+              // at the left of the bar and what is selected at the right,
+              // and neither should drift towards the middle as the panel
+              // changes width.
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        pointer == null
+                            ? 'X —   Y —'
+                            : 'X ${pointer!.x.round()}   '
+                                'Y ${pointer!.y.round()}',
+                      ),
+                      const SizedBox(width: 18),
+                      Text('1 : $rounded'),
+                      if (roomy) ...[
+                        const SizedBox(width: 18),
+                        Flexible(
+                          child: Text(
+                            '${design.sections.length} sections · '
+                            '${design.dividers.length} bars · '
+                            '${design.openings.length} openings',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Flexible(
+                  child: Text(
+                    selected?.label ??
+                        (roomy ? 'Tap a line, a bar or a pane' : ''),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontFamily: AppTheme.fontFamily,
+                      fontSize: 12,
+                      fontWeight: selected == null
+                          ? FontWeight.w500
+                          : FontWeight.w600,
+                      color:
+                          selected == null ? AppTheme.muted : AppTheme.ink,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  /// The nearest of the ratios drawings are actually issued at.
+  int _nearestDrawingScale(double ratio) {
+    const steps = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000];
+    var best = steps.first;
+    var bestGap = double.infinity;
+    for (final step in steps) {
+      final gap = (step - ratio).abs();
+      if (gap < bestGap) {
+        bestGap = gap;
+        best = step;
+      }
+    }
+    return best;
+  }
+}
+
+class _ZoomStack extends StatelessWidget {
+  final VoidCallback onIn;
+  final VoidCallback onOut;
+
+  const _ZoomStack({required this.onIn, required this.onOut});
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: AppTheme.surface,
+        elevation: 1,
+        borderRadius: BorderRadius.circular(10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: onIn,
+              icon: const Icon(Icons.add),
+              tooltip: 'Zoom in',
+              color: AppTheme.primary,
+              visualDensity: VisualDensity.compact,
+            ),
+            IconButton(
+              onPressed: onOut,
+              icon: const Icon(Icons.remove),
+              tooltip: 'Zoom out',
+              color: AppTheme.primary,
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+      );
+}

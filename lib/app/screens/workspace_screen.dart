@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../canvas/cad_view.dart';
 import '../canvas/drawing_surface.dart';
 import '../inspector/component_tree.dart';
 import '../inspector/inspector_panel.dart';
@@ -159,8 +160,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
 
   Widget _mainView(WorkspaceState state) => switch (state.view) {
         WorkspaceView.draw => DrawingSurface(highlighted: _highlighted),
-        WorkspaceView.plan =>
-          DrawingSurface(highlighted: _highlighted, planOnly: true),
+        WorkspaceView.plan => CadView(highlighted: _highlighted),
         WorkspaceView.model => const ModelView(),
       };
 }

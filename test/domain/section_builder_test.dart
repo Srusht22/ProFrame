@@ -166,6 +166,80 @@ void main() {
     expect(order, ['50/50', '50/400', '600/50', '600/400']);
   });
 
+  test('a section is the daylight opening, not the bar centre line', () {
+    final built = SectionBuilder.rebuild(designWith(
+      width: 1000,
+      height: 2000,
+      dividers: [
+        DividerElement(
+          id: 'm',
+          a: const Vec2(500, 0),
+          b: const Vec2(500, 2000),
+          widthMm: 60,
+        ),
+      ],
+    ));
+    expect(built.sections, hasLength(2));
+
+    // Frame profile 50 each side, bar 60 in the middle: 900 - 60 = 840 of
+    // glass, 420 a side. Measuring to the centre of the bar instead would
+    // give 450, which is half a bar too much on every pane in the design.
+    for (final section in built.sections) {
+      expect(section.widthMm, closeTo(420, 0.5));
+    }
+    expect(built.sections.first.outline.right, closeTo(470, 0.5));
+    expect(built.sections.last.outline.left, closeTo(530, 0.5));
+  });
+
+  test('a wider bar leaves less glass, in both panes', () {
+    double glassIn(double barWidth) {
+      final built = SectionBuilder.rebuild(designWith(
+        width: 1000,
+        height: 2000,
+        dividers: [
+          DividerElement(
+            id: 'm',
+            a: const Vec2(400, 0),
+            b: const Vec2(400, 2000),
+            widthMm: barWidth,
+          ),
+        ],
+      ));
+      return built.sections.fold<double>(0, (sum, s) => sum + s.widthMm);
+    }
+
+    expect(glassIn(100), closeTo(glassIn(40) - 60, 0.5));
+  });
+
+  test('a bar that stops part way only takes glass where it is', () {
+    final built = SectionBuilder.rebuild(designWith(
+      width: 1000,
+      height: 2000,
+      dividers: [
+        DividerElement(
+          id: 'v',
+          a: const Vec2(400, 0),
+          b: const Vec2(400, 2000),
+          widthMm: 50,
+        ),
+        DividerElement(
+          id: 'h',
+          a: const Vec2(0, 700),
+          b: const Vec2(400, 700),
+          widthMm: 50,
+        ),
+      ],
+    ));
+    expect(built.sections, hasLength(3));
+
+    // The tall pane on the right is not divided by the transom, so its
+    // height is the full daylight.
+    final tall = built.sections
+        .reduce((a, b) => a.areaMmSq > b.areaMmSq ? a : b);
+    expect(tall.heightMm, closeTo(1900, 0.5));
+    expect(tall.outline.left, closeTo(425, 0.5));
+  });
+
   test('tapping inside a section finds that section', () {
     final built = SectionBuilder.rebuild(designWith(
       width: 1000,

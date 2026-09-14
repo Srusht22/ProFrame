@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-import 'dart:ui';
+import 'package:flutter/painting.dart';
 
 import '../../domain/geometry/polygon.dart';
 import '../../domain/geometry/vec2.dart';
@@ -20,18 +20,28 @@ class ViewTransform {
   const ViewTransform({required this.scale, required this.origin});
 
   /// A view that fits [content] into [size] with a margin.
+  /// A view that fits [content] into [size] with a margin.
+  ///
+  /// [padding] reserves room round the edge in pixels, for anything drawn
+  /// beside the geometry rather than on it — the rows of dimensions along the
+  /// bottom and down the left of a technical drawing.
   factory ViewTransform.fit(
     Polygon? content,
     Size size, {
     double marginFraction = 0.1,
     double fallbackWidthMm = 2000,
+    EdgeInsets padding = EdgeInsets.zero,
   }) {
     final width = (content?.width ?? fallbackWidthMm).clamp(1.0, 1e9);
     final height =
         (content?.height ?? fallbackWidthMm * 1.2).clamp(1.0, 1e9);
+    final inner = Size(
+      math.max(size.width - padding.horizontal, 1),
+      math.max(size.height - padding.vertical, 1),
+    );
     final usable = Size(
-      math.max(size.width * (1 - marginFraction * 2), 1),
-      math.max(size.height * (1 - marginFraction * 2), 1),
+      math.max(inner.width * (1 - marginFraction * 2), 1),
+      math.max(inner.height * (1 - marginFraction * 2), 1),
     );
     final scale = math.min(usable.width / width, usable.height / height);
     final left = content?.left ?? 0;
@@ -39,8 +49,8 @@ class ViewTransform {
     return ViewTransform(
       scale: scale,
       origin: Offset(
-        size.width / 2 - (left + width / 2) * scale,
-        size.height / 2 - (top + height / 2) * scale,
+        padding.left + inner.width / 2 - (left + width / 2) * scale,
+        padding.top + inner.height / 2 - (top + height / 2) * scale,
       ),
     );
   }

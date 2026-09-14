@@ -14,6 +14,8 @@ import '../sections/section_builder.dart';
 /// bar moves that bar; the sections either side follow because they are what
 /// the bars enclose, not because anything was rebalanced. Nothing here ever
 /// tidies up the rest of the design on the user's behalf.
+enum FrameEdge { left, right, top, bottom }
+
 abstract final class DesignEdits {
   /// Moves a divider bodily.
   static Design moveDivider(Design design, String dividerId, Vec2 by) {
@@ -158,6 +160,126 @@ abstract final class DesignEdits {
       ],
       hardware: [for (final h in design.hardware) h.copyWith(at: point(h.at))],
     ));
+  }
+
+  /// Moves one side of the frame to where the user dragged it.
+  ///
+  /// Direct, not proportional: dragging the head of a frame in a drawing
+  /// moves the head, and the bars stay where they are. That is the opposite
+  /// of typing an overall width in the inspector, which scales everything in
+  /// proportion — one is reaching into the drawing and moving a line, the
+  /// other is saying how big the whole thing really is.
+  static Design moveFrameEdge(
+    Design design,
+    FrameEdge edge,
+    double toMm,
+  ) {
+    final frame = design.frame;
+    if (frame == null) return design;
+
+    final box = frame.outline;
+    final least = frame.profileMm * 2 + Tol.minLineMm;
+    final limited = switch (edge) {
+      FrameEdge.left => math.min(toMm, box.right - least),
+      FrameEdge.right => math.max(toMm, box.left + least),
+      FrameEdge.top => math.min(toMm, box.bottom - least),
+      FrameEdge.bottom => math.max(toMm, box.top + least),
+    };
+
+    // Only the corners on that side move, so a frame drawn at an angle keeps
+    // the shape it was drawn with.
+    final was = switch (edge) {
+      FrameEdge.left => box.left,
+      FrameEdge.right => box.right,
+      FrameEdge.top => box.top,
+      FrameEdge.bottom => box.bottom,
+    };
+    final moved = [
+      for (final corner in box.corners)
+        switch (edge) {
+          FrameEdge.left => (corner.x - was).abs() <= Tol.samePointMm
+              ? Vec2(limited, corner.y)
+              : corner,
+          FrameEdge.right => (corner.x - was).abs() <= Tol.samePointMm
+              ? Vec2(limited, corner.y)
+              : corner,
+          FrameEdge.top => (corner.y - was).abs() <= Tol.samePointMm
+              ? Vec2(corner.x, limited)
+              : corner,
+          FrameEdge.bottom => (corner.y - was).abs() <= Tol.samePointMm
+              ? Vec2(corner.x, limited)
+              : corner,
+        },
+    ];
+
+    return _rebuild(
+      design.copyWith(frame: frame.copyWith(outline: Polygon(moved))),
+    );
+  }
+
+  /// The positions a drag could land on, along one axis.
+  ///
+  /// Only places where there is already something: the frame's own edges,
+  /// the faces and centre lines of the other bars, the edges of the
+  /// sections. Deliberately not halves, thirds or equal spacings — those
+  /// would quietly pull a design towards being symmetrical, which is the one
+  /// thing this application must never do.
+  static List<double> snapCandidates(
+    Design design, {
+    required bool horizontal,
+    String? ignoreId,
+  }) {
+    final frame = design.frame;
+    if (frame == null) return const [];
+    final values = <double>[];
+
+    void add(double value) {
+      if (values.any((v) => (v - value).abs() <= Tol.samePointMm)) return;
+      values.add(value);
+    }
+
+    for (final corner in frame.outline.corners) {
+      add(horizontal ? corner.x : corner.y);
+    }
+    for (final corner in frame.innerOutline.corners) {
+      add(horizontal ? corner.x : corner.y);
+    }
+    for (final divider in design.dividers) {
+      if (divider.id == ignoreId) continue;
+      if (horizontal && !divider.isVertical) continue;
+      if (!horizontal && !divider.isHorizontal) continue;
+      final centre = horizontal
+          ? (divider.a.x + divider.b.x) / 2
+          : (divider.a.y + divider.b.y) / 2;
+      add(centre);
+      add(centre - divider.widthMm / 2);
+      add(centre + divider.widthMm / 2);
+    }
+    for (final section in design.sections) {
+      add(horizontal ? section.outline.left : section.outline.top);
+      add(horizontal ? section.outline.right : section.outline.bottom);
+    }
+
+    values.sort();
+    return values;
+  }
+
+  /// The nearest thing worth snapping to, or null when nothing is near.
+  static double? snapTo(
+    List<double> candidates,
+    double value, {
+    required double withinMm,
+  }) {
+    double? best;
+    var bestGap = withinMm;
+    for (final candidate in candidates) {
+      final gap = (candidate - value).abs();
+      if (gap <= bestGap) {
+        bestGap = gap;
+        best = candidate;
+      }
+    }
+    return best;
   }
 
   /// Moves a piece of hardware to where the user dragged it.

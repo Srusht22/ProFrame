@@ -43,10 +43,19 @@ you draw  →  strokes kept exactly  →  read as geometry  →  you confirm or 
 3. **Sections** come from planar subdivision: your lines are cut at their
    crossings, joined into a graph, and the faces of that graph are the
    sections. A diagonal makes triangles. A line stopping short of another
-   still divides. Nothing is laid out to a template.
+   still divides. Nothing is laid out to a template. Every bar is cut in as
+   its two faces, not its centre line, so a section is the real daylight
+   opening rather than half a bar too wide.
 4. **Real size** comes from a dimension you type. Everything scales by one
    number about one origin, so every proportion you drew survives it.
-5. **The model** is built from that geometry — the frame along your outline,
+5. **The CAD drawing** is that same geometry drawn to drafting conventions —
+   line weights that mean something, hatching through the frame profile,
+   the glazing mark on each pane, dashed swing symbols, and dimension
+   chains measured off the sections themselves. It is editable by taking
+   hold of it: grips on the selected bar or frame edge, snapping only to
+   positions where something already is. Layers turn parts of the drawing
+   on and off; none of them changes the design.
+6. **The model** is built from that geometry — the frame along your outline,
    bars along your bars, panes filling what they enclose, hardware only where
    you put it. Every face knows which part it came from, so tapping a pane in
    the model selects the same pane as tapping it in the drawing.
@@ -64,7 +73,13 @@ lib/
     dimensions/    real sizes, in proportion
     editing/       moving, resizing, deleting, colouring
     solid/         mesh generation and the perspective camera
-  app/             theme, state, canvas, inspector, 3D view, screens
+  app/
+    theme/         the one place colours and type live
+    state/         the workspace, its tools, its history
+    canvas/        the sheet, the CAD drawing, and what they are drawn with
+    inspector/     what is selected, the component tree, the questions
+    viewer/        the 3D view
+    screens/       the way in, the workspace, the tool rail
   infrastructure/  saving designs
 test/
   domain/          the geometry and the promises, on deliberately awkward drawings
@@ -76,13 +91,21 @@ test/
 ```sh
 flutter pub get
 flutter run                 # a device, a tablet, or a desktop
-flutter test                # 81 tests
+flutter test                # 101 tests
 flutter analyze             # strict: casts, inference, raw types
 ```
 
 The web build runs offline: `web/flutter_bootstrap.js` points Flutter at the
 copy of its renderer inside the bundle rather than at a CDN, so it opens in a
 workshop with no internet.
+
+## Snapping
+
+Dragging a bar snaps to the frame's edges, to the faces and centre lines of
+the other bars, and to the edges of the sections — every position where
+something already is. It deliberately does **not** snap to halves, thirds or
+equal spacings. Those would quietly pull a design towards being symmetrical,
+which is the one thing this application must never do.
 
 ## Tolerances
 
