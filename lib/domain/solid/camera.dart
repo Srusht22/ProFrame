@@ -45,9 +45,9 @@ class Camera {
   final double distanceInSpans;
 
   const Camera({
-    this.turnDegrees = 26,
-    this.tiltDegrees = 12,
-    this.distanceInSpans = 2.6,
+    this.turnDegrees = 24,
+    this.tiltDegrees = 9,
+    this.distanceInSpans = 3.1,
   });
 
   static const Camera straightOn =

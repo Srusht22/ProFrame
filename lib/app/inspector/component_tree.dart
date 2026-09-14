@@ -1,0 +1,187 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../domain/model/elements.dart';
+import '../state/workspace.dart';
+import '../theme/app_theme.dart';
+
+/// Every part of the design, listed.
+///
+/// It is the same set of parts the canvas draws and the model builds, in the
+/// order a drawing reads. Picking one here picks it everywhere.
+class ComponentTree extends ConsumerWidget {
+  const ComponentTree({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(workspaceProvider);
+    final controller = ref.read(workspaceProvider.notifier);
+    final design = state.design;
+
+    if (design.frame == null) {
+      return Padding(
+        padding: const EdgeInsets.all(18),
+        child: Text(
+          'Nothing has been read from your drawing yet.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      children: [
+        _Row(
+          element: design.frame!,
+          detail: '${design.widthMm.round()} × ${design.heightMm.round()} mm',
+          icon: Icons.crop_square,
+          selected: state.selectedId == design.frame!.id,
+          onTap: () => controller.select(design.frame!.id),
+        ),
+        if (design.dividers.isNotEmpty) const _GroupLabel('Bars'),
+        for (final divider in design.dividers)
+          _Row(
+            element: divider,
+            detail: '${divider.lengthMm.round()} mm · '
+                '${divider.segment.headingDegrees.toStringAsFixed(0)}°',
+            icon: divider.isVertical
+                ? Icons.vertical_align_center
+                : Icons.horizontal_rule,
+            indent: 1,
+            selected: state.selectedId == divider.id,
+            onTap: () => controller.select(divider.id),
+          ),
+        if (design.sections.isNotEmpty) const _GroupLabel('Sections'),
+        for (final section in design.sections) ...[
+          _Row(
+            element: section,
+            detail: '${section.widthMm.round()} × '
+                '${section.heightMm.round()} mm · '
+                '${section.finish.material.label}',
+            icon: section.finish.material.isGlazing
+                ? Icons.window_outlined
+                : Icons.rectangle_outlined,
+            indent: 1,
+            selected: state.selectedId == section.id,
+            onTap: () => controller.select(section.id),
+          ),
+          if (design.openingOf(section.id) case final opening?)
+            _Row(
+              element: opening,
+              detail: opening.mechanism.description,
+              icon: Icons.door_front_door_outlined,
+              indent: 2,
+              selected: state.selectedId == section.id,
+              onTap: () => controller.select(section.id),
+            ),
+        ],
+        if (design.hardware.isNotEmpty) const _GroupLabel('Hardware'),
+        for (final piece in design.hardware)
+          _Row(
+            element: piece,
+            detail: '${piece.at.x.round()}, ${piece.at.y.round()} mm',
+            icon: Icons.radio_button_checked,
+            indent: 1,
+            selected: state.selectedId == piece.id,
+            onTap: () => controller.select(piece.id),
+          ),
+        if (design.dimensions.isNotEmpty) const _GroupLabel('Dimensions'),
+        for (final dimension in design.dimensions)
+          _Row(
+            element: dimension,
+            detail: dimension.isStated ? 'you typed this' : 'as drawn',
+            icon: Icons.straighten,
+            indent: 1,
+            selected: state.selectedId == dimension.id,
+            onTap: () => controller.select(dimension.id),
+          ),
+        if (design.texts.isNotEmpty) const _GroupLabel('Notes'),
+        for (final note in design.texts)
+          _Row(
+            element: note,
+            detail: '',
+            icon: Icons.sticky_note_2_outlined,
+            indent: 1,
+            selected: state.selectedId == note.id,
+            onTap: () => controller.select(note.id),
+          ),
+      ],
+    );
+  }
+}
+
+class _Row extends StatelessWidget {
+  final DesignElement element;
+  final String detail;
+  final IconData icon;
+  final int indent;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _Row({
+    required this.element,
+    required this.detail,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+    this.indent = 0,
+  });
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        child: Container(
+          color: selected
+              ? AppTheme.selection.withValues(alpha: 0.12)
+              : Colors.transparent,
+          padding: EdgeInsets.fromLTRB(14 + indent * 16.0, 9, 14, 9),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 17,
+                color: selected ? AppTheme.selection : AppTheme.muted,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      element.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight:
+                                selected ? FontWeight.w600 : FontWeight.w500,
+                          ),
+                    ),
+                    if (detail.isNotEmpty)
+                      Text(
+                        detail,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _GroupLabel extends StatelessWidget {
+  final String text;
+  const _GroupLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
+        child: Text(
+          text.toUpperCase(),
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
+      );
+}
