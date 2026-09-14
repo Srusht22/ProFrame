@@ -5,7 +5,33 @@ the geometry becomes the 2D design and the 3D model — exactly as drawn.
 
 ## The rule the whole thing is built on
 
-**The user draws the design. The application reproduces that design.**
+**THE USER'S DRAWING IS THE SOURCE OF TRUTH.**
+
+It is not a preference and it is not negotiable against any other goal here.
+A change that makes the output prettier, more regular or easier to build, at
+the cost of it no longer being what the user drew, is a bug — however good it
+looks.
+
+| The application may | The application must not |
+| --- | --- |
+| Clean slightly imperfect lines | Redesign |
+| Snap lines to horizontal or vertical | Beautify structurally |
+| Recognise geometry | Add random parts |
+| Calculate dimensions | Remove lines |
+| Create 3D geometry | Equalise sections |
+| | Force symmetry |
+| | Move openings |
+| | Change proportions |
+| | Replace custom designs with templates |
+
+The rule is enforced by `test/domain/the_rule_test.dart`, which is the rule
+written as assertions rather than as intentions. Sabotage the reader to
+centre every vertical bar and eight of its tests fail. **Do not weaken that
+file to make a change pass.** If a change cannot keep it true, the change is
+wrong.
+
+`CLAUDE.md` states the same rule for anyone — or anything — working on this
+repository.
 
 It does not redesign, tidy up, balance, symmetrise, or fill anything in. It
 does not have a stock door it stretches to fit, and it has no opinion about
@@ -95,7 +121,7 @@ test/
 ```sh
 flutter pub get
 flutter run                 # a device, a tablet, or a desktop
-flutter test                # 214 tests
+flutter test                # 241 tests
 flutter analyze             # strict: casts, inference, raw types
 ```
 
