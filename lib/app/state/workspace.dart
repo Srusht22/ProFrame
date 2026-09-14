@@ -125,7 +125,11 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   // ---------------------------------------------------------------- history
 
   void _remember({Object? coalesce}) {
-    if (coalesce != null && identical(coalesce, _gesture)) return;
+    // Compared by value, not by identity: the keys are built by
+    // interpolation, so two calls within one drag produce equal strings that
+    // are not the same object, and comparing by identity would record every
+    // step of the drag separately.
+    if (coalesce != null && coalesce == _gesture) return;
     _gesture = coalesce;
     _undo.add(state.design);
     if (_undo.length > 120) _undo.removeAt(0);

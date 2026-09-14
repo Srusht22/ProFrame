@@ -1,0 +1,129 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:proframe/app/app.dart';
+import 'package:proframe/app/state/tools.dart';
+import 'package:proframe/app/state/workspace.dart';
+import 'package:proframe/app/theme/app_theme.dart';
+import 'package:proframe/domain/geometry/vec2.dart';
+import 'package:proframe/domain/sketch/stroke.dart';
+
+void main() {
+  testWidgets('the start screen offers a door and a window, and nothing else',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 950));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const ProviderScope(child: ProFrameApp()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ProFrame'), findsOneWidget);
+    expect(find.text('CREATE DESIGN'), findsOneWidget);
+    expect(find.text('DOOR'), findsOneWidget);
+    expect(find.text('WINDOW'), findsOneWidget);
+    expect(
+      find.textContaining('No templates, no stock pictures'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('picking a window opens the workspace with the canvas dominant',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 950));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const ProviderScope(child: ProFrameApp()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('WINDOW'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Untitled window'), findsOneWidget);
+    expect(find.text('Draw'), findsOneWidget);
+    expect(find.text('2D design'), findsOneWidget);
+    expect(find.text('3D model'), findsOneWidget);
+
+    // Every tool is reachable.
+    for (final label in [
+      'Select',
+      'Freehand',
+      'Straight\nline',
+      'Rectangle',
+      'Polyline',
+      'Dimension',
+      'Arrow',
+      'Note',
+      'Eraser',
+    ]) {
+      expect(find.text(label.replaceAll('\n', ' ')), findsAny,
+          reason: 'the $label tool should be on the rail');
+    }
+  });
+
+  testWidgets('the canvas is the biggest thing on screen', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 950));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const ProviderScope(child: ProFrameApp()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('WINDOW'));
+    await tester.pumpAndSettle();
+
+    final rail = tester.getSize(find.byType(Scaffold).last);
+    expect(rail.width, 1400);
+
+    // Tools take 76, the inspector 320: the drawing keeps the rest.
+    expect(1400 - 76 - 320, greaterThan(1400 * 0.65));
+  });
+
+  testWidgets('a drawn design shows the read prompt, and reading it works',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 950));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    late WidgetRef captured;
+    await tester.pumpWidget(ProviderScope(
+      child: Consumer(builder: (context, ref, _) {
+        captured = ref;
+        return const ProFrameApp();
+      }),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('WINDOW'));
+    await tester.pumpAndSettle();
+
+    captured.read(workspaceProvider.notifier).addStroke(
+      const [
+        StrokeSample(Vec2(0, 0)),
+        StrokeSample(Vec2(1000, 0)),
+        StrokeSample(Vec2(1000, 2000)),
+        StrokeSample(Vec2(0, 2000)),
+        StrokeSample(Vec2(0, 0)),
+      ],
+      tool: Tool.pen,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Read my drawing'), findsOneWidget);
+    await tester.tap(find.text('Read my drawing'));
+    await tester.pumpAndSettle();
+
+    final design = captured.read(workspaceProvider).design;
+    expect(design.frame, isNotNull);
+    expect(design.sections, hasLength(1));
+
+    // And the question about real size is put, not answered.
+    expect(find.textContaining('How wide is this'), findsOneWidget);
+    expect(
+      find.textContaining('Nothing has been decided for you'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the theme uses the stated colours', (tester) async {
+    final theme = AppTheme.build();
+    expect(theme.colorScheme.primary, const Color(0xFF013E37));
+    expect(theme.colorScheme.secondary, const Color(0xFFFFEFB3));
+    expect(theme.appBarTheme.backgroundColor, const Color(0xFF013E37));
+  });
+}
