@@ -6,6 +6,21 @@ import '../model/design.dart';
 /// Which way a chain of dimensions runs.
 enum DimensionAxis { horizontal, vertical }
 
+/// What a measurement measures, so that changing the number changes the
+/// right thing.
+///
+/// A dimension on this drawing is not a caption. Each one names a piece of
+/// geometry, and typing a new value into it is an instruction to that piece
+/// of geometry — which is only possible if the figure knows what it came
+/// from.
+enum ChainRunOf {
+  /// The whole frame, across or down.
+  overall,
+
+  /// One section's daylight, across or down.
+  daylight,
+}
+
 /// One measurement in a chain: from here to there, along the axis.
 class ChainRun {
   final double fromMm;
@@ -14,10 +29,18 @@ class ChainRun {
   /// What is being measured, for the drawing's own legend.
   final String note;
 
+  /// The kind of geometry this figure measures.
+  final ChainRunOf of;
+
+  /// The section it measures, when it measures one. Null on an overall.
+  final String? sectionId;
+
   const ChainRun({
     required this.fromMm,
     required this.toMm,
     this.note = '',
+    this.of = ChainRunOf.daylight,
+    this.sectionId,
   });
 
   double get valueMm => toMm - fromMm;
@@ -79,14 +102,24 @@ abstract final class DimensionChains {
       axis: DimensionAxis.horizontal,
       row: overallRow,
       runs: [
-        ChainRun(fromMm: outer.left, toMm: outer.right, note: 'Overall'),
+        ChainRun(
+          fromMm: outer.left,
+          toMm: outer.right,
+          note: 'Overall',
+          of: ChainRunOf.overall,
+        ),
       ],
     ));
     chains.add(DimensionChain(
       axis: DimensionAxis.vertical,
       row: overallRow,
       runs: [
-        ChainRun(fromMm: outer.top, toMm: outer.bottom, note: 'Overall'),
+        ChainRun(
+          fromMm: outer.top,
+          toMm: outer.bottom,
+          note: 'Overall',
+          of: ChainRunOf.overall,
+        ),
       ],
     ));
 
@@ -106,11 +139,11 @@ abstract final class DimensionChains {
   static List<ChainRun> _bands(Design design, DimensionAxis axis) {
     // The main divisions. What is inside one of them is dimensioned by its
     // own label rather than by a chain along the outside of the design.
-    final spans = <(double, double)>[];
+    final spans = <(double, double, String)>[];
     for (final section in design.topLevelSections) {
       final span = axis == DimensionAxis.horizontal
-          ? (section.outline.left, section.outline.right)
-          : (section.outline.top, section.outline.bottom);
+          ? (section.outline.left, section.outline.right, section.id)
+          : (section.outline.top, section.outline.bottom, section.id);
       final already = spans.any((s) =>
           (s.$1 - span.$1).abs() <= Tol.sameLengthMm &&
           (s.$2 - span.$2).abs() <= Tol.sameLengthMm);
@@ -123,9 +156,14 @@ abstract final class DimensionChains {
     spans.sort((a, b) => a.$1.compareTo(b.$1));
     final runs = <ChainRun>[];
     var reachedTo = -double.infinity;
-    for (final (from, to) in spans) {
+    for (final (from, to, sectionId) in spans) {
       if (from < reachedTo - Tol.sameLengthMm) continue;
-      runs.add(ChainRun(fromMm: from, toMm: to, note: 'Daylight'));
+      runs.add(ChainRun(
+        fromMm: from,
+        toMm: to,
+        note: 'Daylight',
+        sectionId: sectionId,
+      ));
       reachedTo = math.max(reachedTo, to);
     }
     return runs;

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../domain/dimensions/dimension_chain.dart';
+import '../../domain/dimensions/units.dart';
 import '../../domain/geometry/polygon.dart';
 import '../../domain/geometry/segment.dart';
 import '../../domain/geometry/vec2.dart';
@@ -10,6 +11,7 @@ import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import 'cad_layers.dart';
 import 'cad_style.dart';
+import 'dimension_handles.dart';
 import 'view_transform.dart';
 
 /// Draws the design as a technical drawing.
@@ -174,19 +176,6 @@ class CadPainter extends CustomPainter {
       );
     }
     canvas.restore();
-  }
-
-  /// True when a width and a height really do describe this shape.
-  ///
-  /// Measured by area rather than by angle: a frame drawn by hand is a degree
-  /// or two off square, and its panes inherit that, so a test that demands
-  /// exact right angles rejects every real drawing. A shape that fills its
-  /// own bounding box is one the two figures describe.
-  static bool _isRectangle(Polygon shape) {
-    if (shape.corners.length != 4) return false;
-    final box = shape.width * shape.height;
-    if (box <= 0) return false;
-    return shape.area >= box * 0.97;
   }
 
   /// The frame, drawn as a profile: the outside heavy, the daylight edge
@@ -429,7 +418,7 @@ class CadPainter extends CustomPainter {
   void _chains(Canvas canvas) {
     final frame = design.frame!;
     for (final chain in DimensionChains.of(design)) {
-      final out = Cad.dimensionGap + chain.row * Cad.dimensionStep;
+      final out = CadDimensions.outFor(chain);
       for (final run in chain.runs) {
         if (chain.axis == DimensionAxis.horizontal) {
           _horizontalRun(canvas, run, frame.outline.bottom, out);
@@ -485,29 +474,21 @@ class CadPainter extends CustomPainter {
   /// column of its own, or one bounded by a bar that stops part way.
   void _sectionSizes(Canvas canvas) {
     for (final section in design.sections) {
-      if (design.hasChildren(section.id)) continue;
       // A width and a height describe a rectangle. On a triangle they would
       // be the box around it, which is not the pane and not what anybody
       // would cut — so a section that is not a rectangle is left to the
       // dimensions and the inspector rather than being labelled wrongly.
-      if (!_isRectangle(section.outline)) continue;
-
-      final across = view.lengthToScreen(section.widthMm);
-      final down = view.lengthToScreen(section.heightMm);
-      if (across < 62 || down < 26) continue;
+      // A section with children is not labelled either: its children are.
+      final at = CadDimensions.sectionSizeAt(design, view, section);
+      if (at == null) continue;
 
       final text = Cad.label(
-        '${section.widthMm.round()} × ${section.heightMm.round()}',
+        '${Units.format(section.widthMm)} × '
+            '${Units.label(section.heightMm)}',
         colour: Cad.light,
         size: Cad.smallTextSize,
         weight: FontWeight.w600,
       );
-      // Where the user marked this section, their mark has the middle and
-      // the size steps aside. Their instruction is the more important of
-      // the two things written there.
-      final marked = design.openingOf(section.id)?.markAt != null;
-      final at = view.toScreen(section.outline.centroid) +
-          (marked ? const Offset(0, -19) : Offset.zero);
       final box = Rect.fromCenter(
         center: at,
         width: text.width + 9,
@@ -527,11 +508,12 @@ class CadPainter extends CustomPainter {
     double fromMm,
     double outPixels,
   ) {
+    final at = CadDimensions.horizontalRunAt(view, run, fromMm, outPixels);
+    if (at == null) return;
     final base = view.toScreen(Vec2(0, fromMm)).dy;
-    final y = base + outPixels;
+    final y = at.dy;
     final x1 = view.toScreen(Vec2(run.fromMm, 0)).dx;
     final x2 = view.toScreen(Vec2(run.toMm, 0)).dx;
-    if ((x2 - x1).abs() < 3) return;
 
     final paint = Cad.stroke(Cad.dimension, Cad.annotation);
     // Witness lines, standing off the geometry so they never touch it.
@@ -546,12 +528,7 @@ class CadPainter extends CustomPainter {
     _tick(canvas, Offset(x1, y), paint);
     _tick(canvas, Offset(x2, y), paint);
 
-    _dimensionLabel(
-      canvas,
-      '${run.valueMm.round()}',
-      Offset((x1 + x2) / 2, y),
-      horizontal: true,
-    );
+    _dimensionLabel(canvas, Units.label(run.valueMm), at, horizontal: true);
   }
 
   void _verticalRun(
@@ -560,11 +537,12 @@ class CadPainter extends CustomPainter {
     double fromMm,
     double outPixels,
   ) {
+    final at = CadDimensions.verticalRunAt(view, run, fromMm, outPixels);
+    if (at == null) return;
     final base = view.toScreen(Vec2(fromMm, 0)).dx;
-    final x = base - outPixels;
+    final x = at.dx;
     final y1 = view.toScreen(Vec2(0, run.fromMm)).dy;
     final y2 = view.toScreen(Vec2(0, run.toMm)).dy;
-    if ((y2 - y1).abs() < 3) return;
 
     final paint = Cad.stroke(Cad.dimension, Cad.annotation);
     for (final y in [y1, y2]) {
@@ -578,12 +556,7 @@ class CadPainter extends CustomPainter {
     _tick(canvas, Offset(x, y1), paint);
     _tick(canvas, Offset(x, y2), paint);
 
-    _dimensionLabel(
-      canvas,
-      '${run.valueMm.round()}',
-      Offset(x, (y1 + y2) / 2),
-      horizontal: false,
-    );
+    _dimensionLabel(canvas, Units.label(run.valueMm), at, horizontal: false);
   }
 
   /// The forty-five degree slash that building drawings use instead of an
@@ -642,8 +615,8 @@ class CadPainter extends CustomPainter {
       _tick(canvas, to, paint);
 
       final text = dimension.isStated
-          ? '${dimension.valueMm.round()}'
-          : '${dimension.valueMm.round()} ~';
+          ? Units.label(dimension.valueMm)
+          : '${Units.label(dimension.valueMm)} ~';
       _dimensionLabel(
         canvas,
         text,

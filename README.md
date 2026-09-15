@@ -234,6 +234,48 @@ Divides        The whole design
 
 Nothing is guessed there either. The list is offered and you pick.
 
+### Hinges and a handle
+
+Saying a section opens is saying it hangs on something and is worked by
+something, so an opening carries hinges and a handle. They belong to the
+opening — not to the door, and not to the frame:
+
+```
+Door
+├── Fixed section
+└── Opening
+    ├── Hinged left  >
+    ├── Hinge      70 cm up
+    ├── Hinge      20 cm up
+    ├── Handle     45 cm up
+    └── the panes and bars inside it
+```
+
+Everything in that list moves, resizes and swings together. Change the
+direction from `>` to `<` and the hinges cross to the other stile with the
+handle following them; resize the leaf and they stay on its edges; open it
+in the model and they come away from the frame with it.
+
+**A section you did not mark gets none of this.** No hinges, no handle, no
+lock, no letter plate — nothing at all is added to a section that has no
+mark on it, and nothing beyond hinges and a handle is ever added to one that
+has.
+
+Where they sit is yours to set:
+
+```
+Selected: Hinge                        Selected: Handle
+
+First hinge from the top    20  cm     Height from the bottom   45  cm
+Last hinge from the bottom  20  cm
+Number of hinges           2  3  4
+```
+
+Until you say, they follow two stated rules rather than a guess: two hinges,
+and one more for every metre of hinged edge, up to four; and the handle a
+metre up, which is where a hand falls on a door, or the middle of the stile
+on a sash too short for that. Anything you set is used exactly and kept.
+
 ### Editing an opening
 
 The marked section becomes an object you can select — from its mark on the
@@ -353,12 +395,58 @@ changes the one thing it names:
 ```
 Selected: Section          Selected: Left jamb        Selected: Horizontal divider
 
-Width    910 mm            Length   1731 mm           Length   1394 mm
-Height   818 mm            Angle    89.9°             Angle    0.0°
-Material Clear glass       From     521, 1905 mm      Bar width 48 mm
-Colour   ▢▢▢▢▢             To       518, 174 mm       Material uPVC
-Opens    Fixed             Profile  60 mm             Colour   ▢▢▢▢▢
+Width    91 cm             Length   173.1 cm          Length   139.4 cm
+Height   81.8 cm           Angle    89.9°             Angle    0.0°
+Material Clear glass       From     52.1, 190.5 cm    Bar width 4.8 cm
+Colour   ▢▢▢▢▢             To       51.8, 17.4 cm     Material uPVC
+Opens    Fixed             Profile  6 cm              Colour   ▢▢▢▢▢
 ```
+
+### Every figure on the drawing can be typed over
+
+The numbers on the technical drawing are not captions. Each one is a real
+piece of the design, so you can tap it and type a new one:
+
+```
+        ┌─────────────────┐              ┌──────────────────────┐
+        │                 │              │  Section height      │
+ 93.3 ──┤    120.4 × 93.3 │              │  ┌────────────────┐  │
+        ├─────────────────┤      tap →   │  │ 150.7       cm │  │
+        │        >        │              │  └────────────────┘  │
+150.7 ──┤   120.3 × 150.7 │              │    Cancel   Apply    │
+        └─────────────────┘              └──────────────────────┘
+```
+
+Type 90 and the drawing physically changes: the transom moves, the pane
+above it grows by what this one lost, the opening stays the opening, and the
+model follows. What moves is what has to:
+
+| The figure you type over | What moves |
+| --- | --- |
+| Overall width or height | The frame, and everything in it in proportion |
+| A pane's width | The bar beside it — or the jamb, when there is no bar |
+| A pane's height | The bar above or below it — or the sill |
+| A measurement you drew | The whole design, scaled to make your figure true |
+
+The overall size does not quietly change to absorb a pane you resized, and
+no pane you did not name is touched.
+
+### Everything is in centimetres
+
+You type centimetres and you read centimetres. Nowhere does the application
+ask you for millimetres:
+
+```
+Overall width   132.4  cm
+Overall height  200.2  cm
+Section height   90    cm
+```
+
+Figures are written to the millimetre — the tenth of a centimetre — which is
+what a workshop cuts to and the finest distinction worth putting on a
+drawing. Nothing is rounded past that: a pane 96.4 cm tall is never written
+as 96, and a figure you type finer than a millimetre is kept exactly as you
+typed it in the geometry underneath.
 
 ### Dragging and typing are the same edit
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/dimensions/units.dart';
 import '../../domain/model/design.dart';
 import '../../domain/solid/camera.dart';
 import '../../domain/solid/mesh_builder.dart';
@@ -258,7 +259,7 @@ class _SolidNumber extends StatefulWidget {
 
 class _SolidNumberState extends State<_SolidNumber> {
   late final TextEditingController _field =
-      TextEditingController(text: widget.valueMm.round().toString());
+      TextEditingController(text: Units.format(widget.valueMm));
   late final FocusNode _focus = FocusNode()
     ..addListener(() {
       if (!_focus.hasFocus) _commit();
@@ -267,8 +268,8 @@ class _SolidNumberState extends State<_SolidNumber> {
   @override
   void didUpdateWidget(_SolidNumber old) {
     super.didUpdateWidget(old);
-    if (!_focus.hasFocus && (widget.valueMm - old.valueMm).abs() > 0.5) {
-      _field.text = widget.valueMm.round().toString();
+    if (!_focus.hasFocus && (widget.valueMm - old.valueMm).abs() > 0.05) {
+      _field.text = Units.format(widget.valueMm);
     }
   }
 
@@ -280,12 +281,12 @@ class _SolidNumberState extends State<_SolidNumber> {
   }
 
   void _commit() {
-    final value = double.tryParse(_field.text.trim());
+    final value = Units.parse(_field.text);
     if (value == null) {
-      _field.text = widget.valueMm.round().toString();
+      _field.text = Units.format(widget.valueMm);
       return;
     }
-    if ((value - widget.valueMm).abs() < 0.5) return;
+    if ((value - widget.valueMm).abs() < 0.05) return;
     widget.onSet(value);
   }
 
@@ -318,7 +319,7 @@ class _SolidNumberState extends State<_SolidNumber> {
                 fontSize: 13.5,
               ),
               decoration: const InputDecoration(
-                suffixText: 'mm',
+                suffixText: Units.symbol,
                 isDense: true,
                 contentPadding:
                     EdgeInsets.symmetric(horizontal: 10, vertical: 9),
@@ -551,8 +552,9 @@ class _Readout extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('${design.widthMm.round()} × ${design.heightMm.round()} × '
-                '${design.depthMm.round()} mm'),
+            Text('${Units.format(design.widthMm)} × '
+                '${Units.format(design.heightMm)} × '
+                '${Units.label(design.depthMm)}'),
             const SizedBox(height: 2),
             Text('${design.sections.length} sections · '
                 '${design.dividers.length} bars'),

@@ -2,8 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/dimensions/units.dart';
 import '../../domain/editing/design_edits.dart';
 import '../../domain/geometry/polygon.dart';
 import '../../domain/geometry/segment.dart';
@@ -15,6 +17,7 @@ import '../theme/app_theme.dart';
 import 'cad_layers.dart';
 import 'cad_painter.dart';
 import 'cad_style.dart';
+import 'dimension_handles.dart';
 import 'view_transform.dart';
 
 /// The technical drawing, and the drafting board it sits on.
@@ -40,6 +43,9 @@ class _CadViewState extends ConsumerState<CadView> {
   Vec2? _pointer;
   Vec2? _snapped;
   Offset? _panFrom;
+
+  /// The figure the user has opened for typing, if any.
+  DimensionHandle? _editing;
 
   /// Room round the drawing for the things that sit beside it: two rows of
   /// dimensions and their names along the bottom and down the left, and the
@@ -95,6 +101,8 @@ class _CadViewState extends ConsumerState<CadView> {
               _fitIfNeeded(state.design.bounds);
               final view = _transform;
               final grips = _gripsFor(state.design, state.selectedId);
+              final figures =
+                  CadDimensions.of(state.design, view, layers);
 
               return ClipRect(
                 child: MouseRegion(
@@ -107,7 +115,7 @@ class _CadViewState extends ConsumerState<CadView> {
                   onExit: (_) => setState(() => _pointer = null),
                   child: Listener(
                     onPointerDown: (event) =>
-                        _down(event, view, grips, controller),
+                        _down(event, view, grips, figures, controller),
                     onPointerMove: (event) => _move(event, view, controller),
                     onPointerUp: (_) => _up(controller),
                     onPointerCancel: (_) => _up(controller),
@@ -169,6 +177,16 @@ class _CadViewState extends ConsumerState<CadView> {
                               scale: view.scale,
                             ),
                           ),
+                          if (_editing case final figure?)
+                            _FigureEditor(
+                              figure: figure,
+                              within: size,
+                              onApply: (value) {
+                                _applyFigure(figure, value, controller);
+                                setState(() => _editing = null);
+                              },
+                              onCancel: () => setState(() => _editing = null),
+                            ),
                           Positioned(
                             right: 12,
                             top: 12,
@@ -323,6 +341,7 @@ class _CadViewState extends ConsumerState<CadView> {
     PointerDownEvent event,
     ViewTransform view,
     List<Grip> grips,
+    List<DimensionHandle> figures,
     WorkspaceController controller,
   ) {
     final at = view.toSheet(event.localPosition);
@@ -330,16 +349,53 @@ class _CadViewState extends ConsumerState<CadView> {
 
     for (final grip in grips) {
       if (grip.at.distanceTo(at) <= reach) {
-        setState(() => _holding = grip);
+        setState(() {
+          _holding = grip;
+          _editing = null;
+        });
         return;
       }
     }
+
+    // A figure on the drawing is the geometry it measures, so tapping one
+    // opens it for typing rather than selecting whatever is behind it.
+    final figure = CadDimensions.at(figures, event.localPosition);
+    if (figure != null) {
+      setState(() {
+        _editing = figure;
+        _holding = null;
+      });
+      return;
+    }
+    if (_editing != null) setState(() => _editing = null);
 
     controller.selectAt(at, slopMm: view.lengthToSheet(12));
     setState(() {
       _holding = null;
       _pointer = at;
     });
+  }
+
+  /// Types a new figure over a dimension, which moves the geometry it
+  /// measures and nothing else.
+  void _applyFigure(
+    DimensionHandle figure,
+    double valueMm,
+    WorkspaceController controller,
+  ) {
+    final id = figure.elementId;
+    switch (figure.of) {
+      case DimensionOf.overallWidth:
+        controller.resizeFrame(widthMm: valueMm);
+      case DimensionOf.overallHeight:
+        controller.resizeFrame(heightMm: valueMm);
+      case DimensionOf.sectionWidth:
+        if (id != null) controller.setSectionWidth(id, valueMm);
+      case DimensionOf.sectionHeight:
+        if (id != null) controller.setSectionHeight(id, valueMm);
+      case DimensionOf.drawn:
+        if (id != null) controller.setDimensionValue(id, valueMm);
+    }
   }
 
   void _move(
@@ -436,6 +492,143 @@ class _CadViewState extends ConsumerState<CadView> {
       _holding = null;
       _snapped = null;
     });
+  }
+}
+
+/// Typing a new figure over one on the drawing.
+///
+/// It opens where the figure is written, so what is being changed is never
+/// in doubt, and it shows centimetres because that is what the user works
+/// in. Applying it moves the geometry the figure measures. There is no way
+/// from here to change the number alone: a figure that did not match the
+/// design would be a lie about what gets built.
+class _FigureEditor extends StatefulWidget {
+  final DimensionHandle figure;
+  final Size within;
+  final ValueChanged<double> onApply;
+  final VoidCallback onCancel;
+
+  const _FigureEditor({
+    required this.figure,
+    required this.within,
+    required this.onApply,
+    required this.onCancel,
+  });
+
+  @override
+  State<_FigureEditor> createState() => _FigureEditorState();
+}
+
+class _FigureEditorState extends State<_FigureEditor> {
+  static const double _width = 212;
+  static const double _height = 128;
+
+  late final TextEditingController _field =
+      TextEditingController(text: Units.format(widget.figure.valueMm))
+        ..selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: Units.format(widget.figure.valueMm).length,
+        );
+  final FocusNode _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _focus.requestFocus());
+  }
+
+  @override
+  void dispose() {
+    _field.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _apply() {
+    final value = Units.parse(_field.text);
+    if (value == null || value <= 0) {
+      widget.onCancel();
+      return;
+    }
+    widget.onApply(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Beside the figure, and always on the sheet: a card off the edge of the
+    // view would be a figure the user could not type into.
+    final at = widget.figure.rect.center;
+    final left = (at.dx - _width / 2).clamp(8.0, widget.within.width - _width - 8);
+    final top = (at.dy + 16).clamp(8.0, widget.within.height - _height - 8);
+
+    return Positioned(
+      left: left,
+      top: top,
+      width: _width,
+      child: Material(
+        elevation: 6,
+        borderRadius: BorderRadius.circular(10),
+        color: AppTheme.surface,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                widget.figure.label,
+                style: const TextStyle(
+                  fontFamily: AppTheme.fontFamily,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
+                  color: AppTheme.muted,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _field,
+                focusNode: _focus,
+                autofocus: true,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                style: const TextStyle(
+                  fontFamily: AppTheme.fontFamily,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+                decoration: const InputDecoration(
+                  suffixText: Units.symbol,
+                  isDense: true,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                ),
+                onSubmitted: (_) => _apply(),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: widget.onCancel,
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 4),
+                  FilledButton(
+                    onPressed: _apply,
+                    child: const Text('Apply'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -645,8 +838,9 @@ class _StatusBar extends StatelessWidget {
                       Text(
                         pointer == null
                             ? 'X —   Y —'
-                            : 'X ${pointer!.x.round()}   '
-                                'Y ${pointer!.y.round()}',
+                            : 'X ${Units.format(pointer!.x)}   '
+                                'Y ${Units.format(pointer!.y)} '
+                                '${Units.symbol}',
                       ),
                       const SizedBox(width: 18),
                       Text('1 : $rounded'),

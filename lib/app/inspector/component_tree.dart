@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/dimensions/units.dart';
+import '../../domain/hardware/opening_hardware.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import '../state/workspace.dart';
@@ -29,12 +31,18 @@ class ComponentTree extends ConsumerWidget {
       );
     }
 
+    // An opening's hinges and handle are listed under the opening, because
+    // that is whose they are. What is left here is what the user placed on
+    // the design themselves.
+    final placedByHand = OpeningHardware.placedByHand(design);
+
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
         _Row(
           element: design.frame!,
-          detail: '${design.widthMm.round()} × ${design.heightMm.round()} mm',
+          detail: '${Units.format(design.widthMm)} × '
+              '${Units.label(design.heightMm)}',
           icon: Icons.crop_square,
           selected: state.selectedId == design.frame!.id,
           onTap: () => controller.select(design.frame!.id),
@@ -42,7 +50,7 @@ class ComponentTree extends ConsumerWidget {
         for (final member in design.frameMembers)
           _Row(
             element: member,
-            detail: '${member.lengthMm.round()} mm',
+            detail: Units.label(member.lengthMm),
             icon: member.run.isVerticalish
                 ? Icons.vertical_align_center
                 : Icons.horizontal_rule,
@@ -54,7 +62,7 @@ class ComponentTree extends ConsumerWidget {
         for (final divider in design.topLevelDividers)
           _Row(
             element: divider,
-            detail: '${divider.lengthMm.round()} mm · '
+            detail: '${Units.label(divider.lengthMm)} · '
                 '${divider.segment.headingDegrees.toStringAsFixed(0)}°',
             icon: divider.isVertical
                 ? Icons.vertical_align_center
@@ -67,11 +75,12 @@ class ComponentTree extends ConsumerWidget {
           const _GroupLabel('Sections'),
         for (final section in design.topLevelSections)
           ..._sectionRows(design, state, controller, section, 1),
-        if (design.hardware.isNotEmpty) const _GroupLabel('Hardware'),
-        for (final piece in design.hardware)
+        if (placedByHand.isNotEmpty) const _GroupLabel('Hardware'),
+        for (final piece in placedByHand)
           _Row(
             element: piece,
-            detail: '${piece.at.x.round()}, ${piece.at.y.round()} mm',
+            detail: '${Units.format(piece.at.x)}, '
+                '${Units.label(piece.at.y)}',
             icon: Icons.radio_button_checked,
             indent: 1,
             selected: state.selectedId == piece.id,
@@ -124,9 +133,10 @@ List<Widget> _sectionRows(
     _Row(
       element: section,
       detail: holds
-          ? '${section.widthMm.round()} × ${section.heightMm.round()} mm · '
-              'holds ${children.length}'
-          : '${section.widthMm.round()} × ${section.heightMm.round()} mm · '
+          ? '${Units.format(section.widthMm)} × '
+              '${Units.label(section.heightMm)} · holds ${children.length}'
+          : '${Units.format(section.widthMm)} × '
+              '${Units.label(section.heightMm)} · '
               '${section.finish.material.label}',
       icon: holds
           ? Icons.account_tree_outlined
@@ -146,10 +156,25 @@ List<Widget> _sectionRows(
         selected: state.selectedId == opening.id,
         onTap: () => controller.select(opening.id),
       ),
+    for (final piece in design.hardware)
+      if (piece.parentId == section.id)
+        _Row(
+          element: piece,
+          detail: piece.kind == HardwareKind.hinge
+              ? '${Units.label(section.outline.bottom - piece.at.y)} up'
+              : '${Units.label(section.outline.bottom - piece.at.y)} up · '
+                  'on the opening',
+          icon: piece.kind == HardwareKind.hinge
+              ? Icons.blur_linear
+              : Icons.radio_button_checked,
+          indent: indent + 2,
+          selected: state.selectedId == piece.id,
+          onTap: () => controller.select(piece.id),
+        ),
     for (final bar in bars)
       _Row(
         element: bar,
-        detail: '${bar.lengthMm.round()} mm · inside',
+        detail: '${Units.label(bar.lengthMm)} · inside',
         icon: bar.isVertical
             ? Icons.vertical_align_center
             : Icons.horizontal_rule,

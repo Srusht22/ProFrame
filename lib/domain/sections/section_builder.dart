@@ -4,6 +4,7 @@ import '../geometry/polygon.dart';
 import '../geometry/segment.dart';
 import '../geometry/tolerances.dart';
 import '../geometry/vec2.dart';
+import '../hardware/opening_hardware.dart';
 import '../model/design.dart';
 import '../model/elements.dart';
 import 'planar_graph.dart';
@@ -22,7 +23,11 @@ abstract final class SectionBuilder {
   static Design rebuild(Design design, {String Function()? newId}) {
     final frame = design.frame;
     if (frame == null) {
-      return design.copyWith(sections: const [], openings: const []);
+      return design.copyWith(
+        sections: const [],
+        openings: const [],
+        hardware: OpeningHardware.placedByHand(design),
+      );
     }
 
     // Ids already in play, so a new section can never be handed one that a
@@ -92,7 +97,7 @@ abstract final class SectionBuilder {
     }
 
     final liveIds = {for (final s in sections) s.id};
-    return design.copyWith(
+    final settled = design.copyWith(
       dividers: [
         for (final divider in dividers)
           if (divider.parentId == null || liveIds.contains(divider.parentId))
@@ -104,6 +109,12 @@ abstract final class SectionBuilder {
           if (liveIds.contains(opening.sectionId)) opening,
       ],
     );
+
+    // The hinges and handle of every opening, worked out again from where
+    // the opening has ended up. They are the opening's, so they are never
+    // left behind by a move or a resize and never survive an opening that
+    // has gone. What the user placed by hand is theirs and is untouched.
+    return OpeningHardware.settle(settled);
   }
 
   /// The sections inside [parent], made by the bars drawn in it.

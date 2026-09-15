@@ -57,7 +57,11 @@ abstract final class MeshBuilder {
       }
     }
 
+    // Hardware the user placed themselves sits on the design where they put
+    // it. An opening's own hinges and handle are built with the leaf, so
+    // they swing with it rather than staying behind on the frame.
     for (final piece in design.hardware) {
+      if (piece.isOpeningHardware) continue;
       _addHardware(facets, piece, design, depth);
     }
 
@@ -243,6 +247,7 @@ abstract final class MeshBuilder {
 
     final place = _swingFor(opening, section, openFraction);
     Vec3 at(Vec2 point, double z) => place(_at(point, z));
+    _addLeafHardware(out, design, section, depth, place);
 
     final leafFront = -depth * 0.08;
     final leafDepth = depth * 0.66;
@@ -315,6 +320,20 @@ abstract final class MeshBuilder {
     }
   }
 
+  /// The hinges and handle of a leaf, swinging with it.
+  static void _addLeafHardware(
+    List<Facet> out,
+    Design design,
+    SectionElement section,
+    double depth,
+    Vec3 Function(Vec3) place,
+  ) {
+    for (final piece in design.hardware) {
+      if (piece.parentId != section.id) continue;
+      _addHardware(out, piece, design, depth, place: place);
+    }
+  }
+
   /// Swings a point about the hinge edge of [opening].
   static Vec3 Function(Vec3) _swingFor(
     OpeningElement opening,
@@ -353,13 +372,15 @@ abstract final class MeshBuilder {
     };
   }
 
-  /// A piece of ironmongery, at the point the user put it and no other.
+  /// A piece of ironmongery, at the point the user put it — or at the point
+  /// its opening puts it, carried through the leaf's swing by [place].
   static void _addHardware(
     List<Facet> out,
     HardwareElement piece,
     Design design,
-    double depth,
-  ) {
+    double depth, {
+    Vec3 Function(Vec3)? place,
+  }) {
     final scale = math.max(design.widthMm, design.heightMm);
     final length = switch (piece.kind) {
       HardwareKind.lever => scale * 0.07,
@@ -384,7 +405,7 @@ abstract final class MeshBuilder {
       centre - along * (length / 2) + across * (width / 2),
     ]);
     _addSlab(out, face, stand, stand, piece.id, piece.finish,
-        FacetRole.hardware);
+        FacetRole.hardware, place);
   }
 
   /// A flat shape given thickness: front, back and a side for every edge.
@@ -395,8 +416,9 @@ abstract final class MeshBuilder {
     double thickness,
     String elementId,
     Finish finish,
-    FacetRole role,
-  ) =>
+    FacetRole role, [
+    Vec3 Function(Vec3)? place,
+  ]) =>
       _slabBetween(
         out,
         shape,
@@ -405,7 +427,7 @@ abstract final class MeshBuilder {
         elementId,
         finish,
         role,
-        (p) => p,
+        place ?? (p) => p,
       );
 
   static void _slabBetween(

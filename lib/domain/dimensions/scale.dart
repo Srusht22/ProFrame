@@ -5,6 +5,7 @@ import '../geometry/vec2.dart';
 import '../model/design.dart';
 import '../model/elements.dart';
 import '../sketch/stroke.dart';
+import 'units.dart';
 
 /// Puts a design into real millimetres.
 ///
@@ -144,6 +145,6 @@ class DimensionConflict {
 
   double get differenceMm => measuredMm - statedMm;
 
-  String get message => 'This reads ${measuredMm.round()} mm but you typed '
-      '${statedMm.round()} mm.';
+  String get message => 'This reads ${Units.label(measuredMm)} but you typed '
+      '${Units.label(statedMm)}.';
 }

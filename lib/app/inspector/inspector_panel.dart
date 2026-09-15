@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/dimensions/units.dart';
 import '../../domain/editing/design_edits.dart';
+import '../../domain/hardware/opening_hardware.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import '../../domain/model/materials.dart';
@@ -82,18 +84,20 @@ class InspectorPanel extends ConsumerWidget {
             ),
           ],
         FrameMemberElement() => [
-            _Readout('Length', '${element.lengthMm.round()} mm'),
+            _Readout('Length', Units.label(element.lengthMm)),
             _Readout(
               'Angle',
               '${element.run.headingDegrees.toStringAsFixed(1)}°',
             ),
             _Readout(
               'From',
-              '${element.run.a.x.round()}, ${element.run.a.y.round()} mm',
+              '${Units.format(element.run.a.x)}, '
+                  '${Units.label(element.run.a.y)}',
             ),
             _Readout(
               'To',
-              '${element.run.b.x.round()}, ${element.run.b.y.round()} mm',
+              '${Units.format(element.run.b.x)}, '
+                  '${Units.label(element.run.b.y)}',
             ),
             const SizedBox(height: 6),
             Text(
@@ -118,7 +122,7 @@ class InspectorPanel extends ConsumerWidget {
             ],
           ],
         DividerElement() => [
-            _Readout('Length', '${element.lengthMm.round()} mm'),
+            _Readout('Length', Units.label(element.lengthMm)),
             _Readout(
               'Angle',
               '${element.segment.headingDegrees.toStringAsFixed(1)}°',
@@ -165,28 +169,45 @@ class InspectorPanel extends ConsumerWidget {
             _HardwareField(section: element, controller: controller),
           ],
         HardwareElement() => [
-            _Readout('Position',
-                '${element.at.x.round()}, ${element.at.y.round()} mm'),
-            _NumberField(
-              label: 'Angle',
-              valueMm: element.rotation,
-              unit: '°',
-              onSet: (v) => controller.select(element.id),
-            ),
+            if (DesignEdits.openingOwning(state.design, element.id)
+                case final opening?)
+              _OpeningHardwareFields(
+                piece: element,
+                opening: opening,
+                state: state,
+                controller: controller,
+              )
+            else ...[
+              _Readout(
+                'Position',
+                '${Units.format(element.at.x)}, '
+                    '${Units.label(element.at.y)}',
+              ),
+              _NumberField(
+                label: 'Angle',
+                valueMm: element.rotation,
+                unit: '°',
+                isLength: false,
+                onSet: (v) => controller.select(element.id),
+              ),
+            ],
             const SizedBox(height: 8),
             _FinishFields(
               finish: element.finish,
               onChanged: (f) => controller.setFinish(element.id, f),
               glazing: false,
             ),
-            const SizedBox(height: 14),
-            _DeleteButton(
-              label: 'Remove this ${element.kind.label.toLowerCase()}',
-              onPressed: controller.deleteSelected,
-            ),
+            if (DesignEdits.openingOwning(state.design, element.id) ==
+                null) ...[
+              const SizedBox(height: 14),
+              _DeleteButton(
+                label: 'Remove this ${element.kind.label.toLowerCase()}',
+                onPressed: controller.deleteSelected,
+              ),
+            ],
           ],
         DimensionElement() => [
-            _Readout('As drawn', '${element.measuredMm.round()} mm'),
+            _Readout('As drawn', Units.label(element.measuredMm)),
             _NumberField(
               label: 'Real size',
               valueMm: element.valueMm,
@@ -272,6 +293,110 @@ class _DesignFields extends StatelessWidget {
 /// Which way it opens, what kind it is, how big the section holding it is,
 /// and which section that is. Each field changes the one thing it names and
 /// the drawing and the model follow it. Nothing else is touched.
+/// The hinges and handle of an opening.
+///
+/// They exist because the user marked the section, and where they sit is
+/// worked out from the opening. These fields are how the user says
+/// otherwise: a figure typed here is the figure used, exactly, and every
+/// piece is placed again from it. Nothing here can put ironmongery on a
+/// section that was never marked.
+class _OpeningHardwareFields extends StatelessWidget {
+  final HardwareElement piece;
+  final OpeningElement opening;
+  final WorkspaceState state;
+  final WorkspaceController controller;
+
+  const _OpeningHardwareFields({
+    required this.piece,
+    required this.opening,
+    required this.state,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final design = state.design;
+    final section = design.sectionById(opening.sectionId);
+    if (section == null) return const SizedBox.shrink();
+
+    final outline = section.outline;
+    final edge = opening.mechanism.hingeEdge;
+    final sideHung =
+        edge == OpeningEdge.left || edge == OpeningEdge.right;
+    final along = sideHung ? outline.height : outline.width;
+    final count = OpeningHardware.hingeCount(opening, along);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'On ${opening.mechanism.label.toLowerCase()} — '
+          '${opening.mechanism.description.toLowerCase()}. '
+          'This is the opening\u2019s, so it moves with it.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 16),
+        if (piece.kind == HardwareKind.hinge) ...[
+          _NumberField(
+            label: sideHung ? 'First hinge from the top' : 'From the left',
+            valueMm: opening.hingeFromStartMm ??
+                OpeningHardware.defaultEndInsetMm,
+            onSet: (v) => controller.setOpeningHardware(
+              opening.id,
+              hingeFromStartMm: v,
+            ),
+          ),
+          _NumberField(
+            label: sideHung ? 'Last hinge from the bottom' : 'From the right',
+            valueMm:
+                opening.hingeFromEndMm ?? OpeningHardware.defaultEndInsetMm,
+            onSet: (v) => controller.setOpeningHardware(
+              opening.id,
+              hingeFromEndMm: v,
+            ),
+          ),
+          const _Label('Number of hinges'),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              for (final n in [2, 3, 4])
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text('$n'),
+                    selected: count == n,
+                    onSelected: (_) => controller.setOpeningHardware(
+                      opening.id,
+                      hingeCount: n,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Evenly spaced between the two ends, because evenly is the only '
+            'spacing that is not a decision about where they look best.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ] else
+          _NumberField(
+            label: sideHung ? 'Height from the bottom' : 'From the left',
+            valueMm: sideHung
+                ? outline.bottom - piece.at.y
+                : piece.at.x - outline.left,
+            help: 'Measured on the leaf, not on the frame, so it stays where '
+                'you put it when the opening moves.',
+            onSet: (v) => controller.setOpeningHardware(
+              opening.id,
+              handleAlongMm: v,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 /// Whether a bar divides the whole design or one section of it.
 ///
 /// The drawing settles this on its own: a line drawn inside a marked region
@@ -558,7 +683,8 @@ String describeSection(SectionElement section, Design design) {
     }
   }
   final place = where.toString().trim();
-  final size = '${section.widthMm.round()} × ${section.heightMm.round()} mm';
+  final size = '${Units.format(section.widthMm)} × '
+      '${Units.label(section.heightMm)}';
   return place.isEmpty ? size : '$place section — $size';
 }
 
@@ -773,20 +899,49 @@ class _FinishFields extends StatelessWidget {
   }
 }
 
+/// A number the user can change.
+///
+/// Lengths are in centimetres, because that is the unit a person quotes a
+/// door in. The geometry underneath is millimetres, and this is where the
+/// two are converted — the field never shows a figure the geometry does not
+/// hold, and never sends one the user did not type. A field that is not a
+/// length, an angle say, passes `isLength: false` and is left alone.
 class _NumberField extends StatefulWidget {
   final String label;
   final double valueMm;
   final String unit;
   final String? help;
+
+  /// False for a figure that is not a measurement, so it is neither
+  /// converted nor labelled in centimetres.
+  final bool isLength;
   final ValueChanged<double> onSet;
 
   const _NumberField({
     required this.label,
     required this.valueMm,
     required this.onSet,
-    this.unit = 'mm',
+    this.unit = Units.symbol,
+    this.isLength = true,
     this.help,
   });
+
+  /// What the field shows for the value it holds.
+  String get shown =>
+      isLength ? Units.format(valueMm) : _trim(valueMm);
+
+  /// What a typed figure means in the units the geometry is held in.
+  double? read(String text) =>
+      isLength ? Units.parse(text) : double.tryParse(text.trim());
+
+  static String _trim(double value) {
+    var text = value.toStringAsFixed(2);
+    if (text.contains('.')) {
+      text = text.replaceFirst(RegExp(r'0+$'), '');
+      text = text.replaceFirst(RegExp(r'\.$'), '');
+    }
+    return text;
+  }
 
   @override
   State<_NumberField> createState() => _NumberFieldState();
@@ -794,7 +949,7 @@ class _NumberField extends StatefulWidget {
 
 class _NumberFieldState extends State<_NumberField> {
   late final TextEditingController _field =
-      TextEditingController(text: widget.valueMm.round().toString());
+      TextEditingController(text: widget.shown);
   late final FocusNode _focus = FocusNode()
     ..addListener(() {
       if (!_focus.hasFocus) _commit();
@@ -804,8 +959,8 @@ class _NumberFieldState extends State<_NumberField> {
   void didUpdateWidget(_NumberField old) {
     super.didUpdateWidget(old);
     if (!_focus.hasFocus &&
-        (widget.valueMm - old.valueMm).abs() > 0.5) {
-      _field.text = widget.valueMm.round().toString();
+        (widget.valueMm - old.valueMm).abs() > 0.05) {
+      _field.text = widget.shown;
     }
   }
 
@@ -817,12 +972,12 @@ class _NumberFieldState extends State<_NumberField> {
   }
 
   void _commit() {
-    final value = double.tryParse(_field.text.trim());
+    final value = widget.read(_field.text);
     if (value == null) {
-      _field.text = widget.valueMm.round().toString();
+      _field.text = widget.shown;
       return;
     }
-    if ((value - widget.valueMm).abs() < 0.5) return;
+    if ((value - widget.valueMm).abs() < 0.05) return;
     widget.onSet(value);
   }
 

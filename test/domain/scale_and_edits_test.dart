@@ -149,11 +149,20 @@ void main() {
       expect(design.frame!.widthMm, closeTo(1000, 0.01));
     });
 
-    test('a section bounded only by the frame is left alone', () {
+    test('a section with no bar beside it moves the jamb, and only that', () {
       var design = build();
-      final before = design.sections.single.widthMm;
-      design = DesignEdits.setSectionWidth(design, design.sections.single.id, 600);
-      expect(design.sections.single.widthMm, closeTo(before, 0.01));
+      final leftJamb = design.frame!.outline.left;
+      final height = design.frame!.heightMm;
+
+      design =
+          DesignEdits.setSectionWidth(design, design.sections.single.id, 600);
+
+      // The figure the user typed is the figure the pane now is.
+      expect(design.sections.single.widthMm, closeTo(600, 0.5));
+      // The right jamb is what moved, because it is the only thing that
+      // could. Nothing else did.
+      expect(design.frame!.outline.left, closeTo(leftJamb, 0.01));
+      expect(design.frame!.heightMm, closeTo(height, 0.01));
     });
 
     test('resizing the frame keeps the bars where they were in proportion', () {

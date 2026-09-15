@@ -250,9 +250,13 @@ void main() {
       final before = base();
       final after = before.copyWith(depthMm: 140);
 
+      // The body of the design — its frame, its bars and what fills them.
+      // Ironmongery stands proud of that, as a handle does on a real door,
+      // so it is not what the design's depth measures.
       double thickness(Design design) {
         var front = -1e9, back = 1e9;
         for (final facet in MeshBuilder.build(design).facets) {
+          if (facet.role == FacetRole.hardware) continue;
           for (final c in facet.corners) {
             if (c.z > front) front = c.z;
             if (c.z < back) back = c.z;

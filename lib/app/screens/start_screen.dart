@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/dimensions/units.dart';
 import '../../domain/model/design.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -180,8 +181,8 @@ class _SavedDesigns extends ConsumerWidget {
                           Text(
                             design.frame == null
                                 ? 'drawing'
-                                : '${design.widthMm.round()} × '
-                                    '${design.heightMm.round()} mm',
+                                : '${Units.format(design.widthMm)} × '
+                                    '${Units.label(design.heightMm)}',
                             style: TextStyle(
                               fontSize: 12.5,
                               color: AppTheme.accent.withValues(alpha: 0.62),

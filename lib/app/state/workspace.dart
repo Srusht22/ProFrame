@@ -756,6 +756,28 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     );
   }
 
+  /// Changes an opening's ironmongery: how many hinges, where they sit, and
+  /// where the handle is. Only what is named changes.
+  void setOpeningHardware(
+    String openingId, {
+    int? hingeCount,
+    double? hingeFromStartMm,
+    double? hingeFromEndMm,
+    double? handleAlongMm,
+  }) {
+    _remember();
+    state = state.copyWith(
+      design: DesignEdits.setOpeningHardware(
+        state.design,
+        openingId,
+        hingeCount: hingeCount,
+        hingeFromStartMm: hingeFromStartMm,
+        hingeFromEndMm: hingeFromEndMm,
+        handleAlongMm: handleAlongMm,
+      ),
+    );
+  }
+
   /// Puts the opening on a different section.
   void moveOpeningToSection(String openingId, String sectionId) {
     _remember();

@@ -198,12 +198,16 @@ void main() {
   group('an edit touches only what it names', () {
     test('moving a bar leaves the other bar, the notes and the rest alone', () {
       final before = everything();
-      // Sections and the opening's mark follow the bars by construction, so
-      // they are the ones legitimately allowed to move.
+      // Sections, the opening's mark and the opening's own ironmongery
+      // follow the bars by construction, so they are the ones legitimately
+      // allowed to move. A handle that stayed put while the leaf it is on
+      // changed size would be the bug.
       final untouched = {
         'v',
         for (final s in before.sections) s.id,
         'o',
+        for (final h in before.hardware)
+          if (h.isOpeningHardware) h.id,
       };
       final was = everythingExcept(before, untouched);
 
@@ -286,6 +290,8 @@ void main() {
         'v',
         for (final s in before.sections) s.id,
         'o',
+        for (final h in before.hardware)
+          if (h.isOpeningHardware) h.id,
       };
       final was = everythingExcept(before, untouched);
 

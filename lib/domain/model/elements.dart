@@ -374,6 +374,20 @@ class OpeningElement extends DesignElement {
   final Vec2? markAt;
   final String? markGlyph;
 
+  /// How many hinges this opening carries. Null means the count follows the
+  /// length of the hinged edge; a number is what the user asked for.
+  final int? hingeCount;
+
+  /// How far the outer hinges stand in from each end of the hinged edge, in
+  /// millimetres. Null on either means the default stand-off.
+  final double? hingeFromStartMm;
+  final double? hingeFromEndMm;
+
+  /// Where the handle sits along the edge it is on: up from the bottom on a
+  /// side-hung leaf, along from the left on a top- or bottom-hung one. Null
+  /// means the default height.
+  final double? handleAlongMm;
+
   const OpeningElement({
     required super.id,
     required this.sectionId,
@@ -382,6 +396,10 @@ class OpeningElement extends DesignElement {
     this.confirmed = false,
     this.markAt,
     this.markGlyph,
+    this.hingeCount,
+    this.hingeFromStartMm,
+    this.hingeFromEndMm,
+    this.handleAlongMm,
     super.fromStrokeId,
   });
 
@@ -403,6 +421,10 @@ class OpeningElement extends DesignElement {
     bool? confirmed,
     Vec2? markAt,
     String? markGlyph,
+    int? hingeCount,
+    double? hingeFromStartMm,
+    double? hingeFromEndMm,
+    double? handleAlongMm,
   }) =>
       OpeningElement(
         id: id,
@@ -412,6 +434,10 @@ class OpeningElement extends DesignElement {
         confirmed: confirmed ?? this.confirmed,
         markAt: markAt ?? this.markAt,
         markGlyph: markGlyph ?? this.markGlyph,
+        hingeCount: hingeCount ?? this.hingeCount,
+        hingeFromStartMm: hingeFromStartMm ?? this.hingeFromStartMm,
+        hingeFromEndMm: hingeFromEndMm ?? this.hingeFromEndMm,
+        handleAlongMm: handleAlongMm ?? this.handleAlongMm,
         fromStrokeId: fromStrokeId,
       );
 
@@ -426,6 +452,10 @@ class OpeningElement extends DesignElement {
         'confirmed': confirmed,
         if (markAt != null) 'markAt': markAt!.toJson(),
         if (markGlyph != null) 'markGlyph': markGlyph,
+        if (hingeCount != null) 'hingeCount': hingeCount,
+        if (hingeFromStartMm != null) 'hingeFromStartMm': hingeFromStartMm,
+        if (hingeFromEndMm != null) 'hingeFromEndMm': hingeFromEndMm,
+        if (handleAlongMm != null) 'handleAlongMm': handleAlongMm,
       };
 
   static OpeningElement fromJson(Map<String, Object?> map) => OpeningElement(
@@ -443,6 +473,10 @@ class OpeningElement extends DesignElement {
         confirmed: map['confirmed'] as bool? ?? false,
         markAt: map['markAt'] == null ? null : Vec2.fromJson(map['markAt']),
         markGlyph: map['markGlyph'] as String?,
+        hingeCount: (map['hingeCount'] as num?)?.toInt(),
+        hingeFromStartMm: (map['hingeFromStartMm'] as num?)?.toDouble(),
+        hingeFromEndMm: (map['hingeFromEndMm'] as num?)?.toDouble(),
+        handleAlongMm: (map['handleAlongMm'] as num?)?.toDouble(),
       );
 }
 
@@ -460,10 +494,12 @@ enum HardwareKind {
   final String label;
 }
 
-/// A piece of ironmongery, at the exact point the user put it.
+/// A piece of ironmongery, at the exact point the user put it — or the exact
+/// point an opening they marked puts it.
 ///
-/// Hardware appears only where the user drew or placed it. Nothing is added
-/// to make a render look complete.
+/// Hardware appears where the user placed it, and on the openings the user
+/// marked. Nothing is added to make a render look complete: a section with no
+/// mark on it carries no hinges and no handle, however door-shaped it is.
 class HardwareElement extends DesignElement {
   final HardwareKind kind;
   final Vec2 at;
@@ -472,14 +508,26 @@ class HardwareElement extends DesignElement {
   /// Degrees clockwise from horizontal.
   final double rotation;
 
+  /// The section this piece belongs to, when it belongs to one.
+  ///
+  /// Set on the hinges and handle of an opening: they are the opening's, so
+  /// they travel with it, they are listed under it, and they are worked out
+  /// again from the opening whenever it changes. Null on a piece the user
+  /// placed themselves, which stays exactly where it was put.
+  final String? parentId;
+
   const HardwareElement({
     required super.id,
     required this.kind,
     required this.at,
     this.rotation = 0,
     this.finish = const Finish(colour: 0xFF8A8F8C, material: MaterialKind.steel),
+    this.parentId,
     super.fromStrokeId,
   });
+
+  /// True when this piece is an opening's, rather than one the user placed.
+  bool get isOpeningHardware => parentId != null;
 
   @override
   String get label => kind.label;
@@ -487,13 +535,20 @@ class HardwareElement extends DesignElement {
   @override
   Vec2 get anchor => at;
 
-  HardwareElement copyWith({Vec2? at, double? rotation, Finish? finish}) =>
+  HardwareElement copyWith({
+    Vec2? at,
+    double? rotation,
+    Finish? finish,
+    String? parentId,
+    bool clearParent = false,
+  }) =>
       HardwareElement(
         id: id,
         kind: kind,
         at: at ?? this.at,
         rotation: rotation ?? this.rotation,
         finish: finish ?? this.finish,
+        parentId: clearParent ? null : (parentId ?? this.parentId),
         fromStrokeId: fromStrokeId,
       );
 
@@ -506,6 +561,7 @@ class HardwareElement extends DesignElement {
         'at': at.toJson(),
         'rotation': rotation,
         'finish': finish.toJson(),
+        if (parentId != null) 'parentId': parentId,
       };
 
   static HardwareElement fromJson(Map<String, Object?> map) => HardwareElement(
@@ -516,6 +572,7 @@ class HardwareElement extends DesignElement {
           orElse: () => HardwareKind.handle,
         ),
         at: Vec2.fromJson(map['at']),
+        parentId: map['parentId'] as String?,
         rotation: (map['rotation'] as num?)?.toDouble() ?? 0,
         finish: Finish.fromJson(
           map['finish'],

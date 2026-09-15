@@ -4,6 +4,7 @@ import '../geometry/polygon.dart';
 import '../geometry/segment.dart';
 import '../geometry/tolerances.dart';
 import '../geometry/vec2.dart';
+import '../hardware/opening_hardware.dart';
 import '../model/design.dart';
 import '../model/elements.dart';
 import '../model/materials.dart';
@@ -94,6 +95,20 @@ abstract final class DesignEdits {
     if (left != null) {
       return moveDivider(design, left.id, Vec2(-growth, 0));
     }
+
+    // No bar either side: this pane runs from jamb to jamb, so its width is
+    // the frame's width and the jamb is what has to move. Nothing else does
+    // — the other jamb, every bar and every other pane stay where they are.
+    final frame = design.frame;
+    if (frame == null) return design;
+    if ((section.outline.right - frame.innerOutline.right).abs() <=
+        Tol.sameLengthMm) {
+      return moveFrameEdge(
+        design,
+        FrameEdge.right,
+        frame.outline.right + growth,
+      );
+    }
     return design;
   }
 
@@ -116,6 +131,19 @@ abstract final class DesignEdits {
     final above = _dividerAlong(design, y: section.outline.top);
     if (above != null) {
       return moveDivider(design, above.id, Vec2(0, -growth));
+    }
+
+    // The same when this pane runs from head to sill: the sill is what has
+    // to move, and only the sill.
+    final frame = design.frame;
+    if (frame == null) return design;
+    if ((section.outline.bottom - frame.innerOutline.bottom).abs() <=
+        Tol.sameLengthMm) {
+      return moveFrameEdge(
+        design,
+        FrameEdge.bottom,
+        frame.outline.bottom + growth,
+      );
     }
     return design;
   }
@@ -418,9 +446,9 @@ abstract final class DesignEdits {
       for (final o in design.openings) if (o.sectionId != sectionId) o,
     ];
     if (mechanism == OpeningMechanism.fixed) {
-      return design.copyWith(openings: without);
+      return OpeningHardware.settle(design.copyWith(openings: without));
     }
-    return design.copyWith(openings: [
+    return OpeningHardware.settle(design.copyWith(openings: [
       ...without,
       OpeningElement(
         id: openingId,
@@ -432,7 +460,7 @@ abstract final class DesignEdits {
         markGlyph: markGlyph,
         fromStrokeId: fromStrokeId,
       ),
-    ]);
+    ]));
   }
 
   /// Moves a bar between dividing the design and dividing one section of it.
@@ -486,11 +514,13 @@ abstract final class DesignEdits {
     final opening = _opening(design, openingId);
     if (opening == null) return design;
     if (mechanism == OpeningMechanism.fixed) {
-      return design.copyWith(openings: [
+      return OpeningHardware.settle(design.copyWith(openings: [
         for (final o in design.openings) if (o.id != openingId) o,
-      ]);
+      ]));
     }
-    return design.withElement(opening.copyWith(mechanism: mechanism));
+    return OpeningHardware.settle(
+      design.withElement(opening.copyWith(mechanism: mechanism)),
+    );
   }
 
   static Design setOpeningSwing(
@@ -519,7 +549,7 @@ abstract final class DesignEdits {
     if (design.sectionById(sectionId) == null) return design;
 
     final section = design.sectionById(sectionId)!;
-    return design.copyWith(openings: [
+    return OpeningHardware.settle(design.copyWith(openings: [
       for (final o in design.openings)
         if (o.id != openingId && o.sectionId != sectionId) o,
       OpeningElement(
@@ -535,7 +565,52 @@ abstract final class DesignEdits {
         markAt: section.outline.centroid,
         fromStrokeId: opening.fromStrokeId,
       ),
-    ]);
+    ]));
+  }
+
+  /// Changes an opening's ironmongery.
+  ///
+  /// Only what is named changes. Passing nothing for a figure leaves it as it
+  /// was, and the hinges and handle are worked out again from the opening so
+  /// they land where the new figures put them.
+  static Design setOpeningHardware(
+    Design design,
+    String openingId, {
+    int? hingeCount,
+    double? hingeFromStartMm,
+    double? hingeFromEndMm,
+    double? handleAlongMm,
+  }) {
+    final opening = _opening(design, openingId);
+    if (opening == null) return design;
+    return OpeningHardware.settle(design.withElement(opening.copyWith(
+      hingeCount: hingeCount,
+      hingeFromStartMm: hingeFromStartMm,
+      hingeFromEndMm: hingeFromEndMm,
+      handleAlongMm: handleAlongMm,
+    )));
+  }
+
+  /// The opening a piece of hardware belongs to, or null when the user put
+  /// the piece there themselves.
+  static OpeningElement? openingOwning(Design design, String hardwareId) {
+    for (final piece in design.hardware) {
+      if (piece.id != hardwareId) continue;
+      final parent = piece.parentId;
+      if (parent == null) return null;
+      return design.openingOf(parent);
+    }
+    return null;
+  }
+
+  /// Which hinge a piece is, counting down or along the hinged edge from the
+  /// start. Null when the piece is not one of an opening's hinges.
+  static int? hingeIndexOf(Design design, String hardwareId) {
+    final opening = openingOwning(design, hardwareId);
+    if (opening == null) return null;
+    final prefix = '${opening.id}-hinge-';
+    if (!hardwareId.startsWith(prefix)) return null;
+    return int.tryParse(hardwareId.substring(prefix.length));
   }
 
   static OpeningElement? _opening(Design design, String id) {

@@ -203,6 +203,75 @@ which is where the user says it rather than where the application decides it.
 
 `test/domain/opening_containment_test.dart` holds this.
 
+### Every figure on the drawing is the geometry it measures
+
+A dimension is not a caption. Each figure on the technical drawing names a
+real piece of the design, so tapping it opens it for typing, and typing over
+it moves that piece. There is no way anywhere to change a number without
+changing what gets built — a figure that did not match the design would be a
+lie about it.
+
+`lib/app/canvas/dimension_handles.dart` holds where every figure is written.
+Both the painter and the pointer read it, so what is drawn and what can be
+tapped are the same thing by construction rather than by two pieces of
+arithmetic happening to agree. `ChainRun` carries `of` and `sectionId` — what
+kind of thing it measures and which one — which is what lets a typed figure
+find its geometry.
+
+What each one does when typed over:
+
+| Figure | What moves |
+| --- | --- |
+| Overall width or height | The frame, scaled in proportion |
+| A daylight or section width | The bar beside the pane, or the jamb when there is no bar |
+| A daylight or section height | The bar above or below it, or the sill |
+| A measurement the user drew | The whole design, scaled to make it true |
+
+Nothing else moves. Changing one pane's height moves the transom, so the pane
+above it changes too — that is arithmetic, not redesign — and the overall size
+stays exactly as it was.
+
+### Centimetres out, millimetres in
+
+The geometry is millimetres throughout the domain, because that is what a
+workshop cuts to. The user never sees one. Every figure shown and every figure
+typed is centimetres, and `lib/domain/dimensions/units.dart` is the one place
+the two meet.
+
+Figures are written to the tenth of a centimetre — the millimetre — which is
+the finest distinction worth quoting on a drawing. That is how many digits are
+printed, not what the design is: a value typed as 72.25 cm is exactly 722.5 mm
+in the geometry, and 96.4 cm is never written as 96.
+
+If you add a field, it takes and gives millimetres and lets `_NumberField` do
+the conversion. A field that is not a length — an angle — passes
+`isLength: false`.
+
+### An opening's hinges and handle
+
+Marking a section is saying it opens, which is saying it hangs on something
+and is worked by something. So an opening carries hinges and a handle, and a
+section nobody marked carries neither, however door-shaped it is.
+
+They are worked out from the opening every time rather than placed once and
+remembered — `lib/domain/hardware/opening_hardware.dart`, re-run by
+`SectionBuilder.rebuild` and after every opening edit. That is what makes them
+the opening's: change the direction and the hinges change sides, resize the
+leaf and they stay on its edges, swing it and they swing with it. Nothing can
+drift, because there is nothing to drift.
+
+Their positions are `parentId` on `HardwareElement` plus four figures on
+`OpeningElement` — `hingeCount`, `hingeFromStartMm`, `hingeFromEndMm`,
+`handleAlongMm` — each null until the user says, so the defaults are never
+recorded as decisions the user made. The defaults themselves are stated rules,
+not magic numbers, and each is written down beside the constant.
+
+Hardware the user placed themselves has no `parentId`, is never regenerated,
+and stays exactly where they put it.
+
+`test/domain/editable_dimensions_test.dart` and
+`test/app/editable_figures_test.dart` hold all of this.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the
