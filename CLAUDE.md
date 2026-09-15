@@ -165,6 +165,44 @@ cut at their crossings, joined into a graph, and the faces of that graph are
 the sections. Nothing is laid out to a template, which is what makes the rule
 above structurally true rather than merely intended.
 
+### An opening is a container
+
+A mark makes the region it is in an opening, and the opening is a container,
+not a leaf of a flat list. A line drawn inside that region afterwards is
+drawn *in the opening*: it divides the opening, not the design. It does not
+make a new top-level section, and it does not cut the opening short.
+
+```
+Window
+├── Section          fixed light
+└── Section          the opening
+    ├── Opening      hinged left, >
+    ├── Divider      inside
+    ├── Divider      inside
+    └── Section ×3   the panes of the opening
+```
+
+`DividerElement` and `SectionElement` each carry a `parentId`. Null means the
+element divides the design; set means it lives inside that section.
+`Design.topLevelDividers` and `Design.topLevelSections` are what the main
+subdivision is built from, and `SectionBuilder.rebuild` then subdivides each
+parent again with its own children. Because the hierarchy is in the model,
+the CAD drawing, the component tree and the solid all follow it without
+being told to, and an opening carries its contents whenever it moves or is
+resized — `SectionBuilder` applies the same transform to everything inside a
+section whose outline changed, so nothing is left behind on the frame.
+
+What settles which lines are inside is **the order they were drawn in**, not
+a guess about what looks like a sash: whatever was on the sheet when the mark
+was made is the structure the mark was placed into, and what came after it,
+inside that region, is the opening's. A line drawn before any mark divides
+the design, because when it was drawn there was no opening to be inside. The
+drawing cannot always say — the user may mark everything last — so a bar's
+panel carries a **Divides** choice, between the whole design and a section,
+which is where the user says it rather than where the application decides it.
+
+`test/domain/opening_containment_test.dart` holds this.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the

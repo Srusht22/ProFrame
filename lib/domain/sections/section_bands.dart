@@ -12,12 +12,12 @@ abstract final class SectionBands {
   static const double fraction = 0.02;
 
   static int rows(Design design) => _bands(
-        [for (final s in design.sections) s.outline.top],
+        [for (final s in design.topLevelSections) s.outline.top],
         design.heightMm,
       );
 
   static int columns(Design design) => _bands(
-        [for (final s in design.sections) s.outline.left],
+        [for (final s in design.topLevelSections) s.outline.left],
         design.widthMm,
       );
 

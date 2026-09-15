@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/editing/design_edits.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import '../../domain/model/materials.dart';
@@ -133,6 +134,8 @@ class InspectorPanel extends ConsumerWidget {
               onChanged: (f) => controller.setFinish(element.id, f),
               glazing: false,
             ),
+            const SizedBox(height: 16),
+            _BelongsTo(divider: element, state: state, controller: controller),
             const SizedBox(height: 14),
             _DeleteButton(
               label: 'Delete this bar',
@@ -269,6 +272,73 @@ class _DesignFields extends StatelessWidget {
 /// Which way it opens, what kind it is, how big the section holding it is,
 /// and which section that is. Each field changes the one thing it names and
 /// the drawing and the model follow it. Nothing else is touched.
+/// Whether a bar divides the whole design or one section of it.
+///
+/// The drawing settles this on its own: a line drawn inside a marked region
+/// belongs to that region. Where the drawing cannot say — the mark was made
+/// after the lines, say — this is where the user says.
+class _BelongsTo extends StatelessWidget {
+  final DividerElement divider;
+  final WorkspaceState state;
+  final WorkspaceController controller;
+
+  const _BelongsTo({
+    required this.divider,
+    required this.state,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final containers =
+        DesignEdits.containersFor(state.design, divider.id);
+    if (containers.isEmpty && divider.parentId == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _Label('Divides'),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          initialValue: divider.parentId ?? '',
+          isExpanded: true,
+          items: [
+            const DropdownMenuItem(
+              value: '',
+              child: Text('The whole design'),
+            ),
+            for (final section in containers)
+              DropdownMenuItem(
+                value: section.id,
+                child: Text(
+                  state.design.openingOf(section.id) != null
+                      ? 'Inside the opening — '
+                          '${describeSection(section, state.design)}'
+                      : 'Inside ${describeSection(section, state.design)}',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+          ],
+          onChanged: (value) => controller.setDividerParent(
+            divider.id,
+            value == null || value.isEmpty ? null : value,
+          ),
+        ),
+        const SizedBox(height: 7),
+        Text(
+          divider.isInternal
+              ? 'This line is inside that section. It divides that section '
+                  'only, and travels with it.'
+              : 'This line divides the design itself.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+}
+
 class _OpeningFields extends StatelessWidget {
   final OpeningElement opening;
   final WorkspaceState state;

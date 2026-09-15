@@ -151,14 +151,26 @@ class DividerElement extends DesignElement {
 
   final Finish finish;
 
+  /// The section this bar lives inside, when it lives inside one.
+  ///
+  /// Null means it is part of the main structure and divides the whole
+  /// design. Set means it is inside that section — drawn within an opening,
+  /// say — and divides only that section. An internal bar does not split the
+  /// design into more top-level sections, and it travels with its parent
+  /// when the parent moves or is resized.
+  final String? parentId;
+
   const DividerElement({
     required super.id,
     required this.a,
     required this.b,
     this.widthMm = 50,
     this.finish = Finish.frameDefault,
+    this.parentId,
     super.fromStrokeId,
   });
+
+  bool get isInternal => parentId != null;
 
   Segment get segment => Segment(a, b);
   double get lengthMm => segment.length;
@@ -180,6 +192,8 @@ class DividerElement extends DesignElement {
     Vec2? b,
     double? widthMm,
     Finish? finish,
+    String? parentId,
+    bool clearParent = false,
   }) =>
       DividerElement(
         id: id,
@@ -187,6 +201,7 @@ class DividerElement extends DesignElement {
         b: b ?? this.b,
         widthMm: widthMm ?? this.widthMm,
         finish: finish ?? this.finish,
+        parentId: clearParent ? null : (parentId ?? this.parentId),
         fromStrokeId: fromStrokeId,
       );
 
@@ -201,6 +216,7 @@ class DividerElement extends DesignElement {
         'b': b.toJson(),
         'widthMm': widthMm,
         'finish': finish.toJson(),
+        if (parentId != null) 'parentId': parentId,
       };
 
   static DividerElement fromJson(Map<String, Object?> map) => DividerElement(
@@ -210,6 +226,7 @@ class DividerElement extends DesignElement {
         b: Vec2.fromJson(map['b']),
         widthMm: (map['widthMm'] as num?)?.toDouble() ?? 50,
         finish: Finish.fromJson(map['finish']),
+        parentId: map['parentId'] as String?,
       );
 }
 
@@ -225,13 +242,24 @@ class SectionElement extends DesignElement {
   /// A name the user typed for it, if any.
   final String? name;
 
+  /// The section this one sits inside, when it sits inside one.
+  ///
+  /// Null means it is one of the main divisions of the design. Set means it
+  /// is part of what fills another section — a pane inside an opening, made
+  /// by a bar the user drew within that opening. A section with children is
+  /// not filled itself; its children fill it.
+  final String? parentId;
+
   const SectionElement({
     required super.id,
     required this.outline,
     this.finish = Finish.glazingDefault,
     this.name,
+    this.parentId,
     super.fromStrokeId,
   });
+
+  bool get isInternal => parentId != null;
 
   double get widthMm => outline.width;
   double get heightMm => outline.height;
@@ -243,12 +271,19 @@ class SectionElement extends DesignElement {
   @override
   Vec2 get anchor => outline.centroid;
 
-  SectionElement copyWith({Polygon? outline, Finish? finish, String? name}) =>
+  SectionElement copyWith({
+    Polygon? outline,
+    Finish? finish,
+    String? name,
+    String? parentId,
+    bool clearParent = false,
+  }) =>
       SectionElement(
         id: id,
         outline: outline ?? this.outline,
         finish: finish ?? this.finish,
         name: name ?? this.name,
+        parentId: clearParent ? null : (parentId ?? this.parentId),
         fromStrokeId: fromStrokeId,
       );
 
@@ -260,6 +295,7 @@ class SectionElement extends DesignElement {
         'outline': outline.toJson(),
         'finish': finish.toJson(),
         if (name != null) 'name': name,
+        if (parentId != null) 'parentId': parentId,
       };
 
   static SectionElement fromJson(Map<String, Object?> map) => SectionElement(
@@ -268,6 +304,7 @@ class SectionElement extends DesignElement {
         outline: Polygon.fromJson(map['outline']),
         finish: Finish.fromJson(map['finish'], fallback: Finish.glazingDefault),
         name: map['name'] as String?,
+        parentId: map['parentId'] as String?,
       );
 }
 

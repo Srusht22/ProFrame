@@ -193,6 +193,47 @@ you meant, with every candidate offered and none chosen. An opening made
 from a mark lasts exactly as long as the mark does: rub it out, or say it
 was not one, and the opening goes with it.
 
+### What is inside an opening
+
+The marked region **is** the opening, all of it. Lines you draw inside it
+afterwards are lines inside the opening — bars of the sash — and not new
+divisions of the whole design:
+
+```
+┌──────────────────────┐      Window
+│        FIXED         │      ├── fixed light
+├──────────────────────┤      └── the opening
+│          >           │          ├── hinged left, >
+│                      │          ├── bar, inside
+│  ──────────────────  │          ├── bar, inside
+│                      │          └── three panes
+│  ──────────────────  │
+└──────────────────────┘
+```
+
+The two lines under the `>` do not cut the opening into pieces and they do
+not end it half way down. There is one transom that divides the design, one
+opening below it running to the sill, and inside that opening two bars and
+three panes. The component tree shows the nesting, the drawing puts the
+swing lines across the whole opening, and in the model the leaf swings with
+its bars and panes attached — nothing stays behind on the frame.
+
+Which lines are inside follows from **the order you drew them in**. Whatever
+was on the sheet when you made the mark is the structure you marked; what
+you drew afterwards inside the marked region is inside the opening. A line
+drawn before any mark divides the design, because when you drew it there was
+no opening for it to be in.
+
+If you marked the design last, that order cannot say — so every bar's panel
+carries a **Divides** choice:
+
+```
+Divides        The whole design
+               Inside the opening — 1203 × 1507 mm
+```
+
+Nothing is guessed there either. The list is offered and you pick.
+
 ### Editing an opening
 
 The marked section becomes an object you can select — from its mark on the

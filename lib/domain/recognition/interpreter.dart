@@ -136,24 +136,66 @@ abstract final class SketchInterpreter {
       finish: design.frame?.finish ?? Finish.frameDefault,
     );
 
+    // Which lines belong inside an opening rather than dividing the whole
+    // design. A mark makes the region it is in an opening, and what is drawn
+    // in that region afterwards is drawn in the opening.
+    final insideOpening = _openingContents(
+      welded: welded,
+      symbols: symbols,
+      sketch: design.sketch,
+      weld: weld,
+    );
+
     // Every run that is not part of the outline is a line inside the design:
     // a mullion, a transom, a glazing bar. It is kept exactly where it was
     // drawn, at the angle it was drawn.
     final dividers = <DividerElement>[];
+    final contained = <(DividerElement, Polygon)>[];
     for (final run in welded) {
       if (_liesOn(run.segment, outline, weld)) continue;
-      dividers.add(DividerElement(
+      final divider = DividerElement(
         id: nextId('divider'),
         a: run.segment.a,
         b: run.segment.b,
         widthMm: frame.profileMm * 0.8,
         finish: frame.finish,
         fromStrokeId: run.strokeId,
-      ));
+      );
+      final region = insideOpening[run.strokeId];
+      if (region == null) {
+        dividers.add(divider);
+      } else {
+        contained.add((divider, region));
+      }
     }
 
+    // The main structure first, from the lines that divide the design as a
+    // whole. Only once that is known is there something for a contained line
+    // to be contained by.
     var read = design.copyWith(frame: frame, dividers: dividers);
     read = SectionBuilder.rebuild(read, newId: newId);
+
+    if (contained.isNotEmpty) {
+      final all = [...read.dividers];
+      for (final (divider, region) in contained) {
+        SectionElement? parent;
+        for (final section in read.topLevelSections) {
+          if (!section.outline.contains(region.centroid)) continue;
+          if (parent == null || section.areaMmSq > parent.areaMmSq) {
+            parent = section;
+          }
+        }
+        // A line that turns out to be contained by nothing is a line that
+        // divides the design, so it is one.
+        all.add(parent == null
+            ? divider
+            : divider.copyWith(parentId: parent.id));
+      }
+      read = SectionBuilder.rebuild(
+        read.copyWith(dividers: all),
+        newId: newId,
+      );
+    }
 
     // An opening that came from a mark lasts exactly as long as the mark
     // does. Rub the mark out, or say it was never one, and the opening goes
@@ -189,6 +231,89 @@ abstract final class SketchInterpreter {
     );
   }
 
+  /// The lines that belong inside an opening rather than dividing the whole
+  /// design, as a map from the stroke that made them to the region they are
+  /// inside.
+  ///
+  /// The rule follows the drawing. Whatever was on the sheet before a mark
+  /// was made is the structure the mark is placed into: the mark designates
+  /// one of those regions, and that region is the opening. Lines drawn in
+  /// that region afterwards are drawn in the opening — they divide the
+  /// opening, not the design, and they travel with it.
+  ///
+  /// A line drawn before any mark divides the design, because at the moment
+  /// it was drawn there was no opening for it to be inside. Where that is
+  /// not what was meant, the line can be moved into the opening by hand.
+  static Map<String, Polygon> _openingContents({
+    required List<_Run> welded,
+    required List<OpeningSymbol> symbols,
+    required Sketch sketch,
+    required double weld,
+  }) {
+    if (symbols.isEmpty) return const {};
+
+    final order = <String, int>{};
+    for (var i = 0; i < sketch.strokes.length; i++) {
+      order[sketch.strokes[i].id] = i;
+    }
+
+    var firstMark = 1 << 30;
+    for (final symbol in symbols) {
+      final at = order[symbol.strokeId];
+      if (at != null && at < firstMark) firstMark = at;
+    }
+
+    // The structure as it stood when the first mark was made.
+    final before = [
+      for (final run in welded)
+        if ((order[run.strokeId] ?? 0) < firstMark) run,
+    ];
+    if (before.isEmpty) return const {};
+
+    final regions = PlanarSubdivision.facesOf(
+      [for (final run in before) run.segment],
+      weldTolerance: weld,
+      minAreaMmSq: math.max(Tol.minSectionAreaMmSq, weld * weld * 4),
+    );
+    if (regions.isEmpty) return const {};
+
+    final contents = <String, Polygon>{};
+    for (final symbol in symbols) {
+      final markedAt = order[symbol.strokeId] ?? 0;
+
+      // The smallest region that holds the whole mark is the one it is in.
+      Polygon? region;
+      for (final candidate in regions) {
+        if (!symbol.points.every(candidate.contains)) continue;
+        if (region == null || candidate.area < region.area) region = candidate;
+      }
+      if (region == null) continue;
+
+      for (final run in welded) {
+        if ((order[run.strokeId] ?? 0) <= markedAt) continue;
+        if (!_mostlyInside(run.segment, region)) continue;
+        contents[run.strokeId] = region;
+      }
+    }
+    return contents;
+  }
+
+  /// True when a line lies inside a region rather than merely crossing it.
+  ///
+  /// The ends are not tested. A line drawn inside a region usually runs from
+  /// one side of it to the other, so its ends sit on the boundary, where
+  /// containment is a coin toss decided by a fraction of a millimetre of
+  /// wobble. What settles the question is the body of the line: sampled
+  /// between the ends, it is either in the region throughout or it leaves it,
+  /// and a line that leaves the region is not inside it.
+  static bool _mostlyInside(Segment line, Polygon region) {
+    const samples = 12;
+    for (var i = 1; i < samples; i++) {
+      if (!region.contains(line.pointAt(i / samples))) return false;
+    }
+    return true;
+  }
+
   /// Gives each mark the section it was drawn in.
   ///
   /// A mark opens the section it is inside and no other. Where every part of
@@ -205,8 +330,11 @@ abstract final class SketchInterpreter {
     final questions = <DesignQuestion>[];
 
     for (final symbol in symbols) {
+      // Only the main divisions are candidates. A mark makes the region it
+      // is in an opening; what is inside that region is the opening's, not a
+      // rival for it.
       final holding = <SectionElement>[];
-      for (final section in read.sections) {
+      for (final section in read.topLevelSections) {
         if (symbol.points.every(section.outline.contains)) {
           holding.add(section);
         }
@@ -228,10 +356,10 @@ abstract final class SketchInterpreter {
       // Not certain. Every section the mark touches at all is offered, so
       // the user picks rather than the application guessing.
       final touched = <SectionElement>[
-        for (final section in read.sections)
+        for (final section in read.topLevelSections)
           if (symbol.points.any(section.outline.contains)) section,
       ];
-      final choices = touched.isEmpty ? read.sections : touched;
+      final choices = touched.isEmpty ? read.topLevelSections : touched;
 
       questions.add(DesignQuestion(
         id: 'symbol-${symbol.strokeId}',

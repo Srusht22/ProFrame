@@ -30,16 +30,30 @@ abstract final class MeshBuilder {
 
     _addFrame(facets, frame, depth);
 
-    for (final divider in design.dividers) {
+    // Only the bars that divide the design itself. A bar drawn inside a
+    // section is built with that section, so that it swings with the leaf it
+    // is part of instead of staying behind on the frame.
+    for (final divider in design.topLevelDividers) {
       _addBar(facets, divider, frame, depth);
     }
 
-    for (final section in design.sections) {
+    // Only the main divisions are built here. What is inside a section is
+    // built with it, so that a leaf and everything drawn in it are one thing
+    // that swings together.
+    for (final section in design.topLevelSections) {
       final opening = design.openingOf(section.id);
       if (opening == null) {
-        _addFixedInfill(facets, section, depth);
+        _addSection(facets, design, section, depth);
       } else {
-        _addLeaf(facets, section, opening, frame, depth, openFraction);
+        _addLeaf(
+          facets,
+          design,
+          section,
+          opening,
+          frame,
+          depth,
+          openFraction,
+        );
       }
     }
 
@@ -131,16 +145,76 @@ abstract final class MeshBuilder {
     );
   }
 
+  /// A section that does not open: either the pane that fills it, or — when
+  /// the user drew lines inside it — the bars they drew and the panes those
+  /// bars make.
+  static void _addSection(
+    List<Facet> out,
+    Design design,
+    SectionElement section,
+    double depth, {
+    Vec3 Function(Vec3)? place,
+  }) {
+    final children = design.childSectionsOf(section.id);
+    if (children.isEmpty) {
+      _addFixedInfill(out, section, depth, place: place);
+      return;
+    }
+
+    // The bars drawn inside it, then whatever they enclose — which may in
+    // turn have lines inside it.
+    for (final bar in design.childDividersOf(section.id)) {
+      _addInternalBar(out, bar, section.outline, depth, place: place);
+    }
+    for (final child in children) {
+      _addSection(out, design, child, depth, place: place);
+    }
+  }
+
+  /// A bar the user drew inside a section, trimmed to that section.
+  static void _addInternalBar(
+    List<Facet> out,
+    DividerElement divider,
+    Polygon bounds,
+    double depth, {
+    Vec3 Function(Vec3)? place,
+  }) {
+    final run = _clip(divider.segment, bounds);
+    if (run == null) return;
+
+    final half = divider.widthMm / 2;
+    final side = run.unit.perpendicular * half;
+    final face = Polygon([
+      run.a + side,
+      run.b + side,
+      run.b - side,
+      run.a - side,
+    ]);
+
+    const setback = 0.1;
+    _slabBetween(
+      out,
+      face,
+      -depth * setback,
+      depth * (1 - setback * 2),
+      divider.id,
+      divider.finish,
+      FacetRole.bar,
+      place ?? (p) => p,
+    );
+  }
+
   /// The pane or panel filling a section that does not open.
   static void _addFixedInfill(
     List<Facet> out,
     SectionElement section,
-    double depth,
-  ) {
+    double depth, {
+    Vec3 Function(Vec3)? place,
+  }) {
     final thickness = section.finish.material.isGlazing
         ? math.min(28.0, depth * 0.4)
         : math.min(depth * 0.55, 40.0);
-    _addSlab(
+    _slabBetween(
       out,
       section.outline,
       -(depth - thickness) / 2,
@@ -148,6 +222,7 @@ abstract final class MeshBuilder {
       section.id,
       section.finish,
       section.finish.material.isGlazing ? FacetRole.glazing : FacetRole.panel,
+      place ?? (p) => p,
     );
   }
 
@@ -155,6 +230,7 @@ abstract final class MeshBuilder {
   /// swung about the edge the mechanism hinges on.
   static void _addLeaf(
     List<Facet> out,
+    Design design,
     SectionElement section,
     OpeningElement opening,
     FrameElement frame,
@@ -205,22 +281,38 @@ abstract final class MeshBuilder {
       }
     }
 
-    // The pane inside the leaf, swinging with it.
+    // What fills the leaf, swinging with it. Where the user drew lines
+    // inside the opening, those lines and the panes they make are what fills
+    // it — and they swing with it too, because they are part of it.
     final glazed = sashInner.isEmpty ? sashOuter : sashInner;
-    final thickness = section.finish.material.isGlazing
-        ? math.min(26.0, leafDepth * 0.4)
-        : math.min(leafDepth * 0.6, 38.0);
-    final front = leafFront - (leafDepth - thickness) / 2;
-    _slabBetween(
-      out,
-      glazed,
-      front,
-      thickness,
-      section.id,
-      section.finish,
-      section.finish.material.isGlazing ? FacetRole.glazing : FacetRole.panel,
-      place,
-    );
+    final children = design.childSectionsOf(section.id);
+
+    if (children.isEmpty) {
+      final thickness = section.finish.material.isGlazing
+          ? math.min(26.0, leafDepth * 0.4)
+          : math.min(leafDepth * 0.6, 38.0);
+      final front = leafFront - (leafDepth - thickness) / 2;
+      _slabBetween(
+        out,
+        glazed,
+        front,
+        thickness,
+        section.id,
+        section.finish,
+        section.finish.material.isGlazing
+            ? FacetRole.glazing
+            : FacetRole.panel,
+        place,
+      );
+      return;
+    }
+
+    for (final bar in design.childDividersOf(section.id)) {
+      _addInternalBar(out, bar, glazed, leafDepth, place: place);
+    }
+    for (final child in children) {
+      _addSection(out, design, child, leafDepth, place: place);
+    }
   }
 
   /// Swings a point about the hinge edge of [opening].

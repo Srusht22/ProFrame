@@ -724,6 +724,18 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     state = next;
   }
 
+  /// Puts a bar inside a section, or back among the main divisions.
+  void setDividerParent(String dividerId, String? sectionId) {
+    _remember();
+    state = state.copyWith(
+      design: DesignEdits.setDividerParent(
+        state.design,
+        dividerId,
+        sectionId,
+      ),
+    );
+  }
+
   /// Changes what a selected opening does.
   void setOpeningMechanism(String openingId, OpeningMechanism mechanism) {
     _remember();

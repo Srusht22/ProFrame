@@ -148,6 +148,57 @@ class Design {
 
   bool get hasGeometry => frame != null || dividers.isNotEmpty;
 
+  // ------------------------------------------------------------- hierarchy
+  //
+  // The design is a tree, not a list. A bar drawn inside an opening belongs
+  // to that opening: it divides the opening, not the design, and it travels
+  // with the opening when the opening moves. These are the four questions
+  // the rest of the application asks about that tree.
+
+  /// The main divisions of the design — what the frame itself encloses.
+  List<SectionElement> get topLevelSections =>
+      [for (final s in sections) if (s.parentId == null) s];
+
+  /// The bars that divide the design as a whole.
+  List<DividerElement> get topLevelDividers =>
+      [for (final d in dividers) if (d.parentId == null) d];
+
+  /// The sections that fill [sectionId], made by the bars drawn inside it.
+  List<SectionElement> childSectionsOf(String sectionId) =>
+      [for (final s in sections) if (s.parentId == sectionId) s];
+
+  /// The bars drawn inside [sectionId].
+  List<DividerElement> childDividersOf(String sectionId) =>
+      [for (final d in dividers) if (d.parentId == sectionId) d];
+
+  /// True when this section is filled by other sections rather than by glass
+  /// or a panel of its own.
+  bool hasChildren(String sectionId) =>
+      sections.any((s) => s.parentId == sectionId);
+
+  /// Everything inside [sectionId], at any depth: the bars drawn in it, the
+  /// sections they make, and whatever is inside those in turn.
+  ///
+  /// Guarded against a section that has somehow become its own ancestor:
+  /// this walks a tree, and a document that is not one should give a short
+  /// answer rather than no answer at all.
+  List<DesignElement> descendantsOf(String sectionId, {Set<String>? seen}) {
+    final visited = seen ?? <String>{};
+    if (!visited.add(sectionId)) return const [];
+
+    final out = <DesignElement>[];
+    for (final divider in childDividersOf(sectionId)) {
+      out.add(divider);
+    }
+    for (final child in childSectionsOf(sectionId)) {
+      if (child.id == sectionId) continue;
+      out
+        ..add(child)
+        ..addAll(descendantsOf(child.id, seen: visited));
+    }
+    return out;
+  }
+
   /// The extent of the design in millimetres, from the frame when there is
   /// one and from whatever has been drawn when there is not.
   Polygon? get bounds {

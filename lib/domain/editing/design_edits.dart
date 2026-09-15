@@ -435,6 +435,44 @@ abstract final class DesignEdits {
     ]);
   }
 
+  /// Moves a bar between dividing the design and dividing one section of it.
+  ///
+  /// The drawing decides this on its own — a line drawn inside a marked
+  /// region belongs to that region — but the drawing cannot always say, and
+  /// where it cannot the user can. Passing null puts the bar back among the
+  /// main divisions.
+  static Design setDividerParent(
+    Design design,
+    String dividerId,
+    String? sectionId,
+  ) {
+    final divider = _divider(design, dividerId);
+    if (divider == null) return design;
+    if (divider.parentId == sectionId) return design;
+    if (sectionId != null && design.sectionById(sectionId) == null) {
+      return design;
+    }
+    return _rebuild(design.withElement(
+      sectionId == null
+          ? divider.copyWith(clearParent: true)
+          : divider.copyWith(parentId: sectionId),
+    ));
+  }
+
+  /// The sections a bar could sensibly be put inside: the main divisions it
+  /// actually lies within.
+  static List<SectionElement> containersFor(
+    Design design,
+    String dividerId,
+  ) {
+    final divider = _divider(design, dividerId);
+    if (divider == null) return const [];
+    return [
+      for (final section in design.topLevelSections)
+        if (section.outline.contains(divider.segment.midpoint)) section,
+    ];
+  }
+
   /// Changes what an opening does.
   ///
   /// The mark the user drew is kept as the record of how the section came to

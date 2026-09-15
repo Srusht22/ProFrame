@@ -104,8 +104,10 @@ abstract final class DimensionChains {
   /// The distinct daylight bands along one axis, taken from the sections
   /// themselves so the numbers and the drawing cannot disagree.
   static List<ChainRun> _bands(Design design, DimensionAxis axis) {
+    // The main divisions. What is inside one of them is dimensioned by its
+    // own label rather than by a chain along the outside of the design.
     final spans = <(double, double)>[];
-    for (final section in design.sections) {
+    for (final section in design.topLevelSections) {
       final span = axis == DimensionAxis.horizontal
           ? (section.outline.left, section.outline.right)
           : (section.outline.top, section.outline.bottom);

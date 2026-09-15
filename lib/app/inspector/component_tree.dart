@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -49,8 +50,8 @@ class ComponentTree extends ConsumerWidget {
             selected: state.selectedId == member.id,
             onTap: () => controller.select(member.id),
           ),
-        if (design.dividers.isNotEmpty) const _GroupLabel('Bars'),
-        for (final divider in design.dividers)
+        if (design.topLevelDividers.isNotEmpty) const _GroupLabel('Bars'),
+        for (final divider in design.topLevelDividers)
           _Row(
             element: divider,
             detail: '${divider.lengthMm.round()} mm · '
@@ -62,30 +63,10 @@ class ComponentTree extends ConsumerWidget {
             selected: state.selectedId == divider.id,
             onTap: () => controller.select(divider.id),
           ),
-        if (design.sections.isNotEmpty) const _GroupLabel('Sections'),
-        for (final section in design.sections) ...[
-          _Row(
-            element: section,
-            detail: '${section.widthMm.round()} × '
-                '${section.heightMm.round()} mm · '
-                '${section.finish.material.label}',
-            icon: section.finish.material.isGlazing
-                ? Icons.window_outlined
-                : Icons.rectangle_outlined,
-            indent: 1,
-            selected: state.selectedId == section.id,
-            onTap: () => controller.select(section.id),
-          ),
-          if (design.openingOf(section.id) case final opening?)
-            _Row(
-              element: opening,
-              detail: opening.mechanism.description,
-              icon: Icons.door_front_door_outlined,
-              indent: 2,
-              selected: state.selectedId == opening.id,
-              onTap: () => controller.select(opening.id),
-            ),
-        ],
+        if (design.topLevelSections.isNotEmpty)
+          const _GroupLabel('Sections'),
+        for (final section in design.topLevelSections)
+          ..._sectionRows(design, state, controller, section, 1),
         if (design.hardware.isNotEmpty) const _GroupLabel('Hardware'),
         for (final piece in design.hardware)
           _Row(
@@ -119,6 +100,66 @@ class ComponentTree extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// One section and everything inside it.
+///
+/// A section that has lines drawn in it is a branch: its opening, then the
+/// bars drawn inside it, then the sections those bars make — each of which
+/// may be a branch in turn. This is the shape of the drawing, so it is the
+/// shape of the list.
+List<Widget> _sectionRows(
+  Design design,
+  WorkspaceState state,
+  WorkspaceController controller,
+  SectionElement section,
+  int indent,
+) {
+  final opening = design.openingOf(section.id);
+  final bars = design.childDividersOf(section.id);
+  final children = design.childSectionsOf(section.id);
+  final holds = children.isNotEmpty;
+
+  return [
+    _Row(
+      element: section,
+      detail: holds
+          ? '${section.widthMm.round()} × ${section.heightMm.round()} mm · '
+              'holds ${children.length}'
+          : '${section.widthMm.round()} × ${section.heightMm.round()} mm · '
+              '${section.finish.material.label}',
+      icon: holds
+          ? Icons.account_tree_outlined
+          : section.finish.material.isGlazing
+              ? Icons.window_outlined
+              : Icons.rectangle_outlined,
+      indent: indent,
+      selected: state.selectedId == section.id,
+      onTap: () => controller.select(section.id),
+    ),
+    if (opening != null)
+      _Row(
+        element: opening,
+        detail: opening.mechanism.description,
+        icon: Icons.door_front_door_outlined,
+        indent: indent + 1,
+        selected: state.selectedId == opening.id,
+        onTap: () => controller.select(opening.id),
+      ),
+    for (final bar in bars)
+      _Row(
+        element: bar,
+        detail: '${bar.lengthMm.round()} mm · inside',
+        icon: bar.isVertical
+            ? Icons.vertical_align_center
+            : Icons.horizontal_rule,
+        indent: indent + 1,
+        selected: state.selectedId == bar.id,
+        onTap: () => controller.select(bar.id),
+      ),
+    for (final child in children)
+      ..._sectionRows(design, state, controller, child, indent + 1),
+  ];
 }
 
 class _Row extends StatelessWidget {

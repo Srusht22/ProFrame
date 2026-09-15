@@ -111,6 +111,10 @@ class CadPainter extends CustomPainter {
   /// rather than the way a photograph shows it.
   void _infill(Canvas canvas) {
     for (final section in design.sections) {
+      // A section with lines drawn inside it is filled by what those lines
+      // make, not by a pane of its own painted over them.
+      if (design.hasChildren(section.id)) continue;
+
       final path = view.pathOf(section.outline);
       final material = section.finish.material;
 
@@ -481,6 +485,7 @@ class CadPainter extends CustomPainter {
   /// column of its own, or one bounded by a bar that stops part way.
   void _sectionSizes(Canvas canvas) {
     for (final section in design.sections) {
+      if (design.hasChildren(section.id)) continue;
       // A width and a height describe a rectangle. On a triangle they would
       // be the box around it, which is not the pane and not what anybody
       // would cut — so a section that is not a rectangle is left to the
