@@ -1,0 +1,9 @@
+The Noto Sans and Noto Sans Arabic fonts in this directory are Copyright
+Google LLC and are licensed under the SIL Open Font License, Version 1.1.
+
+The full licence text is at https://openfontlicense.org and is reproduced in
+every upstream Noto release. The OFL permits bundling these files inside an
+application, which is why they are committed here rather than downloaded at
+run time: the app must work offline (spec section 10), and a PDF that silently
+lost its Arabic text because a download failed would be worse than a larger
+binary.
