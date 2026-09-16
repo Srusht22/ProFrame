@@ -234,6 +234,75 @@ Divides        The whole design
 
 Nothing is guessed there either. The list is offered and you pick.
 
+### Building the inside of an opening
+
+An opening is a container, not a single pane. Pick any part of one — its
+mark, the sash, a bar in it, a pane, a hinge, the handle — and the tools for
+drawing inside it appear above the drawing:
+
+```
+⌗ Inside hinged right — 29 × 138.5 cm   ▸ Select   — Horizontal line   ┼ Vertical line   ⌫ Erase
+```
+
+Pick a line tool and the opening is outlined; move the pointer and a ghost
+line shows exactly where the line will land, stopping at the opening's own
+edges. Click and it is there:
+
+```
+┌──────────┐                 ┌──────────┐
+│          │                 │  GLASS   │
+│          │   horizontal    ├──────────┤ ← the line you drew
+│    <     │   line, here    │          │
+│          │       →         │  PANEL   │
+│          │                 │          │
+└──────────┘                 └──────────┘
+```
+
+The line is the opening's from the moment you draw it. It divides the
+opening; it does not end it, it does not make a new section beside it, and
+it goes wherever the opening goes. Then each pane is yours to name — clear
+glass, frosted, tinted, solid panel, louvre, insect mesh — and yours to
+size.
+
+You do not have to know the inside of a sash before you mark it. Mark it,
+then build what goes in it, in any order, as many divisions as you want:
+
+```
+┌────────────┐     ┌────────┬────────┐
+│   GLASS    │     │ GLASS  │ GLASS  │
+├────────────┤     ├────────┼────────┤
+│   GLASS    │     │        │        │
+├────────────┤     │ PANEL  │ PANEL  │
+│   PANEL    │     │        │        │
+└────────────┘     └────────┴────────┘
+```
+
+**Nothing divides an opening on its own.** An opening you draw nothing in
+stays one pane, however tall it is. No middle line appears, no glass/panel
+split is assumed, no mullion and no transom — the count of divisions is
+yours and only yours.
+
+Everything inside is measured from the opening's own corner, because that is
+whose it is:
+
+```
+Selected: Horizontal divider
+
+Length                       28.9 cm
+Bar width                     3.3 cm
+From the top of the opening  40   cm
+The opening is           29 × 138.5 cm
+Divides         Inside the opening — left section
+```
+
+Type 40 there and the bar goes 40 cm down the sash. Drag the edge of a pane
+and the same bar moves. Type a pane's height and the pane below gives up
+what it gained, with the opening and the rest of the design exactly as they
+were. In the model the divider is a real piece of material with a front, a
+back and sides — not half a pane painted a different colour — and it swings
+out with the leaf along with the glass, the panel, the hinges and the
+handle.
+
 ### Hinges and a handle
 
 Saying a section opens is saying it hangs on something and is worked by

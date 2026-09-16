@@ -203,6 +203,52 @@ which is where the user says it rather than where the application decides it.
 
 `test/domain/opening_containment_test.dart` holds this.
 
+### Drawing inside an opening
+
+An opening is not a single pane waiting to be filled. It can hold its own
+bars, and its own glass and panels, and the user builds that *afterwards* —
+they do not have to know the inside of a sash before they mark it.
+
+Pick any part of an opening — the mark, the section, a bar inside it, a pane,
+a hinge, the handle — and `DesignEdits.openingAround` answers with the
+opening, which is what puts the line tools on the drawing. A click with one
+of them calls `DesignEdits.addLineInside`, which lays the line right across
+that section, at the place the user put it, with `parentId` already set. The
+bar is the opening's from the moment it exists: it divides the opening rather
+than ending it, and travels with it ever afterwards.
+
+Laying the line across is the tool's job, not a decision about the design.
+A tool named *horizontal line* draws a horizontal line, so there is no wobble
+to clean and no angle to keep; and a bar that stopped half way across would
+divide nothing, so `spanAcross` finds the two points where the line the user
+drew meets the boundary of the section they drew it in. A line that does not
+cross that section at all adds nothing, rather than landing somewhere near.
+
+Nothing divides an opening on its own. An opening with no line drawn in it
+stays one pane, however tall, and `_addFixedInfill` fills it. Two lines make
+three panes; a horizontal and a vertical make four. The count is the user's.
+
+A section's edge can only be made by a bar at its own level, which is why
+`_dividerAlong` takes the level to look at: the panes of an opening are made
+by the bars drawn inside that opening, and a transom on the design outside it
+is not what one of them ends at, even where the two lie along the same line.
+A pane with no bar beside it *is* the opening, so the question passes outward
+to whatever bounds that.
+
+### An opening's own coordinates
+
+An opening is a parent, so where things are inside it is naturally said in
+its terms: a bar 40 cm down the sash is 40 cm down the sash wherever on the
+sheet the sash is. `DesignEdits.within` converts a point, and
+`moveDividerWithin` places a bar that way; the inspector shows every internal
+part's place from the opening's own corner. This is the same fact as the
+carry-transform in `SectionBuilder` seen from the other side — the children
+are the parent's, so they are measured from it and they move with it.
+
+`test/domain/inside_the_opening_test.dart` holds all of this, including the
+whole worked example: a 200 × 160 cm window, a 40 cm opening marked `<` down
+the left, and a line drawn inside it making glass over panel.
+
 ### Every figure on the drawing is the geometry it measures
 
 A dimension is not a caption. Each figure on the technical drawing names a

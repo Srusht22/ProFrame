@@ -35,6 +35,12 @@ class CadPainter extends CustomPainter {
   /// The grips of the selected object, in millimetres.
   final List<Grip> grips;
 
+  /// Where a line tool would put a line if the user clicked now, and the
+  /// opening it would go in. Shown as a ghost, so the user places the line
+  /// having seen exactly where it lands.
+  final Segment? guide;
+  final Polygon? guideWithin;
+
   const CadPainter({
     required this.design,
     required this.view,
@@ -43,6 +49,8 @@ class CadPainter extends CustomPainter {
     this.highlighted = const {},
     this.snapAt,
     this.grips = const [],
+    this.guide,
+    this.guideWithin,
   });
 
   @override
@@ -65,7 +73,31 @@ class CadPainter extends CustomPainter {
     if (layers.annotations) _annotations(canvas);
     _selection(canvas);
     if (layers.grips) _grips(canvas);
+    _guide(canvas);
     _snap(canvas);
+  }
+
+  /// The opening being drawn inside, and where the line would land.
+  ///
+  /// The opening is outlined so it is plain what the line will belong to,
+  /// because a line drawn inside an opening is that opening's and nothing
+  /// about the drawing afterwards would say so more clearly than this does
+  /// beforehand.
+  void _guide(Canvas canvas) {
+    final within = guideWithin;
+    if (within != null && !within.isEmpty) {
+      canvas.drawPath(
+        view.pathOf(within),
+        Cad.stroke(Cad.selection, Cad.profile),
+      );
+    }
+    final line = guide;
+    if (line == null) return;
+    canvas.drawLine(
+      view.toScreen(line.a),
+      view.toScreen(line.b),
+      Cad.stroke(Cad.selection, Cad.outline),
+    );
   }
 
   // ------------------------------------------------------------------ paper

@@ -47,6 +47,9 @@ class _CadViewState extends ConsumerState<CadView> {
   /// The figure the user has opened for typing, if any.
   DimensionHandle? _editing;
 
+  /// What the next click inside the selected opening does.
+  InsideTool _inside = InsideTool.select;
+
   /// Room round the drawing for the things that sit beside it: two rows of
   /// dimensions and their names along the bottom and down the left, and the
   /// status bar under everything.
@@ -79,6 +82,13 @@ class _CadViewState extends ConsumerState<CadView> {
     final controller = ref.read(workspaceProvider.notifier);
     final layers = state.layers;
 
+    // An opening is a container. Pick any part of one and the tools for
+    // drawing inside it appear, because from there a line is the opening's.
+    final insideId =
+        DesignEdits.openingAround(state.design, state.selectedId);
+    final insideSection =
+        insideId == null ? null : state.design.sectionById(insideId);
+
     return Column(
       children: [
         _LayerBar(
@@ -90,6 +100,15 @@ class _CadViewState extends ConsumerState<CadView> {
           }),
         ),
         const Divider(height: 1),
+        if (insideSection != null)
+          _InsideBar(
+            opening: insideSection,
+            mechanism: state.design.openingOf(insideSection.id),
+            tool: _inside,
+            selected: state.selected,
+            onTool: (tool) => setState(() => _inside = tool),
+            onErase: controller.deleteSelected,
+          ),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -104,6 +123,21 @@ class _CadViewState extends ConsumerState<CadView> {
               final figures =
                   CadDimensions.of(state.design, view, layers);
 
+              // The opening the user is working inside, if they have picked
+              // any part of one. A line tool only exists while there is
+              // somewhere for its line to belong.
+              final insideOf =
+                  DesignEdits.openingAround(state.design, state.selectedId);
+              if (insideOf == null && _inside != InsideTool.select) {
+                _inside = InsideTool.select;
+              }
+              final within = insideOf == null
+                  ? null
+                  : state.design.sectionById(insideOf)?.outline;
+              final ghost = _inside == InsideTool.select || within == null
+                  ? null
+                  : _lineAt(_pointer, within, _inside);
+
               return ClipRect(
                 child: MouseRegion(
                   cursor: _holding == null
@@ -114,8 +148,14 @@ class _CadViewState extends ConsumerState<CadView> {
                   ),
                   onExit: (_) => setState(() => _pointer = null),
                   child: Listener(
-                    onPointerDown: (event) =>
-                        _down(event, view, grips, figures, controller),
+                    onPointerDown: (event) => _down(
+                          event,
+                          view,
+                          grips,
+                          figures,
+                          insideOf,
+                          controller,
+                        ),
                     onPointerMove: (event) => _move(event, view, controller),
                     onPointerUp: (_) => _up(controller),
                     onPointerCancel: (_) => _up(controller),
@@ -164,6 +204,9 @@ class _CadViewState extends ConsumerState<CadView> {
                                 highlighted: widget.highlighted,
                                 snapAt: _snapped,
                                 grips: grips,
+                                guide: ghost,
+                                guideWithin:
+                                    _inside == InsideTool.select ? null : within,
                               ),
                             ),
                           ),
@@ -342,10 +385,29 @@ class _CadViewState extends ConsumerState<CadView> {
     ViewTransform view,
     List<Grip> grips,
     List<DimensionHandle> figures,
+    String? insideOf,
     WorkspaceController controller,
   ) {
     final at = view.toSheet(event.localPosition);
     final reach = view.lengthToSheet(13);
+
+    // A line tool has been picked, so this click places a line rather than
+    // selecting anything. It goes in the opening and nowhere else: a click
+    // outside puts the tool down without drawing.
+    if (_inside != InsideTool.select && insideOf != null) {
+      final horizontal = _inside == InsideTool.horizontalLine;
+      final design = ref.read(workspaceProvider).design;
+      final within = design.sectionById(insideOf)?.outline;
+      if (within != null && within.contains(at)) {
+        controller.addLineInside(insideOf, at, horizontal: horizontal);
+      }
+      setState(() {
+        _inside = InsideTool.select;
+        _holding = null;
+        _editing = null;
+      });
+      return;
+    }
 
     for (final grip in grips) {
       if (grip.at.distanceTo(at) <= reach) {
@@ -374,6 +436,23 @@ class _CadViewState extends ConsumerState<CadView> {
       _holding = null;
       _pointer = at;
     });
+  }
+
+  /// Where [tool] would lay a line if the user clicked at [at].
+  ///
+  /// The same arithmetic that places the line for real, so what is shown is
+  /// what is drawn rather than a sketch of roughly where it might go.
+  Segment? _lineAt(Vec2? at, Polygon within, InsideTool tool) {
+    if (at == null || !within.contains(at)) return null;
+    return DesignEdits.spanAcross(
+      within,
+      Segment(
+        at,
+        tool == InsideTool.horizontalLine
+            ? at + const Vec2(1, 0)
+            : at + const Vec2(0, 1),
+      ),
+    );
   }
 
   /// Types a new figure over a dimension, which moves the geometry it
@@ -492,6 +571,156 @@ class _CadViewState extends ConsumerState<CadView> {
       _holding = null;
       _snapped = null;
     });
+  }
+}
+
+/// What a click inside the selected opening does.
+enum InsideTool {
+  /// Pick something, which is what a click does the rest of the time.
+  select('Select', Icons.near_me_outlined),
+
+  /// Lay a horizontal line across the opening where the user clicks.
+  horizontalLine('Horizontal line', Icons.horizontal_rule),
+
+  /// The same, standing up.
+  verticalLine('Vertical line', Icons.vertical_align_center);
+
+  const InsideTool(this.label, this.icon);
+  final String label;
+  final IconData icon;
+}
+
+/// The tools for drawing inside an opening.
+///
+/// An opening is a container, not a single pane: it can hold its own bars
+/// and its own glass and panels. This strip appears whenever any part of an
+/// opening is picked, and every line it draws belongs to that opening —
+/// dividing it, never ending it, and travelling with it ever afterwards.
+///
+/// Nothing here divides an opening on its own. An opening with no line drawn
+/// in it stays one pane, however tall it is.
+class _InsideBar extends StatelessWidget {
+  final SectionElement opening;
+  final OpeningElement? mechanism;
+  final InsideTool tool;
+  final DesignElement? selected;
+  final ValueChanged<InsideTool> onTool;
+  final VoidCallback onErase;
+
+  const _InsideBar({
+    required this.opening,
+    required this.mechanism,
+    required this.tool,
+    required this.selected,
+    required this.onTool,
+    required this.onErase,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final erasable = selected != null &&
+        (selected is DividerElement &&
+            (selected! as DividerElement).parentId == opening.id);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: const BoxDecoration(
+        color: AppTheme.surface,
+        border: Border(bottom: BorderSide(color: AppTheme.hairline)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.account_tree_outlined,
+              size: 15, color: AppTheme.accent),
+          const SizedBox(width: 7),
+          Flexible(
+            child: Text(
+              'Inside ${mechanism?.mechanism.label.toLowerCase() ?? 'this opening'}'
+              ' — ${Units.format(opening.widthMm)} × '
+              '${Units.label(opening.heightMm)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: AppTheme.fontFamily,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.ink,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          for (final option in InsideTool.values) ...[
+            _InsideButton(
+              label: option.label,
+              icon: option.icon,
+              on: tool == option,
+              onTap: () => onTool(option),
+            ),
+            const SizedBox(width: 6),
+          ],
+          const SizedBox(width: 8),
+          _InsideButton(
+            label: 'Erase',
+            icon: Icons.backspace_outlined,
+            on: false,
+            enabled: erasable,
+            onTap: onErase,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InsideButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool on;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _InsideButton({
+    required this.label,
+    required this.icon,
+    required this.on,
+    required this.onTap,
+    this.enabled = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colour = !enabled
+        ? AppTheme.muted.withValues(alpha: 0.45)
+        : on
+            ? AppTheme.primary
+            : AppTheme.ink;
+    return Material(
+      color: on ? AppTheme.accent : Colors.transparent,
+      borderRadius: BorderRadius.circular(7),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(7),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 15, color: colour),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  fontFamily: AppTheme.fontFamily,
+                  fontSize: 12,
+                  fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+                  color: colour,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -139,6 +139,11 @@ class InspectorPanel extends ConsumerWidget {
               glazing: false,
             ),
             const SizedBox(height: 16),
+            _WithinOpening(
+              divider: element,
+              state: state,
+              controller: controller,
+            ),
             _BelongsTo(divider: element, state: state, controller: controller),
             const SizedBox(height: 14),
             _DeleteButton(
@@ -163,6 +168,12 @@ class InspectorPanel extends ConsumerWidget {
               onChanged: (f) => controller.setFinish(element.id, f),
               glazing: true,
             ),
+            if (element.parentId case final parent?)
+              _PlaceInside(
+                section: element,
+                parentId: parent,
+                state: state,
+              ),
             const SizedBox(height: 16),
             _OpeningField(section: element, state: state, controller: controller),
             const SizedBox(height: 16),
@@ -392,6 +403,105 @@ class _OpeningHardwareFields extends StatelessWidget {
               handleAlongMm: v,
             ),
           ),
+      ],
+    );
+  }
+}
+
+/// Where a bar inside an opening sits, in the opening's own terms.
+///
+/// An opening is a container with its own corner to measure from: a bar
+/// 40 cm down the sash is 40 cm down the sash wherever on the sheet the sash
+/// happens to be. Typing here moves that bar and nothing else — the opening
+/// keeps its size, and the panes either side of the bar follow it because a
+/// pane is the space between bars.
+class _WithinOpening extends StatelessWidget {
+  final DividerElement divider;
+  final WorkspaceState state;
+  final WorkspaceController controller;
+
+  const _WithinOpening({
+    required this.divider,
+    required this.state,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final parent = divider.parentId;
+    if (parent == null) return const SizedBox.shrink();
+    final within = state.design.sectionById(parent);
+    if (within == null) return const SizedBox.shrink();
+    if (!divider.isHorizontal && !divider.isVertical) {
+      return const SizedBox.shrink();
+    }
+
+    final box = within.outline;
+    final at = divider.segment.midpoint;
+    final along =
+        divider.isHorizontal ? at.y - box.top : at.x - box.left;
+    final opening = state.design.openingOf(parent);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _NumberField(
+          label: divider.isHorizontal
+              ? 'From the top of the opening'
+              : 'From the left of the opening',
+          valueMm: along,
+          help: opening == null
+              ? 'Measured inside the section this bar divides.'
+              : 'Measured inside the opening, so it stays where you put it '
+                  'when the opening moves.',
+          onSet: (v) => controller.moveDividerWithin(divider.id, v),
+        ),
+        _Readout(
+          'The opening is',
+          '${Units.format(within.widthMm)} × '
+              '${Units.label(within.heightMm)}',
+        ),
+        const SizedBox(height: 10),
+      ],
+    );
+  }
+}
+
+/// Where a pane inside an opening sits, in the opening's own terms.
+class _PlaceInside extends StatelessWidget {
+  final SectionElement section;
+  final String parentId;
+  final WorkspaceState state;
+
+  const _PlaceInside({
+    required this.section,
+    required this.parentId,
+    required this.state,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final within = state.design.sectionById(parentId);
+    if (within == null) return const SizedBox.shrink();
+    final box = within.outline;
+    final mine = section.outline;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _Readout(
+          'From the top of the opening',
+          Units.label(mine.top - box.top),
+        ),
+        _Readout(
+          'From the left of the opening',
+          Units.label(mine.left - box.left),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'This pane is inside the opening, so it moves and swings with it.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
       ],
     );
   }

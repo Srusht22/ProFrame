@@ -65,6 +65,165 @@ abstract final class DesignEdits {
     ]));
   }
 
+  /// Adds a line the user drew inside a section, as that section's own.
+  ///
+  /// This is how an opening gets its internal geometry. The bar belongs to
+  /// the section from the moment it is made, so it divides that section and
+  /// not the design: an opening does not end because a line was drawn in it,
+  /// and the line travels with the opening ever afterwards.
+  ///
+  /// The line is laid across the section the user drew it in, at the place
+  /// they drew it. A line tool says *where* a line goes; how far it runs is
+  /// settled by the section it is inside, because a bar that stops half way
+  /// divides nothing. Nothing is placed where the line does not cross the
+  /// section at all.
+  static Design addDividerInside(
+    Design design,
+    String sectionId, {
+    required String id,
+    required Vec2 a,
+    required Vec2 b,
+  }) {
+    final section = design.sectionById(sectionId);
+    if (section == null) return design;
+    final across = spanAcross(section.outline, Segment(a, b));
+    if (across == null) return design;
+
+    return _rebuild(design.copyWith(dividers: [
+      ...design.dividers,
+      DividerElement(
+        id: id,
+        a: across.a,
+        b: across.b,
+        widthMm: (design.frame?.profileMm ?? 62.5) * 0.55,
+        finish: design.frame?.finish ?? Finish.frameDefault,
+        parentId: sectionId,
+      ),
+    ]));
+  }
+
+  /// The same for a line the user placed with one of the line tools, which
+  /// says its direction for them.
+  ///
+  /// A horizontal line is horizontal: the tool is the instruction, so there
+  /// is no wobble to clean and no angle to preserve. Where it goes is the
+  /// point they put it at.
+  static Design addLineInside(
+    Design design,
+    String sectionId, {
+    required String id,
+    required Vec2 at,
+    required bool horizontal,
+  }) =>
+      addDividerInside(
+        design,
+        sectionId,
+        id: id,
+        a: at,
+        b: horizontal ? at + const Vec2(1, 0) : at + const Vec2(0, 1),
+      );
+
+  /// Moves a bar inside a section to a place measured from that section's
+  /// own top left corner.
+  ///
+  /// An opening's contents are the opening's, so where they are is naturally
+  /// said in the opening's terms: a bar 40 cm down the sash is 40 cm down the
+  /// sash wherever the sash is. Only the bar moves; the opening does not.
+  static Design moveDividerWithin(
+    Design design,
+    String dividerId,
+    double alongMm,
+  ) {
+    final divider = _divider(design, dividerId);
+    final parent = divider?.parentId;
+    if (divider == null || parent == null) return design;
+    final within = design.sectionById(parent);
+    if (within == null) return design;
+
+    final box = within.outline;
+    if (divider.isHorizontal) {
+      final to = (box.top + alongMm).clamp(box.top, box.bottom);
+      return moveDivider(design, dividerId, Vec2(0, to - divider.segment.midpoint.y));
+    }
+    if (divider.isVertical) {
+      final to = (box.left + alongMm).clamp(box.left, box.right);
+      return moveDivider(design, dividerId, Vec2(to - divider.segment.midpoint.x, 0));
+    }
+    return design;
+  }
+
+  /// Where [point] is inside [sectionId], measured from that section's own
+  /// top left corner. Null when there is no such section.
+  static Vec2? within(Design design, String sectionId, Vec2 point) {
+    final section = design.sectionById(sectionId);
+    if (section == null) return null;
+    return point - section.outline.topLeft;
+  }
+
+  /// The opening a part is inside, as the section that opens.
+  ///
+  /// Answers for the opening itself, for the section it is on, and for
+  /// anything that lives in it — a bar drawn inside, a pane those bars make,
+  /// a hinge, the handle. Null when the part is not part of an opening, so
+  /// there is nothing to draw inside.
+  static String? openingAround(Design design, String? elementId) {
+    if (elementId == null) return null;
+    final element = design.elementById(elementId);
+
+    final candidate = switch (element) {
+      OpeningElement() => element.sectionId,
+      SectionElement() =>
+        design.openingOf(element.id) != null ? element.id : element.parentId,
+      DividerElement() => element.parentId,
+      HardwareElement() => element.parentId,
+      _ => null,
+    };
+    if (candidate == null) return null;
+    if (design.openingOf(candidate) != null) return candidate;
+
+    // A pane inside an opening answers with the opening, not with itself.
+    final parent = design.sectionById(candidate)?.parentId;
+    if (parent != null && design.openingOf(parent) != null) return parent;
+    return null;
+  }
+
+  /// How far [line] runs when laid right across [outline], or null when it
+  /// does not cross it.
+  ///
+  /// Measured on the line the user drew, not on a line of this method's
+  /// choosing: the direction and the position are theirs, and only the two
+  /// ends are found — where the line meets the boundary of the shape it was
+  /// drawn inside.
+  static Segment? spanAcross(Polygon outline, Segment line) {
+    if (line.length < 1e-6) return null;
+    final direction = line.unit;
+    final from = line.a;
+
+    var least = double.infinity;
+    var most = -double.infinity;
+    for (final edge in outline.edges) {
+      final hit = _meetOnLine(from, direction, edge);
+      if (hit == null) continue;
+      if (hit < least) least = hit;
+      if (hit > most) most = hit;
+    }
+    if (!least.isFinite || !most.isFinite) return null;
+    if (most - least < Tol.minLineMm) return null;
+
+    return Segment(from + direction * least, from + direction * most);
+  }
+
+  /// How far along an infinite line through [from] in [direction] it meets
+  /// [edge], or null when it does not meet it within the edge's own length.
+  static double? _meetOnLine(Vec2 from, Vec2 direction, Segment edge) {
+    final along = edge.direction;
+    final denominator = direction.cross(along);
+    if (denominator.abs() < 1e-12) return null;
+    final onEdge = (edge.a - from).cross(direction) / denominator;
+    if (onEdge < -1e-9 || onEdge > 1 + 1e-9) return null;
+    return (edge.a - from).cross(along) / denominator;
+  }
+
   /// Deletes an element outright, at the user's word.
   static Design delete(Design design, String elementId) =>
       _rebuild(design.withoutElement(elementId));
@@ -87,18 +246,26 @@ abstract final class DesignEdits {
     final growth = widthMm - section.widthMm;
     if (growth.abs() < Tol.sameLengthMm) return design;
 
-    final right = _dividerAlong(design, x: section.outline.right);
+    final right =
+        _dividerAlong(design, x: section.outline.right, within: section.parentId);
     if (right != null) {
       return moveDivider(design, right.id, Vec2(growth, 0));
     }
-    final left = _dividerAlong(design, x: section.outline.left);
+    final left =
+        _dividerAlong(design, x: section.outline.left, within: section.parentId);
     if (left != null) {
       return moveDivider(design, left.id, Vec2(-growth, 0));
     }
 
-    // No bar either side: this pane runs from jamb to jamb, so its width is
-    // the frame's width and the jamb is what has to move. Nothing else does
-    // — the other jamb, every bar and every other pane stay where they are.
+    // No bar at this level either side. A pane inside an opening with no bar
+    // beside it *is* the opening, so its width is the opening's width and the
+    // question passes outward to whatever bounds that.
+    final parent = section.parentId;
+    if (parent != null) return setSectionWidth(design, parent, widthMm);
+
+    // Otherwise this pane runs from jamb to jamb, so its width is the frame's
+    // width and the jamb is what has to move. Nothing else does — the other
+    // jamb, every bar and every other pane stay where they are.
     final frame = design.frame;
     if (frame == null) return design;
     if ((section.outline.right - frame.innerOutline.right).abs() <=
@@ -124,17 +291,24 @@ abstract final class DesignEdits {
     final growth = heightMm - section.heightMm;
     if (growth.abs() < Tol.sameLengthMm) return design;
 
-    final below = _dividerAlong(design, y: section.outline.bottom);
+    final below =
+        _dividerAlong(design, y: section.outline.bottom, within: section.parentId);
     if (below != null) {
       return moveDivider(design, below.id, Vec2(0, growth));
     }
-    final above = _dividerAlong(design, y: section.outline.top);
+    final above =
+        _dividerAlong(design, y: section.outline.top, within: section.parentId);
     if (above != null) {
       return moveDivider(design, above.id, Vec2(0, -growth));
     }
 
-    // The same when this pane runs from head to sill: the sill is what has
-    // to move, and only the sill.
+    // As above: a pane inside an opening with no bar above or below it is
+    // the opening, and the question passes outward.
+    final parent = section.parentId;
+    if (parent != null) return setSectionHeight(design, parent, heightMm);
+
+    // Otherwise this pane runs from head to sill, so the sill is what has to
+    // move, and only the sill.
     final frame = design.frame;
     if (frame == null) return design;
     if ((section.outline.bottom - frame.innerOutline.bottom).abs() <=
@@ -707,8 +881,20 @@ abstract final class DesignEdits {
   }
 
   /// The divider running along a given x or y, if there is one.
-  static DividerElement? _dividerAlong(Design design, {double? x, double? y}) {
+  /// The bar lying along a given line, at the level [within] belongs to.
+  ///
+  /// A section's edge can only be made by a bar at its own level: the panes
+  /// of an opening are made by the bars drawn inside that opening, and a
+  /// transom on the design outside it cannot be what one of them ends at,
+  /// even where the two happen to lie along the same line.
+  static DividerElement? _dividerAlong(
+    Design design, {
+    double? x,
+    double? y,
+    String? within,
+  }) {
     for (final divider in design.dividers) {
+      if (divider.parentId != within) continue;
       if (x != null && divider.isVertical) {
         final at = (divider.a.x + divider.b.x) / 2;
         final reach = math.max(divider.widthMm, Tol.minLineMm);

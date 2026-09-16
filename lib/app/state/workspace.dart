@@ -756,6 +756,39 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     );
   }
 
+  /// Draws a line inside a section, as that section's own.
+  ///
+  /// This is what the line tools inside an opening do. The bar belongs to
+  /// the opening from the moment it is made, so drawing in an opening
+  /// divides the opening rather than ending it, and the new bar is selected
+  /// so it can be moved or given a size straight away.
+  void addLineInside(
+    String sectionId,
+    Vec2 at, {
+    required bool horizontal,
+  }) {
+    final id = _newId('divider');
+    _remember();
+    final design = DesignEdits.addLineInside(
+      state.design,
+      sectionId,
+      id: id,
+      at: at,
+      horizontal: horizontal,
+    );
+    if (identical(design, state.design)) return;
+    state = state.copyWith(design: design, selectedId: id);
+  }
+
+  /// Moves a bar inside an opening to a place measured from the opening's
+  /// own corner, rather than from the sheet's.
+  void moveDividerWithin(String dividerId, double alongMm) {
+    _remember(coalesce: 'within-$dividerId');
+    state = state.copyWith(
+      design: DesignEdits.moveDividerWithin(state.design, dividerId, alongMm),
+    );
+  }
+
   /// Changes an opening's ironmongery: how many hinges, where they sit, and
   /// where the handle is. Only what is named changes.
   void setOpeningHardware(
