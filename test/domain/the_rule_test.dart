@@ -622,7 +622,7 @@ void main() {
       expect(result.questions, isNotEmpty);
     });
 
-    test('a mark across a bar opens nothing and asks which section', () {
+    test('a mark across a bar opens the section it is in, not both', () {
       final result = SketchInterpreter.interpret(sketchOf([
         drawn(const [
           Vec2(0, 0),
@@ -632,14 +632,23 @@ void main() {
           Vec2(0, 0),
         ], wobble: 3),
         drawn(const [Vec2(900, 0), Vec2(900, 1200)], wobble: 3),
+        // Straddling the mullion: its body is in the left light, its point
+        // pokes over the bar. The user has said which section opens by
+        // drawing the mark in it, so it opens, and it is not asked about.
         drawn(const [Vec2(700, 430), Vec2(1050, 600), Vec2(700, 770)],
             wobble: 3),
       ]));
-      expect(result.design.openings, isEmpty);
-      expect(
-        result.questions.any((q) => q.id.startsWith('symbol-')),
-        isTrue,
-      );
+
+      // Exactly one opening, on the section the mark is in — never both,
+      // and never the whole design.
+      expect(result.design.openings, hasLength(1));
+      final opened = result.design
+          .sectionById(result.design.openings.single.sectionId)!;
+      expect(opened.outline.centroid.x, lessThan(900),
+          reason: 'the mark sits in the left light');
+      expect(result.design.topLevelSections, hasLength(2));
+      expect(result.questions.any((q) => q.id.startsWith('symbol-')), isFalse,
+          reason: 'the drawing already said which section opens');
     });
 
     test('every question offers the choices and takes none of them', () {

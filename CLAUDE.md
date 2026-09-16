@@ -110,13 +110,58 @@ application, so it is written down rather than left to judgement:
 The test: **does the change alter what the user would have to build?** If it
 does, it is not cleaning.
 
-## When the drawing is ambiguous, ask
+## Build it, do not ask about it
 
-Where the reading cannot tell — a mark that straddles a bar, lines that do
-not close, a diagonal that might be a glazing bar or an opening symbol — the
-application produces a **question**, not an answer. Every option is offered
-and none is chosen. Guessing quietly is worse than asking, because a wrong
-guess looks like a decision the user made.
+**Do not ask the user to define what they have already defined by drawing
+it.** A questionnaire between the drawing and the design is not caution, it
+is the application refusing to read. The user drew a shape; build the shape.
+They put a `<` in a section; open that section. They drew a line at an angle;
+build the line at that angle.
+
+Then let them edit it. Every figure on the drawing can be typed over, every
+pane can be made glass or panel, every bar can be moved or deleted, and a
+diagonal has a control on its own panel that turns it into the opening it may
+have stood for. That is the shape of this application:
+
+```
+READ  →  BUILD  →  THE USER EDITS
+```
+
+and never
+
+```
+READ  →  ASK  →  WAIT  →  ASK AGAIN
+```
+
+Building is not guessing. A guess invents something the drawing does not
+contain — a panel nobody drew, a section made equal to its neighbour, a leaf
+chosen because it is the lower one. Building takes what is on the sheet and
+makes it real. Everything above is building.
+
+### The only questions left
+
+A question is for a drawing that says *nothing*, not for one that says
+something inconvenient. There are exactly two, and each is asked because
+there is nothing to build:
+
+- **The outline does not close.** There is no shape, so there is no frame,
+  and joining the ends would move lines the user drew. The lines are kept as
+  geometry and the question offers to close them.
+- **A mark is drawn right off the design.** There is no section it could be
+  in, so there is nothing to open.
+
+A mark that merely strays near a bar or a jamb is *not* one of these. It
+opens the section its middle is in — that is what being in a section means,
+and it holds however shakily the mark was drawn. `_placeSymbols` and
+`sectionFor` in the interpreter are where this lives.
+
+Neither question is ever asked twice. `WorkspaceState.settledQuestions`
+remembers what has been answered or waved away for that design, and a
+re-reading does not put it again.
+
+If you are about to add a question, add an editing control instead. If the
+geometry genuinely cannot be built, the question goes in the list above and
+the reason goes beside it.
 
 ## How this is enforced
 
@@ -164,6 +209,26 @@ Sections come from planar subdivision of the user's own lines: the lines are
 cut at their crossings, joined into a graph, and the faces of that graph are
 the sections. Nothing is laid out to a template, which is what makes the rule
 above structurally true rather than merely intended.
+
+### Reading a mark drawn by a hand
+
+A `<`, `>`, `^` or `v` is the only thing that creates an opening, so failing
+to read one is expensive twice over: the section the user said opens does not
+open, **and** the mark is built as two bars that cut the design up. One in
+six shaky chevrons used to be lost this way, because the reader demanded a
+fit of exactly three vertices and a hand's wobble is read as four to eight.
+
+`OpeningSymbolReader` now judges the shape rather than counting corners. The
+point of the chevron is the corner furthest from the line joining the two
+ends; the rest have to lie along the two arms, within
+`armWanderFraction` of each arm's own length. A zigzag, a staircase, a frame
+corner and a straight line all still fail, because their corners do not lie
+along two straight runs — and each of those must be built exactly as it was
+drawn.
+
+`test/domain/deterministic_test.dart` sweeps sixty shaky chevrons through it
+and requires all sixty, and sweeps forty through the whole reading and
+requires forty openings.
 
 ### An opening is a container
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/dimensions/units.dart';
 import '../../domain/editing/design_edits.dart';
+import '../../domain/geometry/tolerances.dart';
 import '../../domain/hardware/opening_hardware.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
@@ -139,6 +140,11 @@ class InspectorPanel extends ConsumerWidget {
               glazing: false,
             ),
             const SizedBox(height: 16),
+            _MarksAnOpening(
+              divider: element,
+              state: state,
+              controller: controller,
+            ),
             _WithinOpening(
               divider: element,
               state: state,
@@ -403,6 +409,73 @@ class _OpeningHardwareFields extends StatelessWidget {
               handleAlongMm: v,
             ),
           ),
+      ],
+    );
+  }
+}
+
+/// The one-tap way to say a diagonal was marking an opening.
+///
+/// A line drawn at an angle across a pane is how an opening is shown on an
+/// elevation, but the same line is also a glazing bar somebody wants built.
+/// The reading builds it as a bar — that is what a line is, and building it
+/// is the faithful thing to do — and offers this, so the user changes it if
+/// they meant the other thing. It is an edit, not a question at reading
+/// time: nothing is held up waiting for an answer, and nothing is decided
+/// for them either.
+class _MarksAnOpening extends StatelessWidget {
+  final DividerElement divider;
+  final WorkspaceState state;
+  final WorkspaceController controller;
+
+  const _MarksAnOpening({
+    required this.divider,
+    required this.state,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Only a real diagonal. A bar along an axis is a bar.
+    if (divider.isVertical || divider.isHorizontal) {
+      return const SizedBox.shrink();
+    }
+    if (divider.segment.offAxisDegrees <= Tol.axisSnapDegrees * 3) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _Label('This diagonal'),
+        const SizedBox(height: 6),
+        Text(
+          'It is built as a bar, exactly where you drew it. On a drawing a '
+          'diagonal often means the pane opens instead — if that is what you '
+          'meant, say so and the line becomes the opening.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final mechanism in const [
+              OpeningMechanism.hingedLeft,
+              OpeningMechanism.hingedRight,
+              OpeningMechanism.topHung,
+              OpeningMechanism.bottomHung,
+            ])
+              OutlinedButton(
+                onPressed: () =>
+                    controller.openSectionOfBar(divider.id, mechanism),
+                child: Text(
+                  'Opens ${mechanism.glyph ?? mechanism.label}',
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
       ],
     );
   }

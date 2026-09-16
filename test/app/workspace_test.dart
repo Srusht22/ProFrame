@@ -190,7 +190,7 @@ void main() {
   });
 
   group('nothing is invented', () {
-    test('no opening exists until the user answers the question', () {
+    test('a diagonal opens nothing until the user says it does', () {
       final container = makeContainer();
       final controller = container.read(workspaceProvider.notifier)
         ..startDesign(DesignKind.window)
@@ -212,21 +212,26 @@ void main() {
 
       var state = container.read(workspaceProvider);
       expect(state.design.openings, isEmpty);
+      expect(state.questions, isEmpty,
+          reason: 'the line is built; nothing is asked about it');
 
-      final question = state.questions.firstWhere(
-        (q) => q.id.startsWith('opening-'),
+      // The user says, from the bar's own panel, that they meant an opening.
+      controller.openSectionOfBar(
+        state.design.dividers.single.id,
+        OpeningMechanism.hingedRight,
       );
-      controller.answer(question.id, OpeningMechanism.hingedRight.name);
 
       state = container.read(workspaceProvider);
       expect(state.design.openings, hasLength(1));
       expect(state.design.openings.single.mechanism,
           OpeningMechanism.hingedRight);
       expect(state.design.openings.single.confirmed, isTrue);
-      expect(state.questions.any((q) => q.id == question.id), isFalse);
+      // The line it stood for is gone; the opening took its place.
+      expect(state.design.dividers, isEmpty);
+      expect(state.questions, isEmpty);
     });
 
-    test('saying it is a bar leaves the line alone and adds no opening', () {
+    test('leaving a diagonal alone leaves the line alone', () {
       final container = makeContainer();
       final controller = container.read(workspaceProvider.notifier)
         ..startDesign(DesignKind.window)
@@ -247,13 +252,14 @@ void main() {
         ..readDrawing();
 
       final before = container.read(workspaceProvider).design;
-      final question = container
-          .read(workspaceProvider)
-          .questions
-          .firstWhere((q) => q.id.startsWith('opening-'));
 
-      controller.answer(question.id, 'keep-line');
+      // Nothing is asked and nothing is decided: reading the drawing leaves
+      // the line exactly as it was drawn, opening nothing.
+      expect(container.read(workspaceProvider).questions, isEmpty);
+      expect(before.openings, isEmpty);
 
+      // And it stays that way until the user says otherwise.
+      controller.select(before.dividers.single.id);
       final after = container.read(workspaceProvider).design;
       expect(after.openings, isEmpty);
       expect(after.dividers.length, before.dividers.length);

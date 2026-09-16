@@ -169,7 +169,7 @@ void main() {
     expect(result.design.dividers, hasLength(2));
   });
 
-  test('a diagonal across a section is asked about, not assumed', () {
+  test('a diagonal is built as the line it is, and opens nothing', () {
     final result = SketchInterpreter.interpret(designOf([
       drawn(const [
         Vec2(0, 0),
@@ -180,12 +180,16 @@ void main() {
       ]),
       drawn(const [Vec2(80, 1900), Vec2(900, 1000)], wobble: 4),
     ]));
-    // Nothing was made to open on its own.
+
+    // Nothing was made to open on its own — that is the rule, and it holds.
     expect(result.design.openings, isEmpty);
-    expect(
-      result.questions.any((q) => q.id.startsWith('opening-')),
-      isTrue,
-    );
+    // And the line is there, at the angle it was drawn, ready to be edited.
+    final diagonal = result.design.dividers.single;
+    expect(diagonal.isVertical, isFalse);
+    expect(diagonal.isHorizontal, isFalse);
+    // Nothing is asked. The user turns it into an opening from its own
+    // panel if that is what they meant.
+    expect(result.questions, isEmpty);
   });
 
   test('the sketch is never touched by interpreting it', () {

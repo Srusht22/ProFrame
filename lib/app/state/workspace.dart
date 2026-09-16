@@ -33,6 +33,11 @@ class WorkspaceState {
   /// answered by the application.
   final List<DesignQuestion> questions;
 
+  /// Questions this design has already had put to it and settled — answered
+  /// or waved away. They do not come back at the next reading: being asked
+  /// the same thing twice is being asked to say twice what was said once.
+  final Set<String> settledQuestions;
+
   /// True while the drawing has changes the geometry has not caught up with.
   final bool needsReading;
 
@@ -74,6 +79,7 @@ class WorkspaceState {
     this.displayStyle = DisplayStyle.shadedWithEdges,
     this.groundPlane = true,
     this.notSymbols = const {},
+    this.settledQuestions = const {},
   });
 
   DesignElement? get selected =>
@@ -95,6 +101,7 @@ class WorkspaceState {
     DisplayStyle? displayStyle,
     bool? groundPlane,
     Set<String>? notSymbols,
+    Set<String>? settledQuestions,
   }) =>
       WorkspaceState(
         design: design ?? this.design,
@@ -111,6 +118,7 @@ class WorkspaceState {
         displayStyle: displayStyle ?? this.displayStyle,
         groundPlane: groundPlane ?? this.groundPlane,
         notSymbols: notSymbols ?? this.notSymbols,
+        settledQuestions: settledQuestions ?? this.settledQuestions,
       );
 }
 
@@ -364,7 +372,10 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     );
     state = state.copyWith(
       design: result.design,
-      questions: result.questions,
+      questions: [
+        for (final question in result.questions)
+          if (!state.settledQuestions.contains(question.id)) question,
+      ],
       needsReading: false,
       view: result.design.frame == null
           ? WorkspaceView.draw
@@ -381,11 +392,6 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
     if (questionId.startsWith('symbol-')) {
       _answerSymbol(questionId.substring('symbol-'.length), optionKey);
-    } else if (questionId.startsWith('opening-bar-')) {
-      _answerDiagonal(
-        questionId.substring('opening-bar-'.length),
-        optionKey,
-      );
     } else if (questionId.startsWith('opening-')) {
       final sectionId = questionId.substring('opening-'.length);
       if (optionKey != 'keep-line') {
@@ -407,6 +413,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
     state = state.copyWith(
       questions: [for (final q in state.questions) if (q.id != questionId) q],
+      settledQuestions: {...state.settledQuestions, questionId},
     );
   }
 
@@ -456,12 +463,16 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   /// The line comes out and the panel it was drawn across becomes one leaf.
   /// This is the one place a line the user drew is removed by an answer, and
   /// it only happens because they said the line was never meant to be built.
-  void _answerDiagonal(String dividerId, String optionKey) {
-    if (optionKey == 'keep-line') return;
-    final mechanism = OpeningMechanism.values.firstWhere(
-      (m) => m.name == optionKey,
-      orElse: () => OpeningMechanism.fixed,
-    );
+  /// Turns a line the user drew into the opening it was standing for.
+  ///
+  /// A diagonal across a pane is how an opening is marked on an elevation,
+  /// but the same line is also a glazing bar somebody wants built. The
+  /// reading builds it as a bar, because that is what a line is, and this is
+  /// the one-tap way to say it meant the other thing. It is an edit, offered
+  /// on the bar's own panel, rather than a question asked at reading time:
+  /// the drawing is turned into geometry either way, and the user changes
+  /// what they want changed.
+  void openSectionOfBar(String dividerId, OpeningMechanism mechanism) {
     if (mechanism == OpeningMechanism.fixed) return;
 
     DividerElement? divider;
@@ -482,13 +493,14 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         mechanism: mechanism,
       );
     }
-    state = state.copyWith(design: design);
+    state = state.copyWith(design: design, clearSelection: true);
   }
 
   void dismissQuestion(String questionId) => state = state.copyWith(
         questions: [
           for (final q in state.questions) if (q.id != questionId) q,
         ],
+        settledQuestions: {...state.settledQuestions, questionId},
       );
 
   // -------------------------------------------------------------- editing

@@ -112,12 +112,12 @@ void main() {
     expect(design.frame, isNotNull);
     expect(design.sections, hasLength(1));
 
-    // And the question about real size is put, not answered.
-    expect(find.textContaining('How wide is this'), findsOneWidget);
-    expect(
-      find.textContaining('Nothing has been decided for you'),
-      findsOneWidget,
-    );
+    // And nothing is asked about it. The drawing said what the shape is, so
+    // it is built; the size is on the panel beside it, ready to be typed
+    // over, which is an edit rather than a question.
+    expect(find.textContaining('How wide is this'), findsNothing);
+    expect(find.textContaining('One thing to check'), findsNothing);
+    expect(find.text('OVERALL WIDTH'), findsOneWidget);
   });
 
   testWidgets('the theme uses the stated colours', (tester) async {

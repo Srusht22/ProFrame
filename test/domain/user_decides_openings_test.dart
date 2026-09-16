@@ -228,7 +228,7 @@ void main() {
   });
 
   group('when it cannot tell, it asks', () {
-    test('a mark across a bar opens nothing and asks which section', () {
+    test('a mark across a bar opens the section it is in', () {
       final result = SketchInterpreter.interpret(designOf([
         drawn(const [
           Vec2(0, 0),
@@ -238,17 +238,22 @@ void main() {
           Vec2(0, 0),
         ]),
         drawn(const [Vec2(900, 0), Vec2(900, 1200)]),
-        // Straddling the mullion: its arms are one side, its point the other.
+        // Straddling the mullion: its arms are one side, its point the
+        // other. A mark is in the section its middle is in, which is what
+        // being in a section means, so the user is not asked to say again
+        // what they said by drawing it there.
         drawn(const [Vec2(700, 430), Vec2(1050, 600), Vec2(700, 770)]),
       ]));
 
-      expect(result.design.openings, isEmpty);
-      final question =
-          result.questions.firstWhere((q) => q.id.startsWith('symbol-'));
-      expect(question.prompt, contains('>'));
-      expect(question.options.map((o) => o.key), contains('not-a-symbol'));
-      // Both sections are offered; neither is chosen.
-      expect(question.options.length, greaterThanOrEqualTo(3));
+      expect(result.design.openings, hasLength(1));
+      expect(result.questions.any((q) => q.id.startsWith('symbol-')), isFalse);
+
+      final opened =
+          result.design.sectionById(result.design.openings.single.sectionId)!;
+      expect(opened.outline.centroid.x, lessThan(900));
+      // The other section did not open with it.
+      expect(result.design.topLevelSections, hasLength(2));
+      expect(result.design.openings.single.markGlyph, '>');
     });
 
     test('a mark outside every section asks rather than picking one', () {

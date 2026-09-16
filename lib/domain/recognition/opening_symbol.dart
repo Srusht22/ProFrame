@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../geometry/segment.dart';
 import '../geometry/tolerances.dart';
 import '../geometry/vec2.dart';
 import '../model/elements.dart';
@@ -98,16 +99,51 @@ class OpeningSymbol {
 ///
 /// It recognises those four marks and nothing else. A stroke that is nearly
 /// a chevron but not clearly one is left alone to be a line.
+///
+/// A mark made by a hand is not two clean segments. It is read with a corner
+/// or two of wobble along each arm, and a wobble is not a second point — so
+/// the shape is judged by where its point is and whether its arms are arms,
+/// not by how many corners the fitting happened to find. Getting this wrong
+/// is expensive: a mark that is not read as a mark becomes two bars that cut
+/// the design in half, and the section the user said opens does not open.
 abstract final class OpeningSymbolReader {
+  /// How far a corner along an arm may sit off the straight run of that arm,
+  /// as a fraction of the arm's length, before the shape is a zigzag rather
+  /// than a chevron drawn by hand.
+  static const double armWanderFraction = 0.2;
+
   /// The mark [stroke] is, or null when it is not one.
   static OpeningSymbol? read(Stroke stroke) {
     final fit = StrokeFitter.fit(stroke);
     if (fit.kind != FitKind.polyline || fit.isClosed) return null;
-    if (fit.vertices.length != 3) return null;
 
-    final start = fit.vertices[0];
-    final apex = fit.vertices[1];
-    final finish = fit.vertices[2];
+    final corners = fit.vertices;
+    if (corners.length < 3) return null;
+
+    final start = corners.first;
+    final finish = corners.last;
+
+    // The point of the chevron is the corner furthest from the line joining
+    // the two ends. On a clean mark that is the middle one; on a shaky one
+    // it is still the one the mark turns about.
+    final chord = Segment(start, finish);
+    var apexAt = 1;
+    var furthest = -1.0;
+    for (var i = 1; i < corners.length - 1; i++) {
+      final away = chord.distanceTo(corners[i]);
+      if (away > furthest) {
+        furthest = away;
+        apexAt = i;
+      }
+    }
+    final apex = corners[apexAt];
+
+    // Both arms have to be arms. Every corner along one lies near the
+    // straight run from its end to the point, or this is a zigzag, a
+    // staircase or part of a frame drawn in pieces — none of which is a
+    // mark, and each of which must be built exactly as it was drawn.
+    if (!_isArm(corners.sublist(0, apexAt + 1))) return null;
+    if (!_isArm(corners.sublist(apexAt))) return null;
 
     final armA = apex.distanceTo(start);
     final armB = apex.distanceTo(finish);
@@ -158,6 +194,18 @@ abstract final class OpeningSymbolReader {
       armB: finish,
       direction: direction,
     );
+  }
+
+  /// True when [along] is one straight run with a hand's wobble on it.
+  static bool _isArm(List<Vec2> along) {
+    if (along.length <= 2) return true;
+    final run = Segment(along.first, along.last);
+    if (run.length < Tol.minLineMm) return false;
+    final allowed = run.length * armWanderFraction;
+    for (var i = 1; i < along.length - 1; i++) {
+      if (run.distanceTo(along[i]) > allowed) return false;
+    }
+    return true;
   }
 
   static double _angleAt(Vec2 apex, Vec2 a, Vec2 b) {

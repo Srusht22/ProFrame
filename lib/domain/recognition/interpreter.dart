@@ -211,11 +211,13 @@ abstract final class SketchInterpreter {
     final placed = _placeSymbols(read, symbols, nextId);
     read = placed.design;
 
-    final questions = <DesignQuestion>[
-      ...placed.questions,
-      ..._openingQuestions(read, fits, outline),
-      ..._scaleQuestion(read),
-    ];
+    // The only questions are the ones the drawing genuinely cannot answer.
+    // Everything else is built as the user drew it and left for them to
+    // change — a size they can type over, a bar they can turn into an
+    // opening, a pane they can make glass or panel. Asking about something
+    // that is already on the panel beside the drawing is asking them to say
+    // twice what they have said once.
+    final questions = <DesignQuestion>[...placed.questions];
 
     final usedStrokes = {
       for (final run in welded) run.strokeId,
@@ -330,63 +332,109 @@ abstract final class SketchInterpreter {
     final questions = <DesignQuestion>[];
 
     for (final symbol in symbols) {
-      // Only the main divisions are candidates. A mark makes the region it
-      // is in an opening; what is inside that region is the opening's, not a
-      // rival for it.
-      final holding = <SectionElement>[];
-      for (final section in read.topLevelSections) {
-        if (symbol.points.every(section.outline.contains)) {
-          holding.add(section);
-        }
-      }
+      final section = sectionFor(read, symbol);
 
-      if (holding.length == 1) {
-        read = DesignEdits.setOpening(
-          read,
-          holding.single.id,
-          openingId: nextId('opening'),
-          mechanism: symbol.mechanism,
-          markAt: symbol.centre,
-          markGlyph: symbol.glyph,
-          fromStrokeId: symbol.strokeId,
-        );
+      // A mark drawn right off the design has no section to open. That is
+      // the one case with nothing to work from, and it is the only one that
+      // is asked about.
+      if (section == null) {
+        questions.add(DesignQuestion(
+          id: 'symbol-${symbol.strokeId}',
+          prompt: 'Which section does this ${symbol.glyph} belong to?',
+          detail: 'The mark is outside the design, so there is no section it '
+              'could be in. Say which one you meant.',
+          aboutIds: [
+            symbol.strokeId,
+            for (final s in read.topLevelSections) s.id,
+          ],
+          options: [
+            for (final option in read.topLevelSections)
+              QuestionOption(
+                key: option.id,
+                label: _describe(option, read),
+                detail: 'Open this one, ${symbol.meaning}.',
+              ),
+            const QuestionOption(
+              key: 'not-a-symbol',
+              label: 'It is not an opening mark',
+              detail: 'Build it as lines, exactly where it was drawn.',
+            ),
+          ],
+        ));
         continue;
       }
 
-      // Not certain. Every section the mark touches at all is offered, so
-      // the user picks rather than the application guessing.
-      final touched = <SectionElement>[
-        for (final section in read.topLevelSections)
-          if (symbol.points.any(section.outline.contains)) section,
-      ];
-      final choices = touched.isEmpty ? read.topLevelSections : touched;
-
-      questions.add(DesignQuestion(
-        id: 'symbol-${symbol.strokeId}',
-        prompt: 'Which section does this ${symbol.glyph} belong to?',
-        detail: touched.isEmpty
-            ? 'The mark is not inside any one section, so nothing has been '
-                'opened. Say which section you meant.'
-            : 'The mark crosses more than one section, so nothing has been '
-                'opened. Say which section you meant.',
-        aboutIds: [symbol.strokeId, for (final s in choices) s.id],
-        options: [
-          for (final section in choices)
-            QuestionOption(
-              key: section.id,
-              label: _describe(section, read),
-              detail: 'Open this one, ${symbol.meaning}.',
-            ),
-          const QuestionOption(
-            key: 'not-a-symbol',
-            label: 'It is not an opening mark',
-            detail: 'Build it as lines, exactly where it was drawn.',
-          ),
-        ],
-      ));
+      read = DesignEdits.setOpening(
+        read,
+        section.id,
+        openingId: nextId('opening'),
+        mechanism: symbol.mechanism,
+        markAt: symbol.centre,
+        markGlyph: symbol.glyph,
+        fromStrokeId: symbol.strokeId,
+      );
     }
 
     return _Placed(read, questions);
+  }
+
+  /// The section a mark opens.
+  ///
+  /// The mark is an instruction, not a puzzle: the user has already said
+  /// which section opens by drawing the mark in it, so this works out which
+  /// one that is rather than asking them to say it again.
+  ///
+  /// The point of the mark decides it. A mark sits in the section its middle
+  /// is in — that is what being in a section means, and it holds however
+  /// shakily the mark was drawn and however near a bar it strayed. Where the
+  /// middle falls on a bar or outside the daylight, the section holding most
+  /// of the mark takes it. Only a mark drawn right off the design leaves
+  /// nothing to go on.
+  ///
+  /// Only the main divisions are candidates. A mark makes the region it is
+  /// in an opening; what is inside that region is the opening's, not a rival
+  /// for it.
+  static SectionElement? sectionFor(Design design, OpeningSymbol symbol) {
+    final sections = design.topLevelSections;
+    if (sections.isEmpty) return null;
+
+    for (final section in sections) {
+      if (section.outline.contains(symbol.centre)) return section;
+    }
+
+    // The middle landed on a bar or in the frame. Whichever section holds
+    // most of the mark is the one it was drawn in.
+    SectionElement? best;
+    var most = 0;
+    for (final section in sections) {
+      var held = 0;
+      for (final point in symbol.points) {
+        if (section.outline.contains(point)) held++;
+      }
+      if (held > most) {
+        most = held;
+        best = section;
+      }
+    }
+    if (best != null) return best;
+
+    // Nothing holds any of it, but it may still be nearest to one.
+    SectionElement? nearest;
+    var away = double.infinity;
+    for (final section in sections) {
+      final gap = section.outline.centroid.distanceTo(symbol.centre);
+      if (gap < away) {
+        away = gap;
+        nearest = section;
+      }
+    }
+    // Only when the mark is well outside the design is there nothing to go
+    // on. Inside it, the nearest section is the one it is in.
+    final frame = design.frame;
+    if (frame != null && frame.outline.contains(symbol.centre)) {
+      return nearest;
+    }
+    return null;
   }
 
   /// A section named the way somebody would point at it.
@@ -555,88 +603,6 @@ abstract final class SketchInterpreter {
   static double _profileFor(Polygon outline) {
     final smallest = math.min(outline.width, outline.height);
     return math.max(20.0, math.min(60.0, smallest * 0.06));
-  }
-
-  /// Asks about anything that looks like an opening symbol.
-  ///
-  /// A line drawn at an angle across a pane is how an opening is marked on
-  /// an elevation — but the same line could be a glazing bar somebody wants
-  /// built. The reading treats it as a bar, because that is what a line is,
-  /// and asks. Saying it marks an opening takes the bar out again and makes
-  /// the pane open; saying it is a bar leaves it exactly where it is.
-  static List<DesignQuestion> _openingQuestions(
-    Design design,
-    List<StrokeFit> fits,
-    Polygon outline,
-  ) {
-    final questions = <DesignQuestion>[];
-    for (final divider in design.dividers) {
-      if (divider.isVertical || divider.isHorizontal) continue;
-      if (divider.segment.offAxisDegrees <= Tol.axisSnapDegrees * 3) continue;
-
-      questions.add(DesignQuestion(
-        id: 'opening-bar-${divider.id}',
-        prompt: 'Is this diagonal line a bar, or does it mark an opening?',
-        detail: 'It is being built as a bar, exactly where you drew it. On a '
-            'drawing a diagonal often means the panel opens instead. Say '
-            'which you meant.',
-        aboutIds: [divider.id, ?divider.fromStrokeId],
-        options: [
-          QuestionOption(
-            key: OpeningMechanism.hingedLeft.name,
-            label: 'Opens — ${OpeningMechanism.hingedLeft.label.toLowerCase()}',
-            detail: '${OpeningMechanism.hingedLeft.description}. The line is '
-                'removed and the panel becomes one opening leaf.',
-          ),
-          QuestionOption(
-            key: OpeningMechanism.hingedRight.name,
-            label:
-                'Opens — ${OpeningMechanism.hingedRight.label.toLowerCase()}',
-            detail: '${OpeningMechanism.hingedRight.description}. The line is '
-                'removed and the panel becomes one opening leaf.',
-          ),
-          QuestionOption(
-            key: OpeningMechanism.topHung.name,
-            label: 'Opens — ${OpeningMechanism.topHung.label.toLowerCase()}',
-            detail: '${OpeningMechanism.topHung.description}. The line is '
-                'removed and the panel becomes one opening leaf.',
-          ),
-          const QuestionOption(
-            key: 'keep-line',
-            label: 'It is a bar',
-            detail: 'Keep the line exactly where it is, as part of the design.',
-          ),
-        ],
-      ));
-    }
-    return questions;
-  }
-
-  /// Asks for a real size once, so the design is in millimetres rather than
-  /// in whatever the drawing happened to be.
-  static List<DesignQuestion> _scaleQuestion(Design design) {
-    if (design.dimensions.any((d) => d.isStated)) return const [];
-    final frame = design.frame;
-    if (frame == null) return const [];
-    return [
-      DesignQuestion(
-        id: 'scale',
-        prompt: 'How wide is this, really?',
-        detail: 'The drawing is currently ${frame.widthMm.round()} mm by '
-            '${frame.heightMm.round()} mm, taken straight from the shapes you '
-            'drew. Give it a real width and everything scales with it, in '
-            'proportion. Nothing moves relative to anything else.',
-        aboutIds: [frame.id],
-        options: const [
-          QuestionOption(key: 'type', label: 'Type the width'),
-          QuestionOption(
-            key: 'keep',
-            label: 'Leave it as drawn',
-            detail: 'Carry on in the size the drawing already has.',
-          ),
-        ],
-      ),
-    ];
   }
 }
 

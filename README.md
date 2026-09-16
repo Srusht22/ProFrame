@@ -68,14 +68,21 @@ The one thing it is allowed to do unasked is take the shake out of a hand:
 | Welding two ends drawn a few millimetres apart | Making two sections equal |
 | Trimming a line drawn past the corner | Adding a panel that was not drawn |
 
-Where the drawing is genuinely ambiguous — a diagonal that might be an
-opening symbol or might be a glazing bar — the application asks. It never
-decides quietly.
+It does not interview you about your own drawing. You drew a shape, so it
+builds the shape; you put a `<` in a section, so that section opens; you drew
+a line at an angle, so it builds a line at that angle. Then you edit whatever
+you want changed — every figure can be typed over, every pane can be made
+glass or panel, and a diagonal has a button on its own panel that turns it
+into the opening it may have stood for.
+
+Two things are asked about, because in each there is nothing to build: an
+outline that does not close, and a mark drawn right off the design. Neither
+is ever asked twice.
 
 ## How it works
 
 ```
-you draw  →  strokes kept exactly  →  read as geometry  →  you confirm or edit
+you draw  →  strokes kept exactly  →  read as geometry  →  you edit
                                                                    ↓
                             3D model  ←  sections  ←  clean 2D design
 ```
@@ -187,11 +194,20 @@ It stays in your sketch like every other stroke, and the drawing shows the
 glyph where you made it, so the design can always be checked against the
 instruction it came from.
 
-If the mark is not clearly inside one section — it crosses a bar, or sits
-outside the frame — **nothing is opened** and you are asked which section
-you meant, with every candidate offered and none chosen. An opening made
-from a mark lasts exactly as long as the mark does: rub it out, or say it
-was not one, and the opening goes with it.
+The mark opens the section it is in, and you will not be asked which one
+that was. A mark is in the section its middle is in — which is what being in
+a section means — so it works however shakily you drew it and however near a
+bar it strays. Only a mark drawn right off the design has no section to be
+in, and that is the one you are asked about.
+
+Nor will you be asked to draw it neatly. A chevron is read by its shape, not
+by how many corners a fitting finds in it: the point is the corner furthest
+from the line joining the two ends, and the rest have to lie along the two
+arms. A zigzag, a staircase, a frame corner and a straight line are still not
+marks, and each is built exactly as you drew it.
+
+An opening made from a mark lasts exactly as long as the mark does: rub it
+out, or say it was not one, and the opening goes with it.
 
 ### What is inside an opening
 
