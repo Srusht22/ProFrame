@@ -332,6 +332,14 @@ stays one pane, however tall it is. No middle line appears, no glass/panel
 split is assumed, no mullion and no transom — the count of divisions is
 yours and only yours.
 
+And reading the sheet again does not undo any of it. Go back to the drawing,
+add a transom in the fixed light, read it: the new line divides the design,
+and the opening comes back with its own line, its two panes and the glass
+and the panel you chose for them. A line you placed inside an opening was
+made in the design rather than drawn on the sheet, so a reading of the sheet
+has nothing to say about it. Lines you *did* draw still last exactly as long
+as the strokes they came from — rubbing one out is how you delete it.
+
 Everything inside is measured from the opening's own corner, because that is
 whose it is:
 

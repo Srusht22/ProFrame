@@ -146,11 +146,32 @@ abstract final class SketchInterpreter {
     // line is a division of the design until the user says otherwise, which
     // they do with the line tools inside an opening or with the **Divides**
     // control on the bar's own panel.
-    final dividers = <DividerElement>[];
+    //
+    // The bars the user made inside the design rather than on the sheet are
+    // not among them, and are not the sheet's to remove. A line drawn inside
+    // an opening with the line tools has no stroke of its own: reading the
+    // sheet again would find nothing to make it from and the opening would
+    // come back one undivided pane, taking the glass and the panel with it.
+    // A reading reads the drawing; what is not in the drawing it leaves
+    // alone.
+    final dividers = [
+      for (final divider in design.dividers)
+        if (divider.fromStrokeId == null) divider,
+    ];
+    final taken = {for (final divider in dividers) divider.id};
+    String nextDividerId() {
+      var id = nextId('divider');
+      while (taken.contains(id)) {
+        id = nextId('divider');
+      }
+      taken.add(id);
+      return id;
+    }
+
     for (final run in welded) {
       if (_liesOn(run.segment, outline, weld)) continue;
       dividers.add(DividerElement(
-        id: nextId('divider'),
+        id: nextDividerId(),
         a: run.segment.a,
         b: run.segment.b,
         widthMm: frame.profileMm * 0.8,

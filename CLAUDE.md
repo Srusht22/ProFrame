@@ -392,6 +392,38 @@ is not what one of them ends at, even where the two lie along the same line.
 A pane with no bar beside it *is* the opening, so the question passes outward
 to whatever bounds that.
 
+### Glass over panel, and reading the sheet again
+
+The internal design is the user's too. Each pane an internal bar makes is a
+section like any other, so it takes a material and a colour on its own panel:
+
+```
+Opening
+├── Section     glass
+├── Divider     the line drawn inside
+└── Section     panel
+```
+
+and the elevation and the solid both follow, because there is one model.
+
+**A reading reads the drawing, and the internal design is not on the
+drawing.** A line placed with the line tools inside an opening has no stroke
+of its own: it was made in the design, not on the sheet. Reading the sheet
+again would find nothing to make it from, and the opening would come back one
+undivided pane with the glass and the panel gone with it — a line the user
+drew, removed because they drew something else somewhere else.
+
+So the reading keeps every bar whose `fromStrokeId` is null and reads the
+strokes alongside them. A bar that *did* come from a stroke still lasts
+exactly as long as that stroke does, because rubbing a line out is how the
+user deletes it.
+
+`test/domain/internal_design_inside_the_opening_test.dart` holds this, with
+the phase's own example: a 40 cm opening, a line 40 cm down it, glass above
+and a panel below, a transom then drawn in the fixed light beside it, and the
+sheet read again — the new line divides the design, and the opening comes
+back with its own line, its two panes and their materials.
+
 ### An opening's own coordinates
 
 An opening is a parent, so where things are inside it is naturally said in
