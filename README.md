@@ -190,6 +190,11 @@ part of it: a bar in the fixed light across the window is not the opening's,
 and the application will not let you say it is, because the next time the
 opening moved it would drag that bar along with it.
 
+Belonging is judged by where the whole line is, not by where its middle
+happens to fall — a bar that starts inside the opening and runs out of it is
+not the opening's, however central its midpoint. Dimensions, notes and
+arrows belong to nothing at all, and an opening never moves them.
+
 You mark a section by drawing one of four marks inside it:
 
 | Mark | Meaning |

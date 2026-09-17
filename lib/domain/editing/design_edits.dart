@@ -691,28 +691,17 @@ abstract final class DesignEdits {
     final section = design.sectionById(sectionId);
     if (section == null) return false;
 
-    final outline = section.outline;
-    final reach = math.max(divider.widthMm, Tol.minLineMm);
-
-    const samples = 12;
-    for (var i = 1; i < samples; i++) {
-      final at = divider.segment.pointAt(i / samples);
-      if (outline.contains(at)) continue;
-      if (_awayFrom(outline, at) <= reach) continue;
-      return false;
-    }
-    return true;
+    return section.outline.holds(
+      divider.segment,
+      reach: reachFor(divider),
+    );
   }
 
-  /// How far a point is from the nearest edge of a shape.
-  static double _awayFrom(Polygon outline, Vec2 point) {
-    var least = double.infinity;
-    for (final edge in outline.edges) {
-      final away = edge.distanceTo(point);
-      if (away < least) least = away;
-    }
-    return least;
-  }
+  /// How far a bar may stray off a section's edge and still be that
+  /// section's: its own thickness, because a bar drawn along a boundary sits
+  /// half on either side of it.
+  static double reachFor(DividerElement divider) =>
+      math.max(divider.widthMm, Tol.minLineMm);
 
   /// The sections a bar could be put inside: the main divisions it actually
   /// lies within. The same test [setDividerParent] applies, so nothing is

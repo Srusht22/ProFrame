@@ -67,7 +67,8 @@ abstract final class SectionBuilder {
     // A bar inside a section whose section has been replaced — a line moved
     // into it leaves one bigger section where two were — follows to whatever
     // now covers the ground it is on. Its parent's id changed; the bar did
-    // not move, and it is still inside a section.
+    // not move. Where nothing holds it any more it goes back to dividing the
+    // design rather than being lost.
     var dividers = _rehomed(design.dividers, parents);
 
     // Anything drawn inside a section travels with it. Where a section has
@@ -143,17 +144,28 @@ abstract final class SectionBuilder {
     ];
   }
 
+  /// The section a bar now lies in, if any.
+  ///
+  /// Where it *lies*, not where its middle happens to fall: a bar reaching
+  /// out of a section into the fixed light beside it is not that section's,
+  /// however central its midpoint is. This is the same test the user's own
+  /// **Divides** control goes through, so a bar cannot arrive inside a
+  /// section by a route the user could not have taken.
   static DividerElement _intoWhateverHoldsIt(
     DividerElement divider,
     List<SectionElement> parents,
   ) {
-    final at = divider.segment.midpoint;
+    final reach = math.max(divider.widthMm, Tol.minLineMm);
     for (final parent in parents) {
-      if (parent.outline.contains(at)) {
+      if (parent.outline.holds(divider.segment, reach: reach)) {
         return divider.copyWith(parentId: parent.id);
       }
     }
-    return divider;
+    // Inside nothing any more. It goes back to dividing the design, which is
+    // what every line does until it is put somewhere. The line stays: losing
+    // one the user drew, because the section it was in stopped existing, is
+    // worse than any question of what it now divides.
+    return divider.copyWith(clearParent: true);
   }
 
   /// The openings that still have a section to be on.

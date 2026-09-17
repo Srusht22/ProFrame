@@ -325,17 +325,40 @@ is a main division, so its `parentId` is null. Only what is inside the
 opening is the opening's.
 
 **Belonging is a fact about where a thing is, not a label that can be pinned
-on it.** `DesignEdits.liesInside` is the single test: a bar must lie within
-the section — inside it, or along its edge — and both `containersFor` (what
-the **Divides** control offers) and `setDividerParent` (what the design will
-accept) go through it, so the offered set and the accepted set are the same
-by construction. The edge counts because a bar the user wants to put *into* a
-section is usually bounding it at the moment they ask. What the test refuses
-is a bar somewhere else entirely: one in the fixed light across the design is
-nothing to do with this opening, and saying that it is would have the opening
-drag it across the window the next time it moved.
+on it.** `Polygon.holds` is the single test, in the geometry layer where
+everything can reach it: a line lies within a shape when *every part of it*
+is inside, or near enough to an edge to count as along the boundary. Sampled
+along the line, never at its middle alone — a bar whose middle happens to
+fall inside while its ends reach away out of the section is not that
+section's, and the midpoint is exactly the condition this phase forbids.
 
-`test/domain/opening_owns_only_its_own_test.dart` holds this.
+Three ways in, one test:
+
+| Way in | Goes through |
+| --- | --- |
+| The **Divides** control offers a section | `DesignEdits.containersFor` |
+| The design accepts that choice | `DesignEdits.setDividerParent` |
+| A bar is re-homed when its section is replaced | `SectionBuilder._intoWhateverHoldsIt` |
+
+All three call `holds`, so a bar cannot arrive inside a section by a route
+the user could not have taken, and what the user is offered is exactly what
+the design will accept. The edge counts because a bar the user wants to put
+*into* a section is usually bounding it at the moment they ask. What is
+refused is a bar somewhere else entirely: one in the fixed light across the
+design is nothing to do with this opening, and saying that it is would have
+the opening drag it across the window the next time it moved.
+
+A bar whose section is replaced and which now lies in no section goes back to
+dividing the design. It is never dropped: losing a line the user drew,
+because a section stopped existing, is worse than any question of what it now
+divides.
+
+Dimensions, notes and arrows have no parent and are never carried by a
+section: `_carryContents` transforms declared children and nothing else.
+
+`test/domain/opening_owns_only_its_own_test.dart` and
+`test/domain/inside_or_outside_the_opening_test.dart` hold this — the second
+is this phase's own test, with three lines outside an opening and two in it.
 
 ### Drawing inside an opening
 

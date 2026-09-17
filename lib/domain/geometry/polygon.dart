@@ -79,6 +79,36 @@ class Polygon {
 
   /// True when [point] is inside, by the winding rule. Points on the edge
   /// count as inside: a tap on a boundary should select something.
+  /// How far [point] is from the nearest edge of this shape, whether it is
+  /// inside or out.
+  double awayFrom(Vec2 point) {
+    var least = double.infinity;
+    for (final edge in edges) {
+      final away = edge.distanceTo(point);
+      if (away < least) least = away;
+    }
+    return least;
+  }
+
+  /// True when [line] lies within this shape: every part of it inside, or
+  /// near enough to an edge — within [reach] — to count as lying along the
+  /// boundary.
+  ///
+  /// Sampled along the line, not tested at its middle alone. A line whose
+  /// middle happens to fall inside while its ends reach away out of the
+  /// shape is not within it, and that is the whole difference between a bar
+  /// belonging to a section and a bar merely passing through it.
+  bool holds(Segment line, {double reach = 0}) {
+    const samples = 12;
+    for (var i = 1; i < samples; i++) {
+      final at = line.pointAt(i / samples);
+      if (contains(at)) continue;
+      if (reach > 0 && awayFrom(at) <= reach) continue;
+      return false;
+    }
+    return true;
+  }
+
   bool contains(Vec2 point) {
     for (final edge in edges) {
       if (edge.distanceTo(point) <= Tol.samePointMm) return true;
