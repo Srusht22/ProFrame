@@ -210,6 +210,53 @@ cut at their crossings, joined into a graph, and the faces of that graph are
 the sections. Nothing is laid out to a template, which is what makes the rule
 above structurally true rather than merely intended.
 
+### One tree, walked by both views
+
+The hierarchy is in the model — `parentId` on every divider and every
+section — and `lib/domain/model/design_tree.dart` is that hierarchy read
+once:
+
+```
+Door/Window
+├── Frame                the outline, and nothing else's parent
+├── Bars                 the lines that divide the design
+└── Sections             the main divisions, in reading order
+     ├── Opening         where the user marked one
+     ├── Bars            the lines drawn inside that section
+     └── Sections        the panes those lines make, each a branch again
+```
+
+`CadPainter` and `MeshBuilder` both walk it. Neither sweeps the flat lists
+working out what is inside what, because that is how two views come to
+disagree: one of them decides a bar belongs to a sash and the other does
+not, and the drawing and the model stop being the same design. There is one
+answer, and it is the model's own.
+
+**`DesignTree` holds no geometry.** Every part is named by its id and looked
+up in the design when it is drawn, so nothing in it can drift from the
+design or outlive an edit to it. The frame is not a section, so it is not a
+branch: nothing is inside it and it is inside nothing. And a window is never
+an opening — an opening is one branch of this tree, never the root.
+
+Two things follow from drawing to the tree rather than to a list:
+
+- **A bar is drawn as the member it is.** A bar that divides the design is a
+  mullion or a transom and carries `Cad.bar`; a bar drawn inside a section is
+  a glazing bar within it and carries the lighter `Cad.glazingBar`. That is
+  what a drawing does with a smaller member, and it lets a reader see which
+  bars are a sash's without being told.
+- **A figure measures the level it belongs to.** The chains down the outside
+  of the drawing measure the main divisions, so `DimensionChains.isRectilinear`
+  asks about the design's own bars. A diagonal glazing bar inside one sash
+  makes that sash unbandable; it says nothing about the lights either side of
+  it and must not strike the figures off a drawing that is otherwise square.
+
+`test/app/cad_uses_the_tree_test.dart` holds this, on a window with an upper
+light, a fixed lower right, and a marked lower left divided into glass over
+panel: every part of the design is in the tree exactly once, nothing outside
+the opening is in it, and the solid builds exactly what the tree says is
+there.
+
 ### Reading a mark drawn by a hand
 
 A `<`, `>`, `^` or `v` is the only thing that creates an opening, so failing

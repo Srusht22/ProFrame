@@ -235,6 +235,20 @@ class Design {
     return null;
   }
 
+  DividerElement? dividerById(String dividerId) {
+    for (final d in dividers) {
+      if (d.id == dividerId) return d;
+    }
+    return null;
+  }
+
+  OpeningElement? openingById(String openingId) {
+    for (final o in openings) {
+      if (o.id == openingId) return o;
+    }
+    return null;
+  }
+
   /// The opening on a section, when it has one.
   OpeningElement? openingOf(String sectionId) {
     for (final o in openings) {

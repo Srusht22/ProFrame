@@ -8,6 +8,7 @@ import '../../domain/geometry/polygon.dart';
 import '../../domain/geometry/segment.dart';
 import '../../domain/geometry/vec2.dart';
 import '../../domain/model/design.dart';
+import '../../domain/model/design_tree.dart';
 import '../../domain/model/elements.dart';
 import '../../domain/model/opening_leaf.dart';
 import 'cad_layers.dart';
@@ -61,11 +62,22 @@ class CadPainter extends CustomPainter {
 
     if (design.frame == null) return;
 
+    // The drawing is built up the way the design is put together, not by
+    // sweeping flat lists: the frame, the bars that divide the design, its
+    // main divisions, and inside each of those whatever the user drew there.
+    // The tree is the model's own hierarchy read once — the solid walks the
+    // same one — so the elevation cannot decide that something is inside
+    // something else by a route the model does not have.
+    final tree = DesignTree.of(design);
+
     if (layers.sketch) _sketch(canvas);
-    _infill(canvas);
+    _infill(canvas, tree.sections);
     _frame(canvas);
-    _bars(canvas);
-    if (layers.openings) _openings(canvas);
+    _bars(canvas, tree.barIds, inside: false);
+    for (final section in tree.everySection) {
+      _bars(canvas, section.barIds, inside: true);
+    }
+    if (layers.openings) _openings(canvas, tree);
     _hardware(canvas);
     if (layers.dimensions) {
       _chains(canvas);
@@ -144,11 +156,18 @@ class CadPainter extends CustomPainter {
 
   /// What fills each section, drawn the way a drawing shows a material
   /// rather than the way a photograph shows it.
-  void _infill(Canvas canvas) {
-    for (final section in design.sections) {
-      // A section with lines drawn inside it is filled by what those lines
-      // make, not by a pane of its own painted over them.
-      if (design.hasChildren(section.id)) continue;
+  ///
+  /// Down the tree: a section the user drew lines in is filled by the panes
+  /// those lines make, not by a pane of its own painted over them, and each
+  /// of those panes may have been divided again.
+  void _infill(Canvas canvas, List<TreeSection> branches) {
+    for (final branch in branches) {
+      if (!branch.isLeaf) {
+        _infill(canvas, branch.panes);
+        continue;
+      }
+      final section = design.sectionById(branch.sectionId);
+      if (section == null) continue;
 
       // A section that opens — and every pane the user divided it into — is
       // filled to the daylight of its own leaf, not to the edge of the
@@ -257,13 +276,26 @@ class CadPainter extends CustomPainter {
   }
 
   /// Each bar as its two faces, at the angle it was drawn at.
-  void _bars(Canvas canvas) {
-    for (final divider in design.dividers) {
+  ///
+  /// [inside] says which level of the tree these are: a bar that divides the
+  /// design is a mullion or a transom and carries a mullion's weight, while a
+  /// bar drawn inside a section is a glazing bar within it and is drawn
+  /// lighter. That is what a drawing does with a smaller member, and it is
+  /// what lets somebody reading the elevation see which bars belong to a
+  /// sash without being told.
+  void _bars(Canvas canvas, List<String> barIds, {required bool inside}) {
+    for (final id in barIds) {
+      final divider = design.dividerById(id);
+      if (divider == null) continue;
       final body = _barBody(divider);
       if (body.isEmpty) continue;
       canvas.drawPath(view.pathOf(body), Cad.fill(Cad.sheet));
       if (layers.hatching) _hatch(canvas, body);
-      canvas.drawPath(view.pathOf(body), Cad.stroke(Cad.heavy, Cad.bar));
+      canvas.drawPath(
+        view.pathOf(body),
+        Cad.stroke(inside ? Cad.medium : Cad.heavy,
+            inside ? Cad.glazingBar : Cad.bar),
+      );
 
       // The centre line, as a drawing shows the axis of a member.
       if (layers.centreLines) {
@@ -298,10 +330,11 @@ class CadPainter extends CustomPainter {
 
   /// The swing lines: the standard elevation symbol, dashed, pointing at the
   /// hinge.
-  void _openings(Canvas canvas) {
-    for (final opening in design.openings) {
-      final section = design.sectionById(opening.sectionId);
-      if (section == null) continue;
+  void _openings(Canvas canvas, DesignTree tree) {
+    for (final branch in tree.openings) {
+      final opening = design.openingById(branch.openingId!);
+      final section = design.sectionById(branch.sectionId);
+      if (opening == null || section == null) continue;
       _leaf(canvas, section);
       final box = section.outline;
       final edge = opening.mechanism.hingeEdge;

@@ -4,6 +4,7 @@ import '../geometry/polygon.dart';
 import '../geometry/segment.dart';
 import '../geometry/vec2.dart';
 import '../model/design.dart';
+import '../model/design_tree.dart';
 import '../model/elements.dart';
 import '../model/materials.dart';
 import '../model/opening_leaf.dart';
@@ -29,26 +30,35 @@ abstract final class MeshBuilder {
     final depth = design.depthMm;
     final facets = <Facet>[];
 
+    // The design's own hierarchy, read once. The elevation walks this same
+    // tree, so the two views cannot disagree about what is inside what.
+    final tree = DesignTree.of(design);
+
     _addFrame(facets, frame, depth);
 
     // Only the bars that divide the design itself. A bar drawn inside a
     // section is built with that section, so that it swings with the leaf it
     // is part of instead of staying behind on the frame.
-    for (final divider in design.topLevelDividers) {
-      _addBar(facets, divider, frame, depth);
+    for (final id in tree.barIds) {
+      final divider = design.dividerById(id);
+      if (divider != null) _addBar(facets, divider, frame, depth);
     }
 
     // Only the main divisions are built here. What is inside a section is
     // built with it, so that a leaf and everything drawn in it are one thing
     // that swings together.
-    for (final section in design.topLevelSections) {
-      final opening = design.openingOf(section.id);
+    for (final branch in tree.sections) {
+      final section = design.sectionById(branch.sectionId);
+      if (section == null) continue;
+      final opening =
+          branch.opens ? design.openingById(branch.openingId!) : null;
       if (opening == null) {
-        _addSection(facets, design, section, depth);
+        _addSection(facets, design, branch, section, depth);
       } else {
         _addLeaf(
           facets,
           design,
+          branch,
           section,
           opening,
           frame,
@@ -156,12 +166,12 @@ abstract final class MeshBuilder {
   static void _addSection(
     List<Facet> out,
     Design design,
+    TreeSection branch,
     SectionElement section,
     double depth, {
     Vec3 Function(Vec3)? place,
   }) {
-    final children = design.childSectionsOf(section.id);
-    if (children.isEmpty) {
+    if (branch.isLeaf) {
       _addFixedInfill(out, design, section, depth, place: place);
       return;
     }
@@ -171,11 +181,29 @@ abstract final class MeshBuilder {
     // section stops, so a bar inside a sash runs between the sash's faces
     // rather than across them.
     final bounds = OpeningLeaf.fillOf(design, section);
-    for (final bar in design.childDividersOf(section.id)) {
-      _addInternalBar(out, bar, bounds, depth, place: place);
+    _addBarsInside(out, design, branch, bounds, depth, place: place);
+    for (final pane in branch.panes) {
+      final child = design.sectionById(pane.sectionId);
+      if (child != null) {
+        _addSection(out, design, pane, child, depth, place: place);
+      }
     }
-    for (final child in children) {
-      _addSection(out, design, child, depth, place: place);
+  }
+
+  /// The bars the user drew inside one section, trimmed to what fills it.
+  static void _addBarsInside(
+    List<Facet> out,
+    Design design,
+    TreeSection branch,
+    Polygon bounds,
+    double depth, {
+    Vec3 Function(Vec3)? place,
+  }) {
+    for (final id in branch.barIds) {
+      final bar = design.dividerById(id);
+      if (bar != null) {
+        _addInternalBar(out, bar, bounds, depth, place: place);
+      }
     }
   }
 
@@ -247,6 +275,7 @@ abstract final class MeshBuilder {
   static void _addLeaf(
     List<Facet> out,
     Design design,
+    TreeSection branch,
     SectionElement section,
     OpeningElement opening,
     FrameElement frame,
@@ -304,9 +333,8 @@ abstract final class MeshBuilder {
     // inside the opening, those lines and the panes they make are what fills
     // it — and they swing with it too, because they are part of it.
     final glazed = sashInner.isEmpty ? sashOuter : sashInner;
-    final children = design.childSectionsOf(section.id);
 
-    if (children.isEmpty) {
+    if (branch.isLeaf) {
       final thickness = section.finish.material.isGlazing
           ? math.min(26.0, leafDepth * 0.4)
           : math.min(leafDepth * 0.6, 38.0);
@@ -326,11 +354,12 @@ abstract final class MeshBuilder {
       return;
     }
 
-    for (final bar in design.childDividersOf(section.id)) {
-      _addInternalBar(out, bar, glazed, leafDepth, place: place);
-    }
-    for (final child in children) {
-      _addSection(out, design, child, leafDepth, place: place);
+    _addBarsInside(out, design, branch, glazed, leafDepth, place: place);
+    for (final pane in branch.panes) {
+      final child = design.sectionById(pane.sectionId);
+      if (child != null) {
+        _addSection(out, design, pane, child, leafDepth, place: place);
+      }
     }
   }
 

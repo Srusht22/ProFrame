@@ -460,6 +460,25 @@ three ways of looking at what is in it, not three things to keep in step:
      (sketch)     (painter)      (mesh)
 ```
 
+Both views walk the same tree. The hierarchy is in the design — what is
+inside what — and it is read once, so neither view works out on its own
+whether a bar belongs to a sash:
+
+```
+Door/Window
+├── Frame         the outline
+├── Bars          the lines that divide the design
+└── Sections      the main divisions
+     ├── Opening  where you marked one
+     ├── Bars     the lines you drew inside it
+     └── Sections the panes those lines make
+```
+
+A bar that divides the design is drawn as the mullion it is; a bar inside a
+sash is drawn lighter, as the glazing bar it is, so the drawing shows you
+which is which. The frame is not a section, so nothing is inside it. And the
+window is never the opening: an opening is one branch of that tree.
+
 Each view is a function of that object and holds no geometry of its own. The
 CAD painter reads the design and draws. `MeshBuilder.build` reads the design
 and returns a mesh that nothing keeps — it is rebuilt from scratch on every

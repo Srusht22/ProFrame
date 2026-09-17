@@ -36,6 +36,11 @@ abstract final class Cad {
   static const double outline = 2.0;
   static const double profile = 1.4;
   static const double bar = 1.3;
+
+  /// A bar drawn inside a section — a glazing bar within a sash or a light,
+  /// which is a smaller member than the mullion beside it and is drawn as
+  /// one. The weight is how a reader tells the two apart.
+  static const double glazingBar = 1.0;
   static const double detail = 0.9;
   static const double annotation = 0.8;
   static const double hairline = 0.6;

@@ -126,9 +126,17 @@ abstract final class DimensionChains {
     return chains;
   }
 
-  /// True when every bar runs along an axis, so bands mean something.
+  /// True when every bar that divides the design runs along an axis, so the
+  /// bands down the outside of the drawing mean something.
+  ///
+  /// The design's own bars, at the design's own level — the chains outside
+  /// the drawing measure the main divisions, so those are what decide
+  /// whether a band is a real thing. A diagonal glazing bar inside one sash
+  /// makes that sash's own panes unbandable; it says nothing about the
+  /// lights either side of it, and it must not strike the figures off a
+  /// drawing that is otherwise square.
   static bool isRectilinear(Design design) {
-    for (final divider in design.dividers) {
+    for (final divider in design.topLevelDividers) {
       if (!divider.isVertical && !divider.isHorizontal) return false;
     }
     return true;
