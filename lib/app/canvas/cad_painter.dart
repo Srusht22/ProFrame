@@ -9,6 +9,7 @@ import '../../domain/geometry/segment.dart';
 import '../../domain/geometry/vec2.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
+import '../../domain/model/opening_leaf.dart';
 import 'cad_layers.dart';
 import 'cad_style.dart';
 import 'dimension_handles.dart';
@@ -149,22 +150,35 @@ class CadPainter extends CustomPainter {
       // make, not by a pane of its own painted over them.
       if (design.hasChildren(section.id)) continue;
 
-      final path = view.pathOf(section.outline);
+      // A section that opens is filled to the daylight of its own leaf, not
+      // to the edge of the region: the sash is real material and the glass
+      // stops at it, as it does in the model and as it will on the bench.
+      final outline = _daylightOf(section);
+      final path = view.pathOf(outline);
       final material = section.finish.material;
 
       if (material.isGlazing) {
         canvas.drawPath(path, Cad.fill(Cad.glass));
-        if (layers.hatching) _glazingMark(canvas, section.outline);
+        if (layers.hatching) _glazingMark(canvas, outline);
       } else {
         canvas.drawPath(
           path,
           Cad.fill(Color(section.finish.colour).withValues(alpha: 0.32)),
         );
-        if (layers.hatching) _hatch(canvas, section.outline);
+        if (layers.hatching) _hatch(canvas, outline);
       }
 
       canvas.drawPath(path, Cad.stroke(Cad.medium, Cad.detail));
     }
+  }
+
+  /// What actually gets glazed in a section: the region itself, or the
+  /// daylight inside its leaf when the section opens.
+  Polygon _daylightOf(SectionElement section) {
+    final frame = design.frame;
+    if (frame == null) return section.outline;
+    if (design.openingOf(section.id) == null) return section.outline;
+    return OpeningLeaf.innerOf(section, frame) ?? section.outline;
   }
 
   /// The two parallel strokes across a corner that mean glass on an
@@ -286,6 +300,7 @@ class CadPainter extends CustomPainter {
     for (final opening in design.openings) {
       final section = design.sectionById(opening.sectionId);
       if (section == null) continue;
+      _leaf(canvas, section);
       final box = section.outline;
       final edge = opening.mechanism.hingeEdge;
       final paint = Cad.stroke(Cad.medium, Cad.detail);
@@ -372,6 +387,25 @@ class CadPainter extends CustomPainter {
   /// against the instruction it came from.
   /// How far above a bottom-hinged apex the direction tag sits.
   static const double tagGap = 18;
+
+  /// The boundary of the leaf: its own frame, inside the region that opens.
+  ///
+  /// An opening is a specific region of the design and the leaf filling it is
+  /// a thing of its own, with an edge of its own. Drawing that edge is what
+  /// makes the elevation say where the opening stops — and it stops at the
+  /// section, never at the window. It is the same leaf the solid builds, from
+  /// the same description, so the two cannot disagree about where it is.
+  void _leaf(Canvas canvas, SectionElement section) {
+    final frame = design.frame;
+    if (frame == null) return;
+    final inner = OpeningLeaf.innerOf(section, frame);
+    if (inner == null) return;
+
+    final outer = OpeningLeaf.outerOf(section);
+    if (layers.hatching) _profileHatch(canvas, outer, inner);
+    canvas.drawPath(view.pathOf(outer), Cad.stroke(Cad.medium, Cad.profile));
+    canvas.drawPath(view.pathOf(inner), Cad.stroke(Cad.medium, Cad.profile));
+  }
 
   void _openingMark(Canvas canvas, OpeningElement opening) {
     final at = opening.markAt;

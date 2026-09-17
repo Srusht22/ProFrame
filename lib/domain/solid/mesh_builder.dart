@@ -6,6 +6,7 @@ import '../geometry/vec2.dart';
 import '../model/design.dart';
 import '../model/elements.dart';
 import '../model/materials.dart';
+import '../model/opening_leaf.dart';
 import 'mesh.dart';
 
 /// Builds the 3D model out of the design itself.
@@ -241,9 +242,11 @@ abstract final class MeshBuilder {
     double depth,
     double openFraction,
   ) {
-    final sashProfile = math.max(18.0, frame.profileMm * 0.7);
-    final sashOuter = section.outline;
-    final sashInner = sashOuter.inset(sashProfile);
+    // The same leaf the drawing shows, described in one place so the
+    // elevation and the solid cannot disagree about where it is.
+    final sashOuter = OpeningLeaf.outerOf(section);
+    final sashInner =
+        OpeningLeaf.innerOf(section, frame) ?? const Polygon([]);
 
     final place = _swingFor(opening, section, openFraction);
     Vec3 at(Vec2 point, double z) => place(_at(point, z));

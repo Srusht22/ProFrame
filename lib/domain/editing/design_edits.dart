@@ -639,10 +639,15 @@ abstract final class DesignEdits {
 
   /// Moves a bar between dividing the design and dividing one section of it.
   ///
-  /// The drawing decides this on its own — a line drawn inside a marked
-  /// region belongs to that region — but the drawing cannot always say, and
-  /// where it cannot the user can. Passing null puts the bar back among the
-  /// main divisions.
+  /// Every line the user draws divides the design; this is how they say one
+  /// of them is a section's instead. Passing null puts it back among the main
+  /// divisions.
+  ///
+  /// A bar can only be put inside a section it is actually in. Belonging is
+  /// a fact about where the bar is, not a label that can be pinned on it: a
+  /// bar in the fixed light beside an opening is not the opening's, and
+  /// saying that it is would have the opening drag it across the design the
+  /// next time it moved.
   static Design setDividerParent(
     Design design,
     String dividerId,
@@ -651,7 +656,7 @@ abstract final class DesignEdits {
     final divider = _divider(design, dividerId);
     if (divider == null) return design;
     if (divider.parentId == sectionId) return design;
-    if (sectionId != null && design.sectionById(sectionId) == null) {
+    if (sectionId != null && !liesInside(design, divider, sectionId)) {
       return design;
     }
     return _rebuild(design.withElement(
@@ -661,8 +666,57 @@ abstract final class DesignEdits {
     ));
   }
 
-  /// The sections a bar could sensibly be put inside: the main divisions it
-  /// actually lies within.
+  /// True when [divider] lies within the section [sectionId] names — inside
+  /// it, or along its edge.
+  ///
+  /// The one test both the offered list and the accepted change go through,
+  /// so what the user is shown and what the design will take are the same
+  /// thing by construction.
+  ///
+  /// The edge counts, because a bar the user wants to put *into* a section is
+  /// usually bounding it at the moment they ask: it is the line between that
+  /// section and the next, and saying it belongs inside is what joins the two
+  /// into one opening. What the test refuses is a bar somewhere else — one in
+  /// the fixed light across the design, which is nothing to do with this
+  /// section and must not be dragged about by it.
+  ///
+  /// Sampled along the bar rather than at its middle alone, so a bar crossing
+  /// the section and running away out of it is refused however its midpoint
+  /// happens to fall.
+  static bool liesInside(
+    Design design,
+    DividerElement divider,
+    String sectionId,
+  ) {
+    final section = design.sectionById(sectionId);
+    if (section == null) return false;
+
+    final outline = section.outline;
+    final reach = math.max(divider.widthMm, Tol.minLineMm);
+
+    const samples = 12;
+    for (var i = 1; i < samples; i++) {
+      final at = divider.segment.pointAt(i / samples);
+      if (outline.contains(at)) continue;
+      if (_awayFrom(outline, at) <= reach) continue;
+      return false;
+    }
+    return true;
+  }
+
+  /// How far a point is from the nearest edge of a shape.
+  static double _awayFrom(Polygon outline, Vec2 point) {
+    var least = double.infinity;
+    for (final edge in outline.edges) {
+      final away = edge.distanceTo(point);
+      if (away < least) least = away;
+    }
+    return least;
+  }
+
+  /// The sections a bar could be put inside: the main divisions it actually
+  /// lies within. The same test [setDividerParent] applies, so nothing is
+  /// offered that would then be refused.
   static List<SectionElement> containersFor(
     Design design,
     String dividerId,
@@ -671,7 +725,7 @@ abstract final class DesignEdits {
     if (divider == null) return const [];
     return [
       for (final section in design.topLevelSections)
-        if (section.outline.contains(divider.segment.midpoint)) section,
+        if (liesInside(design, divider, section.id)) section,
     ];
   }
 

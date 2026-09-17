@@ -300,6 +300,43 @@ follows to whatever now holds it. Neither is lost because an id changed.
 stroke order. `test/domain/opening_containment_test.dart` holds what happens
 once a line *is* the opening's.
 
+### The opening's own boundary, and what it owns
+
+The opening is a region of the design, and the leaf filling it is a thing of
+its own with an edge of its own. `lib/domain/model/opening_leaf.dart` is the
+one description of it: the outside is the section's outline and nothing
+wider, the inside is that inset by the leaf's own profile. The elevation and
+the solid both read it, so the leaf the user sees and the leaf that swings
+are the same leaf, and the glass in both stops at the sash rather than at the
+edge of the region.
+
+Ownership runs one way only:
+
+```
+Window
+├── Frame              ── not the opening's
+├── Fixed section      ── not the opening's
+├── Opening            ── its leaf, its bars, its panes, its hardware
+└── Fixed section      ── not the opening's
+```
+
+The frame is not a section, so it cannot be a child of one. A fixed section
+is a main division, so its `parentId` is null. Only what is inside the
+opening is the opening's.
+
+**Belonging is a fact about where a thing is, not a label that can be pinned
+on it.** `DesignEdits.liesInside` is the single test: a bar must lie within
+the section — inside it, or along its edge — and both `containersFor` (what
+the **Divides** control offers) and `setDividerParent` (what the design will
+accept) go through it, so the offered set and the accepted set are the same
+by construction. The edge counts because a bar the user wants to put *into* a
+section is usually bounding it at the moment they ask. What the test refuses
+is a bar somewhere else entirely: one in the fixed light across the design is
+nothing to do with this opening, and saying that it is would have the opening
+drag it across the window the next time it moved.
+
+`test/domain/opening_owns_only_its_own_test.dart` holds this.
+
 ### Drawing inside an opening
 
 An opening is not a single pane waiting to be filled. It can hold its own

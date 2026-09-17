@@ -181,6 +181,15 @@ Three sections, two bars, one opening. The opening never grows to take in the
 section beside it, and a window is never an opening because a mark was drawn
 somewhere inside it.
 
+The opening has a boundary of its own, and you can see it: the leaf gets its
+own frame inside the region that opens, drawn in the elevation and built in
+the model from the same description, with the glass stopping at the sash in
+both. Everything outside that boundary belongs to the design — the outer
+frame, and every section you did not mark. Nothing outside it can be made
+part of it: a bar in the fixed light across the window is not the opening's,
+and the application will not let you say it is, because the next time the
+opening moved it would drag that bar along with it.
+
 You mark a section by drawing one of four marks inside it:
 
 | Mark | Meaning |
