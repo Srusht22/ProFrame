@@ -162,14 +162,17 @@ abstract final class MeshBuilder {
   }) {
     final children = design.childSectionsOf(section.id);
     if (children.isEmpty) {
-      _addFixedInfill(out, section, depth, place: place);
+      _addFixedInfill(out, design, section, depth, place: place);
       return;
     }
 
     // The bars drawn inside it, then whatever they enclose — which may in
-    // turn have lines inside it.
+    // turn have lines inside it. Each bar stops where the fill of this
+    // section stops, so a bar inside a sash runs between the sash's faces
+    // rather than across them.
+    final bounds = OpeningLeaf.fillOf(design, section);
     for (final bar in design.childDividersOf(section.id)) {
-      _addInternalBar(out, bar, section.outline, depth, place: place);
+      _addInternalBar(out, bar, bounds, depth, place: place);
     }
     for (final child in children) {
       _addSection(out, design, child, depth, place: place);
@@ -210,18 +213,26 @@ abstract final class MeshBuilder {
   }
 
   /// The pane or panel filling a section that does not open.
+  ///
+  /// It fills what [OpeningLeaf.fillOf] says it fills — its own region, or,
+  /// when it is a pane of a sash the user divided, the part of that region
+  /// within the sash. The glass stops at the sash in the solid because it
+  /// stops at the sash on the drawing, from the same description.
   static void _addFixedInfill(
     List<Facet> out,
+    Design design,
     SectionElement section,
     double depth, {
     Vec3 Function(Vec3)? place,
   }) {
+    final fill = OpeningLeaf.fillOf(design, section);
+    if (fill.isEmpty) return;
     final thickness = section.finish.material.isGlazing
         ? math.min(28.0, depth * 0.4)
         : math.min(depth * 0.55, 40.0);
     _slabBetween(
       out,
-      section.outline,
+      fill,
       -(depth - thickness) / 2,
       thickness,
       section.id,

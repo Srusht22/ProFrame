@@ -42,6 +42,45 @@ abstract final class OpeningLeaf {
     return inner;
   }
 
+  /// The daylight of the leaf that [sectionId] is in, or null when it is in
+  /// none.
+  ///
+  /// The sash is real material, so everything the opening holds stops at its
+  /// inner face: the glass, the panel, and the bars the user drew inside it.
+  /// Walked outward rather than tested at one level, because a pane two
+  /// divisions down a sash is still in that sash.
+  static Polygon? daylightAround(Design design, String? sectionId) {
+    final frame = design.frame;
+    if (frame == null) return null;
+
+    var id = sectionId;
+    for (var depth = 0; id != null && depth < 8; depth++) {
+      final section = design.sectionById(id);
+      if (section == null) return null;
+      if (design.openingOf(section.id) != null) return innerOf(section, frame);
+      id = section.parentId;
+    }
+    return null;
+  }
+
+  /// What actually gets filled in [section]: the region itself, or — where it
+  /// opens, or lies inside something that opens — the part of it within the
+  /// leaf's own daylight.
+  ///
+  /// This is the one answer to "where does the glass stop", so the elevation
+  /// and the solid cannot give two. A pane of a divided sash stops at the
+  /// sash on the sides the sash bounds, and at the bar the user drew on the
+  /// sides that bar bounds; nothing about the pane itself is resized to make
+  /// that true.
+  static Polygon fillOf(Design design, SectionElement section) {
+    final daylight = daylightAround(design, section.id);
+    if (daylight == null || daylight.isEmpty) return section.outline;
+    if (design.openingOf(section.id) != null) return daylight;
+
+    final within = section.outline.clippedTo(daylight);
+    return within.isEmpty ? section.outline : within;
+  }
+
   /// The leaf of [opening] on [design], or null when there is nothing to
   /// hang — no section, or no frame to hang it in.
   static ({Polygon outer, Polygon? inner})? of(

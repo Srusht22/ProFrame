@@ -749,7 +749,8 @@ class _OpeningFields extends StatelessWidget {
           initialValue: opening.sectionId,
           isExpanded: true,
           items: [
-            for (final option in state.design.sections)
+            for (final option
+                in DesignEdits.placesFor(state.design, opening.id))
               DropdownMenuItem(
                 value: option.id,
                 child: Text(
@@ -767,7 +768,8 @@ class _OpeningFields extends StatelessWidget {
         const SizedBox(height: 7),
         Text(
           'Moving the opening changes which section opens. Neither section '
-          'changes shape.',
+          'changes shape, and whatever you have drawn inside the opening '
+          'goes with it.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 18),

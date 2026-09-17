@@ -424,6 +424,36 @@ and a panel below, a transom then drawn in the fixed light beside it, and the
 sheet read again — the new line divides the design, and the opening comes
 back with its own line, its two panes and their materials.
 
+**The glass and the panel stop at the sash.** A pane of a divided opening is
+a region of the design like any other, but what fills it is bounded by the
+leaf it is in, not by the edge of the region — the sash is real material and
+the glass stops at its inner face, as it does on the bench.
+`OpeningLeaf.fillOf` is the one answer to where, so the elevation and the
+solid cannot give two, and `Polygon.clippedTo` is how: the pane's own corners
+where they are inside the sash, the crossings where they are not, and the bar
+the user drew still bounding it on the side the bar is on. The bars inside a
+sash are trimmed the same way, which is what a glazing bar does — it runs
+between the sash's faces rather than over them.
+
+**An opening moved to another section takes its design with it.** A sash the
+user divided into glass over panel is that sash wherever it is put, so
+`moveOpeningToSection` carries its bars and its panes across, each landing at
+the same place in the new section as it had in the old.
+`Polygon.sameIn` is that place, and it is the same rule `SectionBuilder`
+applies when an opening is resized, so there is one answer to where the
+inside of a section goes rather than two. The section it leaves is one
+undivided fixed light again, and nothing of the opening's is left behind in
+it — a division in a fixed light nobody drew one in would be a lie about the
+drawing, and handing back an undivided opening would make the user draw it
+all again.
+
+An opening cannot be moved into one of its own panes: a pane is part of the
+leaf, so that would make the leaf its own parent. `DesignEdits.placesFor` is
+what the **Position** control offers and `moveOpeningToSection` applies the
+same test, so the offered set and the accepted set are the same by
+construction — the same arrangement as `containersFor` and
+`setDividerParent`.
+
 ### An opening's own coordinates
 
 An opening is a parent, so where things are inside it is naturally said in

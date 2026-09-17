@@ -340,6 +340,19 @@ made in the design rather than drawn on the sheet, so a reading of the sheet
 has nothing to say about it. Lines you *did* draw still last exactly as long
 as the strokes they came from — rubbing one out is how you delete it.
 
+The glass and the panel stop at the sash, not at the edge of the region the
+opening is in — the sash is real material, and the drawing and the model both
+show the pane ending at its inner face, as it will on the bench. Where a bar
+you drew inside the opening is what divides two panes, that is where they
+meet instead.
+
+Move the opening to another section and the whole of that goes with it. The
+bar, both panes and the materials you chose land at the same place in the new
+section as they had in the old; the section it left is one undivided fixed
+light again, with nothing of the opening's stranded in it. An opening cannot
+be moved into one of its own panes, because a pane is part of the leaf, and
+the list you are offered is exactly the list the design will accept.
+
 Everything inside is measured from the opening's own corner, because that is
 whose it is:
 

@@ -150,10 +150,12 @@ class CadPainter extends CustomPainter {
       // make, not by a pane of its own painted over them.
       if (design.hasChildren(section.id)) continue;
 
-      // A section that opens is filled to the daylight of its own leaf, not
-      // to the edge of the region: the sash is real material and the glass
-      // stops at it, as it does in the model and as it will on the bench.
-      final outline = _daylightOf(section);
+      // A section that opens — and every pane the user divided it into — is
+      // filled to the daylight of its own leaf, not to the edge of the
+      // region: the sash is real material and the glass stops at it, as it
+      // does in the model and as it will on the bench.
+      final outline = OpeningLeaf.fillOf(design, section);
+      if (outline.isEmpty) continue;
       final path = view.pathOf(outline);
       final material = section.finish.material;
 
@@ -170,15 +172,6 @@ class CadPainter extends CustomPainter {
 
       canvas.drawPath(path, Cad.stroke(Cad.medium, Cad.detail));
     }
-  }
-
-  /// What actually gets glazed in a section: the region itself, or the
-  /// daylight inside its leaf when the section opens.
-  Polygon _daylightOf(SectionElement section) {
-    final frame = design.frame;
-    if (frame == null) return section.outline;
-    if (design.openingOf(section.id) == null) return section.outline;
-    return OpeningLeaf.innerOf(section, frame) ?? section.outline;
   }
 
   /// The two parallel strokes across a corner that mean glass on an
@@ -267,6 +260,7 @@ class CadPainter extends CustomPainter {
   void _bars(Canvas canvas) {
     for (final divider in design.dividers) {
       final body = _barBody(divider);
+      if (body.isEmpty) continue;
       canvas.drawPath(view.pathOf(body), Cad.fill(Cad.sheet));
       if (layers.hatching) _hatch(canvas, body);
       canvas.drawPath(view.pathOf(body), Cad.stroke(Cad.heavy, Cad.bar));
@@ -284,14 +278,22 @@ class CadPainter extends CustomPainter {
     }
   }
 
+  /// The rectangle a bar occupies, stopped at the sash when it is a bar
+  /// inside an opening — a glazing bar runs between the faces of the sash it
+  /// is in, not over the top of them. The same trim the solid makes, so the
+  /// two show one bar.
   Polygon _barBody(DividerElement divider) {
     final side = divider.segment.unit.perpendicular * (divider.widthMm / 2);
-    return Polygon([
+    final body = Polygon([
       divider.a + side,
       divider.b + side,
       divider.b - side,
       divider.a - side,
     ]);
+
+    final daylight = OpeningLeaf.daylightAround(design, divider.parentId);
+    if (daylight == null || daylight.isEmpty) return body;
+    return body.clippedTo(daylight);
   }
 
   /// The swing lines: the standard elevation symbol, dashed, pointing at the

@@ -753,8 +753,16 @@ abstract final class DesignEdits {
   /// Moves an opening to a different section.
   ///
   /// The section it leaves stops opening and the section it arrives at
-  /// starts. Nothing about either section's geometry changes: an opening is
-  /// a property of a section, not a shape of its own.
+  /// starts. Neither section changes shape: an opening is a property of a
+  /// section, not a shape of its own.
+  ///
+  /// What the opening holds goes with it. A sash the user divided into glass
+  /// over panel is that sash wherever it is put, so its bars and its panes
+  /// travel, each landing at the same place in the new section as it had in
+  /// the old — the same rule that carries them through a resize. Leaving
+  /// them behind would put a division in a fixed light nobody drew one in,
+  /// and hand the user back an undivided opening they would have to draw
+  /// again.
   static Design moveOpeningToSection(
     Design design,
     String openingId,
@@ -763,11 +771,18 @@ abstract final class DesignEdits {
     final opening = _opening(design, openingId);
     if (opening == null) return design;
     if (opening.sectionId == sectionId) return design;
-    if (design.sectionById(sectionId) == null) return design;
+    final section = design.sectionById(sectionId);
+    if (section == null) return design;
+    // A leaf cannot be put inside itself. One of its own panes is part of it,
+    // so moving it there would make it its own parent.
+    if (_within(design, sectionId, opening.sectionId)) return design;
 
-    final section = design.sectionById(sectionId)!;
-    return OpeningHardware.settle(design.copyWith(openings: [
-      for (final o in design.openings)
+    final left = design.sectionById(opening.sectionId);
+    final carried =
+        left == null ? design : _carryInsideTo(design, from: left, to: section);
+
+    return _rebuild(carried.copyWith(openings: [
+      for (final o in carried.openings)
         if (o.id != openingId && o.sectionId != sectionId) o,
       OpeningElement(
         id: opening.id,
@@ -775,14 +790,105 @@ abstract final class DesignEdits {
         mechanism: opening.mechanism,
         direction: opening.direction,
         confirmed: true,
-        // The mark itself does not move — it stays where it was drawn — but
-        // an opening on a section it is not inside would have nothing to
-        // point at, so the record of where it was is dropped with it.
+        // The mark goes with the opening, because the mark is what says this
+        // section opens. Left where it was drawn it would be a mark in a
+        // section that no longer opens, and the next rebuild would read it
+        // as one.
         markGlyph: opening.markGlyph,
         markAt: section.outline.centroid,
         fromStrokeId: opening.fromStrokeId,
       ),
     ]));
+  }
+
+  /// The sections an opening can be moved to.
+  ///
+  /// Every section but the ones inside the opening itself, which are part of
+  /// it. The same test [moveOpeningToSection] applies, so the user is never
+  /// offered a move the design would refuse. The section it is already on
+  /// stays in the list, because that is where it is.
+  static List<SectionElement> placesFor(Design design, String openingId) {
+    final opening = _opening(design, openingId);
+    if (opening == null) return const [];
+    return [
+      for (final section in design.sections)
+        if (section.id == opening.sectionId ||
+            !_within(design, section.id, opening.sectionId))
+          section,
+    ];
+  }
+
+  /// True when [sectionId] is [ancestorId] or lies inside it.
+  static bool _within(Design design, String sectionId, String ancestorId) {
+    var id = sectionId;
+    for (var depth = 0; depth < 8; depth++) {
+      if (id == ancestorId) return true;
+      final parent = design.sectionById(id)?.parentId;
+      if (parent == null) return false;
+      id = parent;
+    }
+    return false;
+  }
+
+  /// Everything inside [from], moved into [to].
+  ///
+  /// Bars at any depth are moved and the ones [from] held directly become
+  /// [to]'s; the panes they make come with them, keeping their ids and so
+  /// keeping the glass, the panel, the colour and the name the user gave
+  /// them. Where a thing lands is [Polygon.sameIn] — the same place in the
+  /// new section as it had in the old.
+  static Design _carryInsideTo(
+    Design design, {
+    required SectionElement from,
+    required SectionElement to,
+  }) {
+    final bars = <String>{};
+    final panes = <String>{};
+    void collect(String id) {
+      for (final divider in design.dividers) {
+        if (divider.parentId == id) bars.add(divider.id);
+      }
+      for (final section in design.sections) {
+        if (section.parentId != id) continue;
+        panes.add(section.id);
+        collect(section.id);
+      }
+    }
+
+    collect(from.id);
+    if (bars.isEmpty && panes.isEmpty) return design;
+
+    Vec2 moved(Vec2 point) => from.outline.sameIn(to.outline, point);
+
+    return design.copyWith(
+      dividers: [
+        for (final divider in design.dividers)
+          if (!bars.contains(divider.id))
+            divider
+          else if (divider.parentId == from.id)
+            divider.copyWith(
+              a: moved(divider.a),
+              b: moved(divider.b),
+              parentId: to.id,
+            )
+          else
+            divider.copyWith(a: moved(divider.a), b: moved(divider.b)),
+      ],
+      sections: [
+        for (final section in design.sections)
+          if (!panes.contains(section.id))
+            section
+          else if (section.parentId == from.id)
+            section.copyWith(
+              outline: from.outline.sameShapeIn(to.outline, section.outline),
+              parentId: to.id,
+            )
+          else
+            section.copyWith(
+              outline: from.outline.sameShapeIn(to.outline, section.outline),
+            ),
+      ],
+    );
   }
 
   /// Changes an opening's ironmongery.

@@ -6,6 +6,7 @@ import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/model/materials.dart';
+import 'package:proframe/domain/model/opening_leaf.dart';
 import 'package:proframe/domain/recognition/interpreter.dart';
 import 'package:proframe/domain/sections/section_builder.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
@@ -412,6 +413,148 @@ void main() {
       );
       expect(anyIn(between, FacetRole.bar) || anyIn(between, FacetRole.sash),
           isTrue);
+    });
+  });
+
+  group('the glass and the panel are inside the leaf', () {
+    test('each pane is filled to the sash, not to the edge of its region', () {
+      final design = example();
+      final openingId = design.openings.single.sectionId;
+      final sash = OpeningLeaf.innerOf(
+        design.sectionById(openingId)!,
+        design.frame!,
+      )!;
+
+      for (final pane in design.childSectionsOf(openingId)) {
+        final fill = OpeningLeaf.fillOf(design, pane);
+        expect(fill.isEmpty, isFalse);
+        // Narrower than the region it is in, because the sash is real
+        // material down both sides of it.
+        expect(fill.width, lessThan(pane.outline.width));
+        expect(fill.width, closeTo(sash.width, 0.5));
+        expect(fill.left, closeTo(sash.left, 0.5));
+        expect(fill.right, closeTo(sash.right, 0.5));
+      }
+
+      // And each stops at the bar the user drew where the bar is, not at the
+      // sash: the bar is what divides them.
+      final bar = design.childDividersOf(openingId).single;
+      final glass = OpeningLeaf.fillOf(design, upper(design, openingId));
+      final panel = OpeningLeaf.fillOf(design, lower(design, openingId));
+      expect(glass.top, closeTo(sash.top, 0.5));
+      expect(glass.bottom, closeTo(bar.segment.midpoint.y - bar.widthMm / 2, 1));
+      expect(panel.top, closeTo(bar.segment.midpoint.y + bar.widthMm / 2, 1));
+      expect(panel.bottom, closeTo(sash.bottom, 0.5));
+    });
+
+    test('a section that is in no opening is filled to its own region', () {
+      final design = example();
+      final fixed = rightLight(design);
+      expect(OpeningLeaf.fillOf(design, fixed), fixed.outline);
+    });
+
+    test('the solid glazes the ground the drawing glazes', () {
+      final design = example();
+      final openingId = design.openings.single.sectionId;
+      final glass = upper(design, openingId);
+      final sash = OpeningLeaf.innerOf(
+        design.sectionById(openingId)!,
+        design.frame!,
+      )!;
+
+      final facets = [
+        for (final facet in MeshBuilder.build(design).facets)
+          if (facet.elementId == glass.id) facet,
+      ];
+      expect(facets, isNotEmpty);
+      expect(facets.every((f) => f.role == FacetRole.glazing), isTrue);
+
+      var left = double.infinity;
+      var right = -double.infinity;
+      for (final facet in facets) {
+        for (final corner in facet.corners) {
+          if (corner.x < left) left = corner.x;
+          if (corner.x > right) right = corner.x;
+        }
+      }
+      expect(right - left, closeTo(sash.width, 1));
+      expect(right - left, lessThan(glass.outline.width - 1));
+    });
+  });
+
+  group('the opening carries its design to another section', () {
+    test('the bar, the panes and their materials go with it', () {
+      final before = example();
+      final from = before.openings.single.sectionId;
+      final to = rightLight(before).id;
+      final glassWas = upper(before, from).id;
+      final panelWas = lower(before, from).id;
+      final down = (before.childDividersOf(from).single.segment.midpoint.y -
+              before.sectionById(from)!.outline.top) /
+          before.sectionById(from)!.outline.height;
+
+      final after = DesignEdits.moveOpeningToSection(before, 'o', to);
+
+      expect(after.openings, hasLength(1));
+      expect(after.openings.single.sectionId, to);
+      expect(after.openingOf(from), isNull);
+
+      final box = after.sectionById(to)!.outline;
+      final bar = after.childDividersOf(to).single;
+      expect(bar.id, 'inner');
+      expect(bar.parentId, to);
+      expect(bar.a.x, closeTo(box.left, 1));
+      expect(bar.b.x, closeTo(box.right, 1));
+      // The same place down the sash as it had in the sash it came from.
+      expect(
+        (bar.segment.midpoint.y - box.top) / box.height,
+        closeTo(down, 0.02),
+      );
+
+      expect(after.childSectionsOf(to), hasLength(2));
+      expect(upper(after, to).id, glassWas);
+      expect(lower(after, to).id, panelWas);
+      expect(upper(after, to).finish.material.isGlazing, isTrue);
+      expect(lower(after, to).finish.material, MaterialKind.panel);
+    });
+
+    test('the section it leaves is one undivided fixed light again', () {
+      final before = example();
+      final from = before.openings.single.sectionId;
+      final after = DesignEdits.moveOpeningToSection(
+        before,
+        'o',
+        rightLight(before).id,
+      );
+
+      expect(after.hasChildren(from), isFalse);
+      expect(after.childSectionsOf(from), isEmpty);
+      expect(after.childDividersOf(from), isEmpty);
+      for (final divider in after.dividers) {
+        expect(divider.parentId, isNot(from));
+      }
+      for (final section in after.sections) {
+        expect(section.parentId, isNot(from));
+      }
+      // Nothing was lost on the way: still the mullion and the one bar.
+      expect(after.dividers.map((d) => d.id).toSet(), {'mull', 'inner'});
+      expect(after.topLevelDividers.map((d) => d.id), ['mull']);
+    });
+
+    test('an opening cannot be moved into one of its own panes', () {
+      final before = example();
+      final openingId = before.openings.single.sectionId;
+      final pane = upper(before, openingId).id;
+
+      expect(DesignEdits.moveOpeningToSection(before, 'o', pane), before);
+
+      final places = DesignEdits.placesFor(before, 'o').map((s) => s.id);
+      expect(places, isNot(contains(pane)));
+      expect(places, isNot(contains(lower(before, openingId).id)));
+      // Where it is stays on the list, and every section outside it is a
+      // place it could go.
+      expect(places, contains(openingId));
+      expect(places, contains(rightLight(before).id));
     });
   });
 }

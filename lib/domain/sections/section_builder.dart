@@ -334,12 +334,7 @@ abstract final class SectionBuilder {
         (from.top - to.top).abs() < 1e-6;
     if (sameSize && samePlace) return dividers;
 
-    final sx = to.width / from.width;
-    final sy = to.height / from.height;
-    Vec2 moved(Vec2 p) => Vec2(
-          to.left + (p.x - from.left) * sx,
-          to.top + (p.y - from.top) * sy,
-        );
+    Vec2 moved(Vec2 p) => from.sameIn(to, p);
 
     // The ids of everything inside this section, at any depth: a bar two
     // levels down still belongs to the thing being moved.

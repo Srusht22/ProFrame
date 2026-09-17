@@ -159,6 +159,65 @@ class Polygon {
           Vec2(origin.x + (c.x - origin.x) * sx, origin.y + (c.y - origin.y) * sy),
       ]);
 
+  /// Where [point] lands when this shape becomes [other]: the same place in
+  /// the new shape as it had in this one.
+  ///
+  /// This is what it means for something to be inside a section rather than
+  /// on the sheet. A bar a quarter of the way down an opening is a quarter
+  /// of the way down it wherever the opening is and whatever size it has
+  /// been made, because it is the opening's. Both the carrying that follows
+  /// a resize and the carrying that follows an opening to another section go
+  /// through here, so there is one answer to where the inside of a section
+  /// goes, not two.
+  Vec2 sameIn(Polygon other, Vec2 point) {
+    if (width <= 0 || height <= 0) return point;
+    return Vec2(
+      other.left + (point.x - left) * (other.width / width),
+      other.top + (point.y - top) * (other.height / height),
+    );
+  }
+
+  /// [shape] where it lands when this shape becomes [other] — the same
+  /// place in the new shape as it had in this one, corner by corner.
+  Polygon sameShapeIn(Polygon other, Polygon shape) =>
+      Polygon([for (final c in shape.corners) sameIn(other, c)]);
+
+  /// The part of this shape that lies inside [convex].
+  ///
+  /// Sutherland–Hodgman, which is exact against a convex clip — and a sash
+  /// of a window is convex. The result keeps this shape's own corners where
+  /// they are inside and takes the crossings where they are not: nothing is
+  /// rounded off, squared up or nudged. Empty when the two do not overlap.
+  Polygon clippedTo(Polygon convex) {
+    if (isEmpty || convex.isEmpty) return this;
+    final sign = convex.signedArea > 0 ? 1.0 : -1.0;
+
+    var kept = corners;
+    for (final edge in convex.edges) {
+      if (kept.length < 3) return const Polygon([]);
+      final along = edge.direction;
+      double side(Vec2 point) => sign * along.cross(point - edge.a);
+
+      final next = <Vec2>[];
+      for (var i = 0; i < kept.length; i++) {
+        final here = kept[i];
+        final there = kept[(i + 1) % kept.length];
+        final onHere = side(here);
+        final onThere = side(there);
+        if (onHere >= 0) next.add(here);
+        if ((onHere >= 0) != (onThere >= 0)) {
+          final gap = onHere - onThere;
+          if (gap.abs() > 1e-9) {
+            next.add(here + (there - here) * (onHere / gap));
+          }
+        }
+      }
+      kept = next;
+    }
+
+    return kept.length >= 3 ? Polygon(kept) : const Polygon([]);
+  }
+
   /// The same shape brought in by [by] millimetres all round.
   ///
   /// Straight-skeleton insetting is overkill for the shapes a window is made
