@@ -136,78 +136,31 @@ abstract final class SketchInterpreter {
       finish: design.frame?.finish ?? Finish.frameDefault,
     );
 
-    // Which lines belong inside an opening rather than dividing the whole
-    // design. A mark makes the region it is in an opening, and what is drawn
-    // in that region afterwards is drawn in the opening.
-    final insideOpening = _openingContents(
-      welded: welded,
-      symbols: symbols,
-      sketch: design.sketch,
-      outline: outline,
-      weld: weld,
-    );
-
     // Every run that is not part of the outline is a line inside the design:
     // a mullion, a transom, a glazing bar. It is kept exactly where it was
-    // drawn, at the angle it was drawn.
+    // drawn, at the angle it was drawn, and it divides the design.
+    //
+    // Every one of them. Nothing here works out that a line the user drew
+    // was "really" inside something and quietly absorbs it: that is how an
+    // opening grows to swallow a mullion, and then a whole window. A drawn
+    // line is a division of the design until the user says otherwise, which
+    // they do with the line tools inside an opening or with the **Divides**
+    // control on the bar's own panel.
     final dividers = <DividerElement>[];
-    final contained = <(DividerElement, Polygon)>[];
     for (final run in welded) {
       if (_liesOn(run.segment, outline, weld)) continue;
-      final divider = DividerElement(
+      dividers.add(DividerElement(
         id: nextId('divider'),
         a: run.segment.a,
         b: run.segment.b,
         widthMm: frame.profileMm * 0.8,
         finish: frame.finish,
         fromStrokeId: run.strokeId,
-      );
-      final region = insideOpening[run.strokeId];
-      if (region == null) {
-        dividers.add(divider);
-      } else {
-        contained.add((divider, region));
-      }
+      ));
     }
 
-    // The main structure first, from the lines that divide the design as a
-    // whole. Only once that is known is there something for a contained line
-    // to be contained by.
     var read = design.copyWith(frame: frame, dividers: dividers);
     read = SectionBuilder.rebuild(read, newId: newId);
-
-    if (contained.isNotEmpty) {
-      final all = [...read.dividers];
-      for (final (divider, region) in contained) {
-        SectionElement? parent;
-        for (final section in read.topLevelSections) {
-          if (!section.outline.contains(region.centroid)) continue;
-          if (parent == null || section.areaMmSq > parent.areaMmSq) {
-            parent = section;
-          }
-        }
-        // A line that turns out to be contained by nothing is a line that
-        // divides the design, so it is one.
-        if (parent == null) {
-          all.add(divider);
-          continue;
-        }
-        // Trimmed to the section it is inside, so a line drawn a little long
-        // does not reach out of the opening and across the design. Only the
-        // overshoot goes: what the user drew inside the opening stays where
-        // they drew it, at the angle they drew it.
-        final trimmed = _trimmedTo(divider.segment, parent.outline);
-        all.add(divider.copyWith(
-          parentId: parent.id,
-          a: trimmed?.a,
-          b: trimmed?.b,
-        ));
-      }
-      read = SectionBuilder.rebuild(
-        read.copyWith(dividers: all),
-        newId: newId,
-      );
-    }
 
     // An opening that came from a mark lasts exactly as long as the mark
     // does. Rub the mark out, or say it was never one, and the opening goes
@@ -243,276 +196,6 @@ abstract final class SketchInterpreter {
           if (!usedStrokes.contains(stroke.id)) stroke.id,
       ],
     );
-  }
-
-  /// The lines that belong inside an opening rather than dividing the whole
-  /// design, as a map from the stroke that made them to the region they are
-  /// inside.
-  ///
-  /// Two things make a line the opening's, and either is enough.
-  ///
-  /// **Where it is.** A line that lies wholly inside one marked region is
-  /// that opening's, whenever it was drawn. This is the plain meaning of
-  /// drawing inside something, and it is what most drawings rely on: a line
-  /// across the narrow light on the left of a window divides that light, not
-  /// the window, because it does not reach anything else. Working it out is
-  /// not circular — each line is measured against the regions the *other*
-  /// lines make, so nothing is asked to define itself.
-  ///
-  /// **When it was drawn.** A line that crosses the whole design looks
-  /// exactly like a division of the design, because that is also what it
-  /// could be: on an elevation a transom and a sash bar are the same stroke.
-  /// There the order settles it. Whatever was on the sheet when the mark was
-  /// made is the structure the mark was placed into, and a line drawn in the
-  /// marked region after it is drawn in the opening.
-  ///
-  /// Neither is a guess. The first reads where the line is, the second reads
-  /// when it was made; both are facts about the drawing. Where the drawing
-  /// says neither, the line divides the design, and a bar's own panel
-  /// carries a **Divides** control for saying otherwise.
-  static Map<String, Polygon> _openingContents({
-    required List<_Run> welded,
-    required List<OpeningSymbol> symbols,
-    required Sketch sketch,
-    required Polygon outline,
-    required double weld,
-  }) {
-    if (symbols.isEmpty) return const {};
-
-    final contents = <String, Polygon>{};
-    _byPlace(
-      welded: welded,
-      symbols: symbols,
-      outline: outline,
-      weld: weld,
-      into: contents,
-    );
-    _byOrder(
-      welded: welded,
-      symbols: symbols,
-      sketch: sketch,
-      weld: weld,
-      into: contents,
-    );
-    return contents;
-  }
-
-  /// A line that does not reach across the design, and lies inside a marked
-  /// region, belongs to that region.
-  ///
-  /// The test is what a line reaches. A line running from one side of the
-  /// frame to the opposite side divides the design: that is what a mullion
-  /// or a transom is, and it bounds whatever is on both sides of it. A line
-  /// that stops short of that — one that ends on another bar — cannot be
-  /// dividing the design, because it does not cross it. It divides only the
-  /// region it is in, and if that region is marked, it is the opening's.
-  ///
-  /// This is what makes a line across the narrow light on the left of a
-  /// window belong to that light rather than to the window, whenever it was
-  /// drawn. The regions are measured from the lines that *do* reach across,
-  /// so no line helps decide its own place and nothing here is circular.
-  static void _byPlace({
-    required List<_Run> welded,
-    required List<OpeningSymbol> symbols,
-    required Polygon outline,
-    required double weld,
-    required Map<String, Polygon> into,
-  }) {
-    // The lines that divide the design whatever else is true of them: the
-    // frame itself, and every line running right across it.
-    final across = <Segment>[];
-    final within = <_Run>[];
-    for (final run in welded) {
-      if (_liesOn(run.segment, outline, weld) ||
-          _reachesAcross(run.segment, outline, weld)) {
-        across.add(run.segment);
-      } else {
-        within.add(run);
-      }
-    }
-    if (within.isEmpty) return;
-
-    final regions = PlanarSubdivision.facesOf(
-      across,
-      weldTolerance: weld,
-      minAreaMmSq: math.max(Tol.minSectionAreaMmSq, weld * weld * 4),
-    );
-    if (regions.isEmpty) return;
-
-    for (final run in within) {
-      // The region holding most of this line. A line drawn in an opening is
-      // sometimes drawn a little long, so it is not required to be wholly
-      // inside — only to be more inside this region than any other, and
-      // mostly inside it. The overshoot is cut off afterwards.
-      Polygon? region;
-      var best = 0.0;
-      for (final candidate in regions) {
-        final held = _shareInside(run.segment, candidate);
-        if (held <= best) continue;
-        best = held;
-        region = candidate;
-      }
-      if (region == null || best < mostlyInsideFraction) continue;
-
-      // A mark must be in it: an opening is the only thing a line can be
-      // inside. A line in a plain section divides the design, as before.
-      if (!symbols.any((symbol) => region!.contains(symbol.centre))) continue;
-
-      into[run.strokeId] = region;
-    }
-  }
-
-  /// [line] cut back to the part of it that is inside [outline], or null
-  /// when it is inside already or there is nothing left of it.
-  ///
-  /// Only the ends move, and only inwards. This is trimming a line drawn
-  /// past its corner, which is cleaning; it never lengthens a line and never
-  /// changes its angle.
-  static Segment? _trimmedTo(Segment line, Polygon outline) {
-    final length = line.length;
-    if (length < Tol.minLineMm) return null;
-    final direction = line.unit;
-
-    // Where the line meets the boundary, measured along itself. The ends of
-    // the trimmed line sit exactly on the boundary — a line pulled back
-    // inside it would touch nothing and so divide nothing.
-    final hits = <double>[];
-    for (final edge in outline.edges) {
-      final at = _meetsAt(line.a, direction, edge);
-      if (at != null) hits.add(at);
-    }
-    if (hits.length < 2) return null;
-    hits.sort();
-
-    final from = hits.first.clamp(0.0, length);
-    final to = hits.last.clamp(0.0, length);
-    if (to - from < Tol.minLineMm) return null;
-    // Inside already: there is nothing hanging out to cut off.
-    if (from <= Tol.samePointMm && to >= length - Tol.samePointMm) return null;
-
-    return Segment(line.a + direction * from, line.a + direction * to);
-  }
-
-  /// How far along a line from [from] in [direction] it meets [edge], or null
-  /// when it does not meet it within the edge's own length.
-  static double? _meetsAt(Vec2 from, Vec2 direction, Segment edge) {
-    final along = edge.direction;
-    final denominator = direction.cross(along);
-    if (denominator.abs() < 1e-12) return null;
-    final onEdge = (edge.a - from).cross(direction) / denominator;
-    if (onEdge < -1e-9 || onEdge > 1 + 1e-9) return null;
-    return (edge.a - from).cross(along) / denominator;
-  }
-
-  /// True when a line runs from one side of [outline] to the opposite side,
-  /// which is what dividing the design means.
-  ///
-  /// Both ends on the frame, and not on the same side of it: a line from the
-  /// head to the sill, or from one jamb to the other. A line ending on
-  /// another bar is not one of these, and neither is a short line tucked
-  /// into a corner.
-  static bool _reachesAcross(Segment line, Polygon outline, double weld) {
-    final reach = math.max(weld, Tol.minLineMm);
-    final onA = _edgeOf(line.a, outline, reach);
-    final onB = _edgeOf(line.b, outline, reach);
-    if (onA == null || onB == null) return false;
-    return onA != onB;
-  }
-
-  /// Which side of [outline] a point sits on, or null when it sits on none.
-  static int? _edgeOf(Vec2 point, Polygon outline, double reach) {
-    final edges = outline.edges;
-    for (var i = 0; i < edges.length; i++) {
-      if (edges[i].distanceTo(point) <= reach) return i;
-    }
-    return null;
-  }
-
-  /// A line drawn in a marked region after the mark belongs to it.
-  static void _byOrder({
-    required List<_Run> welded,
-    required List<OpeningSymbol> symbols,
-    required Sketch sketch,
-    required double weld,
-    required Map<String, Polygon> into,
-  }) {
-    final order = <String, int>{};
-    for (var i = 0; i < sketch.strokes.length; i++) {
-      order[sketch.strokes[i].id] = i;
-    }
-
-    var firstMark = 1 << 30;
-    for (final symbol in symbols) {
-      final at = order[symbol.strokeId];
-      if (at != null && at < firstMark) firstMark = at;
-    }
-
-    // The structure as it stood when the first mark was made.
-    final before = [
-      for (final run in welded)
-        if ((order[run.strokeId] ?? 0) < firstMark) run,
-    ];
-    if (before.isEmpty) return;
-
-    final regions = PlanarSubdivision.facesOf(
-      [for (final run in before) run.segment],
-      weldTolerance: weld,
-      minAreaMmSq: math.max(Tol.minSectionAreaMmSq, weld * weld * 4),
-    );
-    if (regions.isEmpty) return;
-
-    for (final symbol in symbols) {
-      final markedAt = order[symbol.strokeId] ?? 0;
-
-      // The smallest region that holds the whole mark is the one it is in.
-      Polygon? region;
-      for (final candidate in regions) {
-        if (!symbol.points.every(candidate.contains)) continue;
-        if (region == null || candidate.area < region.area) region = candidate;
-      }
-      if (region == null) continue;
-
-      for (final run in welded) {
-        if ((order[run.strokeId] ?? 0) <= markedAt) continue;
-        if (!_mostlyInside(run.segment, region)) continue;
-        into[run.strokeId] = region;
-      }
-    }
-  }
-
-  /// True when a line lies inside a region rather than merely crossing it.
-  ///
-  /// The ends are not tested. A line drawn inside a region usually runs from
-  /// one side of it to the other, so its ends sit on the boundary, where
-  /// containment is a coin toss decided by a fraction of a millimetre of
-  /// wobble. What settles the question is the body of the line: sampled
-  /// between the ends, it is either in the region throughout or it leaves it,
-  /// and a line that leaves the region is not inside it.
-  static bool _mostlyInside(Segment line, Polygon region) {
-    const samples = 12;
-    for (var i = 1; i < samples; i++) {
-      if (!region.contains(line.pointAt(i / samples))) return false;
-    }
-    return true;
-  }
-
-  /// How much of a line is drawn inside a region, before it may be said to
-  /// have been drawn in it.
-  ///
-  /// Not all of it, because a hand draws a line in an opening a little long
-  /// and it strays over the bar at the end. Comfortably most of it, because
-  /// a line that leaves the opening for a third of its length was not drawn
-  /// in the opening at all.
-  static const double mostlyInsideFraction = 0.66;
-
-  /// What fraction of the body of [line] lies inside [region].
-  static double _shareInside(Segment line, Polygon region) {
-    const samples = 24;
-    var inside = 0;
-    for (var i = 1; i < samples; i++) {
-      if (region.contains(line.pointAt(i / samples))) inside++;
-    }
-    return inside / (samples - 1);
   }
 
   /// Gives each mark the section it was drawn in.
@@ -583,16 +266,25 @@ abstract final class SketchInterpreter {
   /// which section opens by drawing the mark in it, so this works out which
   /// one that is rather than asking them to say it again.
   ///
-  /// The point of the mark decides it. A mark sits in the section its middle
-  /// is in — that is what being in a section means, and it holds however
-  /// shakily the mark was drawn and however near a bar it strayed. Where the
-  /// middle falls on a bar or outside the daylight, the section holding most
-  /// of the mark takes it. Only a mark drawn right off the design leaves
-  /// nothing to go on.
+  /// **The smallest region holding the mark is the opening, and nothing
+  /// larger ever is.** The user's own lines cut the daylight into regions;
+  /// the mark falls in one of them; that one opens and every other stays
+  /// fixed. A window is not an opening because a mark was drawn somewhere
+  /// inside it, and an opening never grows to take in a neighbour. Being
+  /// wrong the other way is cheap — the user marks another section — but an
+  /// opening that swallowed a fixed light is a leaf that swings in a window
+  /// somebody has to build.
   ///
-  /// Only the main divisions are candidates. A mark makes the region it is
-  /// in an opening; what is inside that region is the opening's, not a rival
-  /// for it.
+  /// The point of the mark decides which region. A mark sits in the section
+  /// its middle is in — that is what being in a section means, and it holds
+  /// however shakily the mark was drawn and however near a bar it strayed.
+  /// Where the middle falls on a bar or outside the daylight, the section
+  /// holding most of the mark takes it. Only a mark drawn right off the
+  /// design leaves nothing to go on.
+  ///
+  /// Only the main divisions are candidates, and they tile the daylight
+  /// without overlapping, so the one holding the mark is by construction the
+  /// smallest region that holds it.
   static SectionElement? sectionFor(Design design, OpeningSymbol symbol) {
     final sections = design.topLevelSections;
     if (sections.isEmpty) return null;

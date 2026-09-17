@@ -53,29 +53,39 @@ Design sketchOf(List<Stroke> strokes) {
 /// └──────────────────────┘
 /// ```
 ///
-/// The transom below FIXED is drawn first, so it divides the design. The
-/// mark then makes the region below it the opening, and the two lines drawn
-/// afterwards are drawn inside that opening.
-Design fixedOverOpening() => sketchOf([
-      drawn(const [
-        Vec2(0, 0),
-        Vec2(1600, 0),
-        Vec2(1600, 2400),
-        Vec2(0, 2400),
-        Vec2(0, 0),
-      ]),
-      drawn(const [Vec2(0, 620), Vec2(1600, 620)]),
-      drawn(const [Vec2(400, 900), Vec2(560, 1000), Vec2(400, 1100)]),
-      drawn(const [Vec2(0, 1350), Vec2(1600, 1350)]),
-      drawn(const [Vec2(0, 1900), Vec2(1600, 1900)]),
-    ]);
+/// The transom is drawn on the sheet, so it divides the design. The mark
+/// makes the region below it the opening. The two lines inside the opening
+/// are put there with the line tool, which is how a line becomes an
+/// opening's: a line drawn on the sheet divides the design, because reading
+/// it as anything else is how an opening grows to swallow what is beside it.
+Design fixedOverOpening() {
+  final read = SketchInterpreter.interpret(sketchOf([
+    drawn(const [
+      Vec2(0, 0),
+      Vec2(1600, 0),
+      Vec2(1600, 2400),
+      Vec2(0, 2400),
+      Vec2(0, 0),
+    ]),
+    drawn(const [Vec2(0, 620), Vec2(1600, 620)]),
+    drawn(const [Vec2(400, 900), Vec2(560, 1000), Vec2(400, 1100)]),
+  ])).design;
+
+  final opening = read.openings.single.sectionId;
+  final box = read.sectionById(opening)!.outline;
+  var design = DesignEdits.addLineInside(read, opening,
+      id: 'inner-a', at: Vec2(box.centroid.x, box.top + 730), horizontal: true);
+  design = DesignEdits.addLineInside(design, opening,
+      id: 'inner-b', at: Vec2(box.centroid.x, box.top + 1280), horizontal: true);
+  return design;
+}
 
 void main() {
   setUp(() => _n = 0);
 
   group('the marked region is the opening, and it keeps what is in it', () {
     test('there are two main divisions, not four', () {
-      final design = SketchInterpreter.interpret(fixedOverOpening()).design;
+      final design = fixedOverOpening();
 
       expect(design.topLevelSections, hasLength(2),
           reason: 'the fixed light above, and the opening below');
@@ -84,7 +94,7 @@ void main() {
     });
 
     test('the opening is the whole region below the transom', () {
-      final design = SketchInterpreter.interpret(fixedOverOpening()).design;
+      final design = fixedOverOpening();
       expect(design.openings, hasLength(1));
 
       final opening = design.sectionById(design.openings.single.sectionId)!;
@@ -97,7 +107,7 @@ void main() {
     });
 
     test('the lines drawn inside it belong to it', () {
-      final design = SketchInterpreter.interpret(fixedOverOpening()).design;
+      final design = fixedOverOpening();
       final opening = design.sectionById(design.openings.single.sectionId)!;
 
       final inside = design.childDividersOf(opening.id);
@@ -110,7 +120,7 @@ void main() {
     });
 
     test('they do not become main divisions', () {
-      final design = SketchInterpreter.interpret(fixedOverOpening()).design;
+      final design = fixedOverOpening();
       for (final section in design.topLevelSections) {
         expect(section.heightMm, greaterThan(400),
             reason: 'a slice made by an internal line has appeared at the '
@@ -120,7 +130,7 @@ void main() {
     });
 
     test('the opening is divided inside itself', () {
-      final design = SketchInterpreter.interpret(fixedOverOpening()).design;
+      final design = fixedOverOpening();
       final opening = design.sectionById(design.openings.single.sectionId)!;
 
       final panes = design.childSectionsOf(opening.id);
@@ -134,7 +144,7 @@ void main() {
     });
 
     test('the fixed light above is untouched and has nothing in it', () {
-      final design = SketchInterpreter.interpret(fixedOverOpening()).design;
+      final design = fixedOverOpening();
       final fixed = design.topLevelSections
           .reduce((a, b) => a.outline.top < b.outline.top ? a : b);
 
@@ -145,7 +155,7 @@ void main() {
     });
 
     test('the whole tree reads the way the specification draws it', () {
-      final design = SketchInterpreter.interpret(fixedOverOpening()).design;
+      final design = fixedOverOpening();
       final opening = design.sectionById(design.openings.single.sectionId)!;
 
       expect(design.descendantsOf(opening.id), hasLength(5),
@@ -155,45 +165,88 @@ void main() {
     });
   });
 
-  group('a mark with nothing drawn before it opens the whole frame', () {
+  group('a single leaf, and the bars inside it', () {
     /// ```
     /// ┌──────────────────────┐
     /// │         >            │
-    /// │──────────────────────│ ← internal
-    /// │──────────────────────│ ← internal
+    /// │──────────────────────│ ← put in with the line tool
+    /// │──────────────────────│ ← put in with the line tool
     /// └──────────────────────┘
     /// ```
-    Design wholeFrame() => sketchOf([
-          drawn(const [
-            Vec2(0, 0),
-            Vec2(1600, 0),
-            Vec2(1600, 2400),
-            Vec2(0, 2400),
-            Vec2(0, 0),
-          ]),
-          drawn(const [Vec2(500, 400), Vec2(660, 500), Vec2(500, 600)]),
-          drawn(const [Vec2(0, 1000), Vec2(1600, 1000)]),
-          drawn(const [Vec2(0, 1700), Vec2(1600, 1700)]),
-        ]);
+    Design wholeFrame() {
+      final read = SketchInterpreter.interpret(sketchOf([
+        drawn(const [
+          Vec2(0, 0),
+          Vec2(1600, 0),
+          Vec2(1600, 2400),
+          Vec2(0, 2400),
+          Vec2(0, 0),
+        ]),
+        drawn(const [Vec2(500, 400), Vec2(660, 500), Vec2(500, 600)]),
+      ])).design;
 
-    test('the opening is the whole daylight, not a slice of it', () {
-      final design = SketchInterpreter.interpret(wholeFrame()).design;
+      final opening = read.openings.single.sectionId;
+      final box = read.sectionById(opening)!.outline;
+      final once = DesignEdits.addLineInside(read, opening,
+          id: 'a', at: Vec2(box.centroid.x, box.top + 1000), horizontal: true);
+      return DesignEdits.addLineInside(once, opening,
+          id: 'b', at: Vec2(box.centroid.x, box.top + 1700), horizontal: true);
+    }
+
+    test('a mark in a frame with nothing else in it opens the daylight', () {
+      // Nothing divides this design, so the section the mark is in *is* the
+      // whole daylight. That is the smallest region holding the mark, not an
+      // opening grown to fit the window.
+      final design = SketchInterpreter.interpret(sketchOf([
+        drawn(const [
+          Vec2(0, 0),
+          Vec2(1600, 0),
+          Vec2(1600, 2400),
+          Vec2(0, 2400),
+          Vec2(0, 0),
+        ]),
+        drawn(const [Vec2(500, 400), Vec2(660, 500), Vec2(500, 600)]),
+      ])).design;
 
       expect(design.topLevelSections, hasLength(1));
-      expect(design.topLevelDividers, isEmpty);
       expect(design.openings, hasLength(1));
-
-      final opening = design.sectionById(design.openings.single.sectionId)!;
-      expect(opening.heightMm, greaterThan(2200));
-      expect(design.childDividersOf(opening.id), hasLength(2));
-      expect(design.childSectionsOf(opening.id), hasLength(3));
+      expect(design.topLevelDividers, isEmpty);
     });
 
-    test('the lines inside do not cancel or terminate the opening', () {
-      final design = SketchInterpreter.interpret(wholeFrame()).design;
+    test('lines drawn on the sheet divide it instead', () {
+      // The same design with two lines drawn on the sheet. They are
+      // divisions of the design, and the mark opens the one region it is in
+      // — never all three.
+      final design = SketchInterpreter.interpret(sketchOf([
+        drawn(const [
+          Vec2(0, 0),
+          Vec2(1600, 0),
+          Vec2(1600, 2400),
+          Vec2(0, 2400),
+          Vec2(0, 0),
+        ]),
+        drawn(const [Vec2(500, 400), Vec2(660, 500), Vec2(500, 600)]),
+        drawn(const [Vec2(0, 1000), Vec2(1600, 1000)]),
+        drawn(const [Vec2(0, 1700), Vec2(1600, 1700)]),
+      ])).design;
+
+      expect(design.topLevelSections, hasLength(3));
+      expect(design.openings, hasLength(1));
+      final opening = design.sectionById(design.openings.single.sectionId)!;
+      expect(opening.outline.bottom, lessThan(1100),
+          reason: 'the mark is in the top band, so the top band opens');
+      expect(opening.areaMmSq, lessThan(design.frame!.innerOutline.area * 0.6));
+    });
+
+    test('bars put inside the leaf do not cancel or terminate it', () {
+      final design = wholeFrame();
       final opening = design.sectionById(design.openings.single.sectionId)!;
 
-      // The opening continues through both lines: every pane it is divided
+      expect(design.topLevelDividers, isEmpty);
+      expect(design.childDividersOf(opening.id), hasLength(2));
+      expect(design.childSectionsOf(opening.id), hasLength(3));
+
+      // The opening continues through both bars: every pane it is divided
       // into is inside it, top to bottom.
       final panes = design.childSectionsOf(opening.id)
         ..sort((a, b) => a.outline.top.compareTo(b.outline.top));
@@ -225,7 +278,7 @@ void main() {
     }
 
     test('the opening contains its bars and its panes, not the design', () {
-      final design = SketchInterpreter.interpret(fixedOverOpening()).design;
+      final design = fixedOverOpening();
       final opening = design.sectionById(design.openings.single.sectionId)!;
       final mesh = MeshBuilder.build(design);
 
@@ -257,7 +310,7 @@ void main() {
     });
 
     test('everything inside the leaf swings with the leaf', () {
-      final design = SketchInterpreter.interpret(fixedOverOpening()).design;
+      final design = fixedOverOpening();
       final opening = design.sectionById(design.openings.single.sectionId)!;
       final inside = design.childDividersOf(opening.id);
       final panes = design.childSectionsOf(opening.id);
@@ -271,7 +324,7 @@ void main() {
     });
 
     test('the fixed light does not swing with it', () {
-      final design = SketchInterpreter.interpret(fixedOverOpening()).design;
+      final design = fixedOverOpening();
       final opening = design.sectionById(design.openings.single.sectionId)!;
       final fixed =
           design.topLevelSections.firstWhere((s) => s.id != opening.id);
@@ -283,7 +336,7 @@ void main() {
     });
 
     test('the internal bars hinge on the same edge as their leaf', () {
-      final design = SketchInterpreter.interpret(fixedOverOpening()).design;
+      final design = fixedOverOpening();
       final opening = design.sectionById(design.openings.single.sectionId)!;
       final bar = design.childDividersOf(opening.id).first;
 
@@ -302,7 +355,7 @@ void main() {
     });
 
     test('moving the opening takes its contents with it', () {
-      var design = SketchInterpreter.interpret(fixedOverOpening()).design;
+      var design = fixedOverOpening();
       final opening = design.sectionById(design.openings.single.sectionId)!;
       final bar = design.childDividersOf(opening.id).first;
       final before = bar.a.y;
@@ -328,7 +381,7 @@ void main() {
     });
 
     test('the fixed light keeps its own contents — it has none', () {
-      var design = SketchInterpreter.interpret(fixedOverOpening()).design;
+      var design = fixedOverOpening();
       final opening = design.sectionById(design.openings.single.sectionId)!;
       final fixed =
           design.topLevelSections.firstWhere((s) => s.id != opening.id);

@@ -451,10 +451,11 @@ void main() {
   });
 }
 
-/// The specification's containment example, read from a drawing.
+/// The specification's containment example: a transom drawn on the sheet, a
+/// mark below it, and two bars put inside the opening with the line tool.
 Design fixedOverOpening() {
   final at = DateTime(2026);
-  final design = Design(
+  final read = SketchInterpreter.interpret(Design(
     id: 'd',
     name: 'test',
     kind: DesignKind.window,
@@ -470,9 +471,13 @@ Design fixedOverOpening() {
       ]),
       drawn(const [Vec2(0, 620), Vec2(1600, 620)]),
       drawn(const [Vec2(400, 900), Vec2(560, 1000), Vec2(400, 1100)]),
-      drawn(const [Vec2(0, 1350), Vec2(1600, 1350)]),
-      drawn(const [Vec2(0, 1900), Vec2(1600, 1900)]),
     ]),
-  );
-  return SketchInterpreter.interpret(design).design;
+  )).design;
+
+  final opening = read.openings.single.sectionId;
+  final box = read.sectionById(opening)!.outline;
+  final once = DesignEdits.addLineInside(read, opening,
+      id: 'inner-a', at: Vec2(box.centroid.x, box.top + 730), horizontal: true);
+  return DesignEdits.addLineInside(once, opening,
+      id: 'inner-b', at: Vec2(box.centroid.x, box.top + 1280), horizontal: true);
 }

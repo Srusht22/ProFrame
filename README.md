@@ -164,6 +164,23 @@ that picks a door leaf, nothing that decides the lower section is probably
 the door, and no template. A design with nothing marked comes back with no
 openings, however door-shaped it is.
 
+And only the section you marked opens. Your lines cut the daylight into
+regions; your mark lands in one of them; that one opens and every other one
+stays fixed:
+
+```
+┌──────────────────────────┐
+│          FIXED           │
+├──────────────┬───────────┤
+│      >       │   FIXED   │
+│   OPENING    │           │
+└──────────────┴───────────┘
+```
+
+Three sections, two bars, one opening. The opening never grows to take in the
+section beside it, and a window is never an opening because a mark was drawn
+somewhere inside it.
+
 You mark a section by drawing one of four marks inside it:
 
 | Mark | Meaning |
@@ -238,17 +255,13 @@ three panes. The component tree shows the nesting, the drawing puts the
 swing lines across the whole opening, and in the model the leaf swings with
 its bars and panes attached — nothing stays behind on the frame.
 
-You can draw them in any order. Draw the whole design and mark the opening
-last, or mark it first and fill it in — the result is the same, because what
-makes a line the opening's is **where it is**: a line that does not reach
-right across the design cannot be dividing the design, so if it lies in a
-marked region it divides that region.
+Every line you draw on the sheet divides the design, and the mark opens the
+one region it lands in — never a bigger one, and never the whole window.
+That holds whatever order you draw in.
 
-Only a line that runs from one side of the frame to the opposite side is
-ambiguous, because on an elevation a transom and a sash bar are the same
-stroke. There the order decides — a line drawn in the marked region after the
-mark is inside the opening — and if the order cannot say either, every bar's
-panel carries a **Divides** choice:
+To make a line part of an opening you say so, either by drawing it with the
+line tools inside the opening, or by picking the bar and using the **Divides**
+control on its panel:
 
 ```
 Divides        The whole design

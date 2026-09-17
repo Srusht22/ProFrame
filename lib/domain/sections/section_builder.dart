@@ -64,10 +64,15 @@ abstract final class SectionBuilder {
       nextId,
     );
 
+    // A bar inside a section whose section has been replaced — a line moved
+    // into it leaves one bigger section where two were — follows to whatever
+    // now covers the ground it is on. Its parent's id changed; the bar did
+    // not move, and it is still inside a section.
+    var dividers = _rehomed(design.dividers, parents);
+
     // Anything drawn inside a section travels with it. Where a section has
     // moved or changed size, its contents are carried by the same movement,
     // so an opening and everything in it stay one thing.
-    var dividers = design.dividers;
     for (var i = 0; i < parents.length; i++) {
       final was = _previousOutlineOf(design, parents[i].id);
       if (was == null) continue;
@@ -104,10 +109,7 @@ abstract final class SectionBuilder {
             divider,
       ],
       sections: sections,
-      openings: [
-        for (final opening in design.openings)
-          if (liveIds.contains(opening.sectionId)) opening,
-      ],
+      openings: _openingsKept(design, sections, liveIds),
     );
 
     // The hinges and handle of every opening, worked out again from where
@@ -115,6 +117,97 @@ abstract final class SectionBuilder {
     // left behind by a move or a resize and never survive an opening that
     // has gone. What the user placed by hand is theirs and is untouched.
     return OpeningHardware.settle(settled);
+  }
+
+  /// Bars whose parent section has gone, put back where they are.
+  ///
+  /// Only a bar that names a section which no longer exists is touched, and
+  /// it is given the section it now lies in. A bar left over nothing keeps
+  /// the name it had, and is dropped later with everything else that has no
+  /// section.
+  static List<DividerElement> _rehomed(
+    List<DividerElement> dividers,
+    List<SectionElement> parents,
+  ) {
+    final live = {for (final parent in parents) parent.id};
+    if (dividers.every((d) => d.parentId == null || live.contains(d.parentId))) {
+      return dividers;
+    }
+
+    return [
+      for (final divider in dividers)
+        if (divider.parentId == null || live.contains(divider.parentId))
+          divider
+        else
+          _intoWhateverHoldsIt(divider, parents),
+    ];
+  }
+
+  static DividerElement _intoWhateverHoldsIt(
+    DividerElement divider,
+    List<SectionElement> parents,
+  ) {
+    final at = divider.segment.midpoint;
+    for (final parent in parents) {
+      if (parent.outline.contains(at)) {
+        return divider.copyWith(parentId: parent.id);
+      }
+    }
+    return divider;
+  }
+
+  /// The openings that still have a section to be on.
+  ///
+  /// A section can be replaced rather than kept — a line moving into it
+  /// leaves one bigger section where two smaller ones were, and the new one
+  /// is not either of the old. The opening is not lost with it: the mark is
+  /// still on the sheet, in the same place, and it opens the section it is
+  /// in, which is the same rule that read it in the first place. Only a mark
+  /// with no section under it at all takes its opening with it.
+  static List<OpeningElement> _openingsKept(
+    Design design,
+    List<SectionElement> sections,
+    Set<String> liveIds,
+  ) {
+    final top = [for (final s in sections) if (s.parentId == null) s];
+    final taken = <String>{};
+    final kept = <OpeningElement>[];
+
+    for (final opening in design.openings) {
+      if (liveIds.contains(opening.sectionId)) {
+        taken.add(opening.sectionId);
+        kept.add(opening);
+        continue;
+      }
+
+      // The section it was on has gone. Where is its mark now?
+      final at = opening.markAt;
+      if (at == null) continue;
+      SectionElement? now;
+      for (final section in top) {
+        if (!section.outline.contains(at)) continue;
+        if (taken.contains(section.id)) continue;
+        now = section;
+        break;
+      }
+      if (now == null) continue;
+      taken.add(now.id);
+      kept.add(OpeningElement(
+        id: opening.id,
+        sectionId: now.id,
+        mechanism: opening.mechanism,
+        direction: opening.direction,
+        confirmed: opening.confirmed,
+        markAt: opening.markAt,
+        markGlyph: opening.markGlyph,
+        hingeCount: opening.hingeCount,
+        hingeFromStartMm: opening.hingeFromStartMm,
+        hingeFromEndMm: opening.hingeFromEndMm,
+        handleAlongMm: opening.handleAlongMm,
+        fromStrokeId: opening.fromStrokeId,
+      ));
+    }
+    return kept;
   }
 
   /// The sections inside [parent], made by the bars drawn in it.

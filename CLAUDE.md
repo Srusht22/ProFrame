@@ -257,40 +257,48 @@ being told to, and an opening carries its contents whenever it moves or is
 resized — `SectionBuilder` applies the same transform to everything inside a
 section whose outline changed, so nothing is left behind on the frame.
 
-Two things make a line the opening's, and either is enough. Both are facts
-about the drawing, not guesses about what looks like a sash.
+### Only the marked section opens
 
-**Where it is** (`_byPlace`). A line that does not reach across the design,
-and lies in a marked region, is that opening's — *whenever* it was drawn.
-The test is what the line reaches: one running from one side of the frame to
-the opposite side divides the design, because that is what a mullion or a
-transom is and it bounds what is on both sides of it. A line that stops short
-of that — one ending on another bar — cannot be dividing the design, because
-it does not cross it. The regions are measured from the lines that *do* reach
-across, so no line helps decide its own place and nothing is circular.
+**The smallest region holding the mark is the opening, and nothing larger
+ever is.** The user's own lines cut the daylight into regions; the mark falls
+in one of them; that one opens and every other stays fixed. A window is not
+an opening because a mark was drawn somewhere inside it.
 
-**When it was drawn** (`_byOrder`). A line that reaches right across the
-design looks exactly like a division of the design, because on an elevation a
-transom and a sash bar are the same stroke. There the order settles it:
-whatever was on the sheet when the mark was made is the structure the mark was
-placed into, and a line drawn in the marked region after it is drawn in the
-opening.
+```
+┌──────────────────────────┐
+│          FIXED           │
+├──────────────┬───────────┤
+│      >       │   FIXED   │
+│   OPENING    │           │
+└──────────────┴───────────┘
+```
 
-This matters because the natural way to draw is design first, mark last — and
-under the order rule alone, marking last left every line dividing the design,
-cut the opening short, and put the line above it. That was the bug. Where a
-line reaches across the design *and* the order says nothing, it divides the
-design, and a bar's panel carries a **Divides** choice for saying otherwise.
+Three sections, two bars, one opening — the lower left. Not the lower band,
+not the window.
 
-A contained line is **trimmed** to the section it is in, so a line drawn a
-little long stops at the opening instead of reaching out across the design.
-Only the overshoot goes: the ends move inwards and never outwards, and the
-angle never changes. The trim cuts exactly at the boundary, because a line
-pulled back inside it would touch nothing and so divide nothing.
+This follows from one flat rule in the reading: **every line the user draws
+divides the design.** Nothing in the interpreter works out that a line was
+"really" inside something and quietly absorbs it. There used to be two such
+rules — one by where a line sat, one by when it was drawn — and between them
+an opening could take in the mullion beside it, or the whole window. Both are
+gone. `sectionFor` then picks the section the mark's middle is in, and because
+top-level sections tile the daylight without overlapping, that is by
+construction the smallest region holding the mark.
 
-`test/domain/opening_containment_test.dart` and
-`test/domain/lines_belong_to_the_opening_test.dart` hold this — the second
-reads the same design in every stroke order and requires the same result.
+Being wrong the cautious way is cheap: the user marks another section. Being
+wrong the other way is a leaf that swings, in a window somebody has to build.
+
+A line becomes an opening's only when the user says so — with the line tools
+inside an opening, or with the **Divides** control on the bar's own panel.
+Both set `parentId` outright. `SectionBuilder` then keeps that hierarchy
+through every edit, and where a section is *replaced* rather than kept — a
+line moving into it leaves one bigger section where two were — the opening
+follows its own mark to whatever now covers that ground, and a bar inside
+follows to whatever now holds it. Neither is lost because an id changed.
+
+`test/domain/only_the_marked_section_opens_test.dart` holds this, in every
+stroke order. `test/domain/opening_containment_test.dart` holds what happens
+once a line *is* the opening's.
 
 ### Drawing inside an opening
 
