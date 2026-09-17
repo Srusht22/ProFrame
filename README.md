@@ -227,6 +227,10 @@ divisions of the whole design:
 └──────────────────────┘
 ```
 
+A line drawn a little long is trimmed back to the opening, so it stops at
+the sash instead of carrying on across the design. Only the overshoot goes:
+the ends move inwards, never outwards, and the angle never changes.
+
 The two lines under the `>` do not cut the opening into pieces and they do
 not end it half way down. There is one transom that divides the design, one
 opening below it running to the sill, and inside that opening two bars and
@@ -234,14 +238,17 @@ three panes. The component tree shows the nesting, the drawing puts the
 swing lines across the whole opening, and in the model the leaf swings with
 its bars and panes attached — nothing stays behind on the frame.
 
-Which lines are inside follows from **the order you drew them in**. Whatever
-was on the sheet when you made the mark is the structure you marked; what
-you drew afterwards inside the marked region is inside the opening. A line
-drawn before any mark divides the design, because when you drew it there was
-no opening for it to be in.
+You can draw them in any order. Draw the whole design and mark the opening
+last, or mark it first and fill it in — the result is the same, because what
+makes a line the opening's is **where it is**: a line that does not reach
+right across the design cannot be dividing the design, so if it lies in a
+marked region it divides that region.
 
-If you marked the design last, that order cannot say — so every bar's panel
-carries a **Divides** choice:
+Only a line that runs from one side of the frame to the opposite side is
+ambiguous, because on an elevation a transom and a sash bar are the same
+stroke. There the order decides — a line drawn in the marked region after the
+mark is inside the opening — and if the order cannot say either, every bar's
+panel carries a **Divides** choice:
 
 ```
 Divides        The whole design

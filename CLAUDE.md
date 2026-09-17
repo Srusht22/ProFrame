@@ -257,16 +257,40 @@ being told to, and an opening carries its contents whenever it moves or is
 resized — `SectionBuilder` applies the same transform to everything inside a
 section whose outline changed, so nothing is left behind on the frame.
 
-What settles which lines are inside is **the order they were drawn in**, not
-a guess about what looks like a sash: whatever was on the sheet when the mark
-was made is the structure the mark was placed into, and what came after it,
-inside that region, is the opening's. A line drawn before any mark divides
-the design, because when it was drawn there was no opening to be inside. The
-drawing cannot always say — the user may mark everything last — so a bar's
-panel carries a **Divides** choice, between the whole design and a section,
-which is where the user says it rather than where the application decides it.
+Two things make a line the opening's, and either is enough. Both are facts
+about the drawing, not guesses about what looks like a sash.
 
-`test/domain/opening_containment_test.dart` holds this.
+**Where it is** (`_byPlace`). A line that does not reach across the design,
+and lies in a marked region, is that opening's — *whenever* it was drawn.
+The test is what the line reaches: one running from one side of the frame to
+the opposite side divides the design, because that is what a mullion or a
+transom is and it bounds what is on both sides of it. A line that stops short
+of that — one ending on another bar — cannot be dividing the design, because
+it does not cross it. The regions are measured from the lines that *do* reach
+across, so no line helps decide its own place and nothing is circular.
+
+**When it was drawn** (`_byOrder`). A line that reaches right across the
+design looks exactly like a division of the design, because on an elevation a
+transom and a sash bar are the same stroke. There the order settles it:
+whatever was on the sheet when the mark was made is the structure the mark was
+placed into, and a line drawn in the marked region after it is drawn in the
+opening.
+
+This matters because the natural way to draw is design first, mark last — and
+under the order rule alone, marking last left every line dividing the design,
+cut the opening short, and put the line above it. That was the bug. Where a
+line reaches across the design *and* the order says nothing, it divides the
+design, and a bar's panel carries a **Divides** choice for saying otherwise.
+
+A contained line is **trimmed** to the section it is in, so a line drawn a
+little long stops at the opening instead of reaching out across the design.
+Only the overshoot goes: the ends move inwards and never outwards, and the
+angle never changes. The trim cuts exactly at the boundary, because a line
+pulled back inside it would touch nothing and so divide nothing.
+
+`test/domain/opening_containment_test.dart` and
+`test/domain/lines_belong_to_the_opening_test.dart` hold this — the second
+reads the same design in every stroke order and requires the same result.
 
 ### Drawing inside an opening
 
