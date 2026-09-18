@@ -230,6 +230,43 @@ cut at their crossings, joined into a graph, and the faces of that graph are
 the sections. Nothing is laid out to a template, which is what makes the rule
 above structurally true rather than merely intended.
 
+### What the model will not let you say
+
+The hierarchy is not kept true by each edit remembering to keep it true.
+`lib/domain/model/hierarchy.dart` holds the rules and `Design.copyWith` — which
+every edit passes through — applies them, so an impossible document cannot be
+built rather than being built and then tidied up.
+
+Four states used to be expressible, and each was a phantom: stored in the
+document, listed in the component tree, saved to disk, and built by neither
+view.
+
+| Used to be storable | Now |
+| --- | --- |
+| An opening naming the frame | Refused. The frame is not a section, so the root can never open |
+| An opening naming a section that has gone | Refused |
+| Two openings on one section | The first is kept; the second could not have been made by any user action |
+| A section inside itself | Put back among the main divisions, never dropped |
+
+**A bar whose section has gone is deliberately not settled here.** That one
+has a better answer than "it divides the design": `SectionBuilder` looks for
+whatever now holds it and only falls back to the design when nothing does.
+Clearing it in `copyWith` let a stale reference reshape the top-level
+subdivision before that reconciliation ran, and took the opening it came from
+with it. It *is* settled in `Design.fromJson`, because there is no rebuild
+between a file and the first look at it, and a bar belonging to neither the
+design nor a real section would be drawn by nothing.
+
+**An opening stores no geometry of its own.** `Design.outlineOf` gives its
+place and size — its section's outline, and nothing wider — and
+`Design.contentsOf` gives what it holds. An opening carrying its own x, y,
+width and height would be a second copy of the section's shape, and the two
+would part company the first time a bar beside it moved.
+
+`test/domain/the_opening_is_one_region_test.dart` holds this, on a window of
+four main divisions with the middle lower light marked and divided into glass
+over panel.
+
 ### One tree, walked by both views
 
 The hierarchy is in the model — `parentId` on every divider and every

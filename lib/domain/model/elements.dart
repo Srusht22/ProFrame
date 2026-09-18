@@ -359,7 +359,20 @@ enum OpeningDirection { inward, outward, either }
 /// resizing the section moves the leaf with it. The mechanism is what the
 /// user drew or confirmed — never a guess the application made quietly.
 class OpeningElement extends DesignElement {
+  /// The section that opens — this opening's parent in the design tree.
+  ///
+  /// One id, and it names a section: not the frame, which is not a section,
+  /// and not the design, which is the root. `Hierarchy.settleOpenings` keeps
+  /// that true, so a document can no longer say that the whole door opens.
   final String sectionId;
+
+  /// The same id, under the name the tree uses for it everywhere else.
+  ///
+  /// An opening is a property of one region, so where it *is* and how big it
+  /// is are that region's outline — `Design.outlineOf` — and what it holds
+  /// is whatever names that region as its own parent —
+  /// `Design.contentsOf`. None of it is stored twice.
+  String get parentId => sectionId;
   final OpeningMechanism mechanism;
   final OpeningDirection direction;
 

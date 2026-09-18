@@ -446,6 +446,18 @@ Where you change a direction you drew, both are kept: the drawing shows what
 is built now, and the panel says *"You drew > here. You have since changed
 it to <."*
 
+### The opening is one region of the design
+
+A door or a window is the root and it never opens. One section of it does —
+the one you marked — and that section carries the opening. Everything the
+opening holds says so outright: the line you drew inside it, the panes that
+line makes, and its hinges and handle all name that section as their parent.
+Nothing is a flat list searched afterwards to work out what belongs where.
+
+The opening keeps no shape of its own. Where it is and how big it is are its
+section's outline, so moving the mullion beside it changes its figures at
+once — there is no second copy to fall behind.
+
 ## One model
 
 There is one document. The sheet, the technical drawing and the solid are

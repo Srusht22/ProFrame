@@ -3,6 +3,7 @@ import '../geometry/segment.dart';
 import '../geometry/vec2.dart';
 import '../sketch/stroke.dart';
 import 'elements.dart';
+import 'hierarchy.dart';
 
 /// A door or a window.
 enum DesignKind {
@@ -176,6 +177,29 @@ class Design {
   bool hasChildren(String sectionId) =>
       sections.any((s) => s.parentId == sectionId);
 
+  /// Where an opening is and how big it is: the outline of its own section,
+  /// and nothing wider.
+  ///
+  /// Derived, never stored. An opening carrying its own x, y, width and
+  /// height would be a second copy of the section's shape, and the two would
+  /// part company the first time a bar beside it moved — which is the whole
+  /// class of bug this model exists to make impossible. The opening is a
+  /// property of a region; the region has the shape.
+  Polygon? outlineOf(OpeningElement opening) =>
+      sectionById(opening.sectionId)?.outline;
+
+  /// Everything the opening owns: the lines drawn inside it, the panes those
+  /// lines make, whatever is inside those in turn, and its hardware.
+  ///
+  /// Nothing outside the opening's own section is ever in this list, because
+  /// membership is `parentId` and `parentId` is set only by the user putting
+  /// something there.
+  List<DesignElement> contentsOf(OpeningElement opening) => [
+        ...descendantsOf(opening.sectionId),
+        for (final piece in hardware)
+          if (piece.parentId == opening.sectionId) piece,
+      ];
+
   /// Everything inside [sectionId], at any depth: the bars drawn in it, the
   /// sections they make, and whatever is inside those in turn.
   ///
@@ -272,24 +296,40 @@ class Design {
     List<ArrowElement>? arrows,
     double? depthMm,
     DateTime? updatedAt,
-  }) =>
-      Design(
-        id: id,
-        name: name ?? this.name,
-        kind: kind ?? this.kind,
-        createdAt: createdAt,
-        updatedAt: updatedAt ?? DateTime.now(),
-        sketch: sketch ?? this.sketch,
-        frame: clearFrame ? null : (frame ?? this.frame),
-        dividers: dividers ?? this.dividers,
-        sections: sections ?? this.sections,
-        openings: openings ?? this.openings,
-        hardware: hardware ?? this.hardware,
-        dimensions: dimensions ?? this.dimensions,
-        texts: texts ?? this.texts,
-        arrows: arrows ?? this.arrows,
-        depthMm: depthMm ?? this.depthMm,
-      );
+  }) {
+    // Every edit passes through here, so this is where the two things that
+    // can never be true are kept untrue: a section is never inside itself or
+    // inside one that is not there, and an opening always names exactly one
+    // section of this design — never the frame, which is not a section, and
+    // never a section that has gone. That is what makes "the whole door is
+    // not an opening" a fact about the document rather than a rule each edit
+    // has to remember.
+    //
+    // A *bar* whose section has gone is deliberately left alone here. That
+    // one has a better answer than "it divides the design": `SectionBuilder`
+    // looks for whatever now holds it, and only falls back to the design
+    // when nothing does. Clearing it earlier would let a stale reference
+    // reshape the top-level subdivision before that reconciliation had run,
+    // and take the opening it came from with it.
+    final live = Hierarchy.settle(sections ?? this.sections);
+    return Design(
+      id: id,
+      name: name ?? this.name,
+      kind: kind ?? this.kind,
+      createdAt: createdAt,
+      updatedAt: updatedAt ?? DateTime.now(),
+      sketch: sketch ?? this.sketch,
+      frame: clearFrame ? null : (frame ?? this.frame),
+      dividers: dividers ?? this.dividers,
+      sections: live,
+      openings: Hierarchy.settleOpenings(openings ?? this.openings, live),
+      hardware: hardware ?? this.hardware,
+      dimensions: dimensions ?? this.dimensions,
+      texts: texts ?? this.texts,
+      arrows: arrows ?? this.arrows,
+      depthMm: depthMm ?? this.depthMm,
+    );
+  }
 
   /// Replaces one element with an edited copy of itself, wherever it lives.
   Design withElement(DesignElement element) => switch (element) {
@@ -361,6 +401,17 @@ class Design {
           for (final e in (map[key] as List<Object?>? ?? const []))
             e! as Map<String, Object?>,
         ];
+
+    // A design saved before the hierarchy was enforced can hold a parent
+    // that is not there, or an opening on a section that has gone. It is
+    // read as what it means rather than refused. A bar is settled here as
+    // well as a section, because there is no rebuild between the file and
+    // the first look at it, and a bar belonging to neither the design nor a
+    // real section would be drawn by nothing.
+    final loadedSections = Hierarchy.settle(
+      [for (final e in list('sections')) SectionElement.fromJson(e)],
+    );
+
     return Design(
       id: map['id']! as String,
       name: map['name']! as String,
@@ -375,9 +426,15 @@ class Design {
       frame: map['frame'] == null
           ? null
           : FrameElement.fromJson(map['frame']! as Map<String, Object?>),
-      dividers: [for (final e in list('dividers')) DividerElement.fromJson(e)],
-      sections: [for (final e in list('sections')) SectionElement.fromJson(e)],
-      openings: [for (final e in list('openings')) OpeningElement.fromJson(e)],
+      dividers: Hierarchy.settleDividers(
+        [for (final e in list('dividers')) DividerElement.fromJson(e)],
+        loadedSections,
+      ),
+      sections: loadedSections,
+      openings: Hierarchy.settleOpenings(
+        [for (final e in list('openings')) OpeningElement.fromJson(e)],
+        loadedSections,
+      ),
       hardware: [for (final e in list('hardware')) HardwareElement.fromJson(e)],
       dimensions: [
         for (final e in list('dimensions')) DimensionElement.fromJson(e),
