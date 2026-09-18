@@ -80,7 +80,7 @@ class CadPainter extends CustomPainter {
     if (layers.openings) _openings(canvas, tree);
     _hardware(canvas);
     if (layers.dimensions) {
-      _chains(canvas);
+      _chains(canvas, tree);
       _userDimensions(canvas);
     }
     if (layers.annotations) _annotations(canvas);
@@ -516,7 +516,7 @@ class CadPainter extends CustomPainter {
 
   // ------------------------------------------------------------- dimensions
 
-  void _chains(Canvas canvas) {
+  void _chains(Canvas canvas, DesignTree tree) {
     final frame = design.frame!;
     for (final chain in DimensionChains.of(design)) {
       final out = CadDimensions.outFor(chain);
@@ -529,7 +529,7 @@ class CadPainter extends CustomPainter {
       }
       _chainName(canvas, chain, frame.outline, out);
     }
-    _sectionSizes(canvas);
+    _sectionSizes(canvas, tree.sections);
   }
 
   /// What a row of dimensions is measuring, at the end of it.
@@ -573,13 +573,24 @@ class CadPainter extends CustomPainter {
   /// The chains give the story along each edge; this gives the figure for
   /// each pane, including the ones no chain can reach — a section in a
   /// column of its own, or one bounded by a bar that stops part way.
-  void _sectionSizes(Canvas canvas) {
-    for (final section in design.sections) {
+  ///
+  /// Down the tree, like every other pass: a branch is labelled by its
+  /// panes, not by a figure of its own written across them. Asking the tree
+  /// is asking the design; working it out here would be a second opinion
+  /// about the same thing.
+  void _sectionSizes(Canvas canvas, List<TreeSection> branches) {
+    for (final branch in branches) {
+      if (!branch.isLeaf) {
+        _sectionSizes(canvas, branch.panes);
+        continue;
+      }
+      final section = design.sectionById(branch.sectionId);
+      if (section == null) continue;
+
       // A width and a height describe a rectangle. On a triangle they would
       // be the box around it, which is not the pane and not what anybody
       // would cut — so a section that is not a rectangle is left to the
       // dimensions and the inspector rather than being labelled wrongly.
-      // A section with children is not labelled either: its children are.
       final at = CadDimensions.sectionSizeAt(design, view, section);
       if (at == null) continue;
 

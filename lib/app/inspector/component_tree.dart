@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/dimensions/units.dart';
 import '../../domain/hardware/opening_hardware.dart';
 import '../../domain/model/design.dart';
+import '../../domain/model/design_tree.dart';
 import '../../domain/model/elements.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -12,6 +13,12 @@ import '../theme/app_theme.dart';
 ///
 /// It is the same set of parts the canvas draws and the model builds, in the
 /// order a drawing reads. Picking one here picks it everywhere.
+///
+/// It walks `DesignTree` — the same tree the elevation and the solid walk —
+/// rather than working the hierarchy out again from `parentId`. This is the
+/// one place the user actually *sees* the tree named, so a list that decided
+/// for itself what was inside what could tell them something the drawing
+/// beside it does not show.
 class ComponentTree extends ConsumerWidget {
   const ComponentTree({super.key});
 
@@ -35,6 +42,7 @@ class ComponentTree extends ConsumerWidget {
     // that is whose they are. What is left here is what the user placed on
     // the design themselves.
     final placedByHand = OpeningHardware.placedByHand(design);
+    final tree = DesignTree.of(design);
 
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -58,8 +66,10 @@ class ComponentTree extends ConsumerWidget {
             selected: state.selectedId == member.id,
             onTap: () => controller.select(member.id),
           ),
-        if (design.topLevelDividers.isNotEmpty) const _GroupLabel('Bars'),
-        for (final divider in design.topLevelDividers)
+        if (tree.barIds.isNotEmpty) const _GroupLabel('Bars'),
+        for (final divider in [
+          for (final id in tree.barIds) ?design.dividerById(id),
+        ])
           _Row(
             element: divider,
             detail: '${Units.label(divider.lengthMm)} · '
@@ -71,10 +81,9 @@ class ComponentTree extends ConsumerWidget {
             selected: state.selectedId == divider.id,
             onTap: () => controller.select(divider.id),
           ),
-        if (design.topLevelSections.isNotEmpty)
-          const _GroupLabel('Sections'),
-        for (final section in design.topLevelSections)
-          ..._sectionRows(design, state, controller, section, 1),
+        if (tree.sections.isNotEmpty) const _GroupLabel('Sections'),
+        for (final branch in tree.sections)
+          ..._sectionRows(design, state, controller, branch, 1),
         if (placedByHand.isNotEmpty) const _GroupLabel('Hardware'),
         for (final piece in placedByHand)
           _Row(
@@ -121,20 +130,25 @@ List<Widget> _sectionRows(
   Design design,
   WorkspaceState state,
   WorkspaceController controller,
-  SectionElement section,
+  TreeSection branch,
   int indent,
 ) {
-  final opening = design.openingOf(section.id);
-  final bars = design.childDividersOf(section.id);
-  final children = design.childSectionsOf(section.id);
-  final holds = children.isNotEmpty;
+  final section = design.sectionById(branch.sectionId);
+  if (section == null) return const [];
+
+  final opening =
+      branch.opens ? design.openingById(branch.openingId!) : null;
+  final bars = [
+    for (final id in branch.barIds) ?design.dividerById(id),
+  ];
+  final holds = !branch.isLeaf;
 
   return [
     _Row(
       element: section,
       detail: holds
           ? '${Units.format(section.widthMm)} × '
-              '${Units.label(section.heightMm)} · holds ${children.length}'
+              '${Units.label(section.heightMm)} · holds ${branch.panes.length}'
           : '${Units.format(section.widthMm)} × '
               '${Units.label(section.heightMm)} · '
               '${section.finish.material.label}',
@@ -182,8 +196,8 @@ List<Widget> _sectionRows(
         selected: state.selectedId == bar.id,
         onTap: () => controller.select(bar.id),
       ),
-    for (final child in children)
-      ..._sectionRows(design, state, controller, child, indent + 1),
+    for (final pane in branch.panes)
+      ..._sectionRows(design, state, controller, pane, indent + 1),
   ];
 }
 

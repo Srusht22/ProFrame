@@ -286,11 +286,17 @@ Door/Window
      └── Sections        the panes those lines make, each a branch again
 ```
 
-`CadPainter` and `MeshBuilder` both walk it. Neither sweeps the flat lists
-working out what is inside what, because that is how two views come to
-disagree: one of them decides a bar belongs to a sash and the other does
-not, and the drawing and the model stop being the same design. There is one
-answer, and it is the model's own.
+`CadPainter`, `MeshBuilder` and the `ComponentTree` all walk it. None of
+them sweeps the flat lists working out what is inside what, because that is
+how views come to disagree: one decides a bar belongs to a sash and another
+does not, and the drawing, the model and the list of parts stop being the
+same design. There is one answer, and it is the model's own.
+
+The component tree is the one place the user actually *sees* the hierarchy
+named, so it walking its own version of it was the worst place for a second
+opinion: it ordered its sections by the order they happened to sit in the
+list while the drawing ordered them by reading order, and the two agreed by
+luck rather than by construction.
 
 **`DesignTree` holds no geometry.** Every part is named by its id and looked
 up in the design when it is drawn, so nothing in it can drift from the
@@ -315,7 +321,11 @@ Two things follow from drawing to the tree rather than to a list:
 light, a fixed lower right, and a marked lower left divided into glass over
 panel: every part of the design is in the tree exactly once, nothing outside
 the opening is in it, and the solid builds exactly what the tree says is
-there.
+there. `test/app/cad_renders_the_tree_test.dart` holds the drawing's side of
+it: painting reads the design and changes nothing in it, the same design
+paints the same picture every time, a figure is written for every pane the
+tree calls a leaf and for no branch, the leaf is drawn on the marked section
+and nowhere else, and the tree survives a save and a reload unchanged.
 
 ### Reading a mark drawn by a hand
 
