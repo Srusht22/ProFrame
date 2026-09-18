@@ -167,13 +167,16 @@ there is nothing to build:
 - **The outline does not close.** There is no shape, so there is no frame,
   and joining the ends would move lines the user drew. The lines are kept as
   geometry and the question offers to close them.
-- **A mark is drawn right off the design.** There is no section it could be
-  in, so there is nothing to open.
+- **No face of the design holds any part of the mark.** Drawn right off the
+  design, or entirely on top of the bars, it is in no closed region, so
+  there is nothing to open.
 
 A mark that merely strays near a bar or a jamb is *not* one of these. It
-opens the section its middle is in — that is what being in a section means,
-and it holds however shakily the mark was drawn. `_placeSymbols` and
-`sectionFor` in the interpreter are where this lives.
+opens the face its middle is in, and where its middle lands on a bar, the
+face holding most of the rest of it — its point and its two ends. That is
+still containment, of the mark's own points, and it holds however shakily the
+mark was drawn. `_placeSymbols` and `sectionFor` in the interpreter are where
+this lives.
 
 Neither question is ever asked twice. `WorkspaceState.settledQuestions`
 remembers what has been answered or waved away for that design, and a
@@ -391,6 +394,34 @@ construction the smallest region holding the mark.
 
 Being wrong the cautious way is cheap: the user marks another section. Being
 wrong the other way is a leaf that swings, in a window somebody has to build.
+
+**Containment decides it, and nothing else does.** `sectionFor` asks one
+question — which closed faces is this point inside — and answers with the
+smallest of them. It never falls back to the nearest face, the first face,
+the largest face, the outer rectangle or a bounding box, because each of
+those can name a face the mark is not in, which is the whole failure the rule
+exists to prevent. Where no face holds any part of the mark there is no
+opening and the one question above is put.
+
+*Smallest*, not first. The main divisions tile the daylight without
+overlapping, so ordinarily exactly one face holds the point. Two hold it when
+the point lands on the line between them, because a point on a boundary is in
+the shapes either side of it; taking the smaller is then a real choice, and it
+is the one that cannot make an opening too big.
+
+The faces are the ones the **design's own lines** make. The panes inside an
+opening are not among them: a pane is a region of the opening, not of the
+design, and it exists only because that section is already an opening and the
+user drew inside it. Offering them would have a reading reinterpret its own
+output — the mark that opened a 40 × 160 cm sash would, next time the sheet
+was read, be found inside the 40 × 40 cm pane of glass it had caused, and the
+sash the user built would shrink to it. That is not a hypothetical: it is what
+`test/domain/internal_design_inside_the_opening_test.dart` caught when the
+candidates were briefly widened to every section.
+
+`test/domain/the_mark_picks_one_face_test.dart` holds this on the drawing
+above, in the drawing's own terms: three faces, the mark in the lower left,
+and each forbidden fallback tried and refused.
 
 A line becomes an opening's only when the user says so — with the line tools
 inside an opening, or with the **Divides** control on the bar's own panel.

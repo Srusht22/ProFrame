@@ -240,6 +240,19 @@ marks, and each is built exactly as you drew it.
 An opening made from a mark lasts exactly as long as the mark does: rub it
 out, or say it was not one, and the opening goes with it.
 
+### The mark opens the region it is in
+
+Draw a `<` or a `>` inside one part of the drawing and that part opens.
+Which part is decided by one thing: which closed region of your drawing the
+mark is inside. Not the nearest one, not the first, not the biggest, not the
+outer rectangle. If your mark's middle lands on a bar, the region holding the
+rest of it — its point and its two ends — takes it. If no region holds any
+part of it, nothing opens and you are asked once which one you meant.
+
+Where two regions could claim it, because the mark sits exactly on the line
+between them, the smaller one wins. An opening that is too small is one more
+mark to draw; an opening that is too big is a leaf somebody has to build.
+
 ### What is inside an opening
 
 The marked region **is** the opening, all of it. Lines you draw inside it

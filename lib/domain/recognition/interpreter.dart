@@ -296,57 +296,75 @@ abstract final class SketchInterpreter {
   /// opening that swallowed a fixed light is a leaf that swings in a window
   /// somebody has to build.
   ///
-  /// The point of the mark decides which region. A mark sits in the section
-  /// its middle is in — that is what being in a section means, and it holds
-  /// however shakily the mark was drawn and however near a bar it strayed.
-  /// Where the middle falls on a bar or outside the daylight, the section
-  /// holding most of the mark takes it. Only a mark drawn right off the
-  /// design leaves nothing to go on.
+  /// **Containment decides it, and nothing else does.** The mark's middle is
+  /// a point; the design's own lines cut the daylight into closed faces; the
+  /// answer is the smallest face that point is inside. Where the middle
+  /// lands on a bar — inside no face at all — the face holding most of the
+  /// rest of the mark takes it, which is still containment, of the mark's
+  /// other points. Where no face holds any part of it, there is no opening.
   ///
-  /// Only the main divisions are candidates, and they tile the daylight
-  /// without overlapping, so the one holding the mark is by construction the
-  /// smallest region that holds it.
+  /// Nothing here falls back to the nearest section, the first section, the
+  /// largest one, the outer rectangle or a bounding box. Each of those can
+  /// name a face the mark is not in, which is the whole failure this rule
+  /// exists to prevent: a mark in one light opening a window somebody has to
+  /// build.
+  ///
+  /// *Smallest*, not first. The main divisions tile the daylight without
+  /// overlapping, so in the ordinary case exactly one face holds the point
+  /// and smallest-of-one is that face. Two can hold it when the point lands
+  /// on the line between them, because a point on a boundary is in the
+  /// shapes either side of it; taking the smaller is then a real choice, and
+  /// it is the one that cannot make an opening too big.
+  ///
+  /// The faces are the ones the *design's own lines* make. The panes inside
+  /// an opening are not among them: a pane is a region of the opening, not
+  /// of the design, and it exists only because that section is already an
+  /// opening and the user drew inside it. Offering them would have a reading
+  /// reinterpret its own output — the mark that opened a 40 × 160 sash would,
+  /// next time the sheet was read, be found inside the 40 × 40 pane of glass
+  /// it had caused, and the sash the user built would shrink to it.
   static SectionElement? sectionFor(Design design, OpeningSymbol symbol) {
-    final sections = design.topLevelSections;
-    if (sections.isEmpty) return null;
+    final faces = design.topLevelSections;
+    if (faces.isEmpty) return null;
 
-    for (final section in sections) {
-      if (section.outline.contains(symbol.centre)) return section;
-    }
+    final holding = [
+      for (final face in faces)
+        if (face.outline.contains(symbol.centre)) face,
+    ];
+    if (holding.isNotEmpty) return _smallest(holding);
 
-    // The middle landed on a bar or in the frame. Whichever section holds
-    // most of the mark is the one it was drawn in.
-    SectionElement? best;
+    // The middle landed on a bar. The mark is still drawn in a face — its
+    // point and its two ends say which — so the one holding most of it takes
+    // it, and the smallest of those where several hold the same number.
     var most = 0;
-    for (final section in sections) {
+    var best = <SectionElement>[];
+    for (final face in faces) {
       var held = 0;
       for (final point in symbol.points) {
-        if (section.outline.contains(point)) held++;
+        if (face.outline.contains(point)) held++;
       }
+      if (held == 0) continue;
       if (held > most) {
         most = held;
-        best = section;
+        best = [face];
+      } else if (held == most) {
+        best.add(face);
       }
     }
-    if (best != null) return best;
+    if (best.isNotEmpty) return _smallest(best);
 
-    // Nothing holds any of it, but it may still be nearest to one.
-    SectionElement? nearest;
-    var away = double.infinity;
-    for (final section in sections) {
-      final gap = section.outline.centroid.distanceTo(symbol.centre);
-      if (gap < away) {
-        away = gap;
-        nearest = section;
-      }
-    }
-    // Only when the mark is well outside the design is there nothing to go
-    // on. Inside it, the nearest section is the one it is in.
-    final frame = design.frame;
-    if (frame != null && frame.outline.contains(symbol.centre)) {
-      return nearest;
-    }
+    // No face holds any part of the mark. There is nothing to open, and
+    // guessing at the nearest one would open a section the user did not mark.
     return null;
+  }
+
+  /// The smallest of [faces] by area — the one that cannot be too big.
+  static SectionElement _smallest(List<SectionElement> faces) {
+    var smallest = faces.first;
+    for (final face in faces) {
+      if (face.areaMmSq < smallest.areaMmSq) smallest = face;
+    }
+    return smallest;
   }
 
   /// A section named the way somebody would point at it.
