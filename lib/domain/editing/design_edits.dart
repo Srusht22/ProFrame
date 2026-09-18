@@ -686,6 +686,17 @@ abstract final class DesignEdits {
   /// bar in the fixed light beside an opening is not the opening's, and
   /// saying that it is would have the opening drag it across the design the
   /// next time it moved.
+  ///
+  /// **A bar that has joined a section is laid right across it**, which is
+  /// the same thing [addLineInside] does and for the same reason: a bar that
+  /// stops half way across divides nothing. A line drawn by hand ends a few
+  /// millimetres short of a jamb or a little past it, and while it was
+  /// dividing the design that did not matter — it was cutting the section it
+  /// now belongs to, from the outside. Inside, those few millimetres are the
+  /// difference between glass over panel and one undivided pane with a line
+  /// lying on it. [spanAcross] finds where the line the user drew meets the
+  /// boundary of the section, so the direction and the position are theirs
+  /// and only the two ends move.
   static Design setDividerParent(
     Design design,
     String dividerId,
@@ -697,11 +708,28 @@ abstract final class DesignEdits {
     if (sectionId != null && !liesInside(design, divider, sectionId)) {
       return design;
     }
-    return _rebuild(design.withElement(
+    final moved = _rebuild(design.withElement(
       sectionId == null
           ? divider.copyWith(clearParent: true)
           : divider.copyWith(parentId: sectionId),
     ));
+    if (sectionId == null) return moved;
+
+    // Across the section as it is *now*. Until the bar joined it, the
+    // section stopped at the bar; it is the section on the other side of
+    // that edge, grown back to its full size, that the bar has to cross.
+    final joined = moved.dividerById(dividerId);
+    final within = moved.sectionById(
+        moved.sectionHolding(joined?.parentId) ?? sectionId);
+    if (joined == null || within == null) return moved;
+    final across = spanAcross(within.outline, joined.segment);
+    if (across == null) return moved;
+    if (across.a.distanceTo(joined.a) < Tol.samePointMm &&
+        across.b.distanceTo(joined.b) < Tol.samePointMm) {
+      return moved;
+    }
+    return _rebuild(
+        moved.withElement(joined.copyWith(a: across.a, b: across.b)));
   }
 
   /// True when [divider] lies within the section [sectionId] names — inside

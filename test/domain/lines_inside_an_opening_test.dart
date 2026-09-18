@@ -260,9 +260,13 @@ void main() {
           if (b.id != bar.id) b.id,
       ]);
 
-      // It did not move: the user drew it there.
+      // It is where the user drew it: the line has not shifted along the
+      // sash. Only its two ends move, to reach the sash's own edges — a bar
+      // that stopped short of them would divide nothing.
       expect(moved.segment.midpoint.y, closeTo(was.y, 1));
-      expect(moved.segment.midpoint.x, closeTo(was.x, 1));
+      final sash = sashOf(after).outline;
+      expect(moved.a.x, closeTo(sash.left, 0.5));
+      expect(moved.b.x, closeTo(sash.right, 0.5));
     });
 
     test('and it divides the opening into two panes', () {

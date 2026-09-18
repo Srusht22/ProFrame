@@ -505,21 +505,45 @@ line moving into it leaves one bigger section where two were — the opening
 follows its own mark to whatever now covers that ground, and a bar inside
 follows to whatever now holds it. Neither is lost because an id changed.
 
-**A line the user has just put into a section does not move.** Growing a
-section back to its full size carries its contents with it — rightly, when a
-bar beside it moved — but a bar that was *bounding* the section a moment ago
-is already where the user drew it, and the growth is its own doing. Carrying
-it swept the line down the sash to the sill and left the opening with no
-panes at all, which made the **Divides** control useless for the very case
-it exists for. `_carryContents` now moves only what was inside the section's
-old outline; a bar on the far side of the edge it made is left alone. Told
-apart by where the bar is, not by a flag, so nothing has to remember what
-the last edit was.
+**Why a section's outline changed decides whether its contents travel.**
+A section moves or is resized when the bars *around* it move, and then what
+is drawn in it moves with it — that is what keeps an opening and its
+contents one thing. But a section also changes size when one of its own
+bounds stops being a bound: the user puts the line that was cutting it short
+inside it instead, and it grows back over the ground that line had taken.
+Nothing has moved then. The section is the same section, every line in it is
+where the user drew it, and the new one is where they drew it too.
+
+Carrying in that case moved lines the user never touched. The first line put
+into a sash ended at the sill with the opening showing no panes at all,
+which made the **Divides** control useless for the very case it exists for;
+and putting a second line in dragged the first one 32 cm down the sash.
+`_carryContents` now carries nothing when any child lies outside the
+section's old outline, because a child can only be out there by having just
+joined. Geometry, not a flag — nothing has to remember what the last edit
+was.
+
+**A bar that has joined a section is laid right across it.** This is what
+`addLineInside` already did for a line made with the line tools, and
+`setDividerParent` now does it too, through the same `spanAcross`. A line
+drawn by hand stops a few millimetres short of a jamb or runs a little past
+it; while it was dividing the design that did not matter, because it was
+cutting the section from the outside. Inside, six millimetres is the
+difference between glass over panel and one undivided pane with a line lying
+across it — the face simply does not close. The direction and the position
+stay the user's; only the two ends move.
 
 `test/domain/lines_inside_an_opening_test.dart` holds this and the rest of
 this section's rules, on the phase's own figures: a 40 cm opening standing
 100 cm across a window, a line 40 cm down *that opening*, and the structure
 opening → divider, upper pane, lower pane.
+
+**An internal line divides an opening's contents; it never replaces the
+opening.** One line or five, across or upright, the opening stays one
+opening, keeps its id and its section, and its boundary does not move — and
+the design's own top-level sections and bars are exactly what they were.
+`test/domain/the_opening_survives_its_own_lines_test.dart` fingerprints both
+shapes and requires them back unchanged after every line, by both routes in.
 
 `test/domain/only_the_marked_section_opens_test.dart` holds this, in every
 stroke order. `test/domain/opening_containment_test.dart` holds what happens

@@ -386,22 +386,32 @@ abstract final class SectionBuilder {
     collect(sectionId);
     if (inside.isEmpty) return dividers;
 
-    // What travels with a section is what was already in it. A bar the user
-    // has just put *into* this section was bounding it a moment ago — that
-    // is why the section is a different size now — and it is already where
-    // they drew it. Carrying it would move a line the user never moved: the
-    // **Divides** control on a line drawn across a sash used to leave the
-    // sash whole again but with its own line dragged down to the sill, and
-    // no panes at all, because the line was swept along by the growth it had
-    // itself caused.
+    // **Why the outline changed decides whether anything travels.**
     //
-    // Told apart by where the bar is, not by a flag: a bar that was inside
-    // this section is inside its old outline, and a bar that was bounding it
-    // lies on the far side of the edge it made. Nothing has to remember what
-    // the last edit was.
+    // A section moves or is resized when the bars *around* it move, and then
+    // what is drawn in it moves with it — that is what keeps an opening and
+    // its contents one thing. But a section also changes size when one of
+    // its own bounds stops being a bound: the user puts the line that was
+    // cutting it short inside it instead, and the section grows back over
+    // the ground that line had taken. Nothing has moved then. The section is
+    // the same section, every line in it is where the user drew it, and the
+    // new one is where they drew it too.
+    //
+    // Carrying in that case moved lines the user never touched: the first
+    // line put into a sash ended up at the sill with no panes at all, and
+    // putting a second line in dragged the first one 32 cm down the sash.
+    //
+    // A child that lies outside the old outline can only have got there by
+    // just joining, so it is the signal, and it is geometry rather than a
+    // flag — nothing has to remember what the last edit was.
+    for (final divider in dividers) {
+      if (!inside.contains(divider.id)) continue;
+      if (!from.holds(divider.segment)) return dividers;
+    }
+
     return [
       for (final divider in dividers)
-        if (inside.contains(divider.id) && from.holds(divider.segment))
+        if (inside.contains(divider.id))
           divider.copyWith(a: moved(divider.a), b: moved(divider.b))
         else
           divider,
