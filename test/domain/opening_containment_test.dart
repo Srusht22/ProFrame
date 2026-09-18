@@ -115,7 +115,7 @@ void main() {
           reason: 'both lines drawn after the mark are the opening\'s');
       for (final bar in inside) {
         expect(bar.isInternal, isTrue);
-        expect(bar.parentId, opening.id);
+        expect(design.sectionHolding(bar.parentId), opening.id);
       }
     });
 
@@ -137,7 +137,7 @@ void main() {
       expect(panes, hasLength(3),
           reason: 'two lines inside the opening make three panes of it');
       for (final pane in panes) {
-        expect(pane.parentId, opening.id);
+        expect(design.sectionHolding(pane.parentId), opening.id);
         expect(opening.outline.contains(pane.outline.centroid), isTrue);
       }
       expect(design.hasChildren(opening.id), isTrue);
@@ -372,7 +372,7 @@ void main() {
       final moved = design.dividers.firstWhere((d) => d.id == bar.id);
       expect(moved.a.y, lessThan(before - 100),
           reason: 'the bar inside the opening was left behind');
-      expect(moved.parentId, opening.id);
+      expect(design.sectionHolding(moved.parentId), opening.id);
 
       // And it is still inside the opening it belongs to.
       final grown = design.sectionById(opening.id)!;

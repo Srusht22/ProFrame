@@ -110,7 +110,7 @@ void main() {
       final opening = openingOf(design);
 
       for (final bar in design.childDividersOf(opening.id)) {
-        expect(bar.parentId, opening.id);
+        expect(design.sectionHolding(bar.parentId), opening.id);
         expect(
           opening.outline.holds(bar.segment, reach: DesignEdits.reachFor(bar)),
           isTrue,

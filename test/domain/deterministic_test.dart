@@ -329,7 +329,9 @@ void main() {
       expect(design.topLevelSections, hasLength(2),
           reason: 'the line did not make a section of its own');
       expect(design.childDividersOf(opening), hasLength(1));
-      expect(design.dividers.firstWhere((d) => d.id == 'inner').parentId,
+      expect(
+          design.sectionHolding(
+              design.dividers.firstWhere((d) => d.id == 'inner').parentId),
           opening);
     });
 

@@ -169,7 +169,7 @@ abstract final class DesignEdits {
   /// The outline of the section [divider] is inside, or null when it is not
   /// inside one — a bar that divides the design is measured from the design.
   static Polygon? boxAround(Design design, DividerElement? divider) {
-    final parent = divider?.parentId;
+    final parent = design.sectionHolding(divider?.parentId);
     if (parent == null) return null;
     return design.sectionById(parent)?.outline;
   }
@@ -194,17 +194,19 @@ abstract final class DesignEdits {
 
     final candidate = switch (element) {
       OpeningElement() => element.sectionId,
-      SectionElement() =>
-        design.openingOf(element.id) != null ? element.id : element.parentId,
-      DividerElement() => element.parentId,
-      HardwareElement() => element.parentId,
+      SectionElement() => design.openingOf(element.id) != null
+          ? element.id
+          : design.sectionHolding(element.parentId),
+      DividerElement() => design.sectionHolding(element.parentId),
+      HardwareElement() => design.sectionHolding(element.parentId),
       _ => null,
     };
     if (candidate == null) return null;
     if (design.openingOf(candidate) != null) return candidate;
 
     // A pane inside an opening answers with the opening, not with itself.
-    final parent = design.sectionById(candidate)?.parentId;
+    final parent =
+        design.sectionHolding(design.sectionById(candidate)?.parentId);
     if (parent != null && design.openingOf(parent) != null) return parent;
     return null;
   }
@@ -282,7 +284,7 @@ abstract final class DesignEdits {
     // No bar at this level either side. A pane inside an opening with no bar
     // beside it *is* the opening, so its width is the opening's width and the
     // question passes outward to whatever bounds that.
-    final parent = section.parentId;
+    final parent = design.sectionHolding(section.parentId);
     if (parent != null) return setSectionWidth(design, parent, widthMm);
 
     // Otherwise this pane runs from jamb to jamb, so its width is the frame's
@@ -326,7 +328,7 @@ abstract final class DesignEdits {
 
     // As above: a pane inside an opening with no bar above or below it is
     // the opening, and the question passes outward.
-    final parent = section.parentId;
+    final parent = design.sectionHolding(section.parentId);
     if (parent != null) return setSectionHeight(design, parent, heightMm);
 
     // Otherwise this pane runs from head to sill, so the sill is what has to
@@ -845,7 +847,7 @@ abstract final class DesignEdits {
     var id = sectionId;
     for (var depth = 0; depth < 8; depth++) {
       if (id == ancestorId) return true;
-      final parent = design.sectionById(id)?.parentId;
+      final parent = design.sectionHolding(design.sectionById(id)?.parentId);
       if (parent == null) return false;
       id = parent;
     }
@@ -868,10 +870,10 @@ abstract final class DesignEdits {
     final panes = <String>{};
     void collect(String id) {
       for (final divider in design.dividers) {
-        if (divider.parentId == id) bars.add(divider.id);
+        if (design.sectionHolding(divider.parentId) == id) bars.add(divider.id);
       }
       for (final section in design.sections) {
-        if (section.parentId != id) continue;
+        if (design.sectionHolding(section.parentId) != id) continue;
         panes.add(section.id);
         collect(section.id);
       }
@@ -887,7 +889,7 @@ abstract final class DesignEdits {
         for (final divider in design.dividers)
           if (!bars.contains(divider.id))
             divider
-          else if (divider.parentId == from.id)
+          else if (design.sectionHolding(divider.parentId) == from.id)
             divider.copyWith(
               a: moved(divider.a),
               b: moved(divider.b),
@@ -900,7 +902,7 @@ abstract final class DesignEdits {
         for (final section in design.sections)
           if (!panes.contains(section.id))
             section
-          else if (section.parentId == from.id)
+          else if (design.sectionHolding(section.parentId) == from.id)
             section.copyWith(
               outline: from.outline.sameShapeIn(to.outline, section.outline),
               parentId: to.id,
@@ -941,9 +943,7 @@ abstract final class DesignEdits {
   static OpeningElement? openingOwning(Design design, String hardwareId) {
     for (final piece in design.hardware) {
       if (piece.id != hardwareId) continue;
-      final parent = piece.parentId;
-      if (parent == null) return null;
-      return design.openingOf(parent);
+      return design.openingHolding(piece.parentId);
     }
     return null;
   }
@@ -1064,8 +1064,11 @@ abstract final class DesignEdits {
     double? y,
     String? within,
   }) {
+    // The level is a section; a bar inside an opening names the opening. Both
+    // are resolved to the section, so the two sides are asked the same thing.
+    final level = design.sectionHolding(within);
     for (final divider in design.dividers) {
-      if (divider.parentId != within) continue;
+      if (design.sectionHolding(divider.parentId) != level) continue;
       if (x != null && divider.isVertical) {
         final at = (divider.a.x + divider.b.x) / 2;
         final reach = math.max(divider.widthMm, Tol.minLineMm);

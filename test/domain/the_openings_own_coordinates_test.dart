@@ -80,7 +80,8 @@ void main() {
       final design = example();
       final openingId = design.openings.single.sectionId;
 
-      expect(design.dividerById('internal-line')!.parentId, openingId);
+      expect(design.sectionHolding(design.dividerById('internal-line')!.parentId),
+          openingId);
       expect(design.topLevelDividers.map((d) => d.id), ['mull']);
       expect(DesignTree.of(design).barIds, ['mull']);
       expect(DesignTree.of(design).openings.single.barIds,
@@ -120,7 +121,8 @@ void main() {
       expect(branch.barIds, ['internal-line']);
       expect(branch.panes, hasLength(2));
       for (final pane in branch.panes) {
-        expect(design.sectionById(pane.sectionId)!.parentId,
+        expect(
+            design.sectionHolding(design.sectionById(pane.sectionId)!.parentId),
             branch.sectionId);
       }
       // And not: design → opening, global bar, panel.
@@ -252,7 +254,8 @@ void main() {
       expect(after.unit.x, closeTo(before.unit.x, 1e-9));
       expect(after.unit.y, closeTo(before.unit.y, 1e-9));
       expect(after.length, closeTo(before.length, 1e-9));
-      expect(moved.dividerById('diagonal')!.parentId, openingId);
+      expect(moved.sectionHolding(moved.dividerById('diagonal')!.parentId),
+          openingId);
     });
 
     test('a figure typed past the far side puts it on the far side', () {

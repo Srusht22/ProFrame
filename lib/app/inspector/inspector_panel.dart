@@ -175,7 +175,7 @@ class InspectorPanel extends ConsumerWidget {
               onChanged: (f) => controller.setFinish(element.id, f),
               glazing: true,
             ),
-            if (element.parentId case final parent?)
+            if (state.design.sectionHolding(element.parentId) case final parent?)
               _PlaceInside(
                 section: element,
                 parentId: parent,
@@ -502,7 +502,7 @@ class _WithinOpening extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final parent = divider.parentId;
+    final parent = state.design.sectionHolding(divider.parentId);
     if (parent == null) return const SizedBox.shrink();
     final within = state.design.sectionById(parent);
     if (within == null) return const SizedBox.shrink();
@@ -606,7 +606,7 @@ class _BelongsTo extends StatelessWidget {
         const _Label('Divides'),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          initialValue: divider.parentId ?? '',
+          initialValue: state.design.sectionHolding(divider.parentId) ?? '',
           isExpanded: true,
           items: [
             const DropdownMenuItem(

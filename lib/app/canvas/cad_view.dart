@@ -102,6 +102,7 @@ class _CadViewState extends ConsumerState<CadView> {
         const Divider(height: 1),
         if (insideSection != null)
           _InsideBar(
+            design: state.design,
             opening: insideSection,
             mechanism: state.design.openingOf(insideSection.id),
             tool: _inside,
@@ -600,6 +601,7 @@ enum InsideTool {
 /// Nothing here divides an opening on its own. An opening with no line drawn
 /// in it stays one pane, however tall it is.
 class _InsideBar extends StatelessWidget {
+  final Design design;
   final SectionElement opening;
   final OpeningElement? mechanism;
   final InsideTool tool;
@@ -608,6 +610,7 @@ class _InsideBar extends StatelessWidget {
   final VoidCallback onErase;
 
   const _InsideBar({
+    required this.design,
     required this.opening,
     required this.mechanism,
     required this.tool,
@@ -620,7 +623,8 @@ class _InsideBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final erasable = selected != null &&
         (selected is DividerElement &&
-            (selected! as DividerElement).parentId == opening.id);
+            design.sectionHolding((selected! as DividerElement).parentId) ==
+                opening.id);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),

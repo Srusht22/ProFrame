@@ -53,12 +53,14 @@ abstract final class OpeningLeaf {
     final frame = design.frame;
     if (frame == null) return null;
 
-    var id = sectionId;
+    // The parent may name the section or the opening on it; both mean the
+    // same place, and `sectionHolding` turns either into the section.
+    var id = design.sectionHolding(sectionId);
     for (var depth = 0; id != null && depth < 8; depth++) {
       final section = design.sectionById(id);
       if (section == null) return null;
       if (design.openingOf(section.id) != null) return innerOf(section, frame);
-      id = section.parentId;
+      id = design.sectionHolding(section.parentId);
     }
     return null;
   }

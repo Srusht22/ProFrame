@@ -152,9 +152,9 @@ void main() {
       final bar = design.childDividersOf(openingId).single;
       final panes = design.childSectionsOf(openingId);
       expect(panes, hasLength(2));
-      expect(bar.parentId, openingId);
+      expect(design.sectionHolding(bar.parentId), openingId);
       for (final pane in panes) {
-        expect(pane.parentId, openingId);
+        expect(design.sectionHolding(pane.parentId), openingId);
       }
 
       final glass = upper(design, openingId);
@@ -253,7 +253,7 @@ void main() {
 
       final bar = design.childDividersOf(openingId).single;
       expect(bar.id, wasBar.id);
-      expect(bar.parentId, openingId);
+      expect(design.sectionHolding(bar.parentId), openingId);
       expect(now.holds(bar.segment), isTrue);
       // It is still the same distance down the sash, and still runs across it.
       expect((bar.a.y - now.top) / now.height, closeTo(downTheOpening, 0.001));
@@ -274,7 +274,7 @@ void main() {
       expect(Units.format(now.width), '70');
 
       final bar = design.childDividersOf(openingId).single;
-      expect(bar.parentId, openingId);
+      expect(design.sectionHolding(bar.parentId), openingId);
       expect(now.holds(bar.segment), isTrue);
       expect(design.childSectionsOf(openingId), hasLength(2));
       expect(lower(design, openingId).finish.material, MaterialKind.panel);
@@ -502,7 +502,7 @@ void main() {
       final box = after.sectionById(to)!.outline;
       final bar = after.childDividersOf(to).single;
       expect(bar.id, 'inner');
-      expect(bar.parentId, to);
+      expect(after.sectionHolding(bar.parentId), to);
       expect(bar.a.x, closeTo(box.left, 1));
       expect(bar.b.x, closeTo(box.right, 1));
       // The same place down the sash as it had in the sash it came from.

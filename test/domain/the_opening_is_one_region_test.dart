@@ -166,12 +166,13 @@ void main() {
       final ids = {for (final e in inside) e.id};
 
       expect(ids, contains('internal-line'));
-      expect(design.dividerById('internal-line')!.parentId, opening.parentId);
+      expect(design.sectionHolding(design.dividerById('internal-line')!.parentId),
+          opening.parentId);
 
       final panes = design.childSectionsOf(opening.parentId);
       expect(panes, hasLength(2));
       for (final pane in panes) {
-        expect(pane.parentId, opening.parentId);
+        expect(design.sectionHolding(pane.parentId), opening.parentId);
         expect(ids, contains(pane.id));
       }
       expect(
@@ -213,11 +214,12 @@ void main() {
       // Every bar and every section says outright whose it is. Nothing here
       // measures anything: the answer is read off the model.
       for (final bar in design.dividers) {
-        final mine = bar.parentId == opening.parentId;
+        final mine = design.sectionHolding(bar.parentId) == opening.parentId;
         expect(mine, bar.id == 'internal-line');
       }
       for (final section in design.sections) {
-        final mine = section.parentId == opening.parentId;
+        final mine =
+            design.sectionHolding(section.parentId) == opening.parentId;
         expect(mine, design.childSectionsOf(opening.parentId)
             .any((p) => p.id == section.id));
       }

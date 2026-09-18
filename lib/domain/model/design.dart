@@ -164,18 +164,56 @@ class Design {
   List<DividerElement> get topLevelDividers =>
       [for (final d in dividers) if (d.parentId == null) d];
 
+  /// The ids that mean "inside [sectionId]".
+  ///
+  /// A section that opens is named two ways: by its own id, and by the id of
+  /// the opening on it. The opening's id is the form the model writes down,
+  /// because an opening is authored and a section is derived — but both are
+  /// understood, so every question asked of this design gets the same answer
+  /// whichever form the caller knows about.
+  Set<String> _namesFor(String sectionId) {
+    final opening = openingOf(sectionId);
+    return opening == null ? {sectionId} : {sectionId, opening.id};
+  }
+
   /// The sections that fill [sectionId], made by the bars drawn inside it.
-  List<SectionElement> childSectionsOf(String sectionId) =>
-      [for (final s in sections) if (s.parentId == sectionId) s];
+  List<SectionElement> childSectionsOf(String sectionId) {
+    final names = _namesFor(sectionId);
+    return [for (final s in sections) if (names.contains(s.parentId)) s];
+  }
 
   /// The bars drawn inside [sectionId].
-  List<DividerElement> childDividersOf(String sectionId) =>
-      [for (final d in dividers) if (d.parentId == sectionId) d];
+  List<DividerElement> childDividersOf(String sectionId) {
+    final names = _namesFor(sectionId);
+    return [for (final d in dividers) if (names.contains(d.parentId)) d];
+  }
 
   /// True when this section is filled by other sections rather than by glass
   /// or a panel of its own.
-  bool hasChildren(String sectionId) =>
-      sections.any((s) => s.parentId == sectionId);
+  bool hasChildren(String sectionId) {
+    final names = _namesFor(sectionId);
+    return sections.any((s) => names.contains(s.parentId));
+  }
+
+  /// The section a thing lives in, whether its parent names the section or
+  /// the opening on it. Null when it is top-level geometry.
+  ///
+  /// This is the one place the two forms are turned back into one answer.
+  String? sectionHolding(String? parentId) {
+    if (parentId == null) return null;
+    final opening = openingById(parentId);
+    return opening?.sectionId ?? parentId;
+  }
+
+  /// The opening a thing belongs to, or null when it belongs to no opening.
+  ///
+  /// **This is how top-level geometry is told from an opening's own.** A bar
+  /// that divides the design answers null; a bar drawn inside an opening
+  /// answers that opening, whichever form its `parentId` is written in.
+  OpeningElement? openingHolding(String? parentId) {
+    if (parentId == null) return null;
+    return openingById(parentId) ?? openingOf(parentId);
+  }
 
   /// Where an opening is and how big it is: the outline of its own section,
   /// and nothing wider.
@@ -197,7 +235,9 @@ class Design {
   List<DesignElement> contentsOf(OpeningElement opening) => [
         ...descendantsOf(opening.sectionId),
         for (final piece in hardware)
-          if (piece.parentId == opening.sectionId) piece,
+          if (piece.parentId == opening.sectionId ||
+              piece.parentId == opening.id)
+            piece,
       ];
 
   /// Everything inside [sectionId], at any depth: the bars drawn in it, the
@@ -311,7 +351,13 @@ class Design {
     // when nothing does. Clearing it earlier would let a stale reference
     // reshape the top-level subdivision before that reconciliation had run,
     // and take the opening it came from with it.
-    final live = Hierarchy.settle(sections ?? this.sections);
+    final theOpenings = openings ?? this.openings;
+    final owned = Hierarchy.underOpenings(
+      dividers ?? this.dividers,
+      sections ?? this.sections,
+      theOpenings,
+    );
+    final live = Hierarchy.settle(owned.sections, theOpenings);
     return Design(
       id: id,
       name: name ?? this.name,
@@ -320,9 +366,9 @@ class Design {
       updatedAt: updatedAt ?? DateTime.now(),
       sketch: sketch ?? this.sketch,
       frame: clearFrame ? null : (frame ?? this.frame),
-      dividers: dividers ?? this.dividers,
+      dividers: owned.dividers,
       sections: live,
-      openings: Hierarchy.settleOpenings(openings ?? this.openings, live),
+      openings: Hierarchy.settleOpenings(theOpenings, live),
       hardware: hardware ?? this.hardware,
       dimensions: dimensions ?? this.dimensions,
       texts: texts ?? this.texts,
@@ -408,9 +454,20 @@ class Design {
     // well as a section, because there is no rebuild between the file and
     // the first look at it, and a bar belonging to neither the design nor a
     // real section would be drawn by nothing.
-    final loadedSections = Hierarchy.settle(
+    final loadedOpenings = [
+      for (final e in list('openings')) OpeningElement.fromJson(e),
+    ];
+    final loaded = Hierarchy.underOpenings(
+      [for (final e in list('dividers')) DividerElement.fromJson(e)],
       [for (final e in list('sections')) SectionElement.fromJson(e)],
+      loadedOpenings,
     );
+    final loadedSections = Hierarchy.settle(loaded.sections, loadedOpenings);
+    // The openings are settled before the bars, so a bar can only name an
+    // opening that survived: naming one that was itself dropped would leave
+    // it belonging to nothing, and drawn by nothing.
+    final liveOpenings =
+        Hierarchy.settleOpenings(loadedOpenings, loadedSections);
 
     return Design(
       id: map['id']! as String,
@@ -427,14 +484,12 @@ class Design {
           ? null
           : FrameElement.fromJson(map['frame']! as Map<String, Object?>),
       dividers: Hierarchy.settleDividers(
-        [for (final e in list('dividers')) DividerElement.fromJson(e)],
+        loaded.dividers,
         loadedSections,
+        liveOpenings,
       ),
       sections: loadedSections,
-      openings: Hierarchy.settleOpenings(
-        [for (final e in list('openings')) OpeningElement.fromJson(e)],
-        loadedSections,
-      ),
+      openings: liveOpenings,
       hardware: [for (final e in list('hardware')) HardwareElement.fromJson(e)],
       dimensions: [
         for (final e in list('dimensions')) DimensionElement.fromJson(e),

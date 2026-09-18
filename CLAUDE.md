@@ -693,6 +693,50 @@ than to a picture of one, what is inside the leaf never reaches past the leaf
 as it swings, and what lights up when the opening is picked is exactly what
 moves when it opens.
 
+### A child names the opening, not the ground it stands on
+
+A bar drawn inside an opening, and each pane it makes, stores the **opening's**
+id in `parentId` — not the id of the section the opening happens to occupy.
+The two would answer the same question today and different questions tomorrow,
+because they have very different lives:
+
+| | Made by | Lives as long as |
+| --- | --- | --- |
+| `OpeningElement` | the user drawing a mark | the mark does |
+| `SectionElement` | planar subdivision | the next edit |
+
+`SectionBuilder` deletes and rebuilds every section on every edit. A child
+anchored to one is anchored to the least stable object in the model, and when
+that id changed the child was orphaned — a line the user drew inside a sash
+came back dividing the whole window. Anchored to the opening, it is anchored
+to the user's own decision.
+
+That only holds if the opening's id is stable too, so **it is the mark's**:
+`_openingIdFor` in the interpreter gives `opening-<the stroke's id>` and reuses
+whatever is already on that stroke, rather than taking the next number from a
+counter. Before that, every reading of the sheet renamed the opening.
+
+**Both forms are understood everywhere, and only one is written.**
+`Hierarchy.underOpenings` — applied by `Design.copyWith` and `Design.fromJson`,
+which every edit and every load passes through — rewrites a parent naming a
+section that opens into the opening on it. `Design.sectionHolding` turns either
+form back into the section, and `Design.openingHolding` answers which opening a
+thing is in, or null for top-level geometry. **That pair is how top-level
+geometry is told from an opening's own**, and everything that used to compare
+`parentId` to a section id asks one of them instead, so no caller can be
+holding the other opinion. A design saved before this change still loads: it
+says the same thing in the older words.
+
+Hardware is deliberately still stored against the section. It is regenerated
+from the opening on every rebuild, so it has no identity to lose — the reason
+the bars and panes needed moving does not apply to it.
+
+`test/domain/geometry_has_parents_test.dart` holds this: a line belongs to the
+opening and not to the design, it survives a second reading of the sheet, a
+save and a reload, a resize, a neighbouring bar moving and the opening being
+moved to another section, and an older document naming the section loads as
+meaning the same thing.
+
 ### An opening's own coordinates
 
 An opening is a parent, so where things are inside it is naturally said in

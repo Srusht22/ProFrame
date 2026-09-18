@@ -270,7 +270,7 @@ abstract final class SketchInterpreter {
       read = DesignEdits.setOpening(
         read,
         section.id,
-        openingId: nextId('opening'),
+        openingId: _openingIdFor(design, symbol),
         mechanism: symbol.mechanism,
         markAt: symbol.centre,
         markGlyph: symbol.glyph,
@@ -279,6 +279,23 @@ abstract final class SketchInterpreter {
     }
 
     return _Placed(read, questions);
+  }
+
+  /// The id the opening carries, which is the same one every time the sheet
+  /// is read.
+  ///
+  /// An opening is what the user authored by drawing the mark, so its id is
+  /// the mark's and not a number from a counter. Things drawn inside an
+  /// opening name it as their parent, and a fresh id on every reading would
+  /// orphan every one of them — a line the user drew inside a sash would
+  /// come back dividing the window, which is the design changing itself.
+  /// The opening already on that stroke is kept where there is one, so an id
+  /// the user has been working with never changes underneath them.
+  static String _openingIdFor(Design design, OpeningSymbol symbol) {
+    for (final opening in design.openings) {
+      if (opening.fromStrokeId == symbol.strokeId) return opening.id;
+    }
+    return 'opening-${symbol.strokeId}';
   }
 
   /// The section a mark opens.

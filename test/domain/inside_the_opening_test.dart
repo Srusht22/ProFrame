@@ -252,7 +252,7 @@ void main() {
 
       final now = moved.dividers.firstWhere((d) => d.id == bar.id);
       expect(now.segment.midpoint.y, closeTo(box.top + 600, 0.5));
-      expect(now.parentId, openingId);
+      expect(design.sectionHolding(now.parentId), openingId);
       expect(moved.topLevelSections, hasLength(2));
     });
 

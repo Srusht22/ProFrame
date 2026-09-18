@@ -69,7 +69,7 @@ abstract final class SectionBuilder {
     // now covers the ground it is on. Its parent's id changed; the bar did
     // not move. Where nothing holds it any more it goes back to dividing the
     // design rather than being lost.
-    var dividers = _rehomed(design.dividers, parents);
+    var dividers = _rehomed(design, design.dividers, parents);
 
     // Anything drawn inside a section travels with it. Where a section has
     // moved or changed size, its contents are carried by the same movement,
@@ -106,7 +106,8 @@ abstract final class SectionBuilder {
     final settled = design.copyWith(
       dividers: [
         for (final divider in dividers)
-          if (divider.parentId == null || liveIds.contains(divider.parentId))
+          if (divider.parentId == null ||
+              liveIds.contains(design.sectionHolding(divider.parentId)))
             divider,
       ],
       sections: sections,
@@ -127,20 +128,18 @@ abstract final class SectionBuilder {
   /// the name it had, and is dropped later with everything else that has no
   /// section.
   static List<DividerElement> _rehomed(
+    Design design,
     List<DividerElement> dividers,
     List<SectionElement> parents,
   ) {
     final live = {for (final parent in parents) parent.id};
-    if (dividers.every((d) => d.parentId == null || live.contains(d.parentId))) {
-      return dividers;
-    }
+    bool held(DividerElement d) =>
+        d.parentId == null || live.contains(design.sectionHolding(d.parentId));
 
+    if (dividers.every(held)) return dividers;
     return [
       for (final divider in dividers)
-        if (divider.parentId == null || live.contains(divider.parentId))
-          divider
-        else
-          _intoWhateverHoldsIt(divider, parents),
+        if (held(divider)) divider else _intoWhateverHoldsIt(divider, parents),
     ];
   }
 
@@ -236,7 +235,8 @@ abstract final class SectionBuilder {
   }) {
     if (depth > 6) return const [];
     final inside = [
-      for (final d in dividers) if (d.parentId == parent.id) d,
+      for (final d in dividers)
+        if (design.sectionHolding(d.parentId) == parent.id) d,
     ];
     if (inside.isEmpty) return const [];
 
@@ -245,7 +245,8 @@ abstract final class SectionBuilder {
     if (faces.length < 2) return const [];
 
     final previous = [
-      for (final s in design.sections) if (s.parentId == parent.id) s,
+      for (final s in design.sections)
+        if (design.sectionHolding(s.parentId) == parent.id) s,
     ];
     final children = [
       for (final child in _carryIdentityForward(previous, faces, nextId))
@@ -341,10 +342,14 @@ abstract final class SectionBuilder {
     final inside = <String>{};
     void collect(String id) {
       for (final divider in dividers) {
-        if (divider.parentId == id) inside.add(divider.id);
+        if (design.sectionHolding(divider.parentId) == id) {
+          inside.add(divider.id);
+        }
       }
       for (final section in design.sections) {
-        if (section.parentId == id) collect(section.id);
+        if (design.sectionHolding(section.parentId) == id) {
+          collect(section.id);
+        }
       }
     }
 

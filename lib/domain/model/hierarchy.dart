@@ -45,15 +45,75 @@ abstract final class Hierarchy {
   /// wrong with the document rather than ambitious about the design.
   static const int deepest = 8;
 
+  /// [dividers] and [sections] with every parent that names a section which
+  /// *opens* rewritten to name the opening itself.
+  ///
+  /// This is the one stored form. A thing inside an opening names the
+  /// **opening**, not the region the opening happens to be on. The
+  /// difference matters because the two have very different lives: an
+  /// `OpeningElement` is authored — it exists because the user drew a mark —
+  /// while a `SectionElement` is derived, and `SectionBuilder` deletes and
+  /// rebuilds every one of them on every edit. A child anchored to a section
+  /// is anchored to the least stable object in the model; a child anchored
+  /// to the opening is anchored to the user's own decision.
+  ///
+  /// Both forms are read everywhere — `Design.childDividersOf` and its
+  /// neighbours resolve either — so nothing that asks the old question gets
+  /// a different answer. Only what is *written down* changes, and it changes
+  /// to the form that survives.
+  ///
+  /// Hardware is deliberately left naming the section for now. Moving it
+  /// would mean changing how the solid finds a leaf's hinges, and that is
+  /// not this phase's to touch.
+  static ({List<DividerElement> dividers, List<SectionElement> sections})
+      underOpenings(
+    List<DividerElement> dividers,
+    List<SectionElement> sections,
+    List<OpeningElement> openings,
+  ) {
+    if (openings.isEmpty) return (dividers: dividers, sections: sections);
+
+    final openingOn = <String, String>{
+      for (final opening in openings) opening.sectionId: opening.id,
+    };
+    if (openingOn.isEmpty) return (dividers: dividers, sections: sections);
+
+    return (
+      dividers: [
+        for (final divider in dividers)
+          if (openingOn[divider.parentId] case final owner?)
+            divider.copyWith(parentId: owner)
+          else
+            divider,
+      ],
+      sections: [
+        for (final section in sections)
+          if (openingOn[section.parentId] case final owner?)
+            section.copyWith(parentId: owner)
+          else
+            section,
+      ],
+    );
+  }
+
   /// [sections] with any parent that is not a section of this design, or
   /// that leads back round to the section itself, cleared.
-  static List<SectionElement> settle(List<SectionElement> sections) {
+  static List<SectionElement> settle(
+    List<SectionElement> sections, [
+    List<OpeningElement> openings = const [],
+  ]) {
+    // A parent may name an opening as well as a section, and an opening is
+    // as real a parent as a section is. It is walked up through the section
+    // it is on, so a loop is still a loop.
+    final onwards = <String, String>{
+      for (final opening in openings) opening.id: opening.sectionId,
+    };
     final byId = {for (final section in sections) section.id: section};
     var changed = false;
     final out = <SectionElement>[];
 
     for (final section in sections) {
-      if (_reaches(section, byId)) {
+      if (_reaches(section, byId, onwards)) {
         out.add(section);
         continue;
       }
@@ -67,9 +127,13 @@ abstract final class Hierarchy {
   /// bar always divides either the design or a section that is really there.
   static List<DividerElement> settleDividers(
     List<DividerElement> dividers,
-    List<SectionElement> sections,
-  ) {
-    final live = {for (final section in sections) section.id};
+    List<SectionElement> sections, [
+    List<OpeningElement> openings = const [],
+  ]) {
+    final live = {
+      for (final section in sections) section.id,
+      for (final opening in openings) opening.id,
+    };
     if (dividers.every((d) => d.parentId == null || live.contains(d.parentId))) {
       return dividers;
     }
@@ -112,10 +176,13 @@ abstract final class Hierarchy {
   static bool _reaches(
     SectionElement section,
     Map<String, SectionElement> byId,
+    Map<String, String> openingOnSection,
   ) {
     var at = section;
     for (var depth = 0; depth < deepest; depth++) {
-      final parent = at.parentId;
+      // A parent that names an opening is followed on to the section that
+      // opening is on, which is where the walk carries on from.
+      final parent = openingOnSection[at.parentId] ?? at.parentId;
       if (parent == null) return true;
       if (parent == section.id) return false;
       final next = byId[parent];

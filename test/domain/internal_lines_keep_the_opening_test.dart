@@ -97,7 +97,8 @@ void main() {
       expect(branch.barIds, ['internal-divider']);
       expect(branch.panes, hasLength(2));
       for (final pane in branch.panes) {
-        expect(after.sectionById(pane.sectionId)!.parentId, branch.sectionId);
+        expect(after.sectionHolding(after.sectionById(pane.sectionId)!.parentId),
+            branch.sectionId);
         expect(after.topLevelSections.map((s) => s.id),
             isNot(contains(pane.sectionId)));
       }
@@ -113,7 +114,7 @@ void main() {
       expect(panes, hasLength(2));
       expect(panes.first.outline.bottom, lessThanOrEqualTo(bar.a.y + 1));
       expect(panes.last.outline.top, greaterThanOrEqualTo(bar.a.y - 1));
-      expect(bar.parentId, openingId);
+      expect(design.sectionHolding(bar.parentId), openingId);
     });
 
     test('setting glass and panel leaves the opening the parent', () {
