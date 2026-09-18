@@ -386,9 +386,22 @@ abstract final class SectionBuilder {
     collect(sectionId);
     if (inside.isEmpty) return dividers;
 
+    // What travels with a section is what was already in it. A bar the user
+    // has just put *into* this section was bounding it a moment ago — that
+    // is why the section is a different size now — and it is already where
+    // they drew it. Carrying it would move a line the user never moved: the
+    // **Divides** control on a line drawn across a sash used to leave the
+    // sash whole again but with its own line dragged down to the sill, and
+    // no panes at all, because the line was swept along by the growth it had
+    // itself caused.
+    //
+    // Told apart by where the bar is, not by a flag: a bar that was inside
+    // this section is inside its old outline, and a bar that was bounding it
+    // lies on the far side of the edge it made. Nothing has to remember what
+    // the last edit was.
     return [
       for (final divider in dividers)
-        if (inside.contains(divider.id))
+        if (inside.contains(divider.id) && from.holds(divider.segment))
           divider.copyWith(a: moved(divider.a), b: moved(divider.b))
         else
           divider,

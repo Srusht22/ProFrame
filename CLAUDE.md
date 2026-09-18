@@ -477,6 +477,26 @@ candidates were briefly widened to every section.
 above, in the drawing's own terms: three faces, the mark in the lower left,
 and each forbidden fallback tried and refused.
 
+**Whether a line drawn on the sheet is inside an opening cannot be decided
+by the application, and this has now been established twice.** The two tests
+that have been tried both fail on the same drawing:
+
+- *By geometry.* A mullion below a `>` in a door and a rail below a `>` in a
+  door are the same picture turned on its side. Both lie wholly within the
+  region the mark is in once you take them away, so any containment test
+  takes both or neither.
+- *By stroke order* — the line drawn after the mark is the opening's. This is
+  the more tempting of the two and it is wrong: `only_the_marked_section_
+  opens_test.dart` reads the same window in five stroke orders and requires
+  the same design from each. Draw the mark before the transom and the
+  opening helps itself to the transom, then the mullion, then the window.
+
+So the sheet's lines divide the design, and the user says which are an
+opening's. That is not the application declining to read; it is the one
+thing the drawing genuinely does not say. **If you are about to try a third
+rule, run `only_the_marked_section_opens_test.dart` first — it fails in
+seconds and it is right.**
+
 A line becomes an opening's only when the user says so — with the line tools
 inside an opening, or with the **Divides** control on the bar's own panel.
 Both set `parentId` outright. `SectionBuilder` then keeps that hierarchy
@@ -484,6 +504,22 @@ through every edit, and where a section is *replaced* rather than kept — a
 line moving into it leaves one bigger section where two were — the opening
 follows its own mark to whatever now covers that ground, and a bar inside
 follows to whatever now holds it. Neither is lost because an id changed.
+
+**A line the user has just put into a section does not move.** Growing a
+section back to its full size carries its contents with it — rightly, when a
+bar beside it moved — but a bar that was *bounding* the section a moment ago
+is already where the user drew it, and the growth is its own doing. Carrying
+it swept the line down the sash to the sill and left the opening with no
+panes at all, which made the **Divides** control useless for the very case
+it exists for. `_carryContents` now moves only what was inside the section's
+old outline; a bar on the far side of the edge it made is left alone. Told
+apart by where the bar is, not by a flag, so nothing has to remember what
+the last edit was.
+
+`test/domain/lines_inside_an_opening_test.dart` holds this and the rest of
+this section's rules, on the phase's own figures: a 40 cm opening standing
+100 cm across a window, a line 40 cm down *that opening*, and the structure
+opening → divider, upper pane, lower pane.
 
 `test/domain/only_the_marked_section_opens_test.dart` holds this, in every
 stroke order. `test/domain/opening_containment_test.dart` holds what happens
