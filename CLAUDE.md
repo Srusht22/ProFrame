@@ -70,11 +70,11 @@ then that is what gets built. A narrow left column split by a transom, and a
 wide right column running the full height. The application must never decide
 that it would look better with the columns equal.
 
-## Two rules about openings that never change
+## The rules about openings that never change
 
-These two sentences govern every part of this repository that touches an
-opening — the reading, the model, the drawing and the solid. Nothing else
-here overrides them, and a change that cannot keep them true is wrong:
+These govern every part of this repository that touches an opening — the
+reading, the model, the drawing and the solid. Nothing else here overrides
+them, and a change that cannot keep them true is wrong:
 
 > **The `<` or `>` symbol identifies the smallest valid section/region
 > containing that symbol as the opening; it does not make the entire parent
@@ -85,10 +85,54 @@ here overrides them, and a change that cannot keep them true is wrong:
 > opening is one child region, and only geometry geometrically contained
 > within that opening is a child of the opening.**
 
-Everything below about openings is those two sentences worked out in detail:
-where the mark lands (`sectionFor`), what may be inside an opening
-(`Polygon.holds`), what the two views walk (`DesignTree`), and what moves when
-an opening opens (`_swingFor`, applied to that branch alone).
+And, standing over all of it:
+
+> **NEVER DETERMINE AN OPENING FROM THE WHOLE DRAWING.**
+>
+> **THE ROOT DOOR/WINDOW IS NEVER ITSELF THE OPENING.**
+>
+> **AN OPENING IS A SPECIFIC CLOSED FACE/REGION SELECTED BY THE USER'S `<` OR
+> `>` SYMBOL.**
+>
+> **ONLY THAT FACE BECOMES OPENING = TRUE.**
+>
+> **ANYTHING GEOMETRICALLY INSIDE THAT FACE IS A CHILD OF THE OPENING.**
+>
+> **ANYTHING OUTSIDE THAT FACE REMAINS OUTSIDE THE OPENING.**
+>
+> **INTERNAL LINES DO NOT CHANGE THE PARENT OPENING.**
+>
+> **CAD AND 3D MUST RENDER THE SAME GEOMETRY TREE.**
+>
+> **DO NOT PATCH POSITIONS WITH FIXED OFFSETS.
+> FIX THE GEOMETRY RELATIONSHIP.**
+
+Everything below about openings is those sentences worked out in detail, and
+each clause has a place in the code where it is either true by construction
+or held by a test:
+
+| The rule | Where it lives |
+| --- | --- |
+| Never from the whole drawing; the root is never the opening | `SketchInterpreter.sectionFor`, and `Hierarchy.settleOpenings` — an opening naming the frame cannot be written |
+| A specific closed face, selected by the mark | `sectionFor`: containment only, smallest face, no fallback to nearest, first, largest or a bounding box |
+| Only that face opens | `OpeningElement.sectionId`, one per section, enforced in `Design.copyWith` |
+| Inside it is a child of it | `Polygon.holds`, the one test all three ways in go through |
+| Outside it stays outside | Every line the user draws divides the design until they say otherwise |
+| Internal lines do not change the parent opening | `SectionBuilder.rebuild`: a bar inside a section subdivides that section and never replaces it — `test/domain/internal_lines_keep_the_opening_test.dart` |
+| CAD and 3D render the same tree | `DesignTree`, walked by `CadPainter`, `MeshBuilder` and `ComponentTree` |
+| No fixed offsets — fix the relationship | `LocalSpace`, `OpeningLeaf`, `Polygon.sameIn` |
+
+**That last one is a rule about how to fix things, not about openings.** When
+a part is in the wrong place, the answer is never a constant added somewhere
+to move it back. A number chosen to make one drawing look right is wrong for
+every other drawing, and it hides the relationship that was actually broken.
+Every position in this repository is derived from a relationship — a child
+from its parent, a pane from the bars around it, a leaf from the section it
+fills, hardware from the leaf it hangs on — and when one is wrong, that
+relationship is what gets fixed. The history of this file is a list of times
+that mattered: a midpoint standing in for containment, a shear standing in
+for a rotation, a proportional carry standing in for a section's own
+coordinates.
 
 ## Nothing in the output is a picture
 
