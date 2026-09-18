@@ -366,6 +366,11 @@ light again, with nothing of the opening's stranded in it. An opening cannot
 be moved into one of its own panes, because a pane is part of the leaf, and
 the list you are offered is exactly the list the design will accept.
 
+Every bar inside an opening has a place in the opening's own terms, whatever
+angle you drew it at: how far down for a bar across the sash, how far across
+for a bar up it, and square to itself for a diagonal. Type over that figure
+and the bar moves to it, keeping its angle and its length.
+
 Everything inside is measured from the opening's own corner, because that is
 whose it is:
 

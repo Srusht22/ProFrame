@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/dimensions/units.dart';
 import '../../domain/editing/design_edits.dart';
+import '../../domain/geometry/local_space.dart';
 import '../../domain/geometry/tolerances.dart';
 import '../../domain/hardware/opening_hardware.dart';
 import '../../domain/model/design.dart';
@@ -505,14 +506,12 @@ class _WithinOpening extends StatelessWidget {
     if (parent == null) return const SizedBox.shrink();
     final within = state.design.sectionById(parent);
     if (within == null) return const SizedBox.shrink();
-    if (!divider.isHorizontal && !divider.isVertical) {
-      return const SizedBox.shrink();
-    }
 
-    final box = within.outline;
-    final at = divider.segment.midpoint;
-    final along =
-        divider.isHorizontal ? at.y - box.top : at.x - box.left;
+    // Every bar inside a section has a place in that section's terms,
+    // whatever angle it was drawn at. A diagonal is measured square to
+    // itself, which is the same measurement the other two are.
+    final along = DesignEdits.alongWithin(state.design, divider);
+    if (along == null) return const SizedBox.shrink();
     final opening = state.design.openingOf(parent);
 
     return Column(
@@ -521,7 +520,9 @@ class _WithinOpening extends StatelessWidget {
         _NumberField(
           label: divider.isHorizontal
               ? 'From the top of the opening'
-              : 'From the left of the opening',
+              : divider.isVertical
+                  ? 'From the left of the opening'
+                  : 'Into the opening, square to this bar',
           valueMm: along,
           help: opening == null
               ? 'Measured inside the section this bar divides.'
@@ -556,20 +557,15 @@ class _PlaceInside extends StatelessWidget {
   Widget build(BuildContext context) {
     final within = state.design.sectionById(parentId);
     if (within == null) return const SizedBox.shrink();
-    final box = within.outline;
-    final mine = section.outline;
+    // The pane's own corner in the opening's terms, from the one description
+    // of what that means.
+    final corner = LocalSpace.of(within.outline, section.outline.topLeft);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Readout(
-          'From the top of the opening',
-          Units.label(mine.top - box.top),
-        ),
-        _Readout(
-          'From the left of the opening',
-          Units.label(mine.left - box.left),
-        ),
+        _Readout('From the top of the opening', Units.label(corner.y)),
+        _Readout('From the left of the opening', Units.label(corner.x)),
         const SizedBox(height: 4),
         Text(
           'This pane is inside the opening, so it moves and swings with it.',

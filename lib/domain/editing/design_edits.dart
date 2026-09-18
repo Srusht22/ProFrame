@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../geometry/local_space.dart';
 import '../geometry/polygon.dart';
 import '../geometry/segment.dart';
 import '../geometry/tolerances.dart';
@@ -135,21 +136,42 @@ abstract final class DesignEdits {
     double alongMm,
   ) {
     final divider = _divider(design, dividerId);
-    final parent = divider?.parentId;
-    if (divider == null || parent == null) return design;
-    final within = design.sectionById(parent);
-    if (within == null) return design;
+    final box = boxAround(design, divider);
+    if (divider == null || box == null) return design;
 
-    final box = within.outline;
-    if (divider.isHorizontal) {
-      final to = (box.top + alongMm).clamp(box.top, box.bottom);
-      return moveDivider(design, dividerId, Vec2(0, to - divider.segment.midpoint.y));
-    }
-    if (divider.isVertical) {
-      final to = (box.left + alongMm).clamp(box.left, box.right);
-      return moveDivider(design, dividerId, Vec2(to - divider.segment.midpoint.x, 0));
-    }
-    return design;
+    // Square to the bar, at whatever angle it was drawn. A bar across the
+    // opening moves down it, a bar up the opening moves across it, and a
+    // diagonal moves square to itself — one rule, so no bar has a figure on
+    // its panel that does nothing when it is typed over.
+    return moveDivider(
+      design,
+      dividerId,
+      LocalSpace.shiftFor(box, divider.segment, alongMm),
+    );
+  }
+
+  /// How far [divider] sits into the section it is inside, in that section's
+  /// own terms. Null when it is not inside one.
+  static double? alongWithin(Design design, DividerElement? divider) {
+    final box = boxAround(design, divider);
+    if (divider == null || box == null) return null;
+    return LocalSpace.alongIn(box, divider.segment);
+  }
+
+  /// How far that section reaches, square to the bar: the largest figure
+  /// [alongWithin] can give.
+  static double? reachWithin(Design design, DividerElement? divider) {
+    final box = boxAround(design, divider);
+    if (divider == null || box == null) return null;
+    return LocalSpace.reachIn(box, divider.segment);
+  }
+
+  /// The outline of the section [divider] is inside, or null when it is not
+  /// inside one — a bar that divides the design is measured from the design.
+  static Polygon? boxAround(Design design, DividerElement? divider) {
+    final parent = divider?.parentId;
+    if (parent == null) return null;
+    return design.sectionById(parent)?.outline;
   }
 
   /// Where [point] is inside [sectionId], measured from that section's own
@@ -157,7 +179,7 @@ abstract final class DesignEdits {
   static Vec2? within(Design design, String sectionId, Vec2 point) {
     final section = design.sectionById(sectionId);
     if (section == null) return null;
-    return point - section.outline.topLeft;
+    return LocalSpace.of(section.outline, point);
   }
 
   /// The opening a part is inside, as the section that opens.

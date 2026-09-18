@@ -627,11 +627,36 @@ at every angle the leaf is swung to.
 
 An opening is a parent, so where things are inside it is naturally said in
 its terms: a bar 40 cm down the sash is 40 cm down the sash wherever on the
-sheet the sash is. `DesignEdits.within` converts a point, and
-`moveDividerWithin` places a bar that way; the inspector shows every internal
-part's place from the opening's own corner. This is the same fact as the
-carry-transform in `SectionBuilder` seen from the other side — the children
-are the parent's, so they are measured from it and they move with it.
+sheet the sash is. `lib/domain/geometry/local_space.dart` is the one
+description of what that means, and everything that reads or writes a
+child's place goes through it — `DesignEdits.within` for a point,
+`alongWithin` for the figure on a bar's panel, `moveDividerWithin` for
+typing over it, and the inspector for showing it. One answer, rather than
+the same arithmetic written out in four places and quietly disagreeing in
+the corners. This is the same fact as the carry-transform in
+`SectionBuilder` seen from the other side — the children are the parent's,
+so they are measured from it and they move with it.
+
+**Every bar has a place in its parent, at any angle.** `LocalSpace.alongIn`
+measures from the parent's own top left corner, square to the bar: for a bar
+across the opening that is how far down it is, for a bar up the opening how
+far across, and for a diagonal the perpendicular from the corner to its line.
+The two square cases used to be measured separately and the third left out
+altogether, so the figure on a diagonal glazing bar's panel did nothing at
+all when it was typed over. The measurement is turned to point into the
+parent, so it does not change sign because the user drew the bar right to
+left.
+
+**Nothing is stored twice.** A child keeps the one set of coordinates it has,
+and its place in its parent's terms is worked out from them. Storing both
+would be two descriptions of one fact, and the first edit that touched one
+and not the other would make the design mean two things at once. What matters
+is that the figure the user typed comes back unchanged, and it does: a bar put
+40 cm down an opening reads 40 cm down that opening after the opening has been
+moved to a section three times the width, and after the opening has been made
+wider where it stands.
+
+`test/domain/the_openings_own_coordinates_test.dart` holds this.
 
 `test/domain/inside_the_opening_test.dart` holds all of this, including the
 whole worked example: a 200 × 160 cm window, a 40 cm opening marked `<` down
