@@ -18,6 +18,17 @@ class ModelPainter extends CustomPainter {
   final List<ProjectedFacet> faces;
   final Size size;
   final String? selectedId;
+
+  /// Everything else outlined with the selection.
+  ///
+  /// An opening is one thing made of several: its sash, the bars drawn in
+  /// it, the panes those bars make, its hinges and its handle. Picking it
+  /// picks all of that, so all of it is outlined — otherwise the model shows
+  /// a sash ring lit up with its own glass and its own panel dark inside it,
+  /// which says the opposite of what the design means. The set comes from
+  /// the design's own hierarchy; nothing here works out what belongs to what.
+  final Set<String> highlighted;
+
   final DisplayStyle style;
   final bool groundPlane;
 
@@ -32,6 +43,7 @@ class ModelPainter extends CustomPainter {
     required this.style,
     this.groundPlane = true,
     this.selectedId,
+    this.highlighted = const {},
   });
 
   /// Pixels per view unit.
@@ -64,11 +76,12 @@ class ModelPainter extends CustomPainter {
     if (faces.isEmpty) return;
     if (groundPlane) _ground(canvas, size);
 
+    final lit = {...highlighted, ?selectedId};
     for (final face in faces) {
       final path = _pathOf(face);
       if (style.drawsFaces) _face(canvas, path, face);
       if (style.drawsEdges) _edges(canvas, path, face);
-      if (face.elementId == selectedId) {
+      if (lit.contains(face.elementId)) {
         canvas.drawPath(
           path,
           Paint()
@@ -214,6 +227,7 @@ class ModelPainter extends CustomPainter {
   bool shouldRepaint(ModelPainter old) =>
       old.faces.length != faces.length ||
       old.selectedId != selectedId ||
+      old.highlighted.length != highlighted.length ||
       old.size != size ||
       old.style != style ||
       old.groundPlane != groundPlane ||

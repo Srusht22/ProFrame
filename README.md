@@ -550,6 +550,11 @@ distances inside the leaf are the same open as shut.
 A pane of a sash you marked as well is a leaf inside a leaf: it gets its own
 sash and its own ironmongery, and it swings within the one it hangs in.
 
+Pick the opening in the 3D model and the whole of it lights up — its sash,
+the bars you drew inside it, its glass, its panel, its hinges and its handle
+— because that is what the opening is. Pick one pane and you get that one
+pane.
+
 Swinging a leaf is a way of looking at the model. It changes nothing about
 the design.
 

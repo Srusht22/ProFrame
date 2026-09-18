@@ -629,9 +629,25 @@ movement is applied outside its own. Deciding this at the top instead left the
 model showing no swing where the drawing showed one, and building none of that
 opening's hardware at all.
 
+**Picking the opening picks all of it.** An opening is one thing made of
+several — its sash, the bars drawn inside it, the panes those bars make, its
+hinges and its handle — so the 3D view outlines all of them, from
+`Design.contentsOf` and nothing else. It used to match one facet id at a
+time, so selecting the opening lit its sash ring and left its own glass and
+its own panel dark inside it, which says the opposite of what the design
+means. Picking one pane, or one bar, stays that one part: the whole is picked
+by picking the whole.
+
 `test/domain/only_the_opening_moves_test.dart` holds all of this, and holds it
 by fingerprinting: every part outside the opening must come back byte for byte
 at every angle the leaf is swung to.
+`test/domain/the_solid_is_the_same_tree_test.dart` holds the solid's side of
+the tree: the source and the result are the same set of parts, two fixed
+sections carry no sash and the opening does, the divider is a bar and the
+panes are glass and panel, every face belongs to a part of the design rather
+than to a picture of one, what is inside the leaf never reaches past the leaf
+as it swings, and what lights up when the opening is picked is exactly what
+moves when it opens.
 
 ### An opening's own coordinates
 

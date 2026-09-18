@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/dimensions/units.dart';
 import '../../domain/model/design.dart';
+import '../../domain/model/elements.dart';
 import '../../domain/solid/camera.dart';
 import '../../domain/solid/mesh_builder.dart';
 import '../state/workspace.dart';
@@ -18,6 +19,27 @@ import 'model_painter.dart';
 /// the outline that was drawn, a bar for every bar, a pane for every section
 /// the bars enclose. Tapping a face picks the part of the design it came
 /// from, so the model is another way into the same document.
+/// The parts of an opening, when an opening is what is selected.
+///
+/// An opening is one thing made of several — its sash, the bars drawn inside
+/// it, the panes those bars make, its hinges and its handle — so picking it
+/// picks all of them and the model outlines all of them. Read straight off
+/// the design's own hierarchy by `Design.contentsOf`: nothing here works out
+/// what belongs to what, and nothing outside the opening can appear in the
+/// set because nothing outside it names the opening as its parent.
+///
+/// Selecting one pane, or one bar, stays that one part. The whole is picked
+/// by picking the whole.
+Set<String> partsOfOpening(Design design, String? selectedId) {
+  if (selectedId == null) return const {};
+  final element = design.elementById(selectedId);
+  if (element is! OpeningElement) return const {};
+  return {
+    element.parentId,
+    for (final part in design.contentsOf(element)) part.id,
+  };
+}
+
 class ModelView extends ConsumerStatefulWidget {
   const ModelView({super.key});
 
@@ -81,6 +103,7 @@ class _ModelViewState extends ConsumerState<ModelView> {
                 style: state.displayStyle,
                 groundPlane: state.groundPlane,
                 selectedId: state.selectedId,
+                highlighted: partsOfOpening(state.design, state.selectedId),
               );
               _mmPerPixel = painter.millimetresPerPixel;
 
