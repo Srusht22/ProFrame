@@ -489,6 +489,45 @@ follows to whatever now holds it. Neither is lost because an id changed.
 stroke order. `test/domain/opening_containment_test.dart` holds what happens
 once a line *is* the opening's.
 
+**The mark decides after an edit too, not only when the sheet is read.**
+`sectionFor` answers "which region holds this mark" for a drawing;
+`SectionBuilder._openingsKept` answers it again every time the design is
+rebuilt, and it has to be the same answer or an opening means one thing on
+the sheet and another after a bar is moved.
+
+So an opening stays on its section only while that section still holds its
+mark. It used to stay whenever the section *id* survived, and an id survives
+more than it should: `_carryIdentityForward` matches the nth region to the
+nth region when a bar moves, which is right for a colour, a material or a
+name — the user set those on that pane — and wrong for an opening, which is
+not a label on a region but the region the mark is in. Dragging a mullion
+straight past the mark left the opening behind on the 21 cm sliver the bar
+had cut off, with the mark outside it: a leaf that swings where nobody
+marked one. Now the opening follows its mark to whatever region holds it, at
+its own level — the panes of a sash are a different set of regions from the
+main divisions — and the smallest one wins, as in `sectionFor`.
+
+**A rescale is not a re-cut, so the mark travels with the design.**
+`resizeFrame` scales the frame, the bars and the hardware, and it now scales
+every opening's `markAt` with them. Leaving it behind was the one place a
+position was stored rather than derived and nothing kept it true: a mark put
+in the middle of a light drifted up towards the head as the window was made
+taller, and the next edit that moved a bar found it outside its own opening
+and either moved that opening somewhere the user had not marked or lost it
+altogether. Every other edit leaves the mark where the user drew it, because
+every other edit moves the lines *around* it — which is what the user sees on
+their own sheet.
+
+An opening made with the **Opens** control rather than by drawing has no
+mark, so there is nothing to follow: it stays on its section for as long as
+that section exists.
+
+`test/domain/the_mark_keeps_its_region_test.dart` holds this on the drawing
+above: three regions and one opening, never the root and never the largest
+unless the mark is in it, and then a bar dragged past the mark, a bar
+deleted, the design rescaled and the opening resized — each leaving exactly
+one opening, on a region that holds its mark.
+
 ### The opening's own boundary, and what it owns
 
 The opening is a region of the design, and the leaf filling it is a thing of

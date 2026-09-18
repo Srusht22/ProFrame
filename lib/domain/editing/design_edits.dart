@@ -354,6 +354,16 @@ abstract final class DesignEdits {
   /// stretched is the profile of the frame and the width of the bars, which
   /// are real sections of material and do not get wider because the window
   /// did.
+  ///
+  /// An opening's mark scales with everything else. A rescale is not a
+  /// re-cut: every region maps proportionally onto its new self, so the mark
+  /// in the middle of a light is in the middle of the bigger light too.
+  /// Leaving it behind made it drift out of its own opening — near the head
+  /// of a section it had been in the middle of — and then the next edit that
+  /// moved a bar found it outside and either moved that opening somewhere
+  /// the user had not marked or lost it altogether. The mark is the one
+  /// thing that says which region opens, so it cannot be the one thing a
+  /// resize forgets.
   static Design resizeFrame(
     Design design, {
     double? widthMm,
@@ -386,6 +396,10 @@ abstract final class DesignEdits {
           d.copyWith(a: point(d.a), b: point(d.b)),
       ],
       hardware: [for (final h in design.hardware) h.copyWith(at: point(h.at))],
+      openings: [
+        for (final o in design.openings)
+          if (o.markAt case final at?) o.copyWith(markAt: point(at)) else o,
+      ],
     ));
   }
 

@@ -169,37 +169,67 @@ abstract final class SectionBuilder {
 
   /// The openings that still have a section to be on.
   ///
-  /// A section can be replaced rather than kept — a line moving into it
-  /// leaves one bigger section where two smaller ones were, and the new one
-  /// is not either of the old. The opening is not lost with it: the mark is
-  /// still on the sheet, in the same place, and it opens the section it is
-  /// in, which is the same rule that read it in the first place. Only a mark
-  /// with no section under it at all takes its opening with it.
+  /// **The mark says which region opens, here as much as when it was read.**
+  /// `sectionFor` answers that question for a sheet; this answers it for a
+  /// design that has just been rebuilt, and it has to be the same answer or
+  /// the opening means one thing on the sheet and another after an edit.
+  ///
+  /// So an opening stays on its section only while that section still holds
+  /// its mark. A section can be *replaced* — a line moving into it leaves one
+  /// bigger section where two were, and the new one is neither of the old —
+  /// and it can also keep its id and become something else entirely, because
+  /// `_carryIdentityForward` matches the nth region to the nth region when a
+  /// bar moves. That carry is right for a colour, a material or a name: the
+  /// user set those on that pane. It is wrong for an opening, which is not a
+  /// label on a region but the region the user's mark is in. Dragging a bar
+  /// straight past the mark used to leave the opening behind on the sliver
+  /// the bar had cut off, with the mark outside it — a leaf that swings where
+  /// nobody marked one, in a window somebody has to build.
+  ///
+  /// Where the section no longer holds the mark, the opening follows the mark
+  /// to whatever region now contains it, at its own level: the panes of a
+  /// sash are a different set of regions from the main divisions, and a mark
+  /// in one is never answered with the other. The smallest containing region
+  /// wins, as it does in `sectionFor`, because that is the one that cannot
+  /// make an opening too big. Where nothing contains it there is no region to
+  /// open and the opening goes; the mark is still on the sheet, so a reading
+  /// puts it back the moment there is a region for it again.
+  ///
+  /// An opening with no mark was made by the **Opens** control rather than by
+  /// drawing, so there is nothing to follow: it stays on its section for as
+  /// long as that section exists.
   static List<OpeningElement> _openingsKept(
     Design design,
     List<SectionElement> sections,
     Set<String> liveIds,
   ) {
-    final top = [for (final s in sections) if (s.parentId == null) s];
+    final byId = {for (final s in sections) s.id: s};
     final taken = <String>{};
     final kept = <OpeningElement>[];
 
     for (final opening in design.openings) {
-      if (liveIds.contains(opening.sectionId)) {
-        taken.add(opening.sectionId);
+      final at = opening.markAt;
+      final was = liveIds.contains(opening.sectionId)
+          ? byId[opening.sectionId]
+          : null;
+
+      // Still on a region that still holds its mark, or never had one to
+      // hold. Nothing to decide.
+      if (was != null && (at == null || was.outline.contains(at))) {
+        taken.add(was.id);
         kept.add(opening);
         continue;
       }
-
-      // The section it was on has gone. Where is its mark now?
-      final at = opening.markAt;
       if (at == null) continue;
+
+      // Follow the mark, among the regions at the level this opening was on.
+      final level = was?.parentId;
       SectionElement? now;
-      for (final section in top) {
+      for (final section in sections) {
+        if (section.parentId != level) continue;
         if (!section.outline.contains(at)) continue;
         if (taken.contains(section.id)) continue;
-        now = section;
-        break;
+        if (now == null || section.areaMmSq < now.areaMmSq) now = section;
       }
       if (now == null) continue;
       taken.add(now.id);
