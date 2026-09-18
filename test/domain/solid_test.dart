@@ -148,7 +148,12 @@ void main() {
 
     expect(furthest(open).abs(), greaterThan(furthest(shut).abs() * 4));
 
-    // The hinge edge itself did not move.
+    // The leaf still hangs on the hinge edge. It is a solid with a thickness,
+    // and a solid turning about its hinge stands its thickness off the hinge
+    // line as it comes round — a door at ninety degrees has its hinge stile
+    // across the reveal, not flattened into it. So the hinge edge stays
+    // within the design's own depth of where it was, rather than exactly on
+    // it, which is only true of a leaf that never turned.
     double leftmost(Mesh mesh) {
       var x = 1e9;
       for (final f in mesh.facets) {
@@ -160,7 +165,7 @@ void main() {
       return x;
     }
 
-    expect(leftmost(open), closeTo(leftmost(shut), 0.01));
+    expect(leftmost(open), closeTo(leftmost(shut), design.depthMm));
   });
 
   test('every face knows which part of the design it belongs to', () {

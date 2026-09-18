@@ -106,7 +106,13 @@ void main() {
       final section = design.sectionById(design.openings.single.sectionId)!;
 
       // Hinged left: the left edge stays put and the right edge comes away.
-      expect(before.minX, closeTo(section.outline.left, 1));
+      //
+      // "Stays put" within the design's own depth, not to the millimetre: the
+      // leaf is a solid with a thickness and it turns about its hinge, so at
+      // ninety degrees its hinge stile stands across the reveal rather than
+      // lying flat in it. Only a leaf that never turned would land exactly on
+      // the line.
+      expect(before.minX, closeTo(section.outline.left, design.depthMm));
 
       final flipped = DesignEdits.setOpeningMechanism(
         design,
@@ -116,7 +122,7 @@ void main() {
       final after = leafAt(flipped);
 
       // Hinged right: now the right edge stays and the left comes away.
-      expect(after.maxX, closeTo(section.outline.right, 1));
+      expect(after.maxX, closeTo(section.outline.right, design.depthMm));
       expect(after.minX, greaterThan(before.minX + 100));
     });
 
@@ -128,7 +134,7 @@ void main() {
       );
       final section = design.sectionById(design.openings.single.sectionId)!;
       final leaf = leafAt(design);
-      expect(leaf.maxY, closeTo(section.outline.bottom, 1));
+      expect(leaf.maxY, closeTo(section.outline.bottom, design.depthMm));
       expect(leaf.minY, greaterThan(section.outline.top + 100));
     });
 
@@ -140,7 +146,7 @@ void main() {
       );
       final section = design.sectionById(design.openings.single.sectionId)!;
       final leaf = leafAt(design);
-      expect(leaf.minY, closeTo(section.outline.top, 1));
+      expect(leaf.minY, closeTo(section.outline.top, design.depthMm));
       expect(leaf.maxY, lessThan(section.outline.bottom - 100));
     });
 
@@ -216,7 +222,10 @@ void main() {
 
       final grown = design.sectionById(design.openings.single.sectionId)!;
       final leaf = leafAt(design);
-      expect(leaf.minX, closeTo(grown.outline.left, 1));
+      // Within the design's own depth: the leaf is a solid and it turns about
+      // its hinge, so at ninety degrees its hinge stile stands across the
+      // reveal rather than lying flat in it.
+      expect(leaf.minX, closeTo(grown.outline.left, design.depthMm));
     });
   });
 

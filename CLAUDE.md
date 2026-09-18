@@ -70,6 +70,26 @@ then that is what gets built. A narrow left column split by a transom, and a
 wide right column running the full height. The application must never decide
 that it would look better with the columns equal.
 
+## Two rules about openings that never change
+
+These two sentences govern every part of this repository that touches an
+opening — the reading, the model, the drawing and the solid. Nothing else
+here overrides them, and a change that cannot keep them true is wrong:
+
+> **The `<` or `>` symbol identifies the smallest valid section/region
+> containing that symbol as the opening; it does not make the entire parent
+> door/window an opening. Geometry outside that section remains outside the
+> opening.**
+
+> **Opening geometry must be hierarchical: the door/window is the parent, the
+> opening is one child region, and only geometry geometrically contained
+> within that opening is a child of the opening.**
+
+Everything below about openings is those two sentences worked out in detail:
+where the mark lands (`sectionFor`), what may be inside an opening
+(`Polygon.holds`), what the two views walk (`DesignTree`), and what moves when
+an opening opens (`_swingFor`, applied to that branch alone).
+
 ## Nothing in the output is a picture
 
 The pipeline is:
@@ -500,6 +520,40 @@ what the **Position** control offers and `moveOpeningToSection` applies the
 same test, so the offered set and the accepted set are the same by
 construction — the same arrangement as `containersFor` and
 `setDividerParent`.
+
+### Only the opening moves
+
+The solid has the drawing's structure because both are built from
+`DesignTree`, and when an opening opens **only that branch moves**. The frame
+stays, the fixed sections stay, the bars that divide the design stay, and
+everything inside the opening — its glass, its panel, its bars, its hinges
+and its handle — goes with it. `openFraction` is a way of looking at the
+model, not a property of the design: swinging a leaf changes no part of the
+document.
+
+**A leaf turns; it is not squashed towards its hinge.** `_swingFor` rotates
+about the hinge line, depth and all. Rotating the distance from the hinge
+while leaving the depth where it was made the leaf thinner the further it
+opened, and at ninety degrees flattened it into the plane of the frame with
+its thickness pointing the way it had swung. Because it is a rotation, every
+distance within the leaf is the same afterwards as before — which is what
+makes the glass, the panel, the bars and the hardware one thing that moves
+together rather than four things that happen to move similarly. It also means
+the hinge stile stands its own thickness off the hinge line at ninety
+degrees, as a real door does; a test that wants it exactly on the line is
+describing a leaf that never turned.
+
+**A section the user marked is a leaf wherever it sits.** `_addSection` is the
+one place that decides, at every level of the tree, so a pane of a sash the
+user also marked is a leaf inside a leaf: it gets its own sash, its own
+hinges and handle, and it swings *within* its parent, because the parent's
+movement is applied outside its own. Deciding this at the top instead left the
+model showing no swing where the drawing showed one, and building none of that
+opening's hardware at all.
+
+`test/domain/only_the_opening_moves_test.dart` holds all of this, and holds it
+by fingerprinting: every part outside the opening must come back byte for byte
+at every angle the leaf is swung to.
 
 ### An opening's own coordinates
 

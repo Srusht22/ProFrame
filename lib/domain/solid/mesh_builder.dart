@@ -50,22 +50,7 @@ abstract final class MeshBuilder {
     for (final branch in tree.sections) {
       final section = design.sectionById(branch.sectionId);
       if (section == null) continue;
-      final opening =
-          branch.opens ? design.openingById(branch.openingId!) : null;
-      if (opening == null) {
-        _addSection(facets, design, branch, section, depth);
-      } else {
-        _addLeaf(
-          facets,
-          design,
-          branch,
-          section,
-          opening,
-          frame,
-          depth,
-          openFraction,
-        );
-      }
+      _addSection(facets, design, branch, section, frame, depth, openFraction);
     }
 
     // Hardware the user placed themselves sits on the design where they put
@@ -168,9 +153,35 @@ abstract final class MeshBuilder {
     Design design,
     TreeSection branch,
     SectionElement section,
-    double depth, {
+    FrameElement frame,
+    double depth,
+    double openFraction, {
     Vec3 Function(Vec3)? place,
   }) {
+    // The one place that decides what a section is built as, at every level
+    // of the tree. A section the user marked is a leaf, wherever it sits: a
+    // pane of a sash they marked as well is a leaf inside a leaf, and it
+    // swings within its parent because [place] is the parent's own movement
+    // and this one's is applied inside it. Deciding this here rather than at
+    // the top is what stops the model from showing a swing the drawing does
+    // not, or missing one it does.
+    final opening =
+        branch.opens ? design.openingById(branch.openingId!) : null;
+    if (opening != null) {
+      _addLeaf(
+        out,
+        design,
+        branch,
+        section,
+        opening,
+        frame,
+        depth,
+        openFraction,
+        place: place,
+      );
+      return;
+    }
+
     if (branch.isLeaf) {
       _addFixedInfill(out, design, section, depth, place: place);
       return;
@@ -185,7 +196,16 @@ abstract final class MeshBuilder {
     for (final pane in branch.panes) {
       final child = design.sectionById(pane.sectionId);
       if (child != null) {
-        _addSection(out, design, pane, child, depth, place: place);
+        _addSection(
+          out,
+          design,
+          pane,
+          child,
+          frame,
+          depth,
+          openFraction,
+          place: place,
+        );
       }
     }
   }
@@ -280,17 +300,25 @@ abstract final class MeshBuilder {
     OpeningElement opening,
     FrameElement frame,
     double depth,
-    double openFraction,
-  ) {
+    double openFraction, {
+    Vec3 Function(Vec3)? place,
+  }) {
     // The same leaf the drawing shows, described in one place so the
     // elevation and the solid cannot disagree about where it is.
     final sashOuter = OpeningLeaf.outerOf(section);
     final sashInner =
         OpeningLeaf.innerOf(section, frame) ?? const Polygon([]);
 
-    final place = _swingFor(opening, section, openFraction);
-    Vec3 at(Vec2 point, double z) => place(_at(point, z));
-    _addLeafHardware(out, design, section, depth, place);
+    // Its own swing, then whatever its parent is doing. A leaf inside a leaf
+    // swings within the one it hangs in; a leaf hanging in the frame has no
+    // parent movement and this is its swing alone.
+    final swing = _swingFor(opening, section, openFraction);
+    final outer = place;
+    Vec3 move(Vec3 point) =>
+        outer == null ? swing(point) : outer(swing(point));
+
+    Vec3 at(Vec2 point, double z) => move(_at(point, z));
+    _addLeafHardware(out, design, section, depth, move);
 
     final leafFront = -depth * 0.08;
     final leafDepth = depth * 0.66;
@@ -349,16 +377,25 @@ abstract final class MeshBuilder {
         section.finish.material.isGlazing
             ? FacetRole.glazing
             : FacetRole.panel,
-        place,
+        move,
       );
       return;
     }
 
-    _addBarsInside(out, design, branch, glazed, leafDepth, place: place);
+    _addBarsInside(out, design, branch, glazed, leafDepth, place: move);
     for (final pane in branch.panes) {
       final child = design.sectionById(pane.sectionId);
       if (child != null) {
-        _addSection(out, design, pane, child, leafDepth, place: place);
+        _addSection(
+          out,
+          design,
+          pane,
+          child,
+          frame,
+          leafDepth,
+          openFraction,
+          place: move,
+        );
       }
     }
   }
@@ -395,22 +432,46 @@ abstract final class MeshBuilder {
     final sin = math.sin(angle) * towards;
     final box = section.outline;
 
+    // A turn about the hinge, not a squash towards it. The leaf has depth,
+    // so its far face has to come round with its near face: rotating the
+    // distance from the hinge while leaving the depth where it was left the
+    // leaf thinner the further it opened, and at ninety degrees flattened it
+    // into the plane of the frame with its thickness pointing the way it had
+    // swung. A door turns. Every distance within the leaf is the same
+    // afterwards as before, which is what makes the glass, the panel, the
+    // bars and the hardware inside it one thing that moves together.
     return switch (edge) {
       OpeningEdge.left => (p) {
           final d = p.x - box.left;
-          return Vec3(box.left + d * cos, p.y, p.z + d * sin);
+          return Vec3(
+            box.left + d * cos - p.z * sin,
+            p.y,
+            p.z * cos + d * sin,
+          );
         },
       OpeningEdge.right => (p) {
           final d = p.x - box.right;
-          return Vec3(box.right + d * cos, p.y, p.z - d * sin);
+          return Vec3(
+            box.right + d * cos + p.z * sin,
+            p.y,
+            p.z * cos - d * sin,
+          );
         },
       OpeningEdge.top => (p) {
           final d = p.y - box.top;
-          return Vec3(p.x, box.top + d * cos, p.z + d * sin);
+          return Vec3(
+            p.x,
+            box.top + d * cos - p.z * sin,
+            p.z * cos + d * sin,
+          );
         },
       OpeningEdge.bottom => (p) {
           final d = p.y - box.bottom;
-          return Vec3(p.x, box.bottom + d * cos, p.z - d * sin);
+          return Vec3(
+            p.x,
+            box.bottom + d * cos + p.z * sin,
+            p.z * cos - d * sin,
+          );
         },
     };
   }

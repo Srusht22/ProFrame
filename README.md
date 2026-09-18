@@ -508,6 +508,21 @@ are swung open is the only control that is purely a way of looking: it
 changes the picture and nothing else, and a test asserts the design is
 identical before and after.
 
+### Opening it moves the opening, and nothing else
+
+Drag the **Open** slider in the 3D view and only the leaf you marked swings.
+The outer frame stays, the fixed lights stay, the transom and the mullion
+stay, and everything inside the opening goes with it — its glass, its panel,
+the bars you drew in it, its hinges and its handle. It turns the way a door
+turns, about its hinge and with its thickness coming round with it, so the
+distances inside the leaf are the same open as shut.
+
+A pane of a sash you marked as well is a leaf inside a leaf: it gets its own
+sash and its own ironmongery, and it swings within the one it hangs in.
+
+Swinging a leaf is a way of looking at the model. It changes nothing about
+the design.
+
 ## Nothing in the output is a picture
 
 ```
