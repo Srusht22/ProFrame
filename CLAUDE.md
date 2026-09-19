@@ -902,9 +902,13 @@ geometry is told from an opening's own**, and everything that used to compare
 holding the other opinion. A design saved before this change still loads: it
 says the same thing in the older words.
 
-Hardware is deliberately still stored against the section. It is regenerated
-from the opening on every rebuild, so it has no identity to lose — the reason
-the bars and panes needed moving does not apply to it.
+Hardware names the opening too. It was left naming the section at first,
+because it is regenerated from the opening on every rebuild and so has no
+identity to lose — but a child of the opening is what it *is*, and leaving
+one thing in the old words meant every reader had to know both. The pieces
+are rebuilt from scratch on every rebuild, so there was nothing to migrate,
+and `contentsOf` still accepts either form for a design loaded from disk
+before its first rebuild.
 
 `test/domain/geometry_has_parents_test.dart` holds this: a line belongs to the
 opening and not to the design, it survives a second reading of the sheet, a
@@ -1051,8 +1055,28 @@ Their positions are `parentId` on `HardwareElement` plus four figures on
 recorded as decisions the user made. The defaults themselves are stated rules,
 not magic numbers, and each is written down beside the constant.
 
+**`parentId` is the opening's id.** A hinge is a child of the opening, not of
+the door: it hangs on the leaf, it goes where the leaf goes and turns when it
+turns, and it is not the window's business. Nothing reads that id by
+comparing it to a section id any more — `Design.sectionHolding` and
+`Design.openingHolding` answer for the solid, the component tree and the
+inspector alike, so a piece cannot be the opening's to one of them and the
+design's to another.
+
 Hardware the user placed themselves has no `parentId`, is never regenerated,
-and stays exactly where they put it.
+and stays exactly where they put it. That is the whole of the distinction:
+`isOpeningHardware` is `parentId != null`, so a piece either hangs on a leaf
+or it is the user's own.
+
+The component tree is where this is visible: the opening's branch holds its
+hinges and its handle, and a section nobody marked holds neither, however
+door-shaped it is.
+
+`test/domain/the_openings_hardware_test.dart` holds the phase's own claims —
+both kinds present and both the opening's, the parent never the frame or the
+design, none on a fixed section, none at all on a design with no opening,
+and the lot going with the opening when it is moved, resized or swung while
+nothing else moves at all.
 
 `test/domain/editable_dimensions_test.dart` and
 `test/app/editable_figures_test.dart` hold all of this.

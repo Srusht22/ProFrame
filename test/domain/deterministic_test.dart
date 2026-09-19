@@ -370,13 +370,13 @@ void main() {
       final opening = design.openings.single.sectionId;
       final mine = [
         for (final piece in design.hardware)
-          if (piece.parentId == opening) piece.kind,
+          if (design.sectionHolding(piece.parentId) == opening) piece.kind,
       ];
       expect(mine, contains(HardwareKind.hinge));
       expect(mine, contains(HardwareKind.handle));
       // And nowhere else.
       for (final piece in design.hardware) {
-        expect(piece.parentId, opening);
+        expect(design.sectionHolding(piece.parentId), opening);
       }
     });
 

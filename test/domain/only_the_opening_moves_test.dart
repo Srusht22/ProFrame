@@ -107,7 +107,8 @@ Set<String> opensWith(Design design, String openingSectionId) {
     for (final section in branch.andItsPanes) section.sectionId,
     for (final section in branch.andItsPanes) ...section.barIds,
     for (final piece in design.hardware)
-      if (branch.andItsPanes.any((s) => s.sectionId == piece.parentId))
+      if (branch.andItsPanes
+          .any((s) => s.sectionId == design.sectionHolding(piece.parentId)))
         piece.id,
   };
 }
@@ -289,7 +290,7 @@ void main() {
 
       final hinges = {
         for (final piece in design.hardware)
-          if (piece.parentId == openingId &&
+          if (design.sectionHolding(piece.parentId) == openingId &&
               piece.kind == HardwareKind.hinge)
             piece.id,
       };
@@ -406,7 +407,7 @@ void main() {
       // Its own hinges and handle are built, where before they were nowhere.
       final its = [
         for (final piece in design.hardware)
-          if (piece.parentId == pane.id) piece.id,
+          if (design.sectionHolding(piece.parentId) == pane.id) piece.id,
       ];
       expect(its, isNotEmpty);
       for (final id in its) {

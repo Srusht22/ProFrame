@@ -202,7 +202,8 @@ void main() {
 
       final mine = [
         for (final piece in design.hardware)
-          if (piece.parentId == opening.sectionId) piece,
+          if (design.sectionHolding(piece.parentId) == opening.sectionId)
+            piece,
       ];
       expect(mine.where((p) => p.kind == HardwareKind.hinge), isNotEmpty);
       expect(mine.where((p) => p.kind == HardwareKind.handle), hasLength(1));
@@ -253,7 +254,7 @@ void main() {
       final fixed = upperOf(design);
 
       for (final piece in design.hardware) {
-        expect(piece.parentId, isNot(fixed.id));
+        expect(design.sectionHolding(piece.parentId), isNot(fixed.id));
       }
     });
 

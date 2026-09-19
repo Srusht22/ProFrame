@@ -334,7 +334,7 @@ void main() {
       final opening = openingOf(design);
 
       for (final piece in design.hardware) {
-        expect(piece.parentId, opening.id);
+        expect(design.sectionHolding(piece.parentId), opening.id);
         expect(opening.outline.awayFrom(piece.at), lessThan(50));
       }
     });

@@ -106,7 +106,7 @@ abstract final class OpeningHardware {
       pieces.add(HardwareElement(
         id: '${opening.id}-hinge-$i',
         kind: HardwareKind.hinge,
-        parentId: opening.sectionId,
+        parentId: opening.id,
         at: sideHung ? Vec2(hingeX, at) : Vec2(at, hingeY),
         rotation: sideHung ? 90 : 0,
       ));
@@ -115,7 +115,7 @@ abstract final class OpeningHardware {
     pieces.add(HardwareElement(
       id: '${opening.id}-handle',
       kind: HardwareKind.handle,
-      parentId: opening.sectionId,
+      parentId: opening.id,
       at: handleAt(opening, outline.left, outline.right, outline.top,
           outline.bottom, edge),
       rotation: sideHung ? 90 : 0,

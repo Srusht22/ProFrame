@@ -257,7 +257,7 @@ void main() {
 
       final mine = [
         for (final piece in made.hardware)
-          if (piece.parentId == opening.id) piece,
+          if (made.sectionHolding(piece.parentId) == opening.id) piece,
       ];
       expect(mine, isNotEmpty);
       for (final piece in mine) {

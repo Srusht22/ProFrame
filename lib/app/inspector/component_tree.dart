@@ -171,7 +171,7 @@ List<Widget> _sectionRows(
         onTap: () => controller.select(opening.id),
       ),
     for (final piece in design.hardware)
-      if (piece.parentId == section.id)
+      if (design.sectionHolding(piece.parentId) == section.id)
         _Row(
           element: piece,
           detail: piece.kind == HardwareKind.hinge

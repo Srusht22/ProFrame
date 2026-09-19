@@ -182,7 +182,8 @@ void main() {
 
       final hardware = [
         for (final piece in design.hardware)
-          if (piece.parentId == opening.parentId) piece.id,
+          if (design.sectionHolding(piece.parentId) == opening.parentId)
+            piece.id,
       ];
       expect(hardware, isNotEmpty);
       expect(ids, containsAll(hardware));

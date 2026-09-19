@@ -235,7 +235,7 @@ void main() {
 
       final hinges = {
         for (final piece in design.hardware)
-          if (piece.parentId == opening.parentId &&
+          if (design.sectionHolding(piece.parentId) == opening.parentId &&
               piece.kind == HardwareKind.hinge)
             piece.id,
       };
@@ -293,7 +293,9 @@ void main() {
         expect(lit, contains(pane.id));
       }
       for (final piece in design.hardware) {
-        if (piece.parentId != opening.parentId) continue;
+        if (design.sectionHolding(piece.parentId) != opening.parentId) {
+          continue;
+        }
         expect(lit, contains(piece.id));
       }
     });

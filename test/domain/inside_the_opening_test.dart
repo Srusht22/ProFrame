@@ -169,7 +169,7 @@ void main() {
 
       final hardware = [
         for (final piece in design.hardware)
-          if (piece.parentId == openingId) piece.kind,
+          if (design.sectionHolding(piece.parentId) == openingId) piece.kind,
       ];
       expect(hardware, contains(HardwareKind.hinge));
       expect(hardware, contains(HardwareKind.handle));
