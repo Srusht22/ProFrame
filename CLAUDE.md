@@ -70,6 +70,76 @@ then that is what gets built. A narrow left column split by a transom, and a
 wide right column running the full height. The application must never decide
 that it would look better with the columns equal.
 
+## The absolute rules
+
+These are the project's, kept verbatim. Nothing below overrides them, and a
+change that cannot keep them true is wrong:
+
+```
+1. THE USER'S DRAWING IS THE SOURCE OF TRUTH.
+
+2. DO NOT REDESIGN THE USER'S DRAWING.
+
+3. DO NOT USE RANDOM IMAGES.
+
+4. DO NOT USE RANDOM 3D MODELS.
+
+5. DO NOT GENERATE A DIFFERENT SKETCH.
+
+6. DO NOT TREAT EVERY LINE AS A TOP-LEVEL SECTION.
+
+7. < OR > IDENTIFIES THE SPECIFIC USER-SELECTED OPENING REGION.
+
+8. THE WHOLE DOOR/WINDOW IS NEVER THE OPENING.
+
+9. A LINE INSIDE AN OPENING BELONGS TO THAT OPENING.
+
+10. INTERNAL LINES DO NOT CREATE NEW TOP-LEVEL SECTIONS.
+
+11. INTERNAL GEOMETRY USES THE OPENING'S LOCAL COORDINATES.
+
+12. AN OPENING IS A PARENT CONTAINER.
+
+13. GLASS/PANEL/DIVIDERS INSIDE THE OPENING ARE CHILDREN OF THE OPENING.
+
+14. HANDLE AND HINGES ARE CHILDREN OF THE OPENING.
+
+15. CAD AND 3D MUST USE THE SAME UNDERLYING GEOMETRY.
+
+16. ALL USER MEASUREMENTS ARE ENTERED IN CM.
+
+17. DO NOT ASK THE USER QUESTIONS THAT CAN BE RESOLVED BY EDITING.
+
+18. ONLY ASK WHEN THE DRAWING IS TRULY AMBIGUOUS.
+
+19. DO NOT FIX GEOMETRY WITH RANDOM OFFSETS.
+
+20. FIX THE UNDERLYING GEOMETRY OWNERSHIP AND COORDINATE SYSTEM.
+```
+
+Where each one lives:
+
+| Rule | Where it is kept true |
+| --- | --- |
+| 1, 2, 5 | `test/domain/the_rule_test.dart`, `editing_isolation_test.dart` |
+| 3, 4 | `test/no_stock_content_test.dart` — the repository is scanned for assets and model files |
+| 6, 10 | `SectionBuilder.rebuild`; `the_opening_survives_its_own_lines_test.dart` |
+| 7, 8 | `SketchInterpreter.sectionFor`, `Hierarchy.settleOpenings`; `the_mark_picks_one_face_test.dart` |
+| 9, 12, 13 | `parentId` = the opening's id; `geometry_has_parents_test.dart`, `lines_inside_an_opening_test.dart` |
+| 11 | `LocalSpace`; `the_openings_own_coordinates_test.dart` |
+| 14 | `OpeningHardware`; `the_openings_hardware_test.dart` |
+| 15 | `DesignTree`; `the_solid_is_the_cad_hierarchy_test.dart`, `one_design_two_views_test.dart` |
+| 16 | `Units`, and a repository scan in `internal_sections_test.dart` |
+| 17, 18 | The two questions listed under **Build it, do not ask about it** |
+| 19, 20 | `LocalSpace`, `OpeningLeaf`, `Polygon.sameIn` — and the history in this file |
+
+**Rule 9 has one honest limit**, set out in full under *Only the marked
+section opens*: a line the user draws **on the sheet** divides the design
+until they say it is an opening's, because no rule for deciding that
+automatically survives contact with `only_the_marked_section_opens_test.dart`.
+A line drawn *inside* an opening with the opening's own tools is the
+opening's from the moment it exists, which is rule 9 where it can be kept.
+
 ## The rules about openings that never change
 
 These govern every part of this repository that touches an opening — the
@@ -268,6 +338,53 @@ the test says so where it asserts them:
   exactly — which 40 + 120 in a 148 cm light would not be.
 
 Both are the same rule: every figure is something somebody could cut to.
+
+## The final test
+
+`test/final_visual_and_3d_test.dart` is the second scenario the work is
+measured against, and it is about a bar that has somewhere else it could
+wrongly go:
+
+```
+┌───────────────────────────────┐
+│             FIXED             │
+├───────┬───────────────────────┤
+│ GLASS │                       │
+├───────┤          FIXED        │
+│ PANEL │                       │
+└───────┴───────────────────────┘
+```
+
+A band across the head, and beneath it a narrow left column and a wide right
+one. The left column is the opening. It is drawn the way the user draws it —
+outline, transom, mullion and a `>`, all strokes on the sheet — and then one
+line is drawn *inside the opening*, which is where the whole thing is
+decided. That line must not appear above the opening, must not become a bar
+of the window, and must not move outside the opening into the light beside
+it.
+
+Each of those is asserted on the body the painter actually lays down — the
+bar clipped to the leaf's daylight, exactly as `_barBody` clips it — rather
+than on the centre line, because a bar is drawn with a width and it is the
+width that would cross a jamb. Alongside it the drawing is rasterised, and
+the same line drawn on the sheet instead of in the opening must be a
+**different picture**: that is what says the renderer is not quietly
+promoting it.
+
+Then the same design as a solid — frame, two fixed lights, and an opening
+holding glass, a divider, a panel, hinges and a handle — where only the
+opening moves. Every other part is fingerprinted facet by facet at
+`openFraction: 1` and required back byte for byte, and each of the four
+parts the phase names is checked by name as well, because "nothing else
+moved" is the claim and a set comparison can be true while the wrong thing
+is in the set.
+
+**One figure in it is derived rather than quoted.** The narrow light is the
+daylight from the jamb to the mullion, with the mullion's own material taken
+off, and the test works that out from the design. Writing the number down
+would be a second opinion about where the user drew their line, and the
+first time the frame profile changed the test would be asserting a drawing
+nobody had made.
 
 ## How this is enforced
 
