@@ -230,6 +230,45 @@ If you are about to add a question, add an editing control instead. If the
 geometry genuinely cannot be built, the question goes in the list above and
 the reason goes beside it.
 
+## The acceptance test
+
+`test/acceptance_test.dart` is the scenario the work is measured against,
+and it is done the way the user does it — the window is *drawn*, the mark is
+*drawn*, and the design is read from the sheet:
+
+```
+A 200 × 160 cm window. A 40 cm light down the left, marked `<`.
+A horizontal line 40 cm down that opening. Glass above, panel below.
+
+Window
+├── Main/fix geometry
+└── Left opening  <
+     ├── Glass
+     ├── Internal divider
+     ├── Panel
+     ├── Hinges
+     └── Handle
+```
+
+It requires that hierarchy, and refuses the two that would mean the model
+had not understood: `Window → Opening, Horizontal bar, Panel` (everything
+flat, the bar and the panel divisions of the window) and `Window = Opening`
+(the root itself opening). Then it takes the same design through the
+drawing, the solid, a swing and a save and reload, and requires the same
+hierarchy back from each.
+
+**Two of the figures in the brief are not the figures a workshop cuts**, and
+the test says so where it asserts them:
+
+- The opening is **148 cm**, not 160. 160 cm is the window over its frame;
+  the light inside it is the daylight, with the frame's own section taken
+  off head and sill.
+- The panes are not 40 and 120. The divider is real material and the glass
+  stops at its faces, so glass, divider and panel together are the opening
+  exactly — which 40 + 120 in a 148 cm light would not be.
+
+Both are the same rule: every figure is something somebody could cut to.
+
 ## How this is enforced
 
 `test/domain/the_rule_test.dart` is the rule as executable assertions. It
