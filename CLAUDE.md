@@ -371,6 +371,23 @@ paints the same picture every time, a figure is written for every pane the
 tree calls a leaf and for no branch, the leaf is drawn on the marked section
 and nowhere else, and the tree survives a save and a reload unchanged.
 
+`test/app/cad_draws_the_hierarchy_test.dart` holds the same thing against
+the picture itself rather than against the model behind it. It rasterises
+the drawing and compares the pixels, which is the only way to tell a
+renderer that honours the hierarchy from one that happens to agree with it:
+the same design draws the same picture to the byte; a window marked on the
+left and the same window marked on the right are **different** pictures, so
+the drawing cannot be normalising the opening to a side of its own choosing;
+and one internal line and two internal lines are different pictures, so it
+cannot be drawing a fixed idea of what a sash contains.
+
+Alongside that it holds what the pixels cannot say on their own: the drawn
+body of a bar inside an opening, clipped exactly as `_barBody` clips it,
+lies within that opening's outline at every corner; no fixed section is
+given a bar of the opening's, and no bar of the design is trimmed as though
+it were inside one; and a bar appears at one level of the tree only, so
+nothing is drawn twice or at the wrong weight.
+
 ### Reading a mark drawn by a hand
 
 A `<`, `>`, `^` or `v` is the only thing that creates an opening, so failing
