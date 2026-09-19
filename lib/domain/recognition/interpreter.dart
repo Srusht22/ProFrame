@@ -158,7 +158,29 @@ abstract final class SketchInterpreter {
       for (final divider in design.dividers)
         if (divider.fromStrokeId == null) divider,
     ];
-    final taken = {for (final divider in dividers) divider.id};
+
+    // The bars the last reading made from these strokes, in the order it
+    // made them, so each run can be paired with its own bar again.
+    //
+    // **A reading re-reads the drawing; it does not overturn what the user
+    // said about it.** A bar built from scratch every time is a bar with a
+    // new id and no parent, so saying a line is an opening's — with the
+    // **Divides** control, which is the one place the drawing cannot decide
+    // for itself — lasted exactly until the sheet was read again, and then
+    // the line went back to cutting the whole door in half and took the
+    // opening down to one side of it. Nothing in the drawing had changed.
+    //
+    // The pairing is by stroke and by order within it, which is how the
+    // runs are made: one stroke drawn as a polyline gives its legs in the
+    // same order every time.
+    final madeBefore = <String, List<DividerElement>>{};
+    for (final divider in design.dividers) {
+      final stroke = divider.fromStrokeId;
+      if (stroke == null) continue;
+      madeBefore.putIfAbsent(stroke, () => []).add(divider);
+    }
+
+    final taken = {for (final divider in design.dividers) divider.id};
     String nextDividerId() {
       var id = nextId('divider');
       while (taken.contains(id)) {
@@ -170,11 +192,78 @@ abstract final class SketchInterpreter {
 
     for (final run in welded) {
       if (_liesOn(run.segment, outline, weld)) continue;
+
+      final made = madeBefore[run.strokeId];
+      final before = (made == null || made.isEmpty) ? null : made.removeAt(0);
+      if (before != null) {
+        // A bar that divides the design is a faithful copy of its stroke, so
+        // it is read from the stroke again — the line is wherever the user's
+        // line now is.
+        //
+        // A bar the user has put inside an opening is not: joining it laid
+        // it right across the section it joined, because a bar that stops a
+        // few millimetres short divides nothing and the face does not close.
+        // Reading its ends back off the stroke would undo that and leave one
+        // undivided pane with a line lying on it — moving a line the user
+        // never moved. Its ends are the design's now; only the stroke's
+        // going takes it away.
+        dividers.add(before.parentId == null
+            ? before.copyWith(a: run.segment.a, b: run.segment.b)
+            : before);
+        continue;
+      }
+
+      // A line drawn inside a region the design **already** opens is that
+      // opening's, and only such a line.
+      //
+      // This is not the inference this file refuses twice over, and the
+      // difference is what makes it safe. Deciding *within one reading*
+      // which lines an opening contains is circular — a mullion below a `>`
+      // and a rail below a `>` are the same picture turned on its side, and
+      // each lies wholly within the region the mark is in once you take it
+      // away — and deciding it by stroke order is worse, which
+      // `only_the_marked_section_opens_test.dart` shows in five orders. Both
+      // ask a reading to work out a region that depends on the answer.
+      //
+      // This asks nothing of the kind. The opening is already there: the
+      // user marked it, saw it drawn, and then drew inside it. The region
+      // is the one they were looking at, from the design as it stands
+      // before this reading, and it exists whether or not this line joins
+      // it. On a first reading there are no openings yet, so nothing is
+      // decided, and every drawn line divides the design exactly as before.
+      //
+      // Only a line with room to spare counts — its own thickness clear of
+      // the sash all round. A line along a jamb is bounding that region, not
+      // dividing it, and belongs to whatever it separates.
+      //
+      // And it is the user's either way: **Divides** moves a bar in or out
+      // by hand, and that now outlasts every later reading.
+      final width = frame.profileMm * 0.8;
+      final joined = _openingAlreadyHolding(design, run.segment, width);
+      if (joined != null) {
+        // Laid right across the region it has joined, as **Divides** and the
+        // line tools both do: a hand-drawn line stops a few millimetres
+        // short of a stile, and inside a sash that is the difference between
+        // two panes and one pane with a line lying on it.
+        final across =
+            DesignEdits.spanAcross(joined.outline, run.segment) ?? run.segment;
+        dividers.add(DividerElement(
+          id: nextDividerId(),
+          a: across.a,
+          b: across.b,
+          widthMm: width,
+          finish: frame.finish,
+          parentId: joined.openingId,
+          fromStrokeId: run.strokeId,
+        ));
+        continue;
+      }
+
       dividers.add(DividerElement(
         id: nextDividerId(),
         a: run.segment.a,
         b: run.segment.b,
-        widthMm: frame.profileMm * 0.8,
+        widthMm: width,
         finish: frame.finish,
         fromStrokeId: run.strokeId,
       ));
@@ -466,6 +555,29 @@ abstract final class SketchInterpreter {
   /// length are otherwise untouched. Without this, a box drawn as four
   /// separate strokes never closes, because a hand does not land twice on
   /// the same pixel.
+  /// The opening [design] already has whose region holds [line] with room
+  /// to spare, or null when the line is in none of them.
+  ///
+  /// Read from the design as it stands, *before* this reading rebuilds it,
+  /// so the region is the one the user was looking at when they drew. The
+  /// margin is the bar's own thickness: a line closer than that to an edge
+  /// is running along it rather than dividing what is inside.
+  static ({String openingId, Polygon outline})? _openingAlreadyHolding(
+    Design design,
+    Segment line,
+    double widthMm,
+  ) {
+    for (final opening in design.openings) {
+      final section = design.sectionById(opening.sectionId);
+      if (section == null || section.outline.isEmpty) continue;
+      final room = section.outline.inset(math.max(widthMm, Tol.minLineMm));
+      if (room.isEmpty || room.area <= 0) continue;
+      if (!room.holds(line)) continue;
+      return (openingId: opening.id, outline: section.outline);
+    }
+    return null;
+  }
+
   static List<_Run> _weld(List<_Run> runs) {
     final span = _spanOf(runs);
     final tolerance = math.max(span * Tol.joinFraction * 0.25, Tol.minLineMm);

@@ -133,12 +133,15 @@ Where each one lives:
 | 17, 18 | The two questions listed under **Build it, do not ask about it** |
 | 19, 20 | `LocalSpace`, `OpeningLeaf`, `Polygon.sameIn` — and the history in this file |
 
-**Rule 9 has one honest limit**, set out in full under *Only the marked
-section opens*: a line the user draws **on the sheet** divides the design
-until they say it is an opening's, because no rule for deciding that
-automatically survives contact with `only_the_marked_section_opens_test.dart`.
-A line drawn *inside* an opening with the opening's own tools is the
-opening's from the moment it exists, which is rule 9 where it can be kept.
+**Rule 9 holds in three ways, and the limit left is narrow.** A line drawn
+with an opening's own tools is the opening's from the moment it exists. A
+line drawn **on the sheet inside a region the design already opens** joins
+that opening when the sheet is next read. And **Divides** says it by hand,
+for anything else — and now outlasts every later reading. What is left is a
+first reading, where nothing is open yet and every line divides the design,
+because deciding otherwise there is the inference
+`only_the_marked_section_opens_test.dart` refuses. See *Only the marked
+section opens*.
 
 ## The rules about openings that never change
 
@@ -686,9 +689,51 @@ thing the drawing genuinely does not say. **If you are about to try a third
 rule, run `only_the_marked_section_opens_test.dart` first — it fails in
 seconds and it is right.**
 
+**A line drawn on the sheet inside a region the design *already* opens joins
+that opening.** This is the one automatic case, and *already* is the whole
+of what makes it safe rather than a third go at the two rules above. Both of
+those ask a reading to work out, from the lines in front of it, a region
+that depends on the answer — which is why a mullion and a rail come out the
+same, and why stroke order helps itself to the window. This asks nothing of
+the kind. The opening was marked in an earlier reading, drawn on the screen,
+and looked at; the user then drew inside it. The region is read from the
+design as it stands **before** this reading, and it is there whether or not
+this line joins it.
+
+So on a first reading nothing is decided — there are no openings yet, every
+drawn line divides the design, and
+`only_the_marked_section_opens_test.dart` reads its five stroke orders
+exactly as before. Only a line with its own thickness clear of the sash all
+round counts, because a line along a jamb is bounding that region rather
+than dividing what is inside it; `_openingAlreadyHolding` is the test, on
+the section's outline inset by the bar's own width. The line is then laid
+right across the sash by the same `spanAcross` the **Divides** control and
+the line tools use, because a hand-drawn line stops short of a stile and
+inside a sash that is the difference between two panes and one pane with a
+line lying on it. `test/domain/a_line_drawn_in_the_opening_joins_it_test.dart`
+holds this, and holds the four things that must *not* join: a line in the
+fixed light, a line right across the window, a line along the sash's own
+jamb, and any line at all on a first reading.
+
+**A reading re-reads the drawing; it does not overturn what the user said
+about it.** Every bar was rebuilt from its stroke on every reading, with a
+new id and no parent, so saying a line was an opening's lasted exactly until
+the sheet was read again — and then the line went back to cutting the whole
+door in half and took the opening down to one side of it, with nothing in
+the drawing having changed. Runs are now paired with the bars the last
+reading made from them, by stroke and by order within it, so a bar keeps its
+id, its parent, its width and its colour. A bar that divides the design is
+still read from its stroke again, because it is a faithful copy of it; a bar
+the user has put inside an opening is not, because joining it moved its ends
+to span the sash, and reading them back off the stroke would undo that.
+Rubbing the stroke out still takes the bar with it.
+`test/domain/the_sheet_keeps_what_the_user_said_test.dart` holds both
+directions.
+
 A line becomes an opening's only when the user says so — with the line tools
-inside an opening, or with the **Divides** control on the bar's own panel.
-Both set `parentId` outright. `SectionBuilder` then keeps that hierarchy
+inside an opening, by drawing it inside an opening that is already there, or
+with the **Divides** control on the bar's own panel.
+All three set `parentId` outright. `SectionBuilder` then keeps that hierarchy
 through every edit, and where a section is *replaced* rather than kept — a
 line moving into it leaves one bigger section where two were — the opening
 follows its own mark to whatever now covers that ground, and a bar inside
