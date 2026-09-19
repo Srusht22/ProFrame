@@ -1,0 +1,41 @@
+name: proframe
+description: "Draw a door or window by hand. The drawing becomes editable geometry, and the geometry becomes the 2D design and the 3D model — exactly as drawn."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management. One approach across the whole app: compile-safe,
+  # testable without a widget tree, and with no platform channels of its own.
+  flutter_riverpod: ^3.0.2
+
+  # The design is saved as its own structured document.
+  shared_preferences: ^2.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Bundled rather than downloaded at run time: the app must work with no
+  # internet, and text the user typed must never fall back to a font the
+  # device does not have. SIL Open Font Licence — see assets/fonts/OFL.txt.
+  fonts:
+    - family: Noto Sans
+      fonts:
+        - asset: assets/fonts/NotoSans-Regular.ttf
+        - asset: assets/fonts/NotoSans-Bold.ttf
+          weight: 700
+    - family: Noto Sans Arabic
+      fonts:
+        - asset: assets/fonts/NotoSansArabic-Regular.ttf
+        - asset: assets/fonts/NotoSansArabic-Bold.ttf
+          weight: 700
