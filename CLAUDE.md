@@ -858,6 +858,19 @@ same rail the sheet has, because editing inside a sash is drawing, not a
 different kind of activity. `InsideTool` says what each one makes and how it
 is worked: a click, a drag, or a click for each corner.
 
+**The strip flows onto another line rather than running off the edge.** Ten
+tools and a caption are wider than the drawing is on any ordinary screen,
+and a `Row` has no answer to that but to overflow — which put the render
+error over the whole view the moment any part of an opening was picked, and
+so closed off both ways of giving a line to an opening at once: these tools,
+and the **Divides** control, which selects something inside an opening too.
+The caption is bounded by the width there actually is, which is a
+relationship and not a chosen number.
+`test/app/the_inside_tools_fit_test.dart` requires every tool to be on the
+strip and within it, and `test/app/divides_inside_the_opening_test.dart`
+requires choosing **Divides → inside the opening** to raise nothing and to
+leave the line naming the opening.
+
 **The opening the user is in is what says where the geometry belongs**, so
 nothing is asked after a line is drawn. That is the whole point of the mode:
 a question after every line would be the application refusing to read the
