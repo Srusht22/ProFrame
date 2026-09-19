@@ -356,18 +356,111 @@ abstract final class SketchInterpreter {
         continue;
       }
 
+      // The lines the user drew their mark straight through. Taken before
+      // the opening is made, because a bar's id is its own and outlasts the
+      // rebuilds that follow; a section's does not.
+      final through = [
+        for (final bar in _barsTheMarkRunsThrough(read, symbol)) bar.id,
+      ];
+
+      final openingId = _openingIdFor(design, symbol);
       read = DesignEdits.setOpening(
         read,
         section.id,
-        openingId: _openingIdFor(design, symbol),
+        openingId: openingId,
         mechanism: symbol.mechanism,
         markAt: symbol.centre,
         markGlyph: symbol.glyph,
         fromStrokeId: symbol.strokeId,
       );
+
+      // Each of those lines is inside what the mark opens, by the same route
+      // the **Divides** control takes — so nothing arrives inside a section
+      // that the user could not have put there by hand, and what the design
+      // accepts is exactly what it would have offered them.
+      for (final barId in through) {
+        final opening = read.openingById(openingId);
+        if (opening == null) break;
+        read = DesignEdits.setDividerParent(read, barId, opening.sectionId);
+      }
     }
 
     return _Placed(read, questions);
+  }
+
+  /// The bars the user drew their mark **through**.
+  ///
+  /// A mark says which region opens. Drawn right through a line of their
+  /// own, it says something more: that the line is inside the thing being
+  /// marked. A door with a rail across it and a `>` drawn over the whole
+  /// leaf is one leaf with a rail in it, and reading it as two lights with
+  /// only the lower one opening is not the drawing.
+  ///
+  /// **This is not the inference this file refuses twice over.** Those ask a
+  /// reading to work out, from the lines alone, which side of a bar the mark
+  /// meant — and a mullion below a `>` and a rail below a `>` are the same
+  /// picture turned on its side, so containment takes both or neither, and
+  /// stroke order helps itself to the window. Nothing is worked out here.
+  /// The user drew one mark through the other. The two touch on the sheet,
+  /// and where they touch is the whole of the test.
+  ///
+  /// **Through, not into** — and that is the difference between this and a
+  /// hand straying over a mullion, which is the case
+  /// `the_mark_picks_one_face_test.dart` holds: a `>` whose point pokes six
+  /// millimetres past a mullion and stops there is in the light it was drawn
+  /// in, and the mullion is nothing to do with it. So the arm that crosses
+  /// the bar has to carry on out of whatever is on the far side rather than
+  /// ending inside it, which `Polygon.holds` — this repository's one
+  /// containment test — answers. It is a relationship and not a size: a mark
+  /// that runs off the far edge of a light does so whether the light is a
+  /// hand's width or three metres.
+  static List<DividerElement> _barsTheMarkRunsThrough(
+    Design design,
+    OpeningSymbol symbol,
+  ) {
+    final arms = [
+      Segment(symbol.apex, symbol.armA),
+      Segment(symbol.apex, symbol.armB),
+    ];
+    final faces = design.topLevelSections;
+
+    final through = <DividerElement>[];
+    for (final bar in design.topLevelDividers) {
+      final here = bar.segment.direction.cross(symbol.centre - bar.a);
+      if (here.abs() <= Tol.samePointMm) continue;
+
+      for (final arm in arms) {
+        final crossing = bar.segment.crossing(arm);
+        if (crossing == null) continue;
+
+        // The end of the arm on the other side of the bar from the mark's
+        // own middle, and the region it goes into — picked up just past the
+        // bar's own material rather than at its centre line, which is inside
+        // the bar and in no region at all.
+        final away = bar.segment.direction.cross(arm.b - bar.a) * here < 0
+            ? arm.b
+            : arm.a;
+        final beyond = Segment(crossing.at, away);
+        if (beyond.length < Tol.minLineMm) continue;
+
+        final entering =
+            crossing.at + beyond.unit * (bar.widthMm + Tol.minLineMm);
+        SectionElement? far;
+        for (final face in faces) {
+          if (face.outline.contains(entering)) far = face;
+        }
+
+        // Nothing over there, or the arm stopped inside it. Running *into* a
+        // region is a hand straying over a line; running *through* it is the
+        // user drawing their mark across the thing they mean.
+        if (far == null) continue;
+        if (far.outline.contains(away)) continue;
+
+        through.add(bar);
+        break;
+      }
+    }
+    return through;
   }
 
   /// The id the opening carries, which is the same one every time the sheet

@@ -689,6 +689,31 @@ thing the drawing genuinely does not say. **If you are about to try a third
 rule, run `only_the_marked_section_opens_test.dart` first — it fails in
 seconds and it is right.**
 
+**A line the user drew their mark straight *through* is inside what the mark
+opens.** A door with a rail across it and a `>` drawn over the whole leaf is
+one leaf with a rail in it; reading it as two lights with only the lower one
+opening is not the drawing. Nothing is worked out here — the user drew one
+mark through the other, and where the two touch on the sheet is the whole of
+the test. `_barsTheMarkRunsThrough` finds them, and each is then given to the
+opening by the same `setDividerParent` the **Divides** control calls, so
+nothing arrives inside a section that the user could not have put there by
+hand.
+
+**Through, not into**, and that is the difference between this and a hand
+straying over a mullion. `the_mark_picks_one_face_test.dart` holds a `>`
+whose point pokes six millimetres past a mullion and stops: that mark is in
+the light it was drawn in, and the mullion is nothing to do with it. So the
+arm that crosses a bar has to carry on *out of* whatever is on the far side
+rather than ending inside it — measured from where the arm enters that
+region, past the bar's own material, and answered by `Polygon.holds`. It is
+a relationship and not a size: a mark runs off the far edge of a light
+whether that light is a hand's width or three metres, and a mark that stops
+inside one has strayed however big it is. Two earlier attempts at this rule
+failed exactly here, on that six-millimetre mark, and the test was right both
+times. `test/domain/the_mark_drawn_through_a_line_test.dart` holds the door,
+and holds the two marks that must leave the rail alone: one that stops inside
+the far half, and one drawn clear of the rail altogether.
+
 **A line drawn on the sheet inside a region the design *already* opens joins
 that opening.** This is the one automatic case, and *already* is the whole
 of what makes it safe rather than a third go at the two rules above. Both of
