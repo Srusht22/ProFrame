@@ -249,6 +249,22 @@ Alongside it:
   every other element and requires it back byte for byte.
 - `test/domain/one_model_test.dart` — the design is the only model; the CAD
   drawing and the solid are functions of it and hold no geometry of their own.
+- `test/app/one_design_two_views_test.dart` — one edit reaches **both**
+  views. It rasterises the drawing and writes the mesh out facet by facet,
+  so each of the three propagations is checked on the thing the user
+  actually sees: an opening taken from 40 cm to 50 cm, a divider moved, a
+  panel made glass. It also holds the other direction — an edit that changes
+  nothing changes neither view, and the same design gives the same picture
+  and the same mesh.
+
+  **That test earns its keep by catching a second geometry system.** Giving
+  `CadPainter` a static that remembers the first design it is ever handed —
+  the smallest possible version of CAD keeping its own geometry — fails all
+  three propagations at once. Its limit is worth knowing: the CAD side of
+  the part-set comparison is read from `DesignTree`, not from what reaches
+  the canvas, so a painter that walked a stale *tree* while still reading
+  live positions would slip past that particular assertion, though the pixel
+  comparisons would still catch it wherever the structure showed.
 - `test/domain/user_decides_openings_test.dart` — an opening exists only
   where the user marked one.
 
