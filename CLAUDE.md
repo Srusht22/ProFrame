@@ -464,6 +464,31 @@ cut at their crossings, joined into a graph, and the faces of that graph are
 the sections. Nothing is laid out to a template, which is what makes the rule
 above structurally true rather than merely intended.
 
+**A bar is cut in as its two faces, not as its centre line**, because a bar
+is real material with a width and the glass stops at its face. So the faces
+that come back include the bars' own bodies, and `SectionBuilder._subdivide`
+has to tell those from the daylight. **A face is a bar's own material when
+the face *is* the bar** — when what it shares with that body is most of it.
+It used to ask whether the face's *middle* fell inside a body, which is the
+midpoint standing in for containment yet again, and it failed exactly where
+a midpoint always does: a bar hanging from nothing leaves the daylight in
+one piece with a slot down the middle of it, and the centroid of that
+U-shaped piece is in the slot. The whole daylight was thrown away as though
+it were the bar, so a door with a line drawn in the lower half came back
+with **no sections at all** — no leaf, no opening, nothing to draw and
+nothing to build — while the same door with the line in the upper half came
+back correctly.
+
+*Most of it*, and not all of it, because a bar's own face is not always
+exactly the bar: a diagonal whose end is trimmed by the frame comes back
+with the little triangle of daylight beyond its end joined on. There is
+nothing in between to be uncertain about — a bar's face is all but a sliver
+of the bar, and a daylight face shares a boundary with it and nothing more.
+`test/domain/a_line_that_divides_nothing_test.dart` holds this on every line
+that encloses nothing: hanging from one end, touching nothing at all, drawn
+past the sill, drawn past both jambs. None of them makes a section, and none
+of them takes the sections that are there with it.
+
 ### What the model will not let you say
 
 The hierarchy is not kept true by each edit remembering to keep it true.
@@ -711,38 +736,52 @@ opening by the same `setDividerParent` the **Divides** control calls, so
 nothing arrives inside a section that the user could not have put there by
 hand.
 
-**That last part is also where this stops short, and it is worth writing
-down.** `setDividerParent` asks whether the bar lies within the section —
-measured on the section as it stands, which is a shape *that very bar* cut.
-A rail running the width of a door lies within neither half of the door it
-has just made, so the control never offers it and the design never takes it;
-and there is no order to do it in, because the first one cannot go in
-either. So where the mark's own middle lands in a small region — a door cut
-into three by a rail and an upright, with the `>` drawn over the lot — the
-mark runs through both bars and neither can join, and the door stays three
-lights. Making it work means the opening's region has to be worked out
-*with those bars set aside* rather than absorbed one at a time afterwards,
-and that is a change to the order `interpret` does things in, not another
-rule about marks. Two attempts at it from the other end both foundered on
-`SectionBuilder` re-homing a child whose section has been replaced, which is
-right in every other case.
+**Those lines are stood aside before the region is chosen, and that is the
+order the whole thing turns on.** A line the mark runs through is inside
+what the mark opens, so it is not one of the *edges* of it, and a reading
+that picks the region first has already used it as one. A door cut into
+three by a rail and an upright, with a `>` drawn over the lot, then opened
+whichever quarter the mark's middle happened to land in — and the rail could
+not be absorbed afterwards either, by the reading or by the user, because
+`setDividerParent` asks whether the bar lies within the section and a rail
+running the width of a door lies within neither half of the door it has just
+made. There was no order to do it in, because the first one could not go in.
+Worse, *which* quarter it was depended on where the user had drawn their
+upright, so the same mark on the same door meant two different things.
+
+So `_placeSymbols` reads the bars the mark runs through, rebuilds the design
+without them, and asks `sectionFor` of *that* — the region the mark is in
+once the lines it was drawn across are not cutting it up. Then they go back
+in one at a time by the ordinary route, each one offered the region the last
+one left. A line the design will not take goes back to dividing it, as it
+was: a line the user drew is never lost.
+`test/domain/the_mark_means_the_same_wherever_the_line_is_test.dart` holds
+the door both ways round — the upright above the rail and below it — and
+requires one leaf, both lines inside it and three panes from each.
 
 **Through, not into**, and that is the difference between this and a hand
 straying over a mullion. `the_mark_picks_one_face_test.dart` holds a `>`
 whose point pokes six millimetres past a mullion and stops: that mark is in
 the light it was drawn in, and the mullion is nothing to do with it. So the
-arm that crosses a bar has to **reach the far side of whatever it went
-into** — `spanAcross` says where that side is along the arm's own line, so
-the measure is the region being crossed rather than any chosen distance, and
-an end landing a hand's width short of it still counts, because a chevron
-drawn inside a leaf stops just shy of the stiles rather than running off
-them. It is a relationship and not a size: an arm crosses a light whether
-that light is a hand's width or three metres, and one that stops out in the
-middle of it has strayed however far it went. Three earlier shapes of this
-test were wrong — one that required the arm to leave the region altogether
-was too strict and left ordinary drawings cut into lights; one measured the
-arm against the bar's own thickness and was too loose. The six-millimetre
-mark caught every one of them. `test/domain/the_mark_drawn_through_a_line_test.dart` holds the door,
+arm that crosses a bar has to **get across whatever it went into** rather
+than stopping out in the middle of it — its end nearer the far side of that
+light than the bar it came in over. `spanAcross` says where the far side is
+along the arm's own line, so both distances are the drawing's own and there
+is no chosen size in it at all: an arm crosses a light whether that light is
+a hand's width or three metres.
+
+*Nearer, rather than near enough.* The measure was a weld tolerance at
+first — reach the far side, give or take a hand's width — and a weld is a
+couple of centimetres, which is the wrong scale entirely for where a
+chevron's point comes to rest. A `>` drawn across a door stops a hand short
+of the stile, not a weld short of it, so that rule read a mark as having
+strayed over an upright it plainly crossed, and whether it had crossed it
+depended on how big the light beyond happened to be — which is to say, on
+where the user's other lines were. Two earlier shapes were wrong in the
+other directions: requiring the arm to leave the region altogether was too
+strict and left ordinary drawings cut into lights, and measuring the arm
+against the bar's own thickness was too loose. The six-millimetre mark
+caught every one of them. `test/domain/the_mark_drawn_through_a_line_test.dart` holds the door,
 and holds the two marks that must leave the rail alone: one that stops inside
 the far half, and one drawn clear of the rail altogether.
 

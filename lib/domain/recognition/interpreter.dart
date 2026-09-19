@@ -324,7 +324,36 @@ abstract final class SketchInterpreter {
     final questions = <DesignQuestion>[];
 
     for (final symbol in symbols) {
-      final section = sectionFor(read, symbol);
+      // The lines the user drew their mark straight through, and the design
+      // with them stood aside.
+      //
+      // **A line the mark runs through is inside what the mark opens, so it
+      // is not one of the edges of it** — and the region has to be read that
+      // way round. Read the other way, a `>` drawn over a whole door came
+      // back opening whichever quarter of it the mark's middle happened to
+      // land in: the rail and the upright the user had drawn their mark
+      // across were still cutting the door up, so the smallest region
+      // holding the mark was a quarter of it, and the rail could not then go
+      // inside that quarter, because it runs the width of the door. Which
+      // quarter it was depended on where they had drawn the upright, so the
+      // same mark on the same door meant two different things. Standing
+      // those lines aside first makes the region the mark's own, and they go
+      // back into it afterwards by the ordinary route.
+      final through = [
+        for (final bar in _barsTheMarkRunsThrough(read, symbol)) bar.id,
+      ];
+      final stood = [
+        for (final bar in read.dividers)
+          if (through.contains(bar.id)) bar,
+      ];
+      final choosing = stood.isEmpty
+          ? read
+          : SectionBuilder.rebuild(read.copyWith(dividers: [
+              for (final bar in read.dividers)
+                if (!through.contains(bar.id)) bar,
+            ]));
+
+      final section = sectionFor(choosing, symbol);
 
       // A mark drawn right off the design has no section to open. That is
       // the one case with nothing to work from, and it is the only one that
@@ -356,16 +385,9 @@ abstract final class SketchInterpreter {
         continue;
       }
 
-      // The lines the user drew their mark straight through. Taken before
-      // the opening is made, because a bar's id is its own and outlasts the
-      // rebuilds that follow; a section's does not.
-      final through = [
-        for (final bar in _barsTheMarkRunsThrough(read, symbol)) bar.id,
-      ];
-
       final openingId = _openingIdFor(design, symbol);
       read = DesignEdits.setOpening(
-        read,
+        choosing,
         section.id,
         openingId: openingId,
         mechanism: symbol.mechanism,
@@ -374,14 +396,26 @@ abstract final class SketchInterpreter {
         fromStrokeId: symbol.strokeId,
       );
 
-      // Each of those lines is inside what the mark opens, by the same route
-      // the **Divides** control takes — so nothing arrives inside a section
-      // that the user could not have put there by hand, and what the design
-      // accepts is exactly what it would have offered them.
-      for (final barId in through) {
+      // Each of those lines goes back into what the mark opens, by the same
+      // route the **Divides** control takes — so nothing arrives inside a
+      // section that the user could not have put there by hand, and what
+      // the design accepts is exactly what it would have offered them.
+      //
+      // One at a time, because a line that has gone in is a line that no
+      // longer divides the design, and the next is offered the region that
+      // leaves. A line the design will not take goes back to dividing it, as
+      // it was: a line the user drew is never lost.
+      for (final bar in stood) {
         final opening = read.openingById(openingId);
         if (opening == null) break;
-        read = DesignEdits.setDividerParent(read, barId, opening.sectionId);
+        read = DesignEdits.setDividerParent(
+          read.copyWith(dividers: [
+            ...read.dividers,
+            bar.copyWith(clearParent: true),
+          ]),
+          bar.id,
+          opening.sectionId,
+        );
       }
     }
 
@@ -409,11 +443,11 @@ abstract final class SketchInterpreter {
   /// `the_mark_picks_one_face_test.dart` holds: a `>` whose point pokes six
   /// millimetres past a mullion and stops there is in the light it was drawn
   /// in, and the mullion is nothing to do with it. So the arm that crosses
-  /// the bar has to carry on out of whatever is on the far side rather than
-  /// ending inside it, which `Polygon.holds` — this repository's one
-  /// containment test — answers. It is a relationship and not a size: a mark
-  /// that runs off the far edge of a light does so whether the light is a
-  /// hand's width or three metres.
+  /// the bar has to get across whatever is on the far side rather than
+  /// stopping in the middle of it — its end nearer the far side of that
+  /// light than the bar it came in over. It is a relationship and not a
+  /// size: two distances the drawing itself gives, so a mark crosses a
+  /// light whether that light is a hand's width or three metres.
   static List<DividerElement> _barsTheMarkRunsThrough(
     Design design,
     OpeningSymbol symbol,
@@ -454,22 +488,27 @@ abstract final class SketchInterpreter {
         }
         if (far == null) continue;
 
-        // **Through, not into.** The arm has to reach the far side of
-        // whatever it went into. A point that stops out in the middle of a
-        // light has strayed over the bar; one that carries on to the other
-        // side of that light has been drawn across it. `spanAcross` says
-        // where the far side is along this very line, so the measure is the
-        // region the arm is crossing rather than any chosen distance — and
-        // an end that lands short of it by a hand's width still counts,
-        // because a chevron drawn inside a leaf stops just shy of the
-        // stiles rather than running off them.
+        // **Through, not into.** The arm has to get across whatever it went
+        // into, not stop out in the middle of it. `spanAcross` says where
+        // the far side is along this very line, and the question is then
+        // which the arm's end is nearer: the far side, or the bar it came
+        // in over. Nearer the far side, it was drawn across that light;
+        // nearer the bar, it strayed over the bar and stopped.
+        //
+        // **Two distances of the drawing's own, and no chosen size.** The
+        // measure used to be a weld tolerance — a hand's width off the far
+        // edge — and a weld is a couple of centimetres, which is the wrong
+        // scale entirely for where a chevron's point comes to rest. A `>`
+        // drawn across a door stops a hand short of the stile, not a weld
+        // short of it, so the rule read that mark as having strayed over
+        // the upright it plainly crossed. Whether it crossed the bar or not
+        // then depended on where the user had drawn their other lines,
+        // because that is what decides how big the far light is.
         if (far.outline.contains(away)) {
           final run = DesignEdits.spanAcross(
               far.outline, Segment(entering, entering + beyond.unit));
           if (run == null) continue;
-          final weld = Tol.weldFor(
-              math.max(far.outline.width, far.outline.height));
-          if (away.distanceTo(run.b) > weld) continue;
+          if (away.distanceTo(run.b) > away.distanceTo(entering)) continue;
         }
 
         through.add(bar);

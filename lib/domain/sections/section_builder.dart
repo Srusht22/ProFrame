@@ -331,9 +331,36 @@ abstract final class SectionBuilder {
     final all = PlanarSubdivision.facesOf(lines, weldTolerance: weld);
 
     // What is left once the bars themselves are taken out is the daylight.
+    //
+    // A face is a bar's own material when **the face is that bar** — when
+    // what it shares with the bar's body is most of it. Not when its middle
+    // happens to fall in one, which is the failure this repository has been
+    // caught by before and was caught by again here: a bar hanging from
+    // nothing leaves the daylight in one piece with a slot down the middle
+    // of it, and the centroid of that U-shaped piece is in the slot. The
+    // whole daylight was thrown away as though it were the bar, and a door
+    // with a line drawn in the lower half came back with no sections at all
+    // — while the same door with the line in the upper half came back
+    // correctly.
+    //
+    // *Most of it*, and not all of it, because a bar's face is not always
+    // exactly the bar: a diagonal whose end is trimmed by the frame comes
+    // back with the little triangle of daylight beyond its end joined on.
+    // There is nothing in between to be uncertain about — a bar's own face
+    // is all but a sliver of the bar, and a daylight face shares a
+    // boundary with it and nothing more.
+    bool isMaterial(Polygon face) {
+      final area = face.area;
+      if (area <= 0) return true;
+      for (final body in bodies) {
+        if (face.clippedTo(body).area * 2 > area) return true;
+      }
+      return false;
+    }
+
     return [
       for (final face in all)
-        if (!bodies.any((body) => body.contains(face.centroid))) face,
+        if (!isMaterial(face)) face,
     ];
   }
 

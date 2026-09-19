@@ -15,7 +15,12 @@ import 'package:proframe/domain/sketch/stroke.dart';
 // the sheet was read, with a new id and no parent, so **Read again** put
 // the line back across the whole door and the opening back to half of it.
 //
-// The drawing: a door, a `>` across it, and one line drawn through it.
+// The drawing: a door, one line across it, and a `>` drawn in the light
+// below that line. The mark is drawn clear of the line on purpose. A mark
+// drawn *through* a line says by itself that the line is inside what it
+// opens, and the reading takes it — `the_mark_drawn_through_a_line_test`
+// holds that. Here nothing is said by the drawing, so the user says it, and
+// what this file is about is that saying it lasts.
 
 Stroke pen(String id, List<Vec2> through) {
   final samples = <StrokeSample>[];
@@ -41,13 +46,13 @@ Design sheet() => Design(
           Vec2(0, 2000),
           Vec2(0, 0),
         ]),
-        // A `>` drawn big, across the door: its point on the right.
+        // A `>` drawn in the lower light: its point on the right.
         pen('mark', const [
-          Vec2(200, 500),
-          Vec2(800, 1000),
-          Vec2(200, 1500),
+          Vec2(200, 1200),
+          Vec2(800, 1500),
+          Vec2(200, 1800),
         ]),
-        // And one line drawn through it.
+        // And one line across the door, which the mark is drawn clear of.
         pen('line', const [Vec2(0, 900), Vec2(1000, 900)]),
       ]),
     );
