@@ -9,6 +9,7 @@ import '../../domain/dimensions/units.dart';
 import '../../domain/editing/design_edits.dart';
 import '../../domain/geometry/polygon.dart';
 import '../../domain/geometry/segment.dart';
+import '../../domain/geometry/tolerances.dart';
 import '../../domain/geometry/vec2.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
@@ -49,6 +50,12 @@ class _CadViewState extends ConsumerState<CadView> {
 
   /// What the next click inside the selected opening does.
   InsideTool _inside = InsideTool.select;
+
+  /// A shape being drawn inside the opening: where the drag started, or the
+  /// corners clicked so far. Kept here rather than in the design, because
+  /// nothing half-drawn is part of anybody's door.
+  Vec2? _from;
+  final List<Vec2> _corners = [];
 
   /// Room round the drawing for the things that sit beside it: two rows of
   /// dimensions and their names along the bottom and down the left, and the
@@ -158,8 +165,8 @@ class _CadViewState extends ConsumerState<CadView> {
                           controller,
                         ),
                     onPointerMove: (event) => _move(event, view, controller),
-                    onPointerUp: (_) => _up(controller),
-                    onPointerCancel: (_) => _up(controller),
+                    onPointerUp: (_) => _up(controller, insideSection?.id),
+                    onPointerCancel: (_) => _up(controller, null),
                     onPointerSignal: (event) {
                       if (event is PointerScrollEvent) {
                         setState(() {
@@ -392,21 +399,33 @@ class _CadViewState extends ConsumerState<CadView> {
     final at = view.toSheet(event.localPosition);
     final reach = view.lengthToSheet(13);
 
-    // A line tool has been picked, so this click places a line rather than
-    // selecting anything. It goes in the opening and nowhere else: a click
-    // outside puts the tool down without drawing.
+    // A tool has been picked, so this click draws rather than selects. What
+    // it makes goes in the opening and nowhere else: a click outside puts
+    // the tool down without drawing, and the opening is never asked about.
     if (_inside != InsideTool.select && insideOf != null) {
-      final horizontal = _inside == InsideTool.horizontalLine;
       final design = ref.read(workspaceProvider).design;
       final within = design.sectionById(insideOf)?.outline;
-      if (within != null && within.contains(at)) {
-        controller.addLineInside(insideOf, at, horizontal: horizontal);
+      if (within == null || !within.contains(at)) {
+        setState(() {
+          _inside = InsideTool.select;
+          _corners.clear();
+          _from = null;
+        });
+        return;
       }
-      setState(() {
-        _inside = InsideTool.select;
-        _holding = null;
-        _editing = null;
-      });
+
+      switch (_inside.gesture) {
+        case InsideGesture.click:
+          _clickInside(controller, insideOf, at);
+        case InsideGesture.drag:
+          setState(() {
+            _from = at;
+            _holding = null;
+            _editing = null;
+          });
+        case InsideGesture.chain:
+          _cornerInside(controller, insideOf, at, view);
+      }
       return;
     }
 
@@ -566,7 +585,114 @@ class _CadViewState extends ConsumerState<CadView> {
     }
   }
 
-  void _up(WorkspaceController controller) {
+  /// Asks for the note's words, then puts it where the user clicked.
+  Future<void> _askForNote(WorkspaceController controller, Vec2 at) async {
+    final text = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        final field = TextEditingController();
+        return AlertDialog(
+          title: const Text('Note'),
+          content: TextField(
+            controller: field,
+            autofocus: true,
+            decoration: const InputDecoration(hintText: 'Type your note'),
+            onSubmitted: (value) => Navigator.of(context).pop(value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(field.text),
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+    if (text != null) controller.addNote(text, at);
+  }
+
+  /// A one-click tool: the line tools, and the note.
+  void _clickInside(WorkspaceController controller, String inside, Vec2 at) {
+    switch (_inside) {
+      case InsideTool.horizontalLine:
+        controller.addLineInside(inside, at, horizontal: true);
+      case InsideTool.verticalLine:
+        controller.addLineInside(inside, at, horizontal: false);
+      case InsideTool.note:
+        _askForNote(controller, at);
+      default:
+        break;
+    }
+    setState(() {
+      _inside = InsideTool.select;
+      _holding = null;
+      _editing = null;
+    });
+  }
+
+  /// A corner of a polyline. Clicking the first corner again closes it;
+  /// clicking anywhere else adds another corner.
+  void _cornerInside(
+    WorkspaceController controller,
+    String inside,
+    Vec2 at,
+    ViewTransform view,
+  ) {
+    final reach = view.lengthToSheet(13);
+    if (_corners.length >= 2 && _corners.first.distanceTo(at) <= reach) {
+      controller.addShapeInside(inside, [..._corners], closed: true);
+      setState(() {
+        _corners.clear();
+        _inside = InsideTool.select;
+      });
+      return;
+    }
+    setState(() => _corners.add(at));
+  }
+
+  /// The end of a drag with a shape tool: what the user dragged out is made,
+  /// inside the opening they are editing.
+  void _finishDrag(WorkspaceController controller, String inside, Vec2 to) {
+    final from = _from;
+    if (from == null) return;
+    if (from.distanceTo(to) >= Tol.minLineMm) {
+      switch (_inside) {
+        case InsideTool.straightLine:
+          controller.addShapeInside(inside, [from, to]);
+        case InsideTool.rectangle:
+          controller.addShapeInside(
+            inside,
+            [
+              from,
+              Vec2(to.x, from.y),
+              to,
+              Vec2(from.x, to.y),
+            ],
+            closed: true,
+          );
+        case InsideTool.dimension:
+          controller.addDimension(from, to);
+        case InsideTool.arrow:
+          controller.addArrow(from, to);
+        default:
+          break;
+      }
+    }
+    setState(() {
+      _from = null;
+      _inside = InsideTool.select;
+    });
+  }
+
+  void _up(WorkspaceController controller, String? insideOf) {
+    final pointer = _pointer;
+    if (_from != null && insideOf != null && pointer != null) {
+      _finishDrag(controller, insideOf, pointer);
+    }
     controller.endGesture();
     setState(() {
       _holding = null;
@@ -575,21 +701,60 @@ class _CadViewState extends ConsumerState<CadView> {
   }
 }
 
-/// What a click inside the selected opening does.
+/// What the pointer does inside the opening being edited.
+///
+/// The same tools as the sheet, working on the opening instead of the
+/// design. Which one is picked says what to make; the **opening** says where
+/// it belongs, so nothing is asked after a line is drawn.
 enum InsideTool {
   /// Pick something, which is what a click does the rest of the time.
-  select('Select', Icons.near_me_outlined),
+  select('Select', Icons.near_me_outlined, InsideGesture.click),
 
   /// Lay a horizontal line across the opening where the user clicks.
-  horizontalLine('Horizontal line', Icons.horizontal_rule),
+  horizontalLine('Horizontal line', Icons.horizontal_rule, InsideGesture.click),
 
   /// The same, standing up.
-  verticalLine('Vertical line', Icons.vertical_align_center);
+  verticalLine('Vertical line', Icons.vertical_align_center,
+      InsideGesture.click),
 
-  const InsideTool(this.label, this.icon);
+  /// A line at whatever angle it is dragged at.
+  straightLine('Straight line', Icons.show_chart, InsideGesture.drag),
+
+  /// Four bars enclosing a pane, dragged corner to opposite corner.
+  rectangle('Rectangle', Icons.crop_square, InsideGesture.drag),
+
+  /// A chain of bars: a click for each corner, and the first one again to
+  /// close it.
+  polyline('Polyline', Icons.timeline, InsideGesture.chain),
+
+  /// A figure measuring two points inside the opening.
+  dimension('Dimension', Icons.straighten, InsideGesture.drag),
+
+  /// An arrow, dragged from its tail to its point.
+  arrow('Arrow', Icons.north_east, InsideGesture.drag),
+
+  /// A note, typed where it is put.
+  note('Note', Icons.title, InsideGesture.click);
+
+  const InsideTool(this.label, this.icon, this.gesture);
   final String label;
   final IconData icon;
+  final InsideGesture gesture;
+
+  /// True when what this tool makes is part of the opening: a bar, and the
+  /// panes it divides the opening into. A figure, an arrow and a note
+  /// describe the design rather than build it, so they have no parent —
+  /// `_carryContents` transforms declared children and nothing else.
+  bool get builds => switch (this) {
+        horizontalLine || verticalLine || straightLine || rectangle ||
+            polyline =>
+          true,
+        select || dimension || arrow || note => false,
+      };
 }
+
+/// How a tool is worked: one click, a drag, or a click for each corner.
+enum InsideGesture { click, drag, chain }
 
 /// The tools for drawing inside an opening.
 ///

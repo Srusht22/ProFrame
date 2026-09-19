@@ -103,6 +103,114 @@ abstract final class DesignEdits {
     ]));
   }
 
+  /// Adds a shape the user drew inside a section, as that section's own.
+  ///
+  /// A rectangle is four bars, a polyline is a chain of them, and a straight
+  /// line at an angle is one — all the same operation, because in this model
+  /// a shape is not a picture of a shape: it is the lines that enclose the
+  /// panes it makes. Every bar is the section's from the moment it exists,
+  /// so the whole shape divides that section and travels with it.
+  ///
+  /// Unlike [addDividerInside], a leg is **not** laid right across the
+  /// section. A single bar that stopped half way would divide nothing, which
+  /// is why one gets spanned; the legs of a shape close on each other
+  /// instead, so spanning them would turn a rectangle into a cross. Each leg
+  /// is trimmed to the section it was drawn in, which is the same cleaning
+  /// as trimming a line drawn past its corner, and a leg left with nothing
+  /// inside is dropped rather than placed somewhere near.
+  static Design addShapeInside(
+    Design design,
+    String sectionId, {
+    required String idPrefix,
+    required List<Vec2> corners,
+    bool closed = false,
+  }) {
+    final section = design.sectionById(sectionId);
+    if (section == null || corners.length < 2) return design;
+
+    // One line on its own is a line, not a shape: it is laid right across
+    // the section like every other line tool, because a bar that stops half
+    // way divides nothing. Only a shape's legs are trimmed, because they
+    // close on each other rather than on the section.
+    if (corners.length == 2 && !closed) {
+      return addDividerInside(
+        design,
+        sectionId,
+        id: '$idPrefix-0',
+        a: corners.first,
+        b: corners.last,
+      );
+    }
+
+    final legs = <Segment>[];
+    for (var i = 0; i + 1 < corners.length; i++) {
+      legs.add(Segment(corners[i], corners[i + 1]));
+    }
+    if (closed && corners.length > 2) {
+      legs.add(Segment(corners.last, corners.first));
+    }
+
+    final made = <DividerElement>[];
+    for (final leg in legs) {
+      final within = clippedInto(section.outline, leg);
+      if (within == null) continue;
+      made.add(DividerElement(
+        id: '$idPrefix-${made.length}',
+        a: within.a,
+        b: within.b,
+        widthMm: (design.frame?.profileMm ?? 62.5) * 0.55,
+        finish: design.frame?.finish ?? Finish.frameDefault,
+        parentId: sectionId,
+      ));
+    }
+    if (made.isEmpty) return design;
+
+    return _rebuild(design.copyWith(dividers: [...design.dividers, ...made]));
+  }
+
+  /// The part of [line] that lies within [outline], or null when none of it
+  /// does or what is left is too short to be a line.
+  ///
+  /// The ends move and nothing else: the direction and the position are the
+  /// user's, and only what strayed outside the shape is taken off.
+  static Segment? clippedInto(Polygon outline, Segment line) {
+    if (line.length < 1e-6) return null;
+
+    // Where the line crosses the boundary, as fractions along it, with the
+    // two ends thrown in so a line wholly inside needs no crossings at all.
+    final cuts = <double>[0, 1];
+    final direction = line.b - line.a;
+    for (final edge in outline.edges) {
+      final hit = _meetOnLine(line.a, direction, edge);
+      if (hit == null || hit < 0 || hit > 1) continue;
+      cuts.add(hit);
+    }
+    cuts.sort();
+
+    // The longest run whose middle is inside. A shape can be any the user's
+    // lines make, so a line can leave it and come back.
+    double? bestFrom;
+    double? bestTo;
+    for (var i = 0; i + 1 < cuts.length; i++) {
+      final from = cuts[i];
+      final to = cuts[i + 1];
+      if (to - from < 1e-9) continue;
+      final middle = line.a + direction * ((from + to) / 2);
+      if (!outline.contains(middle)) continue;
+      if (bestFrom == null || to - from > bestTo! - bestFrom) {
+        bestFrom = from;
+        bestTo = to;
+      }
+    }
+    if (bestFrom == null) return null;
+
+    final kept = Segment(
+      line.a + direction * bestFrom,
+      line.a + direction * bestTo!,
+    );
+    return kept.length < Tol.minLineMm ? null : kept;
+  }
+
   /// The same for a line the user placed with one of the line tools, which
   /// says its direction for them.
   ///

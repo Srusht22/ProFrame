@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/dimensions/scale.dart';
 import '../../domain/editing/design_edits.dart';
+import '../../domain/geometry/tolerances.dart';
 import '../../domain/geometry/vec2.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
@@ -310,6 +311,38 @@ class WorkspaceController extends Notifier<WorkspaceState> {
           to: stroke.end,
           colour: state.penColour,
           fromStrokeId: stroke.id,
+        ),
+      ]),
+    );
+  }
+
+  /// A figure measuring two points the user dragged between.
+  ///
+  /// A dimension describes the design rather than building it, so it has no
+  /// parent and is carried by nothing — the same as one drawn on the sheet.
+  void addDimension(Vec2 a, Vec2 b) {
+    if (a.distanceTo(b) < Tol.minLineMm) return;
+    _remember();
+    state = state.copyWith(
+      design: state.design.copyWith(dimensions: [
+        ...state.design.dimensions,
+        DimensionElement(id: _newId('dimension'), a: a, b: b),
+      ]),
+    );
+  }
+
+  /// An arrow, from its tail to its point.
+  void addArrow(Vec2 from, Vec2 to) {
+    if (from.distanceTo(to) < Tol.minLineMm) return;
+    _remember();
+    state = state.copyWith(
+      design: state.design.copyWith(arrows: [
+        ...state.design.arrows,
+        ArrowElement(
+          id: _newId('arrow'),
+          from: from,
+          to: to,
+          colour: state.penColour,
         ),
       ]),
     );
@@ -790,6 +823,38 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     );
     if (identical(design, state.design)) return;
     state = state.copyWith(design: design, selectedId: id);
+  }
+
+  /// Draws a shape inside a section, as that section's own.
+  ///
+  /// A straight line at an angle, a rectangle or a polyline, all the same
+  /// operation: the bars that enclose what the user drew, every one of them
+  /// the section's from the moment it exists. Nothing is asked afterwards —
+  /// the opening they are drawing in is what says where the geometry goes.
+  void addShapeInside(
+    String sectionId,
+    List<Vec2> corners, {
+    bool closed = false,
+  }) {
+    if (corners.length < 2) return;
+    final prefix = _newId('shape');
+    _remember();
+    final design = DesignEdits.addShapeInside(
+      state.design,
+      sectionId,
+      idPrefix: prefix,
+      corners: corners,
+      closed: closed,
+    );
+    if (identical(design, state.design)) return;
+    final made = [
+      for (final bar in design.dividers)
+        if (bar.id.startsWith('\$prefix-')) bar.id,
+    ];
+    state = state.copyWith(
+      design: design,
+      selectedId: made.isEmpty ? state.selectedId : made.first,
+    );
   }
 
   /// Moves a bar inside an opening to a place measured from the opening's

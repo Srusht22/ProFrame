@@ -662,6 +662,37 @@ that section, at the place the user put it, with `parentId` already set. The
 bar is the opening's from the moment it exists: it divides the opening rather
 than ending it, and travels with it ever afterwards.
 
+**The sheet's tools, working on the opening.** Picking any part of an
+opening puts up its own strip: Select, Horizontal line, Vertical line,
+Straight line, Rectangle, Polyline, Dimension, Arrow, Note and Erase — the
+same rail the sheet has, because editing inside a sash is drawing, not a
+different kind of activity. `InsideTool` says what each one makes and how it
+is worked: a click, a drag, or a click for each corner.
+
+**The opening the user is in is what says where the geometry belongs**, so
+nothing is asked after a line is drawn. That is the whole point of the mode:
+a question after every line would be the application refusing to read the
+one thing the user has already told it by selecting the opening first.
+`InsideTool.builds` marks the tools whose output is part of the opening — the
+lines, the rectangle, the polyline — and their bars carry `parentId` from the
+moment they exist. A figure, an arrow and a note describe the design rather
+than build it, and keep having no parent, because `_carryContents`
+transforms declared children and nothing else.
+
+**A shape is the lines that enclose it.** `DesignEdits.addShapeInside` is one
+operation for all of them: a rectangle is four bars, a polyline is a chain,
+and each leg is trimmed to the section it was drawn in rather than laid
+across it. Laid across, a rectangle would be a cross — every leg running the
+full width or height of the sash and enclosing nothing. A single line on its
+own is the exception and goes to `addDividerInside`, because one bar that
+stops half way divides nothing; a shape's legs close on each other instead.
+A leg with nothing left inside is dropped rather than placed somewhere near.
+
+`test/domain/drawing_inside_an_opening_test.dart` holds this for every tool:
+what it makes names the opening, appears in the tree as the opening's, makes
+no top-level line and no top-level section, and leaves the opening one
+opening with its boundary where it was.
+
 Laying the line across is the tool's job, not a decision about the design.
 A tool named *horizontal line* draws a horizontal line, so there is no wobble
 to clean and no angle to keep; and a bar that stopped half way across would
