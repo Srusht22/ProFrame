@@ -797,45 +797,68 @@ class _InsideBar extends StatelessWidget {
         color: AppTheme.surface,
         border: Border(bottom: BorderSide(color: AppTheme.hairline)),
       ),
-      child: Row(
-        children: [
-          const Icon(Icons.account_tree_outlined,
-              size: 15, color: AppTheme.accent),
-          const SizedBox(width: 7),
-          Flexible(
-            child: Text(
-              'Inside ${mechanism?.mechanism.label.toLowerCase() ?? 'this opening'}'
-              ' — ${Units.format(opening.widthMm)} × '
-              '${Units.label(opening.heightMm)}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontFamily: AppTheme.fontFamily,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.ink,
+      // The strip flows onto another line rather than running off the edge.
+      //
+      // A row of ten tools and a caption is wider than the drawing is on any
+      // ordinary screen, and a `Row` has no answer to that but to overflow —
+      // which put the render error over the whole view the moment any part
+      // of an opening was picked, because picking one is what puts this
+      // strip up. Wrapping is what a toolbar does when it runs out of room:
+      // every tool stays reachable, and the drawing below simply starts
+      // lower. The caption is bounded by the width there actually is, which
+      // is a relationship and not a chosen number, so it ellipsises rather
+      // than pushing the tools off on a narrow window.
+      child: LayoutBuilder(
+        builder: (context, constraints) => Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.account_tree_outlined,
+                      size: 15, color: AppTheme.accent),
+                  const SizedBox(width: 7),
+                  Flexible(
+                    child: Text(
+                      'Inside '
+                      '${mechanism?.mechanism.label.toLowerCase() ?? 'this opening'}'
+                      ' — ${Units.format(opening.widthMm)} × '
+                      '${Units.label(opening.heightMm)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: AppTheme.fontFamily,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.ink,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                ],
               ),
             ),
-          ),
-          const SizedBox(width: 14),
-          for (final option in InsideTool.values) ...[
+            for (final option in InsideTool.values)
+              _InsideButton(
+                label: option.label,
+                icon: option.icon,
+                on: tool == option,
+                onTap: () => onTool(option),
+              ),
+            const SizedBox(width: 2),
             _InsideButton(
-              label: option.label,
-              icon: option.icon,
-              on: tool == option,
-              onTap: () => onTool(option),
+              label: 'Erase',
+              icon: Icons.backspace_outlined,
+              on: false,
+              enabled: erasable,
+              onTap: onErase,
             ),
-            const SizedBox(width: 6),
           ],
-          const SizedBox(width: 8),
-          _InsideButton(
-            label: 'Erase',
-            icon: Icons.backspace_outlined,
-            on: false,
-            enabled: erasable,
-            onTap: onErase,
-          ),
-        ],
+        ),
       ),
     );
   }
