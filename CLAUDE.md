@@ -840,6 +840,34 @@ than to a picture of one, what is inside the leaf never reaches past the leaf
 as it swings, and what lights up when the opening is picked is exactly what
 moves when it opens.
 
+**The two views are held to each other, not just to the tree.**
+`test/domain/the_solid_is_the_cad_hierarchy_test.dart` builds the set of
+parts the drawing puts on the sheet and the set the solid builds, and
+requires them equal — with one internal line, two, and five. Both walking
+`DesignTree` is the reason they agree; this is the test that would notice if
+one of them stopped. It also holds that every facet belongs to a part the
+design actually has, so the solid cannot build something out of nothing, and
+that the same design gives the same mesh facet for facet.
+
+Then the four things the phase asks of an opening: what is inside it never
+reaches past the leaf at any angle, everything inside it turns when it
+turns, nothing outside it moves at all, and moving the opening to another
+light or resizing it leaves its bars and its panes inside it — checked by
+rebuilding the part sets after each and requiring them still equal.
+
+**The ironmongery is the one thing inside an opening that reaches past it.**
+A handle stands proud of the leaf, as a handle does. A test that asks
+whether *everything* inside the opening stays within the sash is describing
+a door with no handle on it; the bars and the panes are what must stay
+inside.
+
+`MeshBuilder._addLeafHardware` finds a leaf's hinges and handle through
+`Design.sectionHolding` rather than comparing `parentId` to the section id
+by hand. That was the last direct comparison in the solid, and it worked
+only because hardware happens to be stored against the section: the day it
+is not, a leaf would swing with its hinges and its handle left behind on the
+frame.
+
 ### A child names the opening, not the ground it stands on
 
 A bar drawn inside an opening, and each pane it makes, stores the **opening's**

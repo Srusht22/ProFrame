@@ -408,8 +408,14 @@ abstract final class MeshBuilder {
     double depth,
     Vec3 Function(Vec3) place,
   ) {
+    // Asked of the model rather than compared by hand: a parent may name the
+    // section or the opening on it, and `sectionHolding` is the one place the
+    // two forms become one answer. The comparison used to be direct, which
+    // worked only because hardware happens to be stored against the section —
+    // the day it is not, a leaf would swing in the solid with its hinges and
+    // its handle left behind on the frame.
     for (final piece in design.hardware) {
-      if (piece.parentId != section.id) continue;
+      if (design.sectionHolding(piece.parentId) != section.id) continue;
       _addHardware(out, piece, design, depth, place: place);
     }
   }
