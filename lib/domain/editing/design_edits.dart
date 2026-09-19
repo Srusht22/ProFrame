@@ -890,12 +890,53 @@ abstract final class DesignEdits {
     if (joined == null || within == null) return moved;
     final across = spanAcross(within.outline, joined.segment);
     if (across == null) return moved;
-    if (across.a.distanceTo(joined.a) < Tol.samePointMm &&
-        across.b.distanceTo(joined.b) < Tol.samePointMm) {
+    final welded = _weldedTo(across, joined.segment, within.outline);
+    if (welded.a.distanceTo(joined.a) < Tol.samePointMm &&
+        welded.b.distanceTo(joined.b) < Tol.samePointMm) {
       return moved;
     }
     return _rebuild(
-        moved.withElement(joined.copyWith(a: across.a, b: across.b)));
+        moved.withElement(joined.copyWith(a: welded.a, b: welded.b)));
+  }
+
+  /// [line] brought to the edges of the section it has joined — trimmed
+  /// where it ran past them, welded where it stopped just short of them,
+  /// and left exactly where the user drew it anywhere else.
+  ///
+  /// The two halves of that are the two rows of the table in this
+  /// repository's own notes, and they are not symmetrical.
+  ///
+  /// *Trimming a line drawn past its corner* is cleaning, always. Outside
+  /// the section the line is not the section's anyway, so the end comes
+  /// back to the boundary whatever the distance.
+  ///
+  /// *Welding two ends drawn a few millimetres apart* is cleaning too, but
+  /// only for a few millimetres. A line drawn by hand to run the width of a
+  /// sash stops a little short of a stile, and inside a section that little
+  /// is the difference between two panes and one pane with a line lying on
+  /// it, because the face does not close.
+  ///
+  /// **A line drawn to reach only half way is neither.** Taking that end out
+  /// to the far side invents a division nobody drew: an upright drawn from a
+  /// rail down to the sill came back running head to sill, and the sash had
+  /// four panes where the drawing showed three. The end stays where they put
+  /// it, and what the line does or does not divide follows from where it
+  /// actually reaches.
+  ///
+  /// The margin for welding is the section's own weld tolerance, which is
+  /// relative: a hand three pixels out is a couple of millimetres on a small
+  /// sash and twenty-odd on a three-metre one.
+  static Segment _weldedTo(Segment across, Segment line, Polygon within) {
+    final reach = Tol.weldFor(math.max(within.width, within.height));
+
+    Vec2 endFor(Vec2 own, Vec2 full) {
+      if (!within.contains(own)) return full;
+      return own.distanceTo(full) <= reach ? full : own;
+    }
+
+    // `spanAcross` runs along the line's own direction, so its ends answer
+    // to the line's ends in order.
+    return Segment(endFor(line.a, across.a), endFor(line.b, across.b));
   }
 
   /// True when [divider] lies within the section [sectionId] names — inside

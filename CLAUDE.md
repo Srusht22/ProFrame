@@ -794,15 +794,32 @@ section's old outline, because a child can only be out there by having just
 joined. Geometry, not a flag — nothing has to remember what the last edit
 was.
 
-**A bar that has joined a section is laid right across it.** This is what
-`addLineInside` already did for a line made with the line tools, and
-`setDividerParent` now does it too, through the same `spanAcross`. A line
-drawn by hand stops a few millimetres short of a jamb or runs a little past
-it; while it was dividing the design that did not matter, because it was
-cutting the section from the outside. Inside, six millimetres is the
-difference between glass over panel and one undivided pane with a line lying
-across it — the face simply does not close. The direction and the position
-stay the user's; only the two ends move.
+**A bar that has joined a section reaches where the user drew it**, cleaned
+at the ends and nowhere else. `setDividerParent` works out the full span
+with `spanAcross` as `addLineInside` does, and then `_weldedTo` decides, end
+by end, whether that end is the drawing's or the hand's. The two halves are
+the two rows of the table under *Where the line falls*, and they are not
+symmetrical:
+
+- **Trimming a line drawn past its corner** is cleaning, always. Outside the
+  section the line is not the section's anyway, so the end comes back to the
+  boundary whatever the distance.
+- **Welding two ends drawn a few millimetres apart** is cleaning too, but
+  only for a few millimetres — the section's own weld tolerance, which is
+  relative, so it is a couple of millimetres on a small sash and twenty-odd
+  on a three-metre one. Inside a section that little is the difference
+  between two panes and one pane with a line lying on it, because the face
+  does not close.
+
+**A line drawn to reach only half way is neither, and it used to be
+stretched.** Every joined bar was laid right across, so an upright drawn
+from a rail down to the sill came back running head to sill and the sash had
+four panes where the drawing showed three — a division nobody drew, which is
+the one thing this repository is for not doing. The end now stays where they
+put it, and what the line does or does not divide follows from where it
+actually reaches. `test/domain/a_line_reaches_where_it_was_drawn_test.dart`
+holds all three: the half-way upright stays half way, the overshoot is
+trimmed, and the four-millimetre gap is welded.
 
 `test/domain/lines_inside_an_opening_test.dart` holds this and the rest of
 this section's rules, on the phase's own figures: a 40 cm opening standing
