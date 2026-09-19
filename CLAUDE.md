@@ -1439,6 +1439,42 @@ The component tree is where this is visible: the opening's branch holds its
 hinges and its handle, and a section nobody marked holds neither, however
 door-shaped it is.
 
+**Which face you are looking at, and so which side the hinges are on.** A
+joiner's elevation is drawn from the side the design is met from, and that
+is not the same side for the two kinds:
+
+| | Drawn from | So its hinges are |
+| --- | --- | --- |
+| Door | outside — where you walk up to it | round the back, out of sight |
+| Window | inside — where you stand to open it | on the face you are at |
+
+`DesignKind.seenFrom` says which, `HardwareKind.onTheInsideFace` says which
+pieces are fixed to one face only — a butt hinge is screwed to the inside
+face; a handle, a lever, a knob and a lock go through the leaf and are
+worked from either side — and `Design.isConcealed` is the one answer both
+views read. Two answers would be two opinions about which way round the
+design is, and the hinge would be behind the leaf in one view and in front
+of it in the other.
+
+**Nothing is turned round or mirrored to achieve this.** The drawing is the
+face the user drew, so the solid's near face is theirs by construction, and
+a door hinged where they marked it is hinged there in both views. What the
+kind decides is only what is on the *other* side. In the solid a concealed
+piece is simply placed behind the leaf, so it is out of sight because of
+where it is and not because the renderer declined to draw it. In the
+elevation it is drawn as **hidden detail** — dashed, in `Cad.hidden` —
+because somebody still has to fit it, and a drawing that leaves a part out
+is a drawing that loses it.
+
+`test/domain/the_face_we_are_looking_at_test.dart` reads one drawing as
+each kind and requires the same design from both — the same frame, the same
+bars, the same hinges in the same places — with only the side of the leaf
+they sit on differing, and the handle on the near face either way.
+`test/app/the_drawing_is_of_one_face_test.dart` holds the drawing's side of
+it on the pixels: a door and a window are different pictures, taking the
+hinges off both makes them the same picture again, and a door with hinges
+is not the same picture as a door without them.
+
 `test/domain/the_openings_hardware_test.dart` holds the phase's own claims —
 both kinds present and both the opening's, the parent never the frame or the
 design, none on a fixed section, none at all on a design with no opening,

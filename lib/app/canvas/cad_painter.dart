@@ -495,6 +495,16 @@ class CadPainter extends CustomPainter {
       );
       final width = math.max(3.0, length * 0.26);
 
+      // **A piece on the face this drawing is not of is hidden detail**, and
+      // a drawing shows hidden detail dashed rather than leaving it out. A
+      // door is drawn from outside, so its hinges are round the back: they
+      // are still on the drawing, because somebody has to fit them, but
+      // they are not lines you could see standing where this elevation is
+      // drawn from. A window is drawn from inside, where its hinges are, so
+      // they are solid. `Design.isConcealed` is the one answer, read here
+      // and by the solid alike.
+      final concealed = design.isConcealed(piece);
+
       canvas.save();
       canvas.translate(at.dx, at.dy);
       canvas.rotate(piece.rotation * math.pi / 180);
@@ -502,13 +512,21 @@ class CadPainter extends CustomPainter {
         Rect.fromCenter(center: Offset.zero, width: length, height: width),
         Radius.circular(width / 2),
       );
-      canvas.drawRRect(body, Cad.fill(Cad.sheet));
-      canvas.drawRRect(body, Cad.stroke(Cad.heavy, Cad.bar));
+      if (concealed) {
+        canvas.drawPath(
+          Cad.dashed(Path()..addRRect(body), dash: 6, gap: 4),
+          Cad.stroke(Cad.hidden, Cad.hairline),
+        );
+      } else {
+        canvas.drawRRect(body, Cad.fill(Cad.sheet));
+        canvas.drawRRect(body, Cad.stroke(Cad.heavy, Cad.bar));
+      }
       canvas.restore();
 
       // A cross at the exact point, because that is where it goes.
       final tick = view.lengthToScreen(math.max(scale * 0.006, 8));
-      final paint = Cad.stroke(Cad.medium, Cad.hairline);
+      final paint = Cad.stroke(
+          concealed ? Cad.hidden : Cad.medium, Cad.hairline);
       canvas.drawLine(at - Offset(tick, 0), at + Offset(tick, 0), paint);
       canvas.drawLine(at - Offset(0, tick), at + Offset(0, tick), paint);
     }

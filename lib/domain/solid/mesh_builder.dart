@@ -514,7 +514,17 @@ abstract final class MeshBuilder {
       centre - along * (length / 2) - across * (width / 2),
       centre - along * (length / 2) + across * (width / 2),
     ]);
-    _addSlab(out, face, stand, stand, piece.id, piece.finish,
+    // **A hinge hangs on the inside face, and which face that is comes from
+    // the kind.** A window is met from inside, so its hinges are on the face
+    // you are looking at; a door is met from outside, so its hinges are
+    // round the back and the leaf itself stands in front of them. Nothing is
+    // hidden by the renderer here — the hinge is simply *behind* the leaf,
+    // and a solid built the right way round does not need telling twice.
+    //
+    // Everything else goes through the leaf and is worked from either side,
+    // so it stands proud of the face you are at whichever kind it is.
+    final from = design.isConcealed(piece) ? -stand * 2 : stand;
+    _addSlab(out, face, from, stand, piece.id, piece.finish,
         FacetRole.hardware, place);
   }
 

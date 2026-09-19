@@ -505,6 +505,16 @@ enum HardwareKind {
 
   const HardwareKind(this.label);
   final String label;
+
+  /// True when this piece is fixed to the **inside face** of a leaf and to
+  /// nowhere else.
+  ///
+  /// A butt hinge is screwed to one face, and that face is the inside one:
+  /// on a door, which is drawn from outside, the hinges are round the back
+  /// and you do not see them. A handle, a lever, a knob and a lock go
+  /// through the leaf and are worked from either side, so they are on the
+  /// face you are standing at whichever that is.
+  bool get onTheInsideFace => this == HardwareKind.hinge;
 }
 
 /// A piece of ironmongery, at the exact point the user put it — or the exact
