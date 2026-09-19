@@ -711,18 +711,38 @@ opening by the same `setDividerParent` the **Divides** control calls, so
 nothing arrives inside a section that the user could not have put there by
 hand.
 
+**That last part is also where this stops short, and it is worth writing
+down.** `setDividerParent` asks whether the bar lies within the section —
+measured on the section as it stands, which is a shape *that very bar* cut.
+A rail running the width of a door lies within neither half of the door it
+has just made, so the control never offers it and the design never takes it;
+and there is no order to do it in, because the first one cannot go in
+either. So where the mark's own middle lands in a small region — a door cut
+into three by a rail and an upright, with the `>` drawn over the lot — the
+mark runs through both bars and neither can join, and the door stays three
+lights. Making it work means the opening's region has to be worked out
+*with those bars set aside* rather than absorbed one at a time afterwards,
+and that is a change to the order `interpret` does things in, not another
+rule about marks. Two attempts at it from the other end both foundered on
+`SectionBuilder` re-homing a child whose section has been replaced, which is
+right in every other case.
+
 **Through, not into**, and that is the difference between this and a hand
 straying over a mullion. `the_mark_picks_one_face_test.dart` holds a `>`
 whose point pokes six millimetres past a mullion and stops: that mark is in
 the light it was drawn in, and the mullion is nothing to do with it. So the
-arm that crosses a bar has to carry on *out of* whatever is on the far side
-rather than ending inside it — measured from where the arm enters that
-region, past the bar's own material, and answered by `Polygon.holds`. It is
-a relationship and not a size: a mark runs off the far edge of a light
-whether that light is a hand's width or three metres, and a mark that stops
-inside one has strayed however big it is. Two earlier attempts at this rule
-failed exactly here, on that six-millimetre mark, and the test was right both
-times. `test/domain/the_mark_drawn_through_a_line_test.dart` holds the door,
+arm that crosses a bar has to **reach the far side of whatever it went
+into** — `spanAcross` says where that side is along the arm's own line, so
+the measure is the region being crossed rather than any chosen distance, and
+an end landing a hand's width short of it still counts, because a chevron
+drawn inside a leaf stops just shy of the stiles rather than running off
+them. It is a relationship and not a size: an arm crosses a light whether
+that light is a hand's width or three metres, and one that stops out in the
+middle of it has strayed however far it went. Three earlier shapes of this
+test were wrong — one that required the arm to leave the region altogether
+was too strict and left ordinary drawings cut into lights; one measured the
+arm against the bar's own thickness and was too loose. The six-millimetre
+mark caught every one of them. `test/domain/the_mark_drawn_through_a_line_test.dart` holds the door,
 and holds the two marks that must leave the rail alone: one that stops inside
 the far half, and one drawn clear of the rail altogether.
 

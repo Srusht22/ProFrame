@@ -443,18 +443,34 @@ abstract final class SketchInterpreter {
         final beyond = Segment(crossing.at, away);
         if (beyond.length < Tol.minLineMm) continue;
 
+        // The region the arm goes into, picked up just past the bar's own
+        // material rather than at its centre line, which is inside the bar
+        // and in no region at all.
         final entering =
             crossing.at + beyond.unit * (bar.widthMm + Tol.minLineMm);
         SectionElement? far;
         for (final face in faces) {
           if (face.outline.contains(entering)) far = face;
         }
-
-        // Nothing over there, or the arm stopped inside it. Running *into* a
-        // region is a hand straying over a line; running *through* it is the
-        // user drawing their mark across the thing they mean.
         if (far == null) continue;
-        if (far.outline.contains(away)) continue;
+
+        // **Through, not into.** The arm has to reach the far side of
+        // whatever it went into. A point that stops out in the middle of a
+        // light has strayed over the bar; one that carries on to the other
+        // side of that light has been drawn across it. `spanAcross` says
+        // where the far side is along this very line, so the measure is the
+        // region the arm is crossing rather than any chosen distance — and
+        // an end that lands short of it by a hand's width still counts,
+        // because a chevron drawn inside a leaf stops just shy of the
+        // stiles rather than running off them.
+        if (far.outline.contains(away)) {
+          final run = DesignEdits.spanAcross(
+              far.outline, Segment(entering, entering + beyond.unit));
+          if (run == null) continue;
+          final weld = Tol.weldFor(
+              math.max(far.outline.width, far.outline.height));
+          if (away.distanceTo(run.b) > weld) continue;
+        }
 
         through.add(bar);
         break;
