@@ -983,6 +983,30 @@ Nothing else moves. Changing one pane's height moves the transom, so the pane
 above it changes too — that is arithmetic, not redesign — and the overall size
 stays exactly as it was.
 
+**A bar's own figures are editable too, and both are about its middle.**
+`Length` and `Angle` on a bar's panel were readouts, so a line drawn by hand
+could be moved and re-homed and recoloured but never made a given length or
+turned to a given angle. `DesignEdits.setDividerLength` takes the same off
+each end and `setDividerAngle` turns it about the same point, so changing
+the length does not slide the bar along and changing the angle does not
+shift it sideways. Anything else would be the application deciding which end
+of the user's line was the important one.
+
+**Turning a bar keeps its length, so it can stop spanning.** A bar that ran
+jamb to jamb, turned to 25°, needs to be `width / cos 25°` long to reach
+them again — so it now stops short, and a bar that stops half way divides
+nothing. The sash goes back to one pane until the user types a longer
+`Length`. That is the rule already stated above, seen from a new angle, and
+it is the honest answer: stretching the line to fit would be moving a line
+the user did not move.
+
+`test/domain/everything_is_editable_test.dart` walks the whole list — frame,
+fixed section, opening, internal line, glass, panel, handle, hinge — and for
+each figure on each panel requires the geometry to move, not the label: a
+pane's height moves the bar beside it, a pane's material changes what the
+solid builds for it, and an opening's direction rebuilds its hinges on the
+other stile.
+
 ### Centimetres out, millimetres in
 
 The geometry is millimetres throughout the domain, because that is what a

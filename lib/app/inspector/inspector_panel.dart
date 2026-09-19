@@ -124,10 +124,20 @@ class InspectorPanel extends ConsumerWidget {
             ],
           ],
         DividerElement() => [
-            _Readout('Length', Units.label(element.lengthMm)),
-            _Readout(
-              'Angle',
-              '${element.segment.headingDegrees.toStringAsFixed(1)}°',
+            // A bar's own figures, and typing over one moves the bar. Both
+            // are about its middle, so changing the length does not shift it
+            // along and changing the angle does not shift it sideways.
+            _NumberField(
+              label: 'Length',
+              valueMm: element.lengthMm,
+              onSet: (v) => controller.setDividerLength(element.id, v),
+            ),
+            _NumberField(
+              label: 'Angle',
+              valueMm: element.segment.headingDegrees,
+              unit: '°',
+              isLength: false,
+              onSet: (v) => controller.setDividerAngle(element.id, v),
             ),
             _NumberField(
               label: 'Bar width',

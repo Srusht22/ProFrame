@@ -719,6 +719,24 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     );
   }
 
+  /// Makes a bar a given length, about its own middle.
+  void setDividerLength(String dividerId, double lengthMm) {
+    final design =
+        DesignEdits.setDividerLength(state.design, dividerId, lengthMm);
+    if (identical(design, state.design)) return;
+    _remember(coalesce: 'length-$dividerId');
+    state = state.copyWith(design: design);
+  }
+
+  /// Turns a bar to a given heading, about its own middle.
+  void setDividerAngle(String dividerId, double degrees) {
+    final design =
+        DesignEdits.setDividerAngle(state.design, dividerId, degrees);
+    if (identical(design, state.design)) return;
+    _remember(coalesce: 'angle-$dividerId');
+    state = state.copyWith(design: design);
+  }
+
   void setBarWidth(String dividerId, double widthMm) {
     for (final divider in state.design.dividers) {
       if (divider.id != dividerId) continue;

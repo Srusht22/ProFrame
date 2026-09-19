@@ -232,6 +232,64 @@ abstract final class DesignEdits {
         b: horizontal ? at + const Vec2(1, 0) : at + const Vec2(0, 1),
       );
 
+  /// Makes a bar [lengthMm] long, about its own middle.
+  ///
+  /// The middle and the angle are the user's and neither moves: a bar made
+  /// shorter loses the same from each end, and one made longer grows the
+  /// same at each. Anything else would be the application deciding which end
+  /// of their line was the important one.
+  ///
+  /// What it divides follows from where it now reaches, because the sections
+  /// are the faces the lines make — a bar pulled back from a jamb stops
+  /// dividing what it was dividing, which is the honest answer and is what
+  /// the drawing will show.
+  static Design setDividerLength(
+    Design design,
+    String dividerId,
+    double lengthMm,
+  ) {
+    final divider = _divider(design, dividerId);
+    if (divider == null) return design;
+    if (lengthMm < Tol.minLineMm) return design;
+    final was = divider.segment;
+    if ((was.length - lengthMm).abs() < Tol.sameLengthMm) return design;
+    if (was.length < 1e-6) return design;
+
+    final middle = was.midpoint;
+    final reach = was.unit * (lengthMm / 2);
+    return _rebuild(design.withElement(
+      divider.copyWith(a: middle - reach, b: middle + reach),
+    ));
+  }
+
+  /// Turns a bar to [degrees] from horizontal, about its own middle.
+  ///
+  /// The length and the middle are kept, so only the direction changes —
+  /// the same shape of edit as [setDividerLength] seen the other way round.
+  /// A heading is measured the way `Segment.headingDegrees` reports one, so
+  /// what is typed into the field is what comes back out of it.
+  static Design setDividerAngle(
+    Design design,
+    String dividerId,
+    double degrees,
+  ) {
+    final divider = _divider(design, dividerId);
+    if (divider == null) return design;
+    final was = divider.segment;
+    if (was.length < 1e-6) return design;
+
+    final wanted = (degrees % 180 + 180) % 180;
+    if ((was.headingDegrees - wanted).abs() < 1e-6) return design;
+
+    final radians = wanted * math.pi / 180;
+    final middle = was.midpoint;
+    final reach =
+        Vec2(math.cos(radians), math.sin(radians)) * (was.length / 2);
+    return _rebuild(design.withElement(
+      divider.copyWith(a: middle - reach, b: middle + reach),
+    ));
+  }
+
   /// Moves a bar inside a section to a place measured from that section's
   /// own top left corner.
   ///
