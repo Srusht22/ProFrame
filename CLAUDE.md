@@ -950,6 +950,43 @@ If you add a field, it takes and gives millimetres and lets `_NumberField` do
 the conversion. A field that is not a length — an angle — passes
 `isLength: false`.
 
+**This is enforced on the repository, not just intended.**
+`test/domain/internal_sections_test.dart` scans every file under `lib/app`
+and fails on any millimetre value put straight into a string without going
+through `Units` — which is how one leaked out: a dimension the user had
+drawn on the sheet was painted as `1600`, a bare millimetre count with no
+unit on it, while every other figure on the same screen was centimetres.
+
+### Internal sections are the opening's
+
+A divider drawn inside an opening makes sections, and they are the
+opening's:
+
+```
+Opening 40 × 160 cm, a divider 40 cm down it
+
+┌──────────┐        Opening
+│  GLASS   │        ├── Glass section   40 × 38.6 cm
+├──────────┤        ├── Internal divider      2.8 cm
+│  PANEL   │        └── Panel section   40 × 118.6 cm
+└──────────┘
+```
+
+They are sections like any other — each takes its own material and colour on
+its own panel — but they are never top-level: the window still has the main
+divisions it had, and the panes are inside the opening. The component tree
+says so in the one place the user reads the hierarchy: the opening *holds 2*,
+with the divider and both panes under it.
+
+**The figures are what a workshop cuts.** A divider 40 cm down a 160 cm sash
+does not leave 40 and 120: it is real material 2.8 cm wide and the glass
+stops at its faces, so the panes are 38.6 and 118.6, and the three together
+are 160 exactly. Quoting 40 and 120 would be a drawing that does not add up.
+
+`test/domain/internal_sections_test.dart` holds this on those figures, and
+holds that the panes stay the opening's through a save and a reload and
+through the opening being moved to another light.
+
 ### An opening's hinges and handle
 
 Marking a section is saying it opens, which is saying it hangs on something

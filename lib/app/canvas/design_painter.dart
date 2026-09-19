@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../../domain/dimensions/units.dart';
 import '../../domain/geometry/polygon.dart';
 import '../../domain/geometry/segment.dart';
 import '../../domain/geometry/vec2.dart';
@@ -346,7 +347,9 @@ class DesignPainter extends CustomPainter {
 
       _label(
         canvas,
-        '${dimension.valueMm.round()}',
+        // Centimetres, like every other figure the user sees. The geometry
+        // is millimetres and this is a figure, so it goes through Units.
+        Units.label(dimension.valueMm),
         Offset((from.dx + to.dx) / 2, (from.dy + to.dy) / 2),
         emphasis: dimension.isStated,
       );
