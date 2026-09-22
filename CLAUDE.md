@@ -403,6 +403,59 @@ would be a second opinion about where the user drew their line, and the
 first time the frame profile changed the test would be asserting a drawing
 nobody had made.
 
+## The mixed test
+
+`test/mixed_door_and_window_test.dart` is the third scenario the work is
+measured against, and it is the one where both kinds of leaf are in the same
+frame:
+
+```
+Design
+├── Fixed area
+├── Window opening  <
+│    ├── Glass
+│    ├── Internal divider
+│    ├── Panel
+│    └── Window handle, and the hinges it hangs on
+├── Fixed area
+└── Door opening  >
+     ├── Glass
+     ├── Internal divider
+     ├── Panel
+     ├── Door handle
+     ├── Lock
+     └── Hinges
+```
+
+Drawn the way the user draws it — an outline, three mullions and two marks,
+all strokes on the sheet — then each leaf said to be a door or a window and
+each divided into glass over panel with a line drawn inside it.
+
+**A window sash hangs on hinges too.** The brief's list shows them only
+under the door, but a leaf that opens hangs on something, and a window
+carrying none would be a drawing nobody could build. They are the leaf's,
+exactly as the door's are, and the test says so rather than quietly
+matching the list.
+
+What it holds, beyond the shape of the tree:
+
+- **A door behaves as a door and a window as a window.** The door carries a
+  lever and a lock, the window an espagnolette and no lock, and the two
+  handles are built as different objects — the test compares how many faces
+  each has rather than trusting their names.
+- **Only the designated leaves open.** Everything outside them is
+  fingerprinted facet by facet at four angles and required back unchanged;
+  everything inside each of them is required to have moved.
+- **What is inside a leaf never reaches past it**, at every angle — the bars
+  and the panes, not the ironmongery, which stands proud as a handle does.
+- **Nothing is randomly added.** Every facet belongs to a part the design
+  actually has, and the part counts are exactly what the drawing and the
+  edits made: five bars, eight sections, no loose ironmongery.
+- **The drawing and the solid are the same design**: everything the solid
+  builds is on the sheet, and every pane of every leaf is in both.
+- Then a save, a reload, a second reading, and an edit to one leaf with the
+  other required back exactly as it was.
+
 ## How this is enforced
 
 `test/domain/the_rule_test.dart` is the rule as executable assertions. It
