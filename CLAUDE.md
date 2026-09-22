@@ -1725,6 +1725,42 @@ it on the pixels: a door and a window are different pictures, taking the
 hinges off both makes them the same picture again, and a door with hinges
 is not the same picture as a door without them.
 
+**Each leaf's ironmongery is its own, and the movement tests say so.**
+
+```
+Design
+├── Fixed section
+├── Door opening        ── its lever, its lock, its hinges
+├── Fixed section
+└── Window opening      ── its handle, its hinges
+```
+
+Move the door opening and the door, its handle and its hinges move; the
+window opening does not. Move the window opening and its handle moves; the
+door does not. Nothing is ever attached to the design itself, so nothing is
+left behind on the frame when a leaf goes somewhere.
+
+**The two openings are given a fixed light between them on purpose.** A bar
+shared by two openings bounds both, so moving it changes both regions and
+both sets of ironmongery move — which is right, and would make "the other
+one does not move" fail for a reason that has nothing to do with ownership.
+With a light between them each opening has a bar of its own, and the claim
+is about whose piece is whose.
+
+**Held by id, not by position.** Moving an opening changes which one is
+first across the drawing, so *Opening 1* is a place and not a thing:
+`numberOf` renumbers, exactly as it should, and a test that looks an
+opening up by its number after moving one is asking about the wrong leaf.
+That is what the first run of this test did.
+
+`test/domain/hardware_belongs_to_its_opening_test.dart` holds the whole of
+it: every piece naming an opening and none naming the frame or the design,
+the two sets disjoint, the fixed lights carrying none of it, both movement
+tests each way round, an opening taken to another light bringing its own
+and leaving nothing behind, the frame and the fixed lights never moving
+whatever swings, and the parents outlasting a save, a reload, a re-reading
+and one opening being cancelled.
+
 `test/domain/the_openings_hardware_test.dart` holds the phase's own claims —
 both kinds present and both the opening's, the parent never the frame or the
 design, none on a fixed section, none at all on a design with no opening,
