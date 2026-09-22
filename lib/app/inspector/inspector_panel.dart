@@ -230,6 +230,7 @@ class InspectorPanel extends ConsumerWidget {
               finish: element.finish,
               onChanged: (f) => controller.setFinish(element.id, f),
               glazing: false,
+              hardware: true,
             ),
             if (DesignEdits.openingOwning(state.design, element.id) ==
                 null) ...[
@@ -1080,20 +1081,137 @@ class _HardwareField extends StatelessWidget {
       );
 }
 
+/// The finishes ironmongery is sold in, and a way to anything else.
+///
+/// The named ones are the whole list a joiner orders from, so they are one
+/// tap each. **Custom** opens the full picker rather than a second list, so
+/// nothing here narrows what can actually be built — it is the short way to
+/// the usual answer, not a limit on the answer.
+class _HardwareColours extends StatefulWidget {
+  final int colour;
+  final ValueChanged<int> onChanged;
+
+  const _HardwareColours({required this.colour, required this.onChanged});
+
+  @override
+  State<_HardwareColours> createState() => _HardwareColoursState();
+}
+
+class _HardwareColoursState extends State<_HardwareColours> {
+  bool _custom = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final named = HardwareColour.of(widget.colour);
+    final showing = _custom || named == null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final option in HardwareColour.values)
+              _NamedSwatch(
+                colour: option.colour,
+                label: option.label,
+                selected: !showing && named == option,
+                onTap: () {
+                  setState(() => _custom = false);
+                  widget.onChanged(option.colour);
+                },
+              ),
+            _NamedSwatch(
+              colour: widget.colour,
+              label: 'Custom',
+              selected: showing,
+              onTap: () => setState(() => _custom = true),
+            ),
+          ],
+        ),
+        if (showing) ...[
+          const SizedBox(height: 10),
+          ColourPicker(
+            colour: widget.colour,
+            onChanged: widget.onChanged,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _NamedSwatch extends StatelessWidget {
+  final int colour;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _NamedSwatch({
+    required this.colour,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 34,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: Color(colour),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: selected ? AppTheme.primary : AppTheme.hairline,
+                    width: selected ? 2.4 : 1,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight:
+                          selected ? FontWeight.w600 : FontWeight.w400,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
 class _FinishFields extends StatelessWidget {
   final Finish finish;
   final ValueChanged<Finish> onChanged;
   final bool glazing;
 
+  /// True for a piece of ironmongery, which is bought in a finish rather
+  /// than mixed to a colour: the finishes it is sold in come first, and the
+  /// full picker is behind **Custom** for anything else.
+  final bool hardware;
+
   const _FinishFields({
     required this.finish,
     required this.onChanged,
     required this.glazing,
+    this.hardware = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final materials = glazing
+    final materials = hardware
+        ? hardwareMaterials
+        : glazing
         ? [
             MaterialKind.clearGlass,
             MaterialKind.frostedGlass,
@@ -1129,10 +1247,16 @@ class _FinishFields extends StatelessWidget {
         const SizedBox(height: 14),
         const _Label('Colour'),
         const SizedBox(height: 6),
-        ColourPicker(
-          colour: finish.colour,
-          onChanged: (colour) => onChanged(finish.copyWith(colour: colour)),
-        ),
+        if (hardware)
+          _HardwareColours(
+            colour: finish.colour,
+            onChanged: (colour) => onChanged(finish.copyWith(colour: colour)),
+          )
+        else
+          ColourPicker(
+            colour: finish.colour,
+            onChanged: (colour) => onChanged(finish.copyWith(colour: colour)),
+          ),
       ],
     );
   }

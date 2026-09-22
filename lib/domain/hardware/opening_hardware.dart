@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import '../geometry/vec2.dart';
 import '../model/design.dart';
 import '../model/elements.dart';
+import '../model/materials.dart';
 
 /// The hinges and handle an opening carries.
 ///
@@ -109,12 +110,14 @@ abstract final class OpeningHardware {
     final insets = _insets(opening, along, count);
     for (var i = 0; i < count; i++) {
       final at = from + insets[i];
+      final id = '${opening.id}-hinge-$i';
       pieces.add(HardwareElement(
-        id: '${opening.id}-hinge-$i',
+        id: id,
         kind: HardwareKind.hinge,
         parentId: opening.id,
         at: sideHung ? Vec2(hingeX, at) : Vec2(at, hingeY),
         rotation: sideHung ? 90 : 0,
+        finish: _finishOf(design, id),
       ));
     }
 
@@ -133,6 +136,7 @@ abstract final class OpeningHardware {
       parentId: opening.id,
       at: handleAtPoint,
       rotation: sideHung ? 90 : 0,
+      finish: _finishOf(design, '${opening.id}-handle'),
     ));
 
     // **A door locks; a window fastens.** So a door carries an escutcheon
@@ -150,10 +154,35 @@ abstract final class OpeningHardware {
           math.min(handleAtPoint.y + lockBelowHandleMm, outline.bottom - 40),
         ),
         rotation: 90,
+        finish: _finishOf(design, '${opening.id}-lock'),
       ));
     }
 
     return pieces;
+  }
+
+  /// The finish the piece with this id is already wearing.
+  ///
+  /// **The ironmongery is worked out again on every rebuild, so anything the
+  /// user said about it has to be carried across or it is thrown away.** A
+  /// handle set to silver went back to the stock grey at the next edit —
+  /// the panel appeared to work and then quietly undid itself, which is
+  /// worse than not offering the control at all. The pieces have settled
+  /// ids, so the one being replaced is found by id, exactly as an opening's
+  /// own answers are carried in `DesignEdits.setOpening`.
+  ///
+  /// Only the finish is carried. Where a piece *is* is worked out from the
+  /// leaf every time and must stay that way, or a resize would leave the
+  /// handle where the old leaf had it.
+  static Finish _finishOf(Design design, String id) {
+    for (final piece in design.hardware) {
+      if (piece.id == id) return piece.finish;
+    }
+    return const HardwareElement(
+      id: '',
+      kind: HardwareKind.handle,
+      at: Vec2.zero,
+    ).finish;
   }
 
   /// How many hinges an opening carries.

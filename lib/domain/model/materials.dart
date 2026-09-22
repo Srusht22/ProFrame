@@ -45,6 +45,53 @@ enum MaterialKind {
 ///
 /// Nothing here has a default the application invents for the user beyond the
 /// neutral starting point: whatever the user picks is what is built.
+/// The finishes ironmongery is actually sold in.
+///
+/// A handle is bought in a finish, not mixed to a colour, so these are the
+/// ones a joiner orders by name. They are here rather than in the inspector
+/// because the solid has to build the piece in the chosen one and a test has
+/// to be able to ask what "silver" is — one list, read by both, rather than a
+/// row of swatches in a widget and a number written out again somewhere else.
+///
+/// Anything outside the list is the user's own: `Finish.colour` takes any
+/// value and **Custom** opens the full picker. Nothing here limits what can
+/// be built; it is the short way to the usual answer.
+enum HardwareColour {
+  black('Black', 0xFF1C1C1C),
+  white('White', 0xFFF2F2F0),
+  silver('Silver', 0xFFC3C7C9),
+  grey('Grey', 0xFF7C8285),
+  bronze('Bronze', 0xFF8C6A3F),
+  brown('Brown', 0xFF4E3524);
+
+  const HardwareColour(this.label, this.colour);
+
+  final String label;
+
+  /// 0xAARRGGBB, the value the facets are built with.
+  final int colour;
+
+  /// The one of these [colour] is, or null when it is the user's own.
+  static HardwareColour? of(int colour) {
+    for (final option in values) {
+      if (option.colour == colour) return option;
+    }
+    return null;
+  }
+}
+
+/// The materials a piece of ironmongery is made of.
+///
+/// The glazing kinds are not among them: a handle is not made of clear
+/// glass, and offering it would be the panel asking a question that has no
+/// sensible answer.
+const List<MaterialKind> hardwareMaterials = [
+  MaterialKind.aluminium,
+  MaterialKind.steel,
+  MaterialKind.upvc,
+  MaterialKind.wood,
+];
+
 class Finish {
   /// 0xAARRGGBB.
   final int colour;

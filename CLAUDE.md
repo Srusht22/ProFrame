@@ -1621,6 +1621,42 @@ consecutive rings. A window's arm and a knob's turned ball are both that
 one primitive — a lever with a bend in it is a stick, and a ball with a lid
 on it is a cylinder.
 
+### A handle is bought in a finish
+
+A piece of ironmongery is ordered by name, not mixed to a colour, so
+`HardwareColour` is the short list a joiner orders from — black, white,
+silver, grey, bronze, brown — and **Custom** opens the full picker for
+anything else. It is in the domain rather than in the inspector because the
+solid has to build the piece in the chosen one and a test has to be able to
+ask what *silver* is: one list, read by both, rather than a row of swatches
+in a widget and the same numbers written out again somewhere else. Nothing
+in it limits what can be built — `Finish.colour` takes any value.
+
+`hardwareMaterials` is the other half. A handle is not made of clear glass,
+and offering it would be a panel asking a question with no sensible answer.
+
+**The colour is what the geometry is built in.** It goes on the piece's own
+facets, and there is nothing to tint over because there is no picture. What
+the renderer does on top is shading: a face turned away from the light is a
+darker version of the same finish, which is a solid being lit rather than a
+part being painted something the user did not choose.
+`the_handle_is_the_colour_you_chose_test.dart` tests it that way round — it
+allows a shade of the chosen colour and refuses a different hue.
+
+**And it has to last, which is where this was broken.** The ironmongery is
+worked out again from the opening on *every* rebuild, so anything the user
+said about it was thrown away by the next edit: a handle set to silver went
+back to stock grey the moment a bar moved. The panel appeared to work and
+then quietly undid itself, which is worse than not offering the control at
+all. `OpeningHardware._finishOf` carries the finish across by id — the
+pieces have settled ids, so the one being replaced is found exactly, the
+same arrangement as `_openingSaid` for an opening's own answers.
+
+Only the *finish* is carried. Where a piece sits is worked out from the leaf
+every time and must stay that way, or a resize would leave the handle where
+the old leaf had it. So each piece keeps its own finish and hinges need not
+match the handle, while every position stays derived.
+
 `test/domain/a_door_has_door_furniture_test.dart` holds all of it: what a
 door carries and a window does not, the handle real in all three directions
 and standing off the face, the lever reaching back across the leaf and not
