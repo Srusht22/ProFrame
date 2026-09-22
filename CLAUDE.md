@@ -487,7 +487,11 @@ of the bar, and a daylight face shares a boundary with it and nothing more.
 `test/domain/a_line_that_divides_nothing_test.dart` holds this on every line
 that encloses nothing: hanging from one end, touching nothing at all, drawn
 past the sill, drawn past both jambs. None of them makes a section, and none
-of them takes the sections that are there with it.
+of them takes the sections that are there with it. It holds the same lines
+drawn rather than constructed — through `addDivider`, which is the route the
+user takes and where this was first seen, a short line dropped in the middle
+of a door taking the whole design with it — and requires each one back with
+both its ends where they were put.
 
 ### What the model will not let you say
 

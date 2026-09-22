@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:proframe/domain/editing/design_edits.dart';
 import 'package:proframe/domain/geometry/polygon.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
@@ -74,6 +75,47 @@ void main() {
             .topLevelSections,
         hasLength(1),
       );
+    });
+
+    test('and the same is true drawn, not constructed', () {
+      // The route the user actually takes. This is where it was first seen:
+      // a short line dropped in the middle of a door, touching nothing, and
+      // the whole design went with it.
+      const drawn = <String, (Vec2, Vec2)>{
+        'a short line floating in the middle':
+            (Vec2(600, 800), Vec2(660, 800)),
+        'a short upright floating in the middle':
+            (Vec2(600, 800), Vec2(600, 860)),
+        'a short diagonal floating in the middle':
+            (Vec2(600, 800), Vec2(660, 860)),
+        'a line from one jamb, stopping half way':
+            (Vec2(60, 800), Vec2(700, 800)),
+        'a long diagonal that reaches neither edge':
+            (Vec2(100, 100), Vec2(1200, 1600)),
+        'a line lying along the sill':
+            (Vec2(60, 1660), Vec2(1283, 1660)),
+      };
+
+      drawn.forEach((what, ends) {
+        final after = DesignEdits.addDivider(design(const []),
+            id: 'drawn', a: ends.$1, b: ends.$2);
+
+        expect(after.topLevelSections, isNotEmpty, reason: what);
+        final bar = after.dividerById('drawn');
+        expect(bar, isNotNull, reason: '$what — the line is never lost');
+        expect(bar!.a, ends.$1, reason: what);
+        expect(bar.b, ends.$2, reason: what);
+      });
+    });
+
+    test('and two of them at once are still two lines and one daylight', () {
+      var made = DesignEdits.addDivider(design(const []),
+          id: 'one', a: const Vec2(400, 700), b: const Vec2(500, 700));
+      made = DesignEdits.addDivider(made,
+          id: 'two', a: const Vec2(800, 1100), b: const Vec2(900, 1100));
+
+      expect(made.topLevelSections, hasLength(1));
+      expect(made.dividers, hasLength(2));
     });
 
     test('no section is a bar’s own material', () {
