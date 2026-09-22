@@ -456,6 +456,43 @@ What it holds, beyond the shape of the tree:
 - Then a save, a reload, a second reading, and an edit to one leaf with the
   other required back exactly as it was.
 
+## The final acceptance test
+
+`test/final_acceptance_test.dart` is the whole system measured at once, and
+its seventeen tests are the brief's seventeen claims under the brief's own
+numbers, so the file can be read against it line by line:
+
+```
+Design
+├── Fixed light
+├── Opening 1  >   a window   glass over panel
+├── Opening 2  >   a door     glass over panel
+├── Fixed light
+└── Opening 3  >   a window   its own design: four panes
+```
+
+Five lights and three marks, all strokes on the sheet; the reading asks
+what each new leaf is; the answers are given; and only then is the inside
+of each one drawn. Two of the claims are about that order and nothing else
+— the question is asked when the opening is made, and never again — so the
+test puts it to a re-reading, a switch between the views, a line drawn
+inside a leaf and the design opened afresh tomorrow.
+
+**The fixed light between the door and the third leaf is there on purpose.**
+A bar shared by two leaves bounds both, so moving it moves both — rightly —
+and "moving one opening does not move the others" would then fail for a
+reason that has nothing to do with ownership. With a light between them,
+the bar the test drags is the third leaf's alone.
+
+**Three of the claims cannot be settled by a name.** That the handles are
+geometry rather than pictures is held on the facets — every one of them
+belonging to a part the design actually has, and the ironmongery running to
+hundreds of them; that a door's lever and a window's fastener are different
+objects is held on how many faces each is built from, not on what they are
+called; and that the two views are one design is held by building the set
+of parts the drawing lays down and the set the solid builds and requiring
+them equal.
+
 ## How this is enforced
 
 `test/domain/the_rule_test.dart` is the rule as executable assertions. It
