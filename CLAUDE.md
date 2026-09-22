@@ -1557,22 +1557,41 @@ because a lever cannot go above the leaf it is on.
 Nothing else about the ironmongery follows the kind yet: it is one shape for
 both, in one size, and where it goes is the whole of what this decides.
 
-### A door's ironmongery is built as ironmongery
+### Ironmongery is built as ironmongery
 
-A lever on a backplate, an escutcheon with a keyhole through it and a butt
-hinge with a knuckle are real pieces with a shape. A flat tab standing on the
-leaf is a placeholder for one, not one of them:
+A lever on a backplate, an espagnolette with a curved arm, an escutcheon
+with a keyhole through it and a butt hinge with a knuckle are real pieces
+with a shape. A flat tab standing on the leaf is a placeholder for one, not
+one of them:
 
 ```
-Door opening
-├── Lever on a backplate     out of the leaf, and back across it
-├── Escutcheon               with the keyhole bored through it
-└── Hinges                   leaf and knuckle, on the inside face
+Door opening                        Window opening
+├── Lever on a backplate            ├── Espagnolette handle
+│     out of the leaf, and back     │     short base, boss, an arm that
+│     across it towards the hinges  │     curves off the face and hangs
+├── Escutcheon                      └── Hinges
+│     with the keyhole bored              leaf and knuckle, on the face
+│     through it                          you are standing at
+└── Hinges
+      on the inside face
 ```
 
-Which leaf gets this is the user's answer and nothing else — `Design.kindOf`
-— so a window keeps the plain fastener it had and gets no lock, because a
-window fastens and does not lock.
+**A window handle is not the door's lever made smaller.** It is a different
+manufactured object: a short base on the stile rather than a plate long
+enough to cover a lock case, a boss the spindle turns in, and a cast arm
+that curves away from the face and *hangs down*, because that is where the
+handle of a shut window sits. `test/domain/a_window_has_window_furniture_test.dart`
+tells the two apart on their built shapes rather than on their names — the
+window's arm reaches further down than across, the door's further across
+than down, and the window's plate is the shorter of the two.
+
+**The form is the piece's own, and the leaf's kind only chooses the
+default.** `Design.kindOf` gives a door a lever and an escutcheon and a
+window an espagnolette and no lock, because a window fastens and does not
+lock. `MeshBuilder` then builds whatever form the piece actually carries, so
+a window the user puts a lever on gets the lever and a door they put a
+window handle on gets the window handle. Nothing reuses another part's
+shape unless that is what was asked for.
 
 **It is geometry, all of it.** `_ring` is a cross-section, `_sweep` takes one
 along its own axis, and `_stadium` is a plate with radiused ends, because
@@ -1595,6 +1614,12 @@ A lever, a knob and a pull are one part of the leaf in three shapes — the
 user's choice, on `OpeningElement.handleKind`, null until they say — so
 choosing a knob must not make the handle vanish from everything that was
 looking for `HardwareKind.handle`.
+
+`_tube` is how a curve is built: a ring at every point along a path, each
+standing square to the way the path goes there, and the wall run between
+consecutive rings. A window's arm and a knob's turned ball are both that
+one primitive — a lever with a bend in it is a stick, and a ball with a lid
+on it is a cylinder.
 
 `test/domain/a_door_has_door_furniture_test.dart` holds all of it: what a
 door carries and a window does not, the handle real in all three directions

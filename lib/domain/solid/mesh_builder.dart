@@ -508,18 +508,15 @@ abstract final class MeshBuilder {
     final across = along.perpendicular;
     final centre = piece.at;
 
-    // **A door's ironmongery is built as ironmongery.** A lever on a
-    // backplate, an escutcheon with a keyhole through it and a butt hinge
-    // with a knuckle are all real pieces with a shape, and a flat tab
-    // standing on the leaf is a placeholder for one rather than one of
-    // them. Which leaf gets them is the user's answer and nothing else —
-    // `Design.kindOf` — so a window keeps the plain fastener it had.
+    // **Ironmongery is built as ironmongery.** A lever on a backplate, an
+    // espagnolette with a curved arm, an escutcheon with a keyhole through
+    // it and a butt hinge with a knuckle are all real pieces with a shape,
+    // and a flat tab standing on the leaf is a placeholder for one rather
+    // than one of them.
     if (design.openingHolding(piece.parentId) case final opening?) {
-      if (design.kindOf(opening) == DesignKind.door) {
-        final hinge = opening.mechanism.hingeEdge;
-        if (_addDoorPiece(out, piece, design, opening, hinge, depth, place)) {
-          return;
-        }
+      final hinge = opening.mechanism.hingeEdge;
+      if (_addFurniture(out, piece, design, opening, hinge, depth, place)) {
+        return;
       }
     }
 
@@ -640,7 +637,7 @@ abstract final class MeshBuilder {
 
   // ---------------------------------------------------------- door hardware
 
-  /// A door's own ironmongery, built as the piece it is.
+  /// A leaf's ironmongery, built as the piece it is.
   ///
   /// Everything here is geometry: a backplate with radiused ends, a rose
   /// standing off it, a lever that comes out of the door and turns across
@@ -649,9 +646,9 @@ abstract final class MeshBuilder {
   /// is not to be one — a photograph standing in for a part is a lie about
   /// what was built.
   ///
-  /// Returns false for a piece a door has nothing special to say about,
-  /// which is then built the plain way.
-  static bool _addDoorPiece(
+  /// Returns false for a piece there is no built form of, which is then
+  /// built the plain way.
+  static bool _addFurniture(
     List<Facet> out,
     HardwareElement piece,
     Design design,
@@ -689,6 +686,11 @@ abstract final class MeshBuilder {
       OpeningEdge.bottom => const Vec3(0, 1, 0),
     };
 
+    // **The form is the piece's own, not the leaf's.** Which form a leaf
+    // gets by default comes from what it is — a door's lever, a window's
+    // espagnolette — but once the user has chosen one, that is what is
+    // built, on either kind of leaf. A door with a window handle on it is a
+    // door the user put a window handle on.
     switch (piece.kind) {
       case HardwareKind.hinge:
         _addButtHinge(out, piece, hinge, face, outward, scale, put);
@@ -696,11 +698,15 @@ abstract final class MeshBuilder {
       case HardwareKind.lock:
         _addEscutcheon(out, piece, face, scale, put);
         return true;
-      case HardwareKind.handle:
       case HardwareKind.lever:
-      case HardwareKind.knob:
         _addLeverOnBackplate(out, piece, opening, hinge, inward, face, scale,
             put);
+        return true;
+      case HardwareKind.handle:
+        _addWindowHandle(out, piece, hinge, inward, face, scale, put);
+        return true;
+      case HardwareKind.knob:
+        _addKnob(out, piece, face, scale, put);
         return true;
       default:
         return false;
@@ -771,6 +777,104 @@ abstract final class MeshBuilder {
         thickness);
     _sweep(out, tipRing, Vec3(0, 0, -20 * scale), id, finish, put,
         capStart: false);
+  }
+
+  /// A window's espagnolette handle: base, boss, and an arm that sweeps
+  /// down the sash.
+  ///
+  /// **This is not the door lever made smaller.** A window handle is a
+  /// different manufactured object: a short base on the stile rather than a
+  /// long backplate, a boss the spindle turns in, and a cast arm that
+  /// curves away from the face and hangs down, swelling towards its end
+  /// where a hand takes it. It rests down because that is where the handle
+  /// of a shut window sits.
+  static void _addWindowHandle(
+    List<Facet> out,
+    HardwareElement piece,
+    OpeningEdge hinge,
+    Vec3 inward,
+    double face,
+    double scale,
+    Vec3 Function(Vec3) put,
+  ) {
+    final finish = piece.finish;
+    final id = piece.id;
+    final sideHung = hinge == OpeningEdge.left || hinge == OpeningEdge.right;
+
+    // A short base along the stile it is screwed to — nothing like the long
+    // plate a mortice lock needs.
+    final baseAlong = sideHung ? const Vec2(0, 1) : const Vec2(1, 0);
+    final base = _stadium(piece.at, baseAlong, 104 * scale, 30 * scale);
+    _slabBetween(out, base, face + 4 * scale, 4 * scale, id, finish,
+        FacetRole.hardware, put);
+
+    // The boss the spindle turns in, standing off the base.
+    final bossAt = Vec3(piece.at.x, piece.at.y, face + 4 * scale);
+    _sweep(
+      out,
+      _ring(bossAt, const Vec3(1, 0, 0), const Vec3(0, 1, 0), 15 * scale),
+      Vec3(0, 0, 11 * scale),
+      id,
+      finish,
+      put,
+      capStart: false,
+    );
+
+    // The arm. Out of the sash, then round and down, as a cast lever does.
+    // Down the leaf for a side-hung sash; for a top or bottom hung one it
+    // still hangs, because hanging is what a shut handle does.
+    final sweepAway = sideHung ? const Vec2(0, 1) : Vec2(-inward.x, -inward.y);
+    final reach = 86 * scale;
+    final stand = 26 * scale;
+
+    final path = <Vec3>[];
+    final radii = <double>[];
+    const steps = 7;
+    for (var i = 0; i <= steps; i++) {
+      final t = i / steps;
+      // A quarter turn: out of the face first, then over and along the
+      // leaf, so the arm leaves the boss square and finishes lying down it.
+      final outOf = math.sin(t * math.pi / 2);
+      final along = 1 - math.cos(t * math.pi / 2);
+      path.add(Vec3(
+        piece.at.x + sweepAway.x * reach * along,
+        piece.at.y + sweepAway.y * reach * along,
+        face + 11 * scale + stand * outOf,
+      ));
+      // Slim at the boss, swelling towards the end a hand takes.
+      radii.add((7.5 + 2.6 * t) * scale);
+    }
+    _tube(out, path, radii, id, finish, put);
+  }
+
+  /// A knob on its rose: a stem out of the leaf and a ball on the end.
+  static void _addKnob(
+    List<Facet> out,
+    HardwareElement piece,
+    double face,
+    double scale,
+    Vec3 Function(Vec3) put,
+  ) {
+    final id = piece.id;
+    final finish = piece.finish;
+
+    final rose = _stadium(piece.at, const Vec2(0, 1), 58 * scale, 52 * scale);
+    _slabBetween(out, rose, face + 4 * scale, 4 * scale, id, finish,
+        FacetRole.hardware, put);
+
+    // The stem, and then the knob itself: rings swelling and closing again,
+    // which is a turned ball rather than a cylinder with a lid.
+    final path = <Vec3>[];
+    final radii = <double>[];
+    const steps = 8;
+    for (var i = 0; i <= steps; i++) {
+      final t = i / steps;
+      path.add(Vec3(piece.at.x, piece.at.y, face + 4 * scale + 52 * scale * t));
+      radii.add(t < 0.45
+          ? 9 * scale
+          : (9 + 17 * math.sin((t - 0.45) / 0.55 * math.pi)) * scale);
+    }
+    _tube(out, path, radii, id, finish, put);
   }
 
   /// The escutcheon below the lever: a plate with the keyhole through it.
@@ -915,6 +1019,71 @@ abstract final class MeshBuilder {
         place(far[j]),
         place(far[i]),
       ], elementId, finish, FacetRole.hardware, shade: lit);
+    }
+  }
+
+  /// A round bar following [path], with its own radius at each point.
+  ///
+  /// A real window handle's arm is a curve, not a straight stick with a
+  /// bend in it, so it is built as one: a ring at every point along the
+  /// path, each standing square to the way the path is going there, and the
+  /// wall run between consecutive rings. Tapering the radius along it is
+  /// what gives a cast lever its swelling grip.
+  static void _tube(
+    List<Facet> out,
+    List<Vec3> path,
+    List<double> radii,
+    String elementId,
+    Finish finish,
+    Vec3 Function(Vec3) put, {
+    int sides = 10,
+  }) {
+    if (path.length < 2 || radii.length != path.length) return;
+
+    Vec3 minus(Vec3 a, Vec3 b) => Vec3(a.x - b.x, a.y - b.y, a.z - b.z);
+    Vec3 unit(Vec3 v) {
+      final len = math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+      return len < 1e-9 ? const Vec3(0, 0, 1) : Vec3(v.x / len, v.y / len, v.z / len);
+    }
+
+    Vec3 cross(Vec3 a, Vec3 b) => Vec3(
+          a.y * b.z - a.z * b.y,
+          a.z * b.x - a.x * b.z,
+          a.x * b.y - a.y * b.x,
+        );
+
+    final rings = <List<Vec3>>[];
+    for (var i = 0; i < path.length; i++) {
+      // The way the path is going here: between its neighbours where it has
+      // two, and along the one leg it has at each end.
+      final before = i == 0 ? path[0] : path[i - 1];
+      final after = i == path.length - 1 ? path[i] : path[i + 1];
+      final along = unit(minus(after, before));
+      // Any steady reference that is not along the path gives a frame that
+      // does not spin as the curve turns.
+      final reference =
+          along.z.abs() > 0.9 ? const Vec3(0, 1, 0) : const Vec3(0, 0, 1);
+      final u = unit(cross(along, reference));
+      final v = cross(along, u);
+      rings.add(_ring(path[i], u, v, radii[i], sides: sides));
+    }
+
+    _quad(out, [for (final p in rings.first.reversed) put(p)], elementId,
+        finish, FacetRole.hardware, shade: 0.7);
+    _quad(out, [for (final p in rings.last) put(p)], elementId, finish,
+        FacetRole.hardware);
+
+    for (var i = 0; i + 1 < rings.length; i++) {
+      for (var j = 0; j < sides; j++) {
+        final k = (j + 1) % sides;
+        final lit = 0.7 + 0.3 * (0.5 + 0.5 * math.cos(j / sides * math.pi * 2));
+        _quad(out, [
+          put(rings[i][j]),
+          put(rings[i][k]),
+          put(rings[i + 1][k]),
+          put(rings[i + 1][j]),
+        ], elementId, finish, FacetRole.hardware, shade: lit);
+      }
     }
   }
 
