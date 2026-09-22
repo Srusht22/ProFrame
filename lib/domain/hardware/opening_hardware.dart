@@ -35,6 +35,12 @@ abstract final class OpeningHardware {
   /// middle of the stile instead, which is where a window's is.
   static const double handleHeadroomMm = 150;
 
+  /// How far the keyhole sits below the lever, until the user says.
+  ///
+  /// A mortice lock's keyway is below its follower by the lock's own case,
+  /// and on the stock sizes a joiner buys that is about this far.
+  static const double lockBelowHandleMm = 72;
+
   /// A hinged edge this long or shorter carries the fewest hinges.
   static const double hingePerMm = 1000;
 
@@ -112,15 +118,40 @@ abstract final class OpeningHardware {
       ));
     }
 
+    final kind = design.kindOf(opening);
+    final handleAtPoint = handleAt(kind, opening, outline.left, outline.right,
+        outline.top, outline.bottom, edge);
     pieces.add(HardwareElement(
       id: '${opening.id}-handle',
-      kind: HardwareKind.handle,
+      // What form the handle takes is the user's, and a lever is what a
+      // door has until they say otherwise. A window's fastener keeps the
+      // plain form it had.
+      kind: opening.handleKind ??
+          (kind == DesignKind.door
+              ? HardwareKind.lever
+              : HardwareKind.handle),
       parentId: opening.id,
-      at: handleAt(design.kindOf(opening), opening, outline.left,
-          outline.right, outline.top,
-          outline.bottom, edge),
+      at: handleAtPoint,
       rotation: sideHung ? 90 : 0,
     ));
+
+    // **A door locks; a window fastens.** So a door carries an escutcheon
+    // under its lever and a window carries none — which is the user's
+    // answer about this leaf deciding what is built on it, not a shape the
+    // application picked. A door with a top or bottom hung leaf is a hatch
+    // and has nowhere sensible for a keyhole, so it gets none either.
+    if (kind == DesignKind.door && sideHung) {
+      pieces.add(HardwareElement(
+        id: '${opening.id}-lock',
+        kind: HardwareKind.lock,
+        parentId: opening.id,
+        at: Vec2(
+          handleAtPoint.x,
+          math.min(handleAtPoint.y + lockBelowHandleMm, outline.bottom - 40),
+        ),
+        rotation: 90,
+      ));
+    }
 
     return pieces;
   }

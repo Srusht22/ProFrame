@@ -443,6 +443,14 @@ class OpeningElement extends DesignElement {
   /// `handleAlongMm` above are null until asked for.
   final DesignKind? kind;
 
+  /// What form this leaf's handle takes — a lever, a knob, a pull — and
+  /// null until the user says.
+  ///
+  /// A door has a lever until they choose otherwise and a window has its
+  /// fastener; the default is read from what the leaf is rather than
+  /// written down here, so it follows the leaf if they change what it is.
+  final HardwareKind? handleKind;
+
   const OpeningElement({
     required super.id,
     required this.sectionId,
@@ -456,6 +464,7 @@ class OpeningElement extends DesignElement {
     this.hingeFromEndMm,
     this.handleAlongMm,
     this.kind,
+    this.handleKind,
     super.fromStrokeId,
   });
 
@@ -486,6 +495,7 @@ class OpeningElement extends DesignElement {
     double? handleAlongMm,
     DesignKind? kind,
     bool clearKind = false,
+    HardwareKind? handleKind,
   }) =>
       OpeningElement(
         id: id,
@@ -500,6 +510,7 @@ class OpeningElement extends DesignElement {
         hingeFromEndMm: hingeFromEndMm ?? this.hingeFromEndMm,
         handleAlongMm: handleAlongMm ?? this.handleAlongMm,
         kind: clearKind ? null : (kind ?? this.kind),
+        handleKind: handleKind ?? this.handleKind,
         fromStrokeId: fromStrokeId,
       );
 
@@ -521,6 +532,7 @@ class OpeningElement extends DesignElement {
         // Written only where the user has said, so a design they have not
         // been asked about comes back saying they have not been asked.
         if (kind != null) 'kind': kind!.name,
+        if (handleKind != null) 'handleKind': handleKind!.name,
       };
 
   static OpeningElement fromJson(Map<String, Object?> map) => OpeningElement(
@@ -551,6 +563,12 @@ class OpeningElement extends DesignElement {
                 (k) => k.name == map['kind'],
                 orElse: () => DesignKind.window,
               ),
+        handleKind: map['handleKind'] == null
+            ? null
+            : HardwareKind.values.firstWhere(
+                (k) => k.name == map['handleKind'],
+                orElse: () => HardwareKind.lever,
+              ),
       );
 }
 
@@ -566,6 +584,19 @@ enum HardwareKind {
 
   const HardwareKind(this.label);
   final String label;
+
+  /// True when this piece is the thing a leaf is worked by, whatever form
+  /// it takes.
+  ///
+  /// A lever, a knob and a pull are all the handle of the leaf they are on;
+  /// which of them it is, is the user's choice and not a different part.
+  /// Anything asking "where is this leaf's handle" asks this rather than
+  /// matching one of the three, so choosing a knob does not make a leaf's
+  /// handle disappear from everything that was looking for it.
+  bool get isHandle =>
+      this == HardwareKind.handle ||
+      this == HardwareKind.lever ||
+      this == HardwareKind.knob;
 
   /// True when this piece is fixed to the **inside face** of a leaf and to
   /// nowhere else.

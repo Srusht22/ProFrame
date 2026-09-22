@@ -508,6 +508,21 @@ abstract final class MeshBuilder {
     final across = along.perpendicular;
     final centre = piece.at;
 
+    // **A door's ironmongery is built as ironmongery.** A lever on a
+    // backplate, an escutcheon with a keyhole through it and a butt hinge
+    // with a knuckle are all real pieces with a shape, and a flat tab
+    // standing on the leaf is a placeholder for one rather than one of
+    // them. Which leaf gets them is the user's answer and nothing else —
+    // `Design.kindOf` — so a window keeps the plain fastener it had.
+    if (design.openingHolding(piece.parentId) case final opening?) {
+      if (design.kindOf(opening) == DesignKind.door) {
+        final hinge = opening.mechanism.hingeEdge;
+        if (_addDoorPiece(out, piece, design, opening, hinge, depth, place)) {
+          return;
+        }
+      }
+    }
+
     final face = Polygon([
       centre + along * (length / 2) + across * (width / 2),
       centre + along * (length / 2) - across * (width / 2),
@@ -622,6 +637,319 @@ abstract final class MeshBuilder {
   }
 
   static Vec3 _at(Vec2 point, double z) => Vec3(point.x, point.y, z);
+
+  // ---------------------------------------------------------- door hardware
+
+  /// A door's own ironmongery, built as the piece it is.
+  ///
+  /// Everything here is geometry: a backplate with radiused ends, a rose
+  /// standing off it, a lever that comes out of the door and turns across
+  /// it, an escutcheon with a keyhole through it, a hinge with a knuckle.
+  /// There is no picture of a handle anywhere in this repository and there
+  /// is not to be one — a photograph standing in for a part is a lie about
+  /// what was built.
+  ///
+  /// Returns false for a piece a door has nothing special to say about,
+  /// which is then built the plain way.
+  static bool _addDoorPiece(
+    List<Facet> out,
+    HardwareElement piece,
+    Design design,
+    OpeningElement opening,
+    OpeningEdge? hinge,
+    double depth,
+    Vec3 Function(Vec3)? place,
+  ) {
+    final put = place ?? (Vec3 p) => p;
+    final section = design.sectionById(opening.sectionId);
+    if (section == null || hinge == null) return false;
+    final leaf = section.outline;
+
+    // Everything is sized from the leaf, so a garden gate and a front door
+    // each get ironmongery in proportion to themselves, and nothing is a
+    // number chosen to look right on one drawing.
+    final scale = (math.min(leaf.width, leaf.height) / 900).clamp(0.55, 1.6);
+
+    // The face this piece is fixed to, and the way out of the leaf from it.
+    // A door's hinges are on the inside face, so theirs is the far one and
+    // they stand away from the viewer; the lever and the escutcheon are on
+    // the face the drawing is of. `Design.isConcealed` is the one answer.
+    final concealed = design.isConcealed(piece);
+    final face = concealed ? 0.0 : depth;
+    final outward = concealed ? -1.0 : 1.0;
+
+    // Back across the leaf, from the stile the handle is on towards the
+    // stile it hangs on. A lever points that way because that is the way a
+    // hand closes on it; pointing it the other way runs it off the edge of
+    // the door into the frame.
+    final inward = switch (hinge) {
+      OpeningEdge.left => const Vec3(-1, 0, 0),
+      OpeningEdge.right => const Vec3(1, 0, 0),
+      OpeningEdge.top => const Vec3(0, -1, 0),
+      OpeningEdge.bottom => const Vec3(0, 1, 0),
+    };
+
+    switch (piece.kind) {
+      case HardwareKind.hinge:
+        _addButtHinge(out, piece, hinge, face, outward, scale, put);
+        return true;
+      case HardwareKind.lock:
+        _addEscutcheon(out, piece, face, scale, put);
+        return true;
+      case HardwareKind.handle:
+      case HardwareKind.lever:
+      case HardwareKind.knob:
+        _addLeverOnBackplate(out, piece, opening, hinge, inward, face, scale,
+            put);
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  /// A lever on a long backplate: plate, rose, neck, lever, return.
+  ///
+  /// The lever comes *out of* the leaf and then turns across it, which is
+  /// what a lever does and what a flat tab cannot show. It points away from
+  /// the stile it is on — towards the hinges — because that is the way a
+  /// hand closes on it.
+  static void _addLeverOnBackplate(
+    List<Facet> out,
+    HardwareElement piece,
+    OpeningElement opening,
+    OpeningEdge hinge,
+    Vec3 inward,
+    double face,
+    double scale,
+    Vec3 Function(Vec3) put,
+  ) {
+    final finish = piece.finish;
+    final id = piece.id;
+    final sideHung = hinge == OpeningEdge.left || hinge == OpeningEdge.right;
+
+    // The plate runs up the leaf on a side-hung door and across it on a top
+    // or bottom hung one: along the stile it is fixed to, either way.
+    final plateAlong = sideHung ? const Vec2(0, 1) : const Vec2(1, 0);
+    final plate = _stadium(piece.at, plateAlong, 235 * scale, 48 * scale);
+    _slabBetween(out, plate, face + 4 * scale, 4 * scale, id, finish,
+        FacetRole.hardware, put);
+
+    // The rose the lever turns in, standing off the plate.
+    final roseAt = Vec3(piece.at.x, piece.at.y, face + 4 * scale);
+    final rose = _ring(roseAt, const Vec3(1, 0, 0), const Vec3(0, 1, 0),
+        27 * scale);
+    _sweep(out, rose, Vec3(0, 0, 14 * scale), id, finish, put,
+        capStart: false);
+
+    // Out of the door, then across it, then a short return towards it —
+    // the three runs a lever is made of.
+    final neckFrom = Vec3(piece.at.x, piece.at.y, face + 18 * scale);
+    final thickness = 11 * scale;
+    final acrossPlane = _ring(neckFrom, const Vec3(1, 0, 0),
+        const Vec3(0, 1, 0), thickness);
+    _sweep(out, acrossPlane, Vec3(0, 0, 26 * scale), id, finish, put,
+        capStart: false);
+
+    final elbow = Vec3(neckFrom.x, neckFrom.y, neckFrom.z + 26 * scale);
+    final armLength = 108 * scale;
+    // The lever's own cross-section stands square to the way it runs.
+    final armRing = _ring(elbow, const Vec3(0, 0, 1),
+        Vec3(-inward.y, inward.x, 0), thickness);
+    _sweep(
+      out,
+      armRing,
+      Vec3(inward.x * armLength, inward.y * armLength, 0),
+      id,
+      finish,
+      put,
+      capEnd: false,
+    );
+
+    final tip = Vec3(elbow.x + inward.x * armLength,
+        elbow.y + inward.y * armLength, elbow.z);
+    final tipRing = _ring(tip, const Vec3(1, 0, 0), const Vec3(0, 1, 0),
+        thickness);
+    _sweep(out, tipRing, Vec3(0, 0, -20 * scale), id, finish, put,
+        capStart: false);
+  }
+
+  /// The escutcheon below the lever: a plate with the keyhole through it.
+  static void _addEscutcheon(
+    List<Facet> out,
+    HardwareElement piece,
+    double face,
+    double scale,
+    Vec3 Function(Vec3) put,
+  ) {
+    final plate = _stadium(piece.at, const Vec2(0, 1), 62 * scale,
+        48 * scale);
+    _slabBetween(out, plate, face + 4 * scale, 4 * scale, piece.id,
+        piece.finish, FacetRole.hardware, put);
+
+    // The keyhole is a hole, so it is built as one: a short bore sunk into
+    // the plate, dark because nothing in it catches the light.
+    final dark = Finish(
+      colour: _darken(piece.finish.colour, 0.28),
+      material: piece.finish.material,
+    );
+    final mouth = Vec3(piece.at.x, piece.at.y - 6 * scale, face + 4 * scale);
+    _sweep(
+      out,
+      _ring(mouth, const Vec3(1, 0, 0), const Vec3(0, 1, 0), 7 * scale),
+      Vec3(0, 0, -5 * scale),
+      piece.id,
+      dark,
+      put,
+      capStart: false,
+    );
+    final ward = _stadium(Vec2(piece.at.x, piece.at.y + 5 * scale),
+        const Vec2(0, 1), 20 * scale, 7 * scale);
+    _slabBetween(out, ward, face + 4 * scale, 2 * scale, piece.id, dark,
+        FacetRole.hardware, put);
+  }
+
+  /// A butt hinge: the leaf screwed to the stile, and the knuckle it turns
+  /// on standing proud of the edge.
+  ///
+  /// The knuckle is the part you see on a closed door from the hinge side,
+  /// and on a door drawn from outside it is the only part you see at all.
+  static void _addButtHinge(
+    List<Facet> out,
+    HardwareElement piece,
+    OpeningEdge hinge,
+    double face,
+    double outward,
+    double scale,
+    Vec3 Function(Vec3) put,
+  ) {
+    final sideHung = hinge == OpeningEdge.left || hinge == OpeningEdge.right;
+    final along = sideHung ? const Vec2(0, 1) : const Vec2(1, 0);
+    final knuckleLength = 88 * scale;
+
+    final leaf = _stadium(piece.at, along, knuckleLength, 34 * scale);
+    _slabBetween(out, leaf, face + outward * 6 * scale, 3 * scale, piece.id,
+        piece.finish, FacetRole.hardware, put);
+
+    // The barrel, lying along the hinge line.
+    final axis = sideHung ? const Vec3(0, 1, 0) : const Vec3(1, 0, 0);
+    final u = sideHung ? const Vec3(1, 0, 0) : const Vec3(0, 1, 0);
+    final start = Vec3(
+      piece.at.x - axis.x * knuckleLength / 2,
+      piece.at.y - axis.y * knuckleLength / 2,
+      face + outward * 6 * scale,
+    );
+    _sweep(
+      out,
+      _ring(start, u, const Vec3(0, 0, 1), 9 * scale),
+      Vec3(axis.x * knuckleLength, axis.y * knuckleLength, 0),
+      piece.id,
+      piece.finish,
+      put,
+    );
+  }
+
+  // ------------------------------------------------------- solid primitives
+
+  /// A ring of [sides] points around [centre], in the plane [u] and [v] span.
+  ///
+  /// The cross-section of anything round. A lever is not a box and a hinge
+  /// knuckle is not a box, so neither is built as one; twelve sides is the
+  /// point where another one stops showing at the size ironmongery is drawn.
+  static List<Vec3> _ring(
+    Vec3 centre,
+    Vec3 u,
+    Vec3 v,
+    double radius, {
+    int sides = 12,
+  }) =>
+      [
+        for (var i = 0; i < sides; i++)
+          () {
+            final angle = i / sides * math.pi * 2;
+            final c = math.cos(angle) * radius;
+            final d = math.sin(angle) * radius;
+            return Vec3(
+              centre.x + u.x * c + v.x * d,
+              centre.y + u.y * c + v.y * d,
+              centre.z + u.z * c + v.z * d,
+            );
+          }(),
+      ];
+
+  /// [ring] swept along [along]: the ends capped, the sides walled.
+  ///
+  /// The general form of a slab, free of the z axis, so a part can run out of
+  /// the door and turn across it rather than only lying flat on it.
+  static void _sweep(
+    List<Facet> out,
+    List<Vec3> ring,
+    Vec3 along,
+    String elementId,
+    Finish finish,
+    Vec3 Function(Vec3) place, {
+    bool capStart = true,
+    bool capEnd = true,
+  }) {
+    if (ring.length < 3) return;
+    final far = [
+      for (final p in ring) Vec3(p.x + along.x, p.y + along.y, p.z + along.z),
+    ];
+
+    if (capStart) {
+      _quad(out, [for (final p in ring.reversed) place(p)], elementId, finish,
+          FacetRole.hardware, shade: 0.72);
+    }
+    if (capEnd) {
+      _quad(out, [for (final p in far) place(p)], elementId, finish,
+          FacetRole.hardware);
+    }
+    for (var i = 0; i < ring.length; i++) {
+      final j = (i + 1) % ring.length;
+      // Along the round, each facet catches the light a little differently,
+      // which is what makes a cylinder read as a cylinder rather than as a
+      // faceted stick.
+      final lit = 0.72 + 0.28 * (0.5 + 0.5 * math.cos(i / ring.length * math.pi * 2));
+      _quad(out, [
+        place(ring[i]),
+        place(ring[j]),
+        place(far[j]),
+        place(far[i]),
+      ], elementId, finish, FacetRole.hardware, shade: lit);
+    }
+  }
+
+  /// A rounded-cornered plate lying on the leaf, as a backplate does.
+  ///
+  /// Real ironmongery has no sharp corners — a pressed plate is radiused all
+  /// round — and a box with four right angles reads as a sticker rather than
+  /// as a piece of metal.
+  static Polygon _stadium(
+    Vec2 centre,
+    Vec2 along,
+    double length,
+    double width, {
+    int corner = 5,
+  }) {
+    final u = along.length < 1e-9 ? const Vec2(1, 0) : along.normalised;
+    final v = u.perpendicular;
+    final radius = width / 2;
+    final straight = math.max(0.0, length / 2 - radius);
+
+    final corners = <Vec2>[];
+    for (final end in [1.0, -1.0]) {
+      final hub = centre + u * (straight * end);
+      for (var i = 0; i <= corner; i++) {
+        final angle = (i / corner - 0.5) * math.pi * end;
+        final c = math.cos(angle) * end;
+        final d = math.sin(angle);
+        corners.add(Vec2(
+          hub.x + u.x * radius * c + v.x * radius * d,
+          hub.y + u.y * radius * c + v.y * radius * d,
+        ));
+      }
+    }
+    return Polygon(corners);
+  }
 
   /// The part of a bar that is actually inside the opening.
   static Segment? _clip(Segment line, Polygon bounds) {

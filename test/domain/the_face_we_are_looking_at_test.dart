@@ -121,25 +121,45 @@ void main() {
   group('the solid puts the hinge where the rule says', () {
     test('a door’s hinge is behind the face you are looking at', () {
       final design = leaf(DesignKind.door);
-      final mesh = MeshBuilder.build(design);
       final hinge = design.hardware
           .firstWhere((piece) => piece.kind == HardwareKind.hinge);
-
-      final depths = depthsOf(mesh, hinge.id);
+      final depths = depthsOf(MeshBuilder.build(design), hinge.id);
       expect(depths, isNotEmpty);
-      // The near face of the design is the greatest z; the hinge is behind
-      // the front of the leaf altogether.
-      expect(depths.reduce((a, b) => a > b ? a : b), lessThanOrEqualTo(0.01));
+
+      // Two things, and the second is not the first. It is fixed to the
+      // **inside** face, so its body is behind the leaf; and nothing of it
+      // reaches the face the drawing is of, so there is nothing to see
+      // standing on the outside of the door.
+      final middle = depths.reduce((a, b) => a + b) / depths.length;
+      expect(middle, lessThan(0), reason: 'fixed to the inside face');
+      expect(depths.reduce((a, b) => a > b ? a : b),
+          lessThan(design.depthMm),
+          reason: 'nothing of it is on the face you are looking at');
+    });
+
+    test('but its knuckle breaks the inside face, as a real one does', () {
+      // A butt hinge's barrel is centred on the line the leaf turns about,
+      // so it stands a little proud of the face it is screwed to. A hinge
+      // that lies entirely flat behind the door is a tab, not a hinge.
+      final design = leaf(DesignKind.door);
+      final hinge = design.hardware
+          .firstWhere((piece) => piece.kind == HardwareKind.hinge);
+      final depths = depthsOf(MeshBuilder.build(design), hinge.id);
+
+      expect(depths.reduce((a, b) => a > b ? a : b), greaterThan(0));
     });
 
     test('a window’s hinge is on the face you are looking at', () {
       final design = leaf(DesignKind.window);
-      final mesh = MeshBuilder.build(design);
       final hinge = design.hardware
           .firstWhere((piece) => piece.kind == HardwareKind.hinge);
-
-      final depths = depthsOf(mesh, hinge.id);
+      final depths = depthsOf(MeshBuilder.build(design), hinge.id);
       expect(depths, isNotEmpty);
+
+      // On the near side of the leaf: you are standing indoors, which is
+      // where a window's hinges are, and there they are.
+      final middle = depths.reduce((a, b) => a + b) / depths.length;
+      expect(middle, greaterThan(0));
       expect(depths.reduce((a, b) => a > b ? a : b), greaterThan(0));
     });
 
@@ -147,7 +167,7 @@ void main() {
       for (final kind in DesignKind.values) {
         final design = leaf(kind);
         final handle = design.hardware
-            .firstWhere((piece) => piece.kind == HardwareKind.handle);
+            .firstWhere((piece) => piece.kind.isHandle);
         final depths = depthsOf(MeshBuilder.build(design), handle.id);
         expect(depths.reduce((a, b) => a > b ? a : b), greaterThan(0),
             reason: 'a ${kind.label}’s handle is on the face you are at');
@@ -179,7 +199,7 @@ void main() {
       double handleUp(DesignKind kind) {
         final design = leaf(kind);
         final handle = design.hardware
-            .firstWhere((piece) => piece.kind == HardwareKind.handle);
+            .firstWhere((piece) => piece.kind.isHandle);
         final section = design.sectionById(
             design.sectionHolding(handle.parentId)!)!;
         return section.outline.bottom - handle.at.y;

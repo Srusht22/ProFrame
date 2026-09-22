@@ -1557,6 +1557,52 @@ because a lever cannot go above the leaf it is on.
 Nothing else about the ironmongery follows the kind yet: it is one shape for
 both, in one size, and where it goes is the whole of what this decides.
 
+### A door's ironmongery is built as ironmongery
+
+A lever on a backplate, an escutcheon with a keyhole through it and a butt
+hinge with a knuckle are real pieces with a shape. A flat tab standing on the
+leaf is a placeholder for one, not one of them:
+
+```
+Door opening
+├── Lever on a backplate     out of the leaf, and back across it
+├── Escutcheon               with the keyhole bored through it
+└── Hinges                   leaf and knuckle, on the inside face
+```
+
+Which leaf gets this is the user's answer and nothing else — `Design.kindOf`
+— so a window keeps the plain fastener it had and gets no lock, because a
+window fastens and does not lock.
+
+**It is geometry, all of it.** `_ring` is a cross-section, `_sweep` takes one
+along its own axis, and `_stadium` is a plate with radiused ends, because
+pressed metal has no sharp corners. That is enough to build a lever that
+comes *out of* the door and turns *across* it, which is the thing a flat
+overlay cannot show, and it is the only way this repository is allowed to
+show a handle: *Nothing in the output is a picture* is scanned for by
+`test/no_stock_content_test.dart`, and a photograph of a handle would be the
+same lie as a photograph of a door.
+
+Every size is taken from the leaf, so a garden gate and a front door each get
+ironmongery in proportion to themselves rather than to a number that looked
+right on one drawing. **The lever points back across the leaf**, from the
+stile it is on towards the stile it hangs on, because that is the way a hand
+closes on it; pointing it the other way runs it off the edge of the door into
+the frame, which is what the first attempt did and what looking at it caught.
+
+`HardwareKind.isHandle` is how anything asks *where is this leaf's handle*.
+A lever, a knob and a pull are one part of the leaf in three shapes — the
+user's choice, on `OpeningElement.handleKind`, null until they say — so
+choosing a knob must not make the handle vanish from everything that was
+looking for `HardwareKind.handle`.
+
+`test/domain/a_door_has_door_furniture_test.dart` holds all of it: what a
+door carries and a window does not, the handle real in all three directions
+and standing off the face, the lever reaching back across the leaf and not
+past its edge, every piece naming the opening as its parent, the lot turning
+with the leaf while nothing else moves, staying on the leaf when it is
+resized, and every facet belonging to a part the design actually has.
+
 **Asked once, when the opening is made, and never again.**
 `WorkspaceState.allQuestions` is the questions the reading raised plus one
 for every opening with no answer on it. That second list is *worked out from

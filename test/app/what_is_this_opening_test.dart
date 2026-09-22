@@ -4,7 +4,6 @@ import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/editing/design_edits.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
-import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 
 // A mark says a section opens. It does not say whether the leaf is a door
@@ -170,7 +169,7 @@ void main() {
       double handleUp(Design design, String openingId) {
         final held = design.openingById(openingId)!.sectionId;
         final handle = design.hardware.firstWhere((piece) =>
-            piece.kind == HardwareKind.handle &&
+            piece.kind.isHandle &&
             design.sectionHolding(piece.parentId) == held);
         return design.sectionById(held)!.outline.bottom - handle.at.y;
       }
@@ -289,7 +288,7 @@ void main() {
 
       Map<String, double> handles(Design design) => {
             for (final piece in design.hardware)
-              if (piece.kind == HardwareKind.handle)
+              if (piece.kind.isHandle)
                 design.sectionHolding(piece.parentId)!: piece.at.y,
           };
       final before = handles(c.state.design);

@@ -413,7 +413,24 @@ class _OpeningHardwareFields extends StatelessWidget {
             'spacing that is not a decision about where they look best.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
-        ] else
+        ] else ...[
+          // What form the handle takes. A lever, a knob or a pull are the
+          // same part of the leaf in three shapes, so this is one choice
+          // and not three pieces of ironmongery.
+          const _Label('Handle type'),
+          const SizedBox(height: 7),
+          SegmentedButton<HardwareKind>(
+            segments: const [
+              ButtonSegment(value: HardwareKind.lever, label: Text('Lever')),
+              ButtonSegment(value: HardwareKind.knob, label: Text('Knob')),
+              ButtonSegment(value: HardwareKind.handle, label: Text('Pull')),
+            ],
+            selected: {piece.kind},
+            showSelectedIcon: false,
+            onSelectionChanged: (values) =>
+                controller.setHandleKind(opening.id, values.first),
+          ),
+          const SizedBox(height: 14),
           _NumberField(
             label: sideHung ? 'Height from the bottom' : 'From the left',
             valueMm: sideHung
@@ -426,6 +443,7 @@ class _OpeningHardwareFields extends StatelessWidget {
               handleAlongMm: v,
             ),
           ),
+        ],
       ],
     );
   }

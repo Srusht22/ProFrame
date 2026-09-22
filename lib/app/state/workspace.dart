@@ -603,6 +603,23 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     );
   }
 
+  /// What form a leaf's handle takes — a lever, a knob, a pull.
+  ///
+  /// The opening's, like everything else about the leaf, so the piece is
+  /// worked out again from it and no other opening is touched.
+  void setHandleKind(String openingId, HardwareKind handleKind) {
+    final opening = state.design.openingById(openingId);
+    if (opening == null || opening.handleKind == handleKind) return;
+
+    _remember();
+    state = state.copyWith(
+      design: OpeningHardware.settle(state.design.copyWith(openings: [
+        for (final o in state.design.openings)
+          if (o.id == openingId) o.copyWith(handleKind: handleKind) else o,
+      ])),
+    );
+  }
+
   void dismissQuestion(String questionId) => state = state.copyWith(
         questions: [
           for (final q in state.questions) if (q.id != questionId) q,

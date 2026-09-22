@@ -206,7 +206,7 @@ void main() {
             piece,
       ];
       expect(mine.where((p) => p.kind == HardwareKind.hinge), isNotEmpty);
-      expect(mine.where((p) => p.kind == HardwareKind.handle), hasLength(1));
+      expect(mine.where((p) => p.kind.isHandle), hasLength(1));
       for (final piece in mine) {
         expect(piece.isOpeningHardware, isTrue);
       }
@@ -270,7 +270,13 @@ void main() {
         for (final piece in design.hardware)
           if (piece.isOpeningHardware) piece.kind,
       };
-      expect(kinds, {HardwareKind.hinge, HardwareKind.handle});
+      // A door: hinges, a lever and the lock under it — and nothing beyond
+      // those, because nothing is added to make a render look furnished.
+      expect(kinds, {
+        HardwareKind.hinge,
+        HardwareKind.lever,
+        HardwareKind.lock,
+      });
     });
 
     test('the hinges change sides when the direction changes', () {
@@ -288,7 +294,7 @@ void main() {
           .at
           .x;
       double handleX(Design design) => design.hardware
-          .firstWhere((p) => p.kind == HardwareKind.handle)
+          .firstWhere((p) => p.kind.isHandle)
           .at
           .x;
 
@@ -304,7 +310,7 @@ void main() {
       tall = DesignEdits.resizeFrame(tall, heightMm: 2200);
       final leaf = tall.sectionById(tall.openings.single.sectionId)!;
       final handle =
-          tall.hardware.firstWhere((p) => p.kind == HardwareKind.handle);
+          tall.hardware.firstWhere((p) => p.kind.isHandle);
 
       // A metre up on a leaf with room for it.
       expect(leaf.heightMm, greaterThan(1150));
@@ -319,7 +325,7 @@ void main() {
       );
       final small = short.sectionById(short.openings.single.sectionId)!;
       final low =
-          short.hardware.firstWhere((p) => p.kind == HardwareKind.handle);
+          short.hardware.firstWhere((p) => p.kind.isHandle);
       expect(low.at.y, closeTo(small.outline.centroid.y, 1));
     });
 
@@ -335,7 +341,7 @@ void main() {
 
       final section = after.sectionById(after.openings.single.sectionId)!;
       final handle =
-          after.hardware.firstWhere((p) => p.kind == HardwareKind.handle);
+          after.hardware.firstWhere((p) => p.kind.isHandle);
       expect(handle.at.x, closeTo(section.outline.right, 0.5));
       expect(handle.at.y, greaterThanOrEqualTo(section.outline.top - 0.5));
       expect(handle.at.y, lessThanOrEqualTo(section.outline.bottom + 0.5));
@@ -376,7 +382,7 @@ void main() {
       );
 
       final handle =
-          after.hardware.firstWhere((p) => p.kind == HardwareKind.handle);
+          after.hardware.firstWhere((p) => p.kind.isHandle);
       expect(handle.at.y, closeTo(section.outline.bottom - 400, 0.5));
     });
 
