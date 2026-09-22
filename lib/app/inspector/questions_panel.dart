@@ -18,7 +18,7 @@ class QuestionsPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final questions = ref.watch(
-      workspaceProvider.select((s) => s.questions),
+      workspaceProvider.select((s) => s.allQuestions),
     );
     if (questions.isEmpty) return const SizedBox.shrink();
 

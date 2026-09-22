@@ -826,6 +826,15 @@ abstract final class DesignEdits {
     if (mechanism == OpeningMechanism.fixed) {
       return OpeningHardware.settle(design.copyWith(openings: without));
     }
+    // **What the user has said about this opening outlasts a re-reading.**
+    // The sheet says a section opens; it does not say whether the leaf is a
+    // door or a window, or where they wanted its handle, so re-reading it
+    // cannot answer those and must not throw the answers away. This is the
+    // same rule the bars already keep — a reading re-reads the drawing, it
+    // does not overturn what the user said about it — and without it the
+    // question came back every time the sheet was read, asking them to say
+    // again what they had already said.
+    final said = _openingSaid(design, openingId, sectionId);
     return OpeningHardware.settle(design.copyWith(openings: [
       ...without,
       OpeningElement(
@@ -837,8 +846,32 @@ abstract final class DesignEdits {
         markAt: markAt,
         markGlyph: markGlyph,
         fromStrokeId: fromStrokeId,
+        kind: said?.kind,
+        hingeCount: said?.hingeCount,
+        hingeFromStartMm: said?.hingeFromStartMm,
+        hingeFromEndMm: said?.hingeFromEndMm,
+        handleAlongMm: said?.handleAlongMm,
       ),
     ]));
+  }
+
+  /// The opening this one is replacing, if it is replacing one.
+  ///
+  /// By id first, because an opening's id is its mark's and outlives every
+  /// reading; by section otherwise, for an opening the user made with the
+  /// **Opens** control, which has no mark to be named after.
+  static OpeningElement? _openingSaid(
+    Design design,
+    String openingId,
+    String sectionId,
+  ) {
+    for (final opening in design.openings) {
+      if (opening.id == openingId) return opening;
+    }
+    for (final opening in design.openings) {
+      if (opening.sectionId == sectionId) return opening;
+    }
+    return null;
   }
 
   /// Moves a bar between dividing the design and dividing one section of it.

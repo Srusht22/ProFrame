@@ -278,8 +278,8 @@ makes it real. Everything above is building.
 ### The only questions left
 
 A question is for a drawing that says *nothing*, not for one that says
-something inconvenient. There are exactly two, and each is asked because
-there is nothing to build:
+something inconvenient. There are exactly three, and each is asked because
+the drawing does not hold the answer:
 
 - **The outline does not close.** There is no shape, so there is no frame,
   and joining the ends would move lines the user drew. The lines are kept as
@@ -287,6 +287,20 @@ there is nothing to build:
 - **No face of the design holds any part of the mark.** Drawn right off the
   design, or entirely on top of the bars, it is in no closed region, so
   there is nothing to open.
+- **What a new opening is — a door or a window.** A `<` or a `>` says the
+  section opens. It does not say which of the two it is, and no amount of
+  looking at the sheet will: a leaf is a door or a window because of what
+  the user is building, not because of its proportions. It was read off the
+  height before, which is the application deciding from a shape, and it put
+  a door's lever on a tall window sash. See *An opening's hinges and
+  handle*.
+
+The third one is the only one that is asked about something the application
+*has* built, and it is still not a questionnaire between the drawing and the
+design: the opening is made first, exactly as the mark says, and the design
+stands whether the question is answered or waved away. It has an editing
+control beside it, as rule 17 requires — the same control answers it later
+and changes it afterwards.
 
 A mark that merely strays near a bar or a jamb is *not* one of these. It
 opens the face its middle is in, and where its middle lands on a bar, the
@@ -1528,6 +1542,45 @@ or it is the user's own.
 The component tree is where this is visible: the opening's branch holds its
 hinges and its handle, and a section nobody marked holds neither, however
 door-shaped it is.
+
+**A door's lever and a window's fastener are not at the same height.** A
+window's fastener is at the middle of the stile, where a hand reaches it
+across a sill; a door's lever is a metre up, where a hand falls walking up
+to it. `defaultHeightIn` took the leaf's height and decided for itself — a
+metre up unless the leaf was too short to leave any stile above the lever —
+which is the application reading what a leaf *is* off its proportions. A
+tall window sash got a door's lever and a short door got a window's
+fastener, and neither was anybody's decision. It now takes `Design.kindOf`,
+which is the user's answer. The height still has the last word for a door,
+because a lever cannot go above the leaf it is on.
+
+Nothing else about the ironmongery follows the kind yet: it is one shape for
+both, in one size, and where it goes is the whole of what this decides.
+
+**Asked once, when the opening is made, and never again.**
+`WorkspaceState.allQuestions` is the questions the reading raised plus one
+for every opening with no answer on it. That second list is *worked out from
+the design*, so the question appears the moment an opening exists — by a
+mark or by the **Opens** control, it makes no difference — and is gone the
+moment it is answered, because the answer is on the opening and the opening
+is in the file. Nothing has to remember to raise it and nothing can raise it
+twice: not a re-reading, not switching between the drawing and the model,
+not a line drawn inside the leaf, not opening the design tomorrow.
+
+That last one only holds because **what the user said about an opening
+outlasts a re-reading**. `setOpening` builds a fresh `OpeningElement` every
+time the sheet is read, and it used to build it empty, so the answer lasted
+until the next reading and the question came straight back — asking them to
+say again what they had already said. It now carries forward what the sheet
+cannot say: the kind, and the hinge and handle figures. This is the same
+rule the bars keep, and it is in `_openingSaid`, which finds the opening
+being replaced by id — an opening's id is its mark's and outlives every
+reading — or by section for one made with the **Opens** control, which has
+no mark to be named after.
+
+Waving the question away is not an answer to it: the opening keeps no kind
+and goes on following the design, which is a kind the user did choose.
+`test/app/what_is_this_opening_test.dart` holds all of it.
 
 **Which face you are looking at, and so which side the hinges are on.** A
 joiner's elevation is drawn from the side the design is met from, and that

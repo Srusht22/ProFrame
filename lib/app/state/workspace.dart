@@ -5,6 +5,7 @@ import '../../domain/dimensions/scale.dart';
 import '../../domain/editing/design_edits.dart';
 import '../../domain/geometry/tolerances.dart';
 import '../../domain/geometry/vec2.dart';
+import '../../domain/hardware/opening_hardware.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import '../../domain/model/materials.dart';
@@ -38,6 +39,46 @@ class WorkspaceState {
   /// or waved away. They do not come back at the next reading: being asked
   /// the same thing twice is being asked to say twice what was said once.
   final Set<String> settledQuestions;
+
+  /// Everything to put to the user: what the reading could not answer, and
+  /// what a new opening still needs saying about.
+  ///
+  /// **The second kind is worked out from the design, not stored.** An
+  /// opening with no answer on it is an opening nobody has been asked about,
+  /// so the question appears the moment the opening exists — however it was
+  /// made — and is gone the moment it is answered, because the answer is on
+  /// the opening and the opening is in the file. Nothing has to remember to
+  /// raise it, and nothing can raise it twice: not a re-reading, not
+  /// switching between the drawing and the model, not a line drawn inside
+  /// it, and not opening the design again tomorrow.
+  List<DesignQuestion> get allQuestions => [
+        ...questions,
+        for (final opening in design.openingsInOrder)
+          if (opening.kind == null &&
+              !settledQuestions.contains(openingKindQuestion(opening.id)))
+            DesignQuestion(
+              id: openingKindQuestion(opening.id),
+              prompt: 'What is ${design.nameOf(opening)}?',
+              detail: 'A mark says this section opens. It does not say '
+                  'whether it is a door or a window, and the two are not '
+                  'made the same. This is about this one opening; every '
+                  'other section is untouched.',
+              aboutIds: [opening.id, opening.sectionId],
+              options: [
+                for (final kind in DesignKind.values)
+                  QuestionOption(
+                    key: kind.name,
+                    label: kind.label,
+                    detail: kind == DesignKind.door
+                        ? 'A leaf you walk through.'
+                        : 'A leaf you open from indoors.',
+                  ),
+              ],
+            ),
+      ];
+
+  /// The id of the question that asks what one opening is.
+  static String openingKindQuestion(String openingId) => 'kind-$openingId';
 
   /// True while the drawing has changes the geometry has not caught up with.
   final bool needsReading;
@@ -417,13 +458,21 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   }
 
   void answer(String questionId, String optionKey) {
-    final question = state.questions.firstWhere(
+    final question = state.allQuestions.firstWhere(
       (q) => q.id == questionId,
       orElse: () => const DesignQuestion(id: '', prompt: '', options: []),
     );
     if (question.id.isEmpty) return;
 
-    if (questionId.startsWith('symbol-')) {
+    if (questionId.startsWith('kind-')) {
+      setOpeningKind(
+        questionId.substring('kind-'.length),
+        DesignKind.values.firstWhere(
+          (k) => k.name == optionKey,
+          orElse: () => state.design.kind,
+        ),
+      );
+    } else if (questionId.startsWith('symbol-')) {
       _answerSymbol(questionId.substring('symbol-'.length), optionKey);
     } else if (questionId.startsWith('opening-')) {
       final sectionId = questionId.substring('opening-'.length);
@@ -527,6 +576,31 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       );
     }
     state = state.copyWith(design: design, clearSelection: true);
+  }
+
+  /// What one opening is — a door or a window — at the user's word.
+  ///
+  /// The answer goes on that opening and nowhere else: every other opening
+  /// in the design is untouched, and the design's own kind is not changed,
+  /// because one design may hold both. The ironmongery is worked out again
+  /// from the opening, so a leaf that becomes a door gets its lever where a
+  /// door's lever goes and a leaf that becomes a window gets its fastener
+  /// where a window's goes.
+  void setOpeningKind(String openingId, DesignKind kind) {
+    final opening = state.design.openingById(openingId);
+    if (opening == null || opening.kind == kind) return;
+
+    _remember();
+    state = state.copyWith(
+      design: OpeningHardware.settle(state.design.copyWith(openings: [
+        for (final o in state.design.openings)
+          if (o.id == openingId) o.copyWith(kind: kind) else o,
+      ])),
+      questions: [
+        for (final q in state.questions)
+          if (q.id != WorkspaceState.openingKindQuestion(openingId)) q,
+      ],
+    );
   }
 
   void dismissQuestion(String questionId) => state = state.copyWith(

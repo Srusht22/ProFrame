@@ -116,7 +116,8 @@ abstract final class OpeningHardware {
       id: '${opening.id}-handle',
       kind: HardwareKind.handle,
       parentId: opening.id,
-      at: handleAt(opening, outline.left, outline.right, outline.top,
+      at: handleAt(design.kindOf(opening), opening, outline.left,
+          outline.right, outline.top,
           outline.bottom, edge),
       rotation: sideHung ? 90 : 0,
     ));
@@ -134,8 +135,13 @@ abstract final class OpeningHardware {
     return (2 + (alongMm / hingePerMm).floor()).clamp(2, 4);
   }
 
-  /// Where the handle sits, given the opening and the leaf's extent.
+  /// Where the handle sits, given what the opening is and the leaf's extent.
+  ///
+  /// [kind] is the user's answer for this leaf — `Design.kindOf` — because a
+  /// door's lever and a window's fastener do not go in the same place, and
+  /// which of the two this is is not something the drawing says.
   static Vec2 handleAt(
+    DesignKind kind,
     OpeningElement opening,
     double left,
     double right,
@@ -147,7 +153,7 @@ abstract final class OpeningHardware {
     if (sideHung) {
       // On the stile opposite the hinges, at a height up from the sill.
       final height = bottom - top;
-      final up = (opening.handleAlongMm ?? defaultHeightIn(height))
+      final up = (opening.handleAlongMm ?? defaultHeightIn(height, kind))
           .clamp(0.0, math.max(0.0, height));
       final x = edge == OpeningEdge.left ? right : left;
       return Vec2(x, bottom - up);
@@ -161,15 +167,26 @@ abstract final class OpeningHardware {
   }
 
   /// How high the handle goes on a side-hung leaf [heightMm] tall, when the
-  /// user has not said.
+  /// user has not said where they want it.
   ///
-  /// A metre up, which is where a hand falls on a door — unless the leaf is
-  /// too short for that to leave any stile above it, in which case the
-  /// middle, which is where a window's fastener goes.
-  static double defaultHeightIn(double heightMm) =>
-      heightMm - defaultHandleHeightMm >= handleHeadroomMm
-          ? defaultHandleHeightMm
-          : heightMm / 2;
+  /// **What the leaf is decides this, not how tall it happens to be.** A
+  /// window's fastener is at the middle of the stile, where a hand reaches
+  /// it across a sill. A door's lever is a metre up, which is where a hand
+  /// falls walking up to it.
+  ///
+  /// It used to be read off the height alone — a metre up unless the leaf
+  /// was too short for that to leave any stile above the lever — which is
+  /// the application deciding what a leaf is from its proportions. A tall
+  /// window sash got a door's lever and a short door got a window's
+  /// fastener, and neither was anybody's decision. The height still has the
+  /// last word for a door, because a lever cannot go above the leaf it is
+  /// on, and then the middle is the only place left.
+  static double defaultHeightIn(double heightMm, DesignKind kind) {
+    if (kind == DesignKind.window) return heightMm / 2;
+    return heightMm - defaultHandleHeightMm >= handleHeadroomMm
+        ? defaultHandleHeightMm
+        : heightMm / 2;
+  }
 
   /// Where each hinge sits along the hinged edge, measured from its start.
   ///

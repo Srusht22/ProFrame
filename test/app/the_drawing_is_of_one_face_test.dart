@@ -83,18 +83,16 @@ void main() {
         isNot(await pixels(leaf(DesignKind.window))));
   });
 
-  test('and the difference is the hinges, and nothing else', () async {
-    // Take the hinges off both and the two are the same picture again. If
-    // anything else in the drawing had started depending on the kind, this
-    // is where it would show.
-    Design withoutHinges(Design design) => design.copyWith(hardware: [
-          for (final piece in design.hardware)
-            if (piece.kind != HardwareKind.hinge) piece,
-        ]);
+  test('and the difference is the ironmongery, and nothing else', () async {
+    // Take the ironmongery off both and the two are the same picture again.
+    // The kind decides which side of the leaf the hinges are on and how high
+    // the handle goes; if anything *else* in the drawing had started
+    // depending on it, this is where it would show.
+    Design bare(Design design) => design.copyWith(hardware: const []);
 
     expect(
-      await pixels(withoutHinges(leaf(DesignKind.door))),
-      await pixels(withoutHinges(leaf(DesignKind.window))),
+      await pixels(bare(leaf(DesignKind.door))),
+      await pixels(bare(leaf(DesignKind.window))),
     );
   });
 

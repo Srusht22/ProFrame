@@ -679,6 +679,30 @@ class _OpeningFields extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // What this leaf is. It belongs to this opening and to no other:
+        // one design may hold a door and a window side by side, so this is
+        // never asked about the design as a whole.
+        const _Label('Opening type'),
+        const SizedBox(height: 7),
+        SegmentedButton<DesignKind>(
+          segments: [
+            for (final kind in DesignKind.values)
+              ButtonSegment(value: kind, label: Text(kind.label)),
+          ],
+          selected: {state.design.kindOf(opening)},
+          showSelectedIcon: false,
+          onSelectionChanged: (values) =>
+              controller.setOpeningKind(opening.id, values.first),
+        ),
+        if (opening.kind == null) ...[
+          const SizedBox(height: 7),
+          Text(
+            'Nobody has said yet, so this leaf follows the design — a '
+            '${state.design.kind.label.toLowerCase()}. Choose to say.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+        const SizedBox(height: 18),
         const _Label('Direction'),
         const SizedBox(height: 7),
         _DirectionPicker(
@@ -700,7 +724,7 @@ class _OpeningFields extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 18),
-        const _Label('Opening type'),
+        const _Label('How it opens'),
         const SizedBox(height: 6),
         DropdownButtonFormField<OpeningMechanism>(
           initialValue: opening.mechanism,

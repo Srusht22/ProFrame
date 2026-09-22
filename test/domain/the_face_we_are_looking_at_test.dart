@@ -154,19 +154,52 @@ void main() {
       }
     });
 
-    test('nothing else about the solid depends on the kind', () {
-      // Same parts, same count, same everything that is not a hinge.
-      String fingerprint(Design design) => [
-            for (final facet in MeshBuilder.build(design).facets)
-              if (design.hardware.any((p) =>
-                  p.id == facet.elementId && p.kind == HardwareKind.hinge))
-                ''
-              else
-                '${facet.elementId}:${facet.corners.join(',')}',
-          ].join('|');
+    test('no geometry of the design depends on the kind', () {
+      // The ironmongery is what the kind decides — which side of the leaf
+      // the hinges are on, and how high the handle goes, since a door's
+      // lever and a window's fastener are not at the same height. The
+      // design itself is not the kind's business: the frame, the bars, the
+      // sections and their panes are the same either way, facet for facet.
+      String fingerprint(Design design) {
+        final ironmongery = {for (final p in design.hardware) p.id};
+        return [
+          for (final facet in MeshBuilder.build(design).facets)
+            if (!ironmongery.contains(facet.elementId))
+              '${facet.elementId}:${facet.corners.join(',')}',
+        ].join('|');
+      }
 
       expect(fingerprint(leaf(DesignKind.door)),
           fingerprint(leaf(DesignKind.window)));
+    });
+
+    test('a door’s lever is higher up the leaf than a window’s fastener', () {
+      // The one thing about the handle this phase decides: where it goes.
+      // Not what it looks like — that is still one shape for both.
+      double handleUp(DesignKind kind) {
+        final design = leaf(kind);
+        final handle = design.hardware
+            .firstWhere((piece) => piece.kind == HardwareKind.handle);
+        final section = design.sectionById(
+            design.sectionHolding(handle.parentId)!)!;
+        return section.outline.bottom - handle.at.y;
+      }
+
+      final door = handleUp(DesignKind.door);
+      final window = handleUp(DesignKind.window);
+      expect(door, greaterThan(window));
+      expect(door, closeTo(1000, 1), reason: 'a metre up, where a hand falls');
+      expect(window,
+          closeTo(leaf(DesignKind.window)
+                  .sectionById(leaf(DesignKind.window)
+                      .openings
+                      .single
+                      .sectionId)!
+                  .outline
+                  .height /
+              2,
+              1),
+          reason: 'the middle of the stile, where a fastener goes');
     });
   });
 }
