@@ -164,6 +164,7 @@ List<Widget> _sectionRows(
     if (opening != null)
       _Row(
         element: opening,
+        title: design.nameOf(opening),
         detail: opening.mechanism.description,
         icon: Icons.door_front_door_outlined,
         indent: indent + 1,
@@ -209,6 +210,13 @@ class _Row extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
+  /// What to call it, where the element's own label is not enough on its
+  /// own. A design holds as many openings as the user marked, and three
+  /// leaves in a row all call themselves "Hinged left": which one of them a
+  /// row is has to come from the design, because it is the design that
+  /// knows how many there are.
+  final String? title;
+
   const _Row({
     required this.element,
     required this.detail,
@@ -216,6 +224,7 @@ class _Row extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.indent = 0,
+    this.title,
   });
 
   @override
@@ -239,7 +248,7 @@ class _Row extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      element.label,
+                      title ?? element.label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(

@@ -183,6 +183,43 @@ class Design {
     return [for (final d in dividers) if (names.contains(d.parentId)) d];
   }
 
+  /// The openings, in the order the drawing reads them.
+  ///
+  /// The sections are already in that order — `SectionBuilder` sorts them
+  /// and the drawing, the tree and the solid all walk it — so this is that
+  /// order with the fixed lights left out. There is no second opinion here
+  /// about which opening is the first one.
+  List<OpeningElement> get openingsInOrder => [
+        for (final section in sections) ?openingOf(section.id),
+      ];
+
+  /// Which opening this is, counting across the drawing from one.
+  ///
+  /// **Worked out, never stored.** A design holds as many openings as the
+  /// user marked, and they need telling apart — three leaves in a row are
+  /// otherwise three identical rows in the component tree. A number written
+  /// into the document would be one more thing to keep true, and it would be
+  /// wrong the moment an opening was marked to the left of it. This is the
+  /// position it actually has on the drawing, asked afresh every time.
+  ///
+  /// Zero for an opening that is not this design's.
+  int numberOf(OpeningElement opening) {
+    final order = openingsInOrder;
+    for (var i = 0; i < order.length; i++) {
+      if (order[i].id == opening.id) return i + 1;
+    }
+    return 0;
+  }
+
+  /// What to call [opening] on screen: its own name, and the mark the user
+  /// drew where there is one.
+  String nameOf(OpeningElement opening) {
+    final number = numberOf(opening);
+    final name = number > 0 ? 'Opening $number' : 'Opening';
+    final glyph = opening.mechanism.glyph ?? opening.markGlyph;
+    return glyph == null ? name : '$name  $glyph';
+  }
+
   /// What [opening] is: the user's own answer, or this design's kind where
   /// they have not given one.
   ///

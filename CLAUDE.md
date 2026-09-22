@@ -978,6 +978,46 @@ it is wrong.
 now that an element carries one; `design.dart` gives them again, so
 importing the design still brings them.
 
+**Each one has an identity of its own, and it is worked out rather than
+stored.** Three leaves in a row all call themselves "Hinged left", which is
+three identical rows in the component tree and no way to say which is which.
+`Design.openingsInOrder` is the openings in the order the drawing reads them
+— the sections are already in that order, so this is that order with the
+fixed lights left out, and there is no second opinion about which opening is
+the first. `numberOf` is its place in that order and `nameOf` is what to
+call it: *Opening 1*, *Opening 2*, *Opening 3*, with the user's own mark
+beside it. A number written into the document would be one more thing to
+keep true and would be wrong the moment an opening was marked to the left of
+it; asked afresh, it is always the position the opening actually has.
+
+The component tree and the inspector heading read `nameOf`, because the
+design is the only thing that knows whether a leaf is the first of three or
+the only one. `_Row` takes a `title` for that, and falls back to the
+element's own label for everything else.
+
+```
+┌─────────────────────────────────────┐
+│               FIXED                 │
+├───────────────┬──────────┬──────────┤
+│   OPENING 1   │ OPENING 2│ OPENING 3│
+└───────────────┴──────────┴──────────┘
+```
+
+`test/domain/many_openings_in_one_design_test.dart` holds that drawing, done
+the way the user does it — outline, transom, two mullions and three marks,
+all strokes on the sheet. Four top-level sections and three openings; the
+whole design is never one of them and the frame can never be the thing that
+opens; each numbered across the drawing rather than by the order they happen
+to sit in a list. Then a line drawn *inside each* opening, and the lower
+pane of each made a panel: every opening keeps its own line, its own two
+panes and its own materials, nothing of one is in another's `contentsOf`,
+and not one of them became a division of the design. Then an edit to one —
+its direction changed, a second line drawn in it, the opening cancelled
+altogether — with the others fingerprinted and required back unchanged. Then
+the solid: every facet belongs to a part the design actually has, each
+opening's own contents are built, and swinging the leaves moves the leaves
+and nothing else. Then a save, a reload and a second reading of the sheet.
+
 `test/domain/each_opening_is_its_own_kind_test.dart` holds this on the
 drawing above — five lights with the 2nd, 4th and 5th marked: each opening
 unasked-for until it is said, a door leaf in a window design staying a door,

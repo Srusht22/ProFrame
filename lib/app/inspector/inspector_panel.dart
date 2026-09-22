@@ -35,7 +35,13 @@ class InspectorPanel extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 32),
         children: [
           _Heading(
-            selected == null ? 'Design' : selected.label,
+            switch (selected) {
+              null => 'Design',
+              // An opening is named by the design, which is the only thing
+              // that knows whether it is the first of three or the only one.
+              final OpeningElement opening => state.design.nameOf(opening),
+              _ => selected.label,
+            },
             subtitle: selected == null
                 ? 'Tap any part of the drawing to change it.'
                 : null,
