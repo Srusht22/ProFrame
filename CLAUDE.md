@@ -1032,6 +1032,28 @@ the solid: every facet belongs to a part the design actually has, each
 opening's own contents are built, and swinging the leaves moves the leaves
 and nothing else. Then a save, a reload and a second reading of the sheet.
 
+**What a leaf is says nothing about what is inside it.** The kind chooses
+the ironmongery and nothing else:
+
+```
+Opening                       Opening
+├── Glass                     ├── Glass
+├── Internal divider          ├── Internal divider
+├── Panel                     ├── Panel
+├── Handle   (lever)          ├── Handle   (espagnolette)
+├── Lock                      └── Hinges
+└── Hinges
+    a door                        a window
+```
+
+A line drawn inside an opening is that opening's whichever kind it is; it
+never becomes a division of the design; and changing the answer from door to
+window and back leaves every line where it was drawn and every pane what it
+was made. The ironmongery is the only difference, and
+`the_kind_does_not_touch_the_inside_test.dart` proves that the strong way —
+it builds the solid for a door and for a window, takes every piece of
+ironmongery out of both, and requires what is left equal facet for facet.
+
 `test/domain/each_opening_is_its_own_kind_test.dart` holds this on the
 drawing above — five lights with the 2nd, 4th and 5th marked: each opening
 unasked-for until it is said, a door leaf in a window design staying a door,
