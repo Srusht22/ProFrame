@@ -5,32 +5,9 @@ import '../sketch/stroke.dart';
 import 'elements.dart';
 import 'hierarchy.dart';
 
-/// Which face of a design the drawing and the solid show.
-///
-/// An elevation is drawn from the side the design is met from, and that is
-/// not the same side for the two kinds. A door is drawn from **outside**,
-/// because outside is where you walk up to it. A window is drawn from
-/// **inside**, because inside is where you stand to open it. That is the
-/// trade's convention and not a preference of this application's.
-enum Face { outside, inside }
-
-/// A door or a window.
-enum DesignKind {
-  door('Door', Face.outside),
-  window('Window', Face.inside);
-
-  const DesignKind(this.label, this.seenFrom);
-  final String label;
-
-  /// The face the user draws, and the face both views show.
-  ///
-  /// The drawing is the face they drew, so the solid's near face is theirs
-  /// by construction and no view has to be turned round or mirrored. What
-  /// this decides is what is on the *other* side: the ironmongery that hangs
-  /// on the inside face is behind the leaf on a door and in front of it on a
-  /// window.
-  final Face seenFrom;
-}
+// `Face` and `DesignKind` live with the other element enums, and are given
+// again here so that importing the design still brings them.
+export 'elements.dart' show DesignKind, Face;
 
 /// One design: the user's drawing, and the structured geometry read from it.
 ///
@@ -205,6 +182,16 @@ class Design {
     final names = _namesFor(sectionId);
     return [for (final d in dividers) if (names.contains(d.parentId)) d];
   }
+
+  /// What [opening] is: the user's own answer, or this design's kind where
+  /// they have not given one.
+  ///
+  /// **The fallback is not a guess.** The design's kind is the one the user
+  /// chose when they started the drawing, so an opening that follows it is
+  /// following something they said, not something worked out for them. The
+  /// moment they say otherwise for one leaf, that leaf stops following and
+  /// every other opening is untouched.
+  DesignKind kindOf(OpeningElement opening) => opening.kind ?? kind;
 
   /// True when [piece] is on the face this design is **not** seen from, so
   /// it is behind the leaf in the solid and hidden detail in the drawing.

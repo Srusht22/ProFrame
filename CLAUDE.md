@@ -939,6 +939,52 @@ unless the mark is in it, and then a bar dragged past the mark, a bar
 deleted, the design rescaled and the opening resized — each leaving exactly
 one opening, on a region that holds its mark.
 
+### One design, many openings, each its own kind
+
+A design holds as many openings as the user marked — that has been true for
+a long time, and `Hierarchy.settleOpenings` allows one per section and any
+number of sections. What each one *is* belongs to the opening too:
+
+```
+Overall design
+├── Fixed section
+├── Window opening
+├── Fixed section
+├── Door opening
+└── Window opening
+```
+
+`OpeningElement.kind` is the user's answer for that leaf, and
+`Design.kindOf` reads it. **Null is the whole of "nobody has said."** It is
+not a door and it is not a window: `kindOf` then answers with the design's
+own kind, which is the kind the user chose when they started the drawing —
+so an opening that follows it is following something they said, not
+something worked out for them. Writing a default into the opening would
+record a decision they never made, which is why `hingeCount`,
+`hingeFromStartMm` and `handleAlongMm` are null until asked for too.
+`copyWith(clearKind: true)` puts a leaf back to following the design, which
+is the one thing `kind: null` cannot say — the same arrangement as
+`clearParent` on a divider.
+
+**Which face the drawing is of stays the design's, and must not follow the
+opening.** You stand on one side of the wall and look at the whole assembly,
+so the side you are on is a fact about the assembly. A window light in a
+door set does not put you indoors for that one leaf, and `Design.isConcealed`
+therefore reads `kind.seenFrom` of the design — see *Which face you are
+looking at*. Making it read the opening's kind is the obvious next move and
+it is wrong.
+
+`Face` and `DesignKind` sit in `elements.dart` with the other element enums
+now that an element carries one; `design.dart` gives them again, so
+importing the design still brings them.
+
+`test/domain/each_opening_is_its_own_kind_test.dart` holds this on the
+drawing above — five lights with the 2nd, 4th and 5th marked: each opening
+unasked-for until it is said, a door leaf in a window design staying a door,
+saying one leaving every other alone, a leaf put back to following the
+design, and the answer surviving a save, a reload and a rebuild. It also
+holds that saying what an opening is moves no geometry at all.
+
 ### The opening's own boundary, and what it owns
 
 The opening is a region of the design, and the leaf filling it is a thing of

@@ -3,6 +3,33 @@ import '../geometry/segment.dart';
 import '../geometry/vec2.dart';
 import 'materials.dart';
 
+/// Which face of a design the drawing and the solid show.
+///
+/// An elevation is drawn from the side the design is met from, and that is
+/// not the same side for the two kinds. A door is drawn from **outside**,
+/// because outside is where you walk up to it. A window is drawn from
+/// **inside**, because inside is where you stand to open it. That is the
+/// trade's convention and not a preference of this application's.
+enum Face { outside, inside }
+
+/// A door or a window.
+enum DesignKind {
+  door('Door', Face.outside),
+  window('Window', Face.inside);
+
+  const DesignKind(this.label, this.seenFrom);
+  final String label;
+
+  /// The face the user draws, and the face both views show.
+  ///
+  /// The drawing is the face they drew, so the solid's near face is theirs
+  /// by construction and no view has to be turned round or mirrored. What
+  /// this decides is what is on the *other* side: the ironmongery that hangs
+  /// on the inside face is behind the leaf on a door and in front of it on a
+  /// window.
+  final Face seenFrom;
+}
+
 /// Anything in the design the user can pick, move, change or delete.
 ///
 /// Every element carries the id of the stroke it came from, when it came from
@@ -401,6 +428,21 @@ class OpeningElement extends DesignElement {
   /// means the default height.
   final double? handleAlongMm;
 
+  /// Whether this opening is a door or a window — **the user's answer, and
+  /// null until they have given one.**
+  ///
+  /// One design can hold several openings and each is its own thing: a door
+  /// leaf beside a window light beside another door leaf, in one frame. So
+  /// the kind belongs to the opening and not only to the design around it.
+  ///
+  /// Null is not a door and it is not a window. It means nobody has said,
+  /// and `Design.kindOf` then answers with the design's own kind — which is
+  /// the kind the user chose when they started the drawing, not a guess
+  /// about this leaf. Recording a default here would write down a decision
+  /// they never made, which is the same reason `hingeCount` and
+  /// `handleAlongMm` above are null until asked for.
+  final DesignKind? kind;
+
   const OpeningElement({
     required super.id,
     required this.sectionId,
@@ -413,6 +455,7 @@ class OpeningElement extends DesignElement {
     this.hingeFromStartMm,
     this.hingeFromEndMm,
     this.handleAlongMm,
+    this.kind,
     super.fromStrokeId,
   });
 
@@ -428,6 +471,9 @@ class OpeningElement extends DesignElement {
   @override
   Vec2 get anchor => markAt ?? Vec2.zero;
 
+  /// [clearKind] puts this opening back to following the design, which is
+  /// the one thing `kind: null` cannot say — the same arrangement as
+  /// `clearParent` on a divider, and for the same reason.
   OpeningElement copyWith({
     OpeningMechanism? mechanism,
     OpeningDirection? direction,
@@ -438,6 +484,8 @@ class OpeningElement extends DesignElement {
     double? hingeFromStartMm,
     double? hingeFromEndMm,
     double? handleAlongMm,
+    DesignKind? kind,
+    bool clearKind = false,
   }) =>
       OpeningElement(
         id: id,
@@ -451,6 +499,7 @@ class OpeningElement extends DesignElement {
         hingeFromStartMm: hingeFromStartMm ?? this.hingeFromStartMm,
         hingeFromEndMm: hingeFromEndMm ?? this.hingeFromEndMm,
         handleAlongMm: handleAlongMm ?? this.handleAlongMm,
+        kind: clearKind ? null : (kind ?? this.kind),
         fromStrokeId: fromStrokeId,
       );
 
@@ -469,6 +518,9 @@ class OpeningElement extends DesignElement {
         if (hingeFromStartMm != null) 'hingeFromStartMm': hingeFromStartMm,
         if (hingeFromEndMm != null) 'hingeFromEndMm': hingeFromEndMm,
         if (handleAlongMm != null) 'handleAlongMm': handleAlongMm,
+        // Written only where the user has said, so a design they have not
+        // been asked about comes back saying they have not been asked.
+        if (kind != null) 'kind': kind!.name,
       };
 
   static OpeningElement fromJson(Map<String, Object?> map) => OpeningElement(
@@ -490,6 +542,15 @@ class OpeningElement extends DesignElement {
         hingeFromStartMm: (map['hingeFromStartMm'] as num?)?.toDouble(),
         hingeFromEndMm: (map['hingeFromEndMm'] as num?)?.toDouble(),
         handleAlongMm: (map['handleAlongMm'] as num?)?.toDouble(),
+        // Absent in a design saved before openings had a kind of their own,
+        // and absent in one the user has not been asked about. Both mean
+        // the same thing, and both load as null.
+        kind: map['kind'] == null
+            ? null
+            : DesignKind.values.firstWhere(
+                (k) => k.name == map['kind'],
+                orElse: () => DesignKind.window,
+              ),
       );
 }
 
