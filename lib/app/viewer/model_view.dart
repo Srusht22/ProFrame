@@ -204,26 +204,35 @@ class _SolidBar extends StatelessWidget {
     required this.controller,
   });
 
+  /// **The bar flows onto a second line rather than running off the edge.**
+  /// Its fields and its slider are fixed widths, and a `Row` has no answer
+  /// to a view narrower than their sum but to overflow — which is what the
+  /// view did the moment the list of parts was opened beside it, and put a
+  /// striped error over the model. The note is bounded so it wraps within
+  /// its own share of a line instead of taking all of one.
   @override
   Widget build(BuildContext context) => Container(
         color: AppTheme.surface,
+        width: double.infinity,
         padding: const EdgeInsets.fromLTRB(14, 7, 10, 7),
-        child: Row(
+        child: Wrap(
+          spacing: 14,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             _SolidNumber(
               label: 'Depth',
               valueMm: design.depthMm,
               onSet: controller.setDepth,
             ),
-            const SizedBox(width: 14),
             if (design.frame case final frame?)
               _SolidNumber(
                 label: 'Profile',
                 valueMm: frame.profileMm,
                 onSet: controller.setProfile,
               ),
-            const SizedBox(width: 14),
-            Expanded(
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 260),
               child: Text(
                 'Both are the design. The drawing changes with them.',
                 maxLines: 2,
@@ -231,8 +240,7 @@ class _SolidBar extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
-            if (design.openings.isNotEmpty) ...[
-              const SizedBox(width: 16),
+            if (design.openings.isNotEmpty)
               Tooltip(
                 message: 'How far the leaves are swung. A way of looking at '
                     'the model; it changes nothing.',
@@ -258,7 +266,6 @@ class _SolidBar extends StatelessWidget {
                   ],
                 ),
               ),
-            ],
           ],
         ),
       );

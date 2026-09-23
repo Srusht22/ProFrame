@@ -758,7 +758,12 @@ class CadPainter extends CustomPainter {
 
   void _annotations(Canvas canvas) {
     for (final note in design.texts) {
-      final painter = Cad.label(note.text, colour: Color(note.colour));
+      // The same size on the sheet as the drawing gives it, so the two views
+      // agree about how big the note is and it shrinks with the zoom.
+      final size = view.letteringFor(note.sizeMm);
+      if (size < 1) continue;
+      final painter =
+          Cad.label(note.text, colour: Color(note.colour), size: size);
       final at = view.toScreen(note.at);
       canvas.drawRect(
         Rect.fromLTWH(

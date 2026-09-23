@@ -379,12 +379,16 @@ class DesignPainter extends CustomPainter {
 
   void _paintTexts(Canvas canvas) {
     for (final text in design.texts) {
+      // At the sheet's size, with no floor: see `ViewTransform.letteringFor`.
+      // Below a pixel there is nothing to read and nothing to lay out.
+      final size = view.letteringFor(text.sizeMm);
+      if (size < 1) continue;
       _label(
         canvas,
         text.text,
         view.toScreen(text.at),
         colour: Color(text.colour),
-        size: math.max(11, view.lengthToScreen(text.sizeMm) * 0.5),
+        size: size,
         emphasis: true,
       );
     }

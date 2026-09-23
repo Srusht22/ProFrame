@@ -1256,15 +1256,23 @@ class _StatusBar extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        pointer == null
-                            ? 'X —   Y —'
-                            : 'X ${Units.format(pointer!.x)}   '
-                                'Y ${Units.format(pointer!.y)} '
-                                '${Units.symbol}',
+                      // The readout gives way before anything overflows:
+                      // with the list of parts open beside a narrow window
+                      // the whole bar can be under three hundred pixels.
+                      Flexible(
+                        child: Text(
+                          pointer == null
+                              ? 'X —   Y —'
+                              : 'X ${Units.format(pointer!.x)}   '
+                                  'Y ${Units.format(pointer!.y)} '
+                                  '${Units.symbol}',
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       const SizedBox(width: 18),
-                      Text('1 : $rounded'),
+                      Text('1 : $rounded', maxLines: 1, softWrap: false),
                       if (roomy) ...[
                         const SizedBox(width: 18),
                         Flexible(

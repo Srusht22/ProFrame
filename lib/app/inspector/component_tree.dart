@@ -175,10 +175,7 @@ List<Widget> _sectionRows(
       if (design.sectionHolding(piece.parentId) == section.id)
         _Row(
           element: piece,
-          detail: piece.kind == HardwareKind.hinge
-              ? '${Units.label(section.outline.bottom - piece.at.y)} up'
-              : '${Units.label(section.outline.bottom - piece.at.y)} up · '
-                  'on the opening',
+          detail: _placeOn(piece, section, opening),
           icon: piece.kind == HardwareKind.hinge
               ? Icons.blur_linear
               : Icons.radio_button_checked,
@@ -284,4 +281,24 @@ class _GroupLabel extends StatelessWidget {
           style: Theme.of(context).textTheme.labelLarge,
         ),
       );
+}
+
+/// Where a piece of ironmongery sits on its leaf, measured the way the
+/// opening's own panel measures it.
+///
+/// Along the edge it is on: up from the bottom on a side hung leaf, and in
+/// from the left on a top or bottom hung one, whose hinges run along a rail.
+/// Measuring *up* there gave both hinges of a bottom hung sash as "0 cm up",
+/// which is true and says nothing about either of them.
+String _placeOn(
+  HardwareElement piece,
+  SectionElement section,
+  OpeningElement? opening,
+) {
+  final edge = opening?.mechanism.hingeEdge;
+  final alongARail = edge == OpeningEdge.top || edge == OpeningEdge.bottom;
+  final figure = alongARail
+      ? '${Units.label(piece.at.x - section.outline.left)} from the left'
+      : '${Units.label(section.outline.bottom - piece.at.y)} up';
+  return piece.kind == HardwareKind.hinge ? figure : '$figure · on the opening';
 }

@@ -3,7 +3,6 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../domain/model/design.dart';
 import '../../domain/model/question.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -61,10 +60,7 @@ class OpeningKindAlert extends ConsumerWidget {
               child: _Card(
                 question: question,
                 remaining: pending.length,
-                onAnswer: (key) {
-                  controller.answer(question.id, key);
-                  _saidSo(context, ref, question.id);
-                },
+                onAnswer: (key) => controller.answer(question.id, key),
                 onDismiss: () => controller.dismissQuestion(question.id),
               ),
             ),
@@ -73,42 +69,6 @@ class OpeningKindAlert extends ConsumerWidget {
       ),
     );
   }
-}
-
-/// Says back what was just answered, with the way to take it back.
-///
-/// **The moment someone is most likely to notice a slip is the moment they
-/// make it**, so the correction is offered right there rather than left for
-/// them to go and find. One tap on *Change* makes it the other kind — the
-/// same edit as the switch on the design's panel and the opening's own —
-/// and it is only ever the latest answer, so three answered in a row do not
-/// queue up three notices about leaves already dealt with.
-void _saidSo(BuildContext context, WidgetRef ref, String questionId) {
-  final openingId = questionId.substring('kind-'.length);
-  final design = ref.read(workspaceProvider).design;
-  final opening = design.openingById(openingId);
-  final kind = opening == null ? null : design.kindOf(opening);
-  if (opening == null || kind == null) return;
-
-  final other = DesignKind.leafKinds.firstWhere((k) => k != kind);
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        // By its number alone: the mark beside it in `nameOf` is right in a
-        // list and wrong in the middle of a sentence.
-        content: Text(
-          'Opening ${design.numberOf(opening)} is a '
-          '${kind.label.toLowerCase()}.',
-        ),
-        action: SnackBarAction(
-          label: 'Change to ${other.label.toLowerCase()}',
-          onPressed: () => ref
-              .read(workspaceProvider.notifier)
-              .setOpeningKind(openingId, other),
-        ),
-      ),
-    );
 }
 
 class _Card extends StatelessWidget {

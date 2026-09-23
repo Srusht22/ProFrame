@@ -388,11 +388,27 @@ abstract final class SketchInterpreter {
       }
 
       final openingId = _openingIdFor(design, symbol);
+
+      // **A reading re-reads the drawing; it does not overturn what the user
+      // said about it.** The mark says which way a leaf opens the first time
+      // it is read. After that the user may have changed it on the opening's
+      // panel — hinged the other side, made it bottom hung, made it open
+      // outward — and a mark still saying exactly what it said then is not
+      // a new instruction: it is the same mark, read again. So the answer
+      // they gave stands. Reading it back off the mark undid every such
+      // change the moment the sheet was read again, which made the Direction
+      // control look as though it had not worked.
+      //
+      // A mark rubbed out and drawn afresh is a new stroke, and a new
+      // stroke is a new opening, so what it says is the instruction again.
+      final before = design.openingById(openingId);
+      final sameMark = before != null && before.markGlyph == symbol.glyph;
       read = DesignEdits.setOpening(
         choosing,
         section.id,
         openingId: openingId,
-        mechanism: symbol.mechanism,
+        mechanism: sameMark ? before.mechanism : symbol.mechanism,
+        direction: sameMark ? before.direction : OpeningDirection.inward,
         markAt: symbol.centre,
         markGlyph: symbol.glyph,
         fromStrokeId: symbol.strokeId,

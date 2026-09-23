@@ -776,6 +776,42 @@ because a still hand trembles by pixels whatever the zoom.
 `test/app/pause_and_take_it_back_test.dart` holds the gesture on the real
 app.
 
+### A note is written on the sheet
+
+A note is part of the drawing, so it is the drawing's size: zoomed out, it
+shrinks with everything else and stays at the point it was put.
+It used to have a floor of eleven pixels in the drawing and a fixed size in
+the technical drawing, so a design zoomed down to a postage stamp had its
+note sprawling over it. `ViewTransform.letteringFor` is the one rule both
+painters read, with no floor — far enough out, a note is too small to read,
+as every other line on the sheet is.
+`test/app/a_note_is_written_on_the_sheet_test.dart` holds it on the pixels
+of both views.
+
+### Nothing overflows
+
+A render error laid over the design is the worst thing the screen can show,
+and the 3D view's bar of depth, profile and **Open** used to be a `Row`
+that overflowed by 121 pixels once the list of parts narrowed it. It wraps
+now, as the CAD status bar does. `test/app/nothing_overflows_test.dart`
+opens every view at laptop widths with the parts list open and an opening
+picked, and fails on any overflow at all.
+
+Answering what an opening is leaves nothing at the bottom of the screen:
+the answer is visible on the drawing and under **Opening types** in the
+design's own panel, which is where it is changed. The notice that repeated
+it was noise and is not to come back.
+
+### The start screen
+
+Each of the three cards — door, window, door & window — is drawn by a pen
+as it arrives: the outline, the bars, then the mark in gold. It is painted
+from lines, like everything else, never a picture. Every movement finishes:
+the cards arrive once, in turn, and a card draws itself again only when the
+pointer comes onto it. Nothing loops, so the screen is still while it is
+read, `pumpAndSettle` settles, and a device asking for less motion sees it
+already drawn.
+
 ### Reading a mark drawn by a hand
 
 A `<`, `>`, `^` or `v` is the only thing that creates an opening, so failing
@@ -1029,6 +1065,17 @@ Rubbing the stroke out still takes the bar with it.
 `test/domain/the_sheet_keeps_what_the_user_said_test.dart` holds both
 directions.
 
+**The same goes for how a leaf opens.** A `>` says *hinged left, inward* the
+first time it is read, and the user may then make that leaf hinge right,
+open outward, hang from the top or carry a knob. Those were read back off
+the mark on every reading, so **Read again** put every one of them back to
+what the mark first said. A mark still saying what it said is the same mark
+read again, not a new instruction, so `_placeSymbols` keeps the opening's
+mechanism and direction while its glyph is unchanged, and `setOpening`
+carries the handle form with the kind and the figures. A mark rubbed out
+and drawn afresh is a new instruction and is read as one.
+`test/domain/the_direction_you_chose_stays_test.dart` holds both.
+
 A line becomes an opening's only when the user says so — with the line tools
 inside an opening, by drawing it inside an opening that is already there, or
 with the **Divides** control on the bar's own panel.
@@ -1213,13 +1260,17 @@ reading order, each naming the opening it is about, with how many are left
 to say — three marks must not read as one question coming back three times.
 
 **An answer given in a hurry is as easy to take back as it was to give.**
-The notice that confirms each answer carries *Change to door* or *Change to
-window*, because the moment someone is likeliest to notice a slip is the
-moment they make it; and the design's own panel — the one showing whenever
-nothing is picked, in the drawing and the model alike — lists every opening
-with its own Door | Window switch under **Opening types**. Both call the
-same `setOpeningKind` as the opening's own panel, so there is one way to say
-what a leaf is and three places to reach it, and nothing is asked again.
+The design's own panel — the one showing whenever nothing is picked, in the
+drawing and the model alike — lists every opening with its own Door | Window
+switch under **Opening types**. It calls the same `setOpeningKind` as the
+opening's own panel, so there is one way to say what a leaf is and two
+places to reach it, and nothing is asked again.
+
+There was a notice across the bottom of the work confirming each answer,
+with *Change to …* on it. The user asked for it to go: it sat over the
+drawing after the question had already been answered, and the switch on the
+panel already says the same thing where the opening is shown. It is not to
+come back.
 
 **It is an alert and not a gate.** *Not now* puts it away, the leaf keeps
 no kind, and the design is exactly as the mark made it — which is what

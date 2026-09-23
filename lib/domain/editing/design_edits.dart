@@ -851,6 +851,9 @@ abstract final class DesignEdits {
         hingeFromStartMm: said?.hingeFromStartMm,
         hingeFromEndMm: said?.hingeFromEndMm,
         handleAlongMm: said?.handleAlongMm,
+        // The form of the handle is the user's too, and the sheet never says
+        // it: a knob chosen for a leaf is a knob after the next reading.
+        handleKind: said?.handleKind,
       ),
     ]));
   }

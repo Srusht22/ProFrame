@@ -66,6 +66,22 @@ class ViewTransform {
   /// A length in millimetres, in pixels.
   double lengthToScreen(double mm) => mm * scale;
 
+  /// How big, on the screen, the lettering of a note [sizeMm] big on the
+  /// sheet is drawn — in the drawing and in the technical drawing alike.
+  ///
+  /// **A note is written on the sheet, so it is the sheet's size and not the
+  /// screen's.** It sits at the point it was put, and zooming out makes it
+  /// smaller with everything around it, exactly as writing on paper does.
+  /// The drawing used to hold it at eleven pixels at least and the technical
+  /// drawing at one size whatever the zoom, so zooming out left a note the
+  /// size of the whole window sprawling over a drawing shrunk to a postage
+  /// stamp.
+  ///
+  /// The lettering is half the note's `sizeMm`, which is how every note
+  /// already saved has always looked at the zoom it was placed at; changing
+  /// that would double every note in every design on disk.
+  double letteringFor(double sizeMm) => lengthToScreen(sizeMm) * 0.5;
+
   /// A length in pixels, in millimetres. Used for tap tolerances, so that
   /// how near the user has to tap is the same on screen whatever the zoom.
   double lengthToSheet(double pixels) => pixels / scale;

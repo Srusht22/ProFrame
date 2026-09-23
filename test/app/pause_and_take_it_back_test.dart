@@ -17,8 +17,8 @@ import 'package:proframe/domain/sketch/stroke.dart';
 // moving, or lift sooner, and the ink is exactly what the hand put down.
 //
 // **Take it back.** An answer to "Door or Window?" given in a hurry is as
-// easy to change as it was to give: a *Change* on the notice that confirms
-// it, and a switch for every opening on the design's own panel.
+// easy to change as it was to give: a switch for every opening on the
+// design's own panel, always one tap away.
 
 Future<ProviderContainer> openTheApp(WidgetTester tester, String card) async {
   await tester.binding.setSurfaceSize(const Size(1280, 820));
@@ -181,22 +181,22 @@ void main() {
   });
 
   group('take it back', () {
-    testWidgets('the notice that confirms an answer offers to change it', (
+    testWidgets('answering leaves nothing at the bottom of the screen', (
       tester,
     ) async {
+      // The answer is shown where the opening is shown — on the design's
+      // panel, with its switch — and not in a notice across the bottom of
+      // the work, which the user asked to be rid of.
       final c = await openTheApp(tester, 'DOOR & WINDOW');
       await twoLeaves(c);
       await tester.pumpAndSettle();
 
       await tester.tap(find.widgetWithText(FilledButton, 'Window'));
       await tester.pumpAndSettle();
-      expect(find.text('Opening 1 is a window.'), findsOneWidget);
 
-      await tester.tap(find.text('Change to door'));
-      await tester.pumpAndSettle();
-
+      expect(find.byType(SnackBar), findsNothing);
       final design = c.read(workspaceProvider).design;
-      expect(design.kindOf(design.openingsInOrder.first), DesignKind.door);
+      expect(design.kindOf(design.openingsInOrder.first), DesignKind.window);
     });
 
     testWidgets('every opening has its own switch on the design panel', (
