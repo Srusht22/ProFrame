@@ -15,10 +15,34 @@ enum Face { outside, inside }
 /// A door or a window.
 enum DesignKind {
   door('Door', Face.outside),
-  window('Window', Face.inside);
+  window('Window', Face.inside),
+  both('Door & window', Face.outside);
 
   const DesignKind(this.label, this.seenFrom);
   final String label;
+
+  /// What a single leaf can be.
+  ///
+  /// [both] is a fact about the *assembly* — that it holds leaves of each
+  /// kind — and never about one leaf, which is a door or a window and not
+  /// the two at once. So this is what the question about an opening offers
+  /// and what its panel lets the user choose between; the start screen
+  /// offers all three, because that one is about the assembly.
+  static const List<DesignKind> leafKinds = [door, window];
+
+  /// The kind a leaf follows while nobody has said what it is, or null when
+  /// the design does not say either.
+  ///
+  /// **[both] is the kind that has no default, and that is the whole of what
+  /// it means.** A door design says its leaves are doors until the user says
+  /// otherwise, and a window design the same; an assembly the user has told
+  /// us holds both says nothing about any particular leaf, so nothing is
+  /// assumed for one. The leaf still opens — the mark said so, and it hangs
+  /// on its hinges — but it carries no handle until the question is
+  /// answered, because which handle is exactly what has not been said.
+  /// Picking one would be the application deciding what a leaf is, which is
+  /// the thing this whole arrangement exists to avoid.
+  DesignKind? get leafDefault => this == both ? null : this;
 
   /// The face the user draws, and the face both views show.
   ///

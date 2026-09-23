@@ -164,7 +164,9 @@ void main() {
     });
 
     test('the handle stands on the near face for both kinds', () {
-      for (final kind in DesignKind.values) {
+      // The leaf kinds. A door-and-window assembly says nothing about one
+      // leaf, so a leaf in one carries no handle to ask this of.
+      for (final kind in DesignKind.leafKinds) {
         final design = leaf(kind);
         final handle = design.hardware
             .firstWhere((piece) => piece.kind.isHandle);
@@ -176,8 +178,8 @@ void main() {
 
     test('no geometry of the design depends on the kind', () {
       // The ironmongery is what the kind decides — which side of the leaf
-      // the hinges are on, and how high the handle goes, since a door's
-      // lever and a window's fastener are not at the same height. The
+      // the hinges are on, and which pieces are there at all. Not where
+      // they go: the handle is at the middle of its edge on every leaf. The
       // design itself is not the kind's business: the frame, the bars, the
       // sections and their panes are the same either way, facet for facet.
       String fingerprint(Design design) {
@@ -193,33 +195,44 @@ void main() {
           fingerprint(leaf(DesignKind.window)));
     });
 
-    test('a door’s lever is higher up the leaf than a window’s fastener', () {
-      // The one thing about the handle this phase decides: where it goes.
-      // Not what it looks like — that is still one shape for both.
+    test('the handle is at the middle of the leaf, whatever the kind', () {
+      // **Where the handle goes stopped being the kind's business.** It
+      // used to be a metre up on a door and mid-stile on a window, so
+      // answering *door* about a sash slid its fastener up a leaf whose
+      // geometry had not moved at all. The middle is derived from the leaf,
+      // and the same leaf answered either way puts it in the same place.
       double handleUp(DesignKind kind) {
         final design = leaf(kind);
-        final handle = design.hardware
-            .firstWhere((piece) => piece.kind.isHandle);
-        final section = design.sectionById(
-            design.sectionHolding(handle.parentId)!)!;
+        final handle =
+            design.hardware.firstWhere((piece) => piece.kind.isHandle);
+        final section =
+            design.sectionById(design.sectionHolding(handle.parentId)!)!;
         return section.outline.bottom - handle.at.y;
       }
 
       final door = handleUp(DesignKind.door);
       final window = handleUp(DesignKind.window);
-      expect(door, greaterThan(window));
-      expect(door, closeTo(1000, 1), reason: 'a metre up, where a hand falls');
-      expect(window,
-          closeTo(leaf(DesignKind.window)
-                  .sectionById(leaf(DesignKind.window)
-                      .openings
-                      .single
-                      .sectionId)!
-                  .outline
-                  .height /
-              2,
-              1),
-          reason: 'the middle of the stile, where a fastener goes');
+      expect(door, closeTo(window, 0.01),
+          reason: 'the kind does not move the handle');
+
+      final sash = leaf(DesignKind.window);
+      final height = sash
+          .sectionById(sash.openings.single.sectionId)!
+          .outline
+          .height;
+      expect(door, closeTo(height / 2, 0.5), reason: 'the middle of the leaf');
+    });
+
+    test('what the kind does decide is which pieces are there', () {
+      Set<HardwareKind> piecesOn(DesignKind kind) =>
+          {for (final piece in leaf(kind).hardware) piece.kind};
+
+      // A door locks and is worked by a lever; a window fastens and is
+      // worked by an espagnolette. That is the whole of the difference.
+      expect(piecesOn(DesignKind.door),
+          {HardwareKind.hinge, HardwareKind.lever, HardwareKind.lock});
+      expect(piecesOn(DesignKind.window),
+          {HardwareKind.hinge, HardwareKind.handle});
     });
   });
 }

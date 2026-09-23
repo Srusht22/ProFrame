@@ -221,14 +221,23 @@ class Design {
   }
 
   /// What [opening] is: the user's own answer, or this design's kind where
-  /// they have not given one.
+  /// they have not given one — and null where neither says.
   ///
   /// **The fallback is not a guess.** The design's kind is the one the user
   /// chose when they started the drawing, so an opening that follows it is
   /// following something they said, not something worked out for them. The
   /// moment they say otherwise for one leaf, that leaf stops following and
   /// every other opening is untouched.
-  DesignKind kindOf(OpeningElement opening) => opening.kind ?? kind;
+  ///
+  /// **Null is a real answer and it means nobody has said.** A design begun
+  /// as a door and window set says its assembly holds both kinds, which is
+  /// not a statement about any one leaf, so `DesignKind.leafDefault` gives
+  /// nothing to follow and this is null until the user says. What is built
+  /// for such a leaf is what follows from the mark alone — it opens, so it
+  /// hangs on hinges — and no handle, because which handle is precisely the
+  /// question outstanding.
+  DesignKind? kindOf(OpeningElement opening) =>
+      opening.kind ?? kind.leafDefault;
 
   /// True when [piece] is on the face this design is **not** seen from, so
   /// it is behind the leaf in the solid and hidden detail in the drawing.

@@ -305,28 +305,30 @@ void main() {
       expect(handleX(right), closeTo(section.outline.left, 0.5));
     });
 
-    test('the handle goes where a hand falls, and stays on the leaf', () {
+    test('the handle goes at the middle of the leaf, at any size', () {
+      // The middle of the stile, worked out from the leaf — so it is right
+      // on a leaf of any height rather than right on one and wrong on the
+      // rest, which is what a fixed metre was.
       var tall = opened(twoUp(), OpeningMechanism.hingedLeft);
       tall = DesignEdits.resizeFrame(tall, heightMm: 2200);
       final leaf = tall.sectionById(tall.openings.single.sectionId)!;
-      final handle =
-          tall.hardware.firstWhere((p) => p.kind.isHandle);
+      final handle = tall.hardware.firstWhere((p) => p.kind.isHandle);
 
-      // A metre up on a leaf with room for it.
       expect(leaf.heightMm, greaterThan(1150));
-      expect(handle.at.y, closeTo(leaf.outline.bottom - 1000, 0.5));
+      expect(handle.at.y, closeTo(leaf.outline.centroid.y, 0.5));
 
-      // On a short sash, the middle of the stile instead of jammed into the
-      // top corner.
+      // And on a short sash, the middle of that — not jammed into the top
+      // corner, and not a figure carried over from the tall one.
       final short = DesignEdits.setSectionHeight(
         tall,
         tall.openings.single.sectionId,
         900,
       );
       final small = short.sectionById(short.openings.single.sectionId)!;
-      final low =
-          short.hardware.firstWhere((p) => p.kind.isHandle);
+      final low = short.hardware.firstWhere((p) => p.kind.isHandle);
       expect(low.at.y, closeTo(small.outline.centroid.y, 1));
+      expect(low.at.y, isNot(closeTo(handle.at.y, 1)),
+          reason: 'it followed the leaf rather than staying put');
     });
 
     test('the handle stays on the leaf when the leaf is resized', () {

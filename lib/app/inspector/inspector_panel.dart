@@ -704,11 +704,17 @@ class _OpeningFields extends StatelessWidget {
         const _Label('Opening type'),
         const SizedBox(height: 7),
         SegmentedButton<DesignKind>(
+          // A leaf is a door or a window. `both` is what an assembly can be,
+          // never what one leaf is, so it is not on offer here.
           segments: [
-            for (final kind in DesignKind.values)
+            for (final kind in DesignKind.leafKinds)
               ButtonSegment(value: kind, label: Text(kind.label)),
           ],
-          selected: {state.design.kindOf(opening)},
+          // Empty where neither the leaf nor the design says, because
+          // showing one of them selected would be the panel answering the
+          // question on the user's behalf.
+          selected: {?state.design.kindOf(opening)},
+          emptySelectionAllowed: true,
           showSelectedIcon: false,
           onSelectionChanged: (values) =>
               controller.setOpeningKind(opening.id, values.first),
@@ -716,8 +722,14 @@ class _OpeningFields extends StatelessWidget {
         if (opening.kind == null) ...[
           const SizedBox(height: 7),
           Text(
-            'Nobody has said yet, so this leaf follows the design — a '
-            '${state.design.kind.label.toLowerCase()}. Choose to say.',
+            state.design.kind.leafDefault == null
+                ? 'Nobody has said what this leaf is. This design holds '
+                    'doors and windows, so it does not say either — until '
+                    'you choose, it hangs on its hinges and carries no '
+                    'handle.'
+                : 'Nobody has said yet, so this leaf follows the design — a '
+                    '${state.design.kind.label.toLowerCase()}. Choose to '
+                    'say.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

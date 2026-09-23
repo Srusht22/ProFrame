@@ -439,7 +439,7 @@ void main() {
   group('and the whole of it survives', () {
     String everything(Design design) => [
           for (final opening in design.openingsInOrder)
-            '${design.kindOf(opening).name}'
+            '${design.kindOf(opening)?.name}'
                 ':${design.childDividersOf(opening.sectionId).length}'
                 ':${design.childSectionsOf(opening.sectionId).length}'
                 ':${hardwareOf(design, opening.id).length}',

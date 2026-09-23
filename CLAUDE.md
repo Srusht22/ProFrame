@@ -302,6 +302,15 @@ stands whether the question is answered or waved away. It has an editing
 control beside it, as rule 17 requires — the same control answers it later
 and changes it afterwards.
 
+It is also the only one raised as an **alert over the work**, with the
+drawing behind it blurred back — `OpeningKindAlert`, and see *One design,
+many openings, each its own kind*. The other two stay in the panel below
+the drawing, because they are about the sheet; this one is about a leaf the
+application has just built and decides what is built on it. Being an alert
+does not make it a gate: *Not now* puts it away and nothing was waiting on
+it. In a design begun as holding both kinds it is the only way a leaf gets
+a handle at all, which is why it is worth interrupting for.
+
 A mark that merely strays near a bar or a jamb is *not* one of these. It
 opens the face its middle is in, and where its middle lands on a bar, the
 face holding most of the rest of it — its point and its two ends. That is
@@ -1070,6 +1079,62 @@ record a decision they never made, which is why `hingeCount`,
 is the one thing `kind: null` cannot say — the same arrangement as
 `clearParent` on a divider.
 
+**And a design can be started as holding both, which is the kind with no
+default at all.** `DesignKind.both` is a third thing to begin from beside a
+door and a window, for the set that has leaves of each:
+
+```
+┌──────────┬──────────┬──────────┐
+│  FIXED   │    >     │    >     │
+└──────────┴──────────┴──────────┘
+             a door    a window
+```
+
+It is a fact about the **assembly** and never about one leaf, so it is not
+among the answers to *what is this opening*: `DesignKind.leafKinds` is what
+the question offers and what the opening's own panel offers, and
+`setOpeningKind` refuses anything else, so `both` cannot be written onto a
+leaf by any route. `DesignKind.leafDefault` is the other half — itself for
+a door or a window design, and **null for this one**, because an assembly
+the user says holds both says nothing about any particular leaf. So
+`Design.kindOf` is nullable, and null is a real answer meaning nobody has
+said.
+
+**What is built for such a leaf is what the mark alone says.** It opens, so
+it hangs on its hinges. It carries **no handle**, because which handle is
+precisely the question outstanding, and a door's lever and a window's
+espagnolette are different manufactured objects. Putting one of them on so
+that something is there would be the application answering its own
+question, and the user would find a decision they never made already built
+— the exact failure *do not design the door for the user* names. The handle
+appears the moment they say, by the alert or by the opening's own panel.
+
+A door design and a window design are untouched by any of this: their
+leaves follow the design as they always did, because `leafDefault` gives
+them something the user did choose.
+
+`test/app/a_design_of_both_kinds_test.dart` holds it: the third category on
+the start screen, a door and a window in one frame, a leaf nobody has named
+carrying hinges and no handle, the handle appearing when they say, the two
+older kinds still following their design, the reading of the sheet
+unchanged by any of it, and a save and a reload.
+
+**The question is put as an alert over the work, with the work blurred
+back.** `OpeningKindAlert` is a layer of the workspace rather than a pushed
+route, so the design underneath goes on being the design: it is blurred,
+not replaced, and nothing about it is waiting. One leaf at a time, in
+reading order, each naming the opening it is about, with how many are left
+to say — three marks must not read as one question coming back three times.
+
+**It is an alert and not a gate.** *Not now* puts it away, the leaf keeps
+no kind, and the design is exactly as the mark made it — which is what
+keeps this on the right side of rule 17: the opening is built first and
+stands whether the question is answered or waved away, and the same control
+on the opening's own panel says it later. `WorkspaceState` splits the two
+streams for this — `openingKindQuestions` is raised as the alert and
+`sheetQuestions` stays in the panel below the drawing, because everything
+the reading could not settle is about the sheet rather than about one leaf.
+
 **Which face the drawing is of stays the design's, and must not follow the
 opening.** You stand on one side of the wall and look at the whole assembly,
 so the side you are on is a fact about the assembly. A window light in a
@@ -1655,19 +1720,36 @@ The component tree is where this is visible: the opening's branch holds its
 hinges and its handle, and a section nobody marked holds neither, however
 door-shaped it is.
 
-**A door's lever and a window's fastener are not at the same height.** A
-window's fastener is at the middle of the stile, where a hand reaches it
-across a sill; a door's lever is a metre up, where a hand falls walking up
-to it. `defaultHeightIn` took the leaf's height and decided for itself — a
-metre up unless the leaf was too short to leave any stile above the lever —
-which is the application reading what a leaf *is* off its proportions. A
-tall window sash got a door's lever and a short door got a window's
-fastener, and neither was anybody's decision. It now takes `Design.kindOf`,
-which is the user's answer. The height still has the last word for a door,
-because a lever cannot go above the leaf it is on.
+**The handle goes at the middle of the edge it is on, on every leaf.**
+Which edge that is comes from how the leaf is hung; how far along it is the
+middle, and the user's own figure on the opening's panel overrides it
+wherever they want it. `handleAt` therefore takes no kind at all, and the
+top and bottom hung cases, which always used the middle, are no longer a
+separate rule from the side hung one.
 
-Nothing else about the ironmongery follows the kind yet: it is one shape for
-both, in one size, and where it goes is the whole of what this decides.
+It went through two wrong shapes first, and they failed in opposite
+directions. It was read off the leaf's height alone — a metre up unless the
+leaf was too short to leave any stile above the lever — which is the
+application reading what a leaf *is* off its proportions: a tall window sash
+got a door's lever and a short door got a window's fastener. Then it was
+read off `Design.kindOf`, which is at least the user's answer, but it made
+the handle **jump on a leaf whose geometry had not moved at all**: saying
+*door* about a sash slid its fastener up the stile, which is what *do not
+fix geometry with random offsets* forbids seen from the other side — a
+metre is a figure with nothing in the drawing behind it, right on a leaf of
+one height and wrong on every other.
+
+The middle is derived from the leaf, as every other position in this
+repository is. The trade-off is stated plainly rather than hidden: on a very
+tall door the middle is higher than a joiner would set a lever, and the
+answer to that is the `Handle height` figure on the opening's own panel,
+which is an editing control and not a question — rule 17. It is labelled
+*Height from the bottom* on a side hung leaf and *From the left* on a top
+or bottom hung one, because that is what it measures.
+
+So nothing about **where** the ironmongery goes follows the kind any more.
+What the kind still decides is what is *there*: a lever and an escutcheon
+on a door, an espagnolette and no lock on a window.
 
 ### Ironmongery is built as ironmongery
 

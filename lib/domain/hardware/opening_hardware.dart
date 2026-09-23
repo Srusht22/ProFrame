@@ -27,15 +27,6 @@ abstract final class OpeningHardware {
   /// until the user says otherwise.
   static const double defaultEndInsetMm = 200;
 
-  /// How high the handle sits above the bottom of a side-hung leaf, until
-  /// the user says otherwise. A metre is where a hand falls on a door.
-  static const double defaultHandleHeightMm = 1000;
-
-  /// How much stile must be left above the handle for a metre to be the
-  /// sensible height. A sash shorter than this has its fastener in the
-  /// middle of the stile instead, which is where a window's is.
-  static const double handleHeadroomMm = 150;
-
   /// How far the keyhole sits below the lever, until the user says.
   ///
   /// A mortice lock's keyway is below its follower by the lock's own case,
@@ -122,22 +113,36 @@ abstract final class OpeningHardware {
     }
 
     final kind = design.kindOf(opening);
-    final handleAtPoint = handleAt(kind, opening, outline.left, outline.right,
+    final handleAtPoint = handleAt(opening, outline.left, outline.right,
         outline.top, outline.bottom, edge);
-    pieces.add(HardwareElement(
-      id: '${opening.id}-handle',
-      // What form the handle takes is the user's, and a lever is what a
-      // door has until they say otherwise. A window's fastener keeps the
-      // plain form it had.
-      kind: opening.handleKind ??
-          (kind == DesignKind.door
-              ? HardwareKind.lever
-              : HardwareKind.handle),
-      parentId: opening.id,
-      at: handleAtPoint,
-      rotation: sideHung ? 90 : 0,
-      finish: _finishOf(design, '${opening.id}-handle'),
-    ));
+
+    // **A leaf nobody has named yet carries no handle**, and that is not an
+    // omission. The mark says this section opens, so it hangs on the hinges
+    // above whatever else is true of it; which handle it is worked by is the
+    // question still outstanding, and a door's lever and a window's fastener
+    // are different manufactured objects. Putting one of them on to have
+    // something there would be the application answering its own question,
+    // and the user would find a decision they never made already built. It
+    // appears the moment they say, which in a door-and-window design is the
+    // moment they answer the dialog the opening raised.
+    final form = opening.handleKind ??
+        switch (kind) {
+          // A lever is what a door has until they say otherwise, and a
+          // window's fastener keeps the plain form it had.
+          DesignKind.door => HardwareKind.lever,
+          DesignKind.window => HardwareKind.handle,
+          DesignKind.both || null => null,
+        };
+    if (form != null) {
+      pieces.add(HardwareElement(
+        id: '${opening.id}-handle',
+        kind: form,
+        parentId: opening.id,
+        at: handleAtPoint,
+        rotation: sideHung ? 90 : 0,
+        finish: _finishOf(design, '${opening.id}-handle'),
+      ));
+    }
 
     // **A door locks; a window fastens.** So a door carries an escutcheon
     // under its lever and a window carries none — which is the user's
@@ -195,13 +200,22 @@ abstract final class OpeningHardware {
     return (2 + (alongMm / hingePerMm).floor()).clamp(2, 4);
   }
 
-  /// Where the handle sits, given what the opening is and the leaf's extent.
+  /// Where the handle sits on a leaf of this extent, hung on [edge].
   ///
-  /// [kind] is the user's answer for this leaf — `Design.kindOf` — because a
-  /// door's lever and a window's fastener do not go in the same place, and
-  /// which of the two this is is not something the drawing says.
+  /// **The middle of the edge it is on, on every leaf.** A handle is worked
+  /// from the opening edge, so which edge that is comes from how the leaf is
+  /// hung; how far along it is the middle of that edge, and the user's own
+  /// figure overrides it wherever they want it.
+  ///
+  /// It used to depend on what the leaf was: a window's fastener at the
+  /// middle of the stile and a door's lever a fixed metre up. Two rules meant
+  /// the handle jumped when the answer to *door or window* changed, on a leaf
+  /// whose geometry had not moved at all, and the fixed metre was a figure
+  /// with nothing in the drawing behind it — right on a leaf of one height
+  /// and wrong on every other. The middle is derived from the leaf, as every
+  /// other position in this repository is, and it is the same rule the top
+  /// and bottom hung cases already used.
   static Vec2 handleAt(
-    DesignKind kind,
     OpeningElement opening,
     double left,
     double right,
@@ -213,7 +227,7 @@ abstract final class OpeningHardware {
     if (sideHung) {
       // On the stile opposite the hinges, at a height up from the sill.
       final height = bottom - top;
-      final up = (opening.handleAlongMm ?? defaultHeightIn(height, kind))
+      final up = (opening.handleAlongMm ?? height / 2)
           .clamp(0.0, math.max(0.0, height));
       final x = edge == OpeningEdge.left ? right : left;
       return Vec2(x, bottom - up);
@@ -226,27 +240,6 @@ abstract final class OpeningHardware {
     return Vec2(left + across, y);
   }
 
-  /// How high the handle goes on a side-hung leaf [heightMm] tall, when the
-  /// user has not said where they want it.
-  ///
-  /// **What the leaf is decides this, not how tall it happens to be.** A
-  /// window's fastener is at the middle of the stile, where a hand reaches
-  /// it across a sill. A door's lever is a metre up, which is where a hand
-  /// falls walking up to it.
-  ///
-  /// It used to be read off the height alone — a metre up unless the leaf
-  /// was too short for that to leave any stile above the lever — which is
-  /// the application deciding what a leaf is from its proportions. A tall
-  /// window sash got a door's lever and a short door got a window's
-  /// fastener, and neither was anybody's decision. The height still has the
-  /// last word for a door, because a lever cannot go above the leaf it is
-  /// on, and then the middle is the only place left.
-  static double defaultHeightIn(double heightMm, DesignKind kind) {
-    if (kind == DesignKind.window) return heightMm / 2;
-    return heightMm - defaultHandleHeightMm >= handleHeadroomMm
-        ? defaultHandleHeightMm
-        : heightMm / 2;
-  }
 
   /// Where each hinge sits along the hinged edge, measured from its start.
   ///

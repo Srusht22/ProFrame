@@ -52,30 +52,54 @@ class WorkspaceState {
   /// switching between the drawing and the model, not a line drawn inside
   /// it, and not opening the design again tomorrow.
   List<DesignQuestion> get allQuestions => [
-        ...questions,
-        for (final opening in design.openingsInOrder)
-          if (opening.kind == null &&
-              !settledQuestions.contains(openingKindQuestion(opening.id)))
-            DesignQuestion(
-              id: openingKindQuestion(opening.id),
-              prompt: 'What is ${design.nameOf(opening)}?',
-              detail: 'A mark says this section opens. It does not say '
-                  'whether it is a door or a window, and the two are not '
-                  'made the same. This is about this one opening; every '
-                  'other section is untouched.',
-              aboutIds: [opening.id, opening.sectionId],
-              options: [
-                for (final kind in DesignKind.values)
-                  QuestionOption(
-                    key: kind.name,
-                    label: kind.label,
-                    detail: kind == DesignKind.door
-                        ? 'A leaf you walk through.'
-                        : 'A leaf you open from indoors.',
-                  ),
-              ],
-            ),
-      ];
+    ...questions,
+    for (final opening in design.openingsInOrder)
+      if (opening.kind == null &&
+          !settledQuestions.contains(openingKindQuestion(opening.id)))
+        DesignQuestion(
+          id: openingKindQuestion(opening.id),
+          prompt: 'What is ${design.nameOf(opening)}?',
+          detail:
+              'A mark says this section opens. It does not say '
+              'whether it is a door or a window, and the two are not '
+              'made the same. This is about this one opening; every '
+              'other section is untouched.',
+          aboutIds: [opening.id, opening.sectionId],
+          // A leaf is one or the other. `both` is what the assembly
+          // can be and never what a single leaf is, so it is not among
+          // the answers to this question.
+          options: [
+            for (final kind in DesignKind.leafKinds)
+              QuestionOption(
+                key: kind.name,
+                label: kind.label,
+                detail: kind == DesignKind.door
+                    ? 'A leaf you walk through.'
+                    : 'A leaf you open from indoors.',
+              ),
+          ],
+        ),
+  ];
+
+  /// The outstanding "what is this opening" questions, in drawing order.
+  ///
+  /// These are put as an alert over the whole workspace rather than in the
+  /// panel below it, because a new leaf's kind is the one question the user
+  /// is expected to answer there and then — it is about something the
+  /// application has just built for them, and it changes what is built on it.
+  /// The design stands either way: **Not now** leaves the leaf following the
+  /// design and the opening exactly as the mark made it.
+  List<DesignQuestion> get openingKindQuestions => [
+    for (final q in allQuestions)
+      if (q.id.startsWith('kind-')) q,
+  ];
+
+  /// The questions the panel under the drawing shows: everything the reading
+  /// could not settle, which is about the sheet rather than about one leaf.
+  List<DesignQuestion> get sheetQuestions => [
+    for (final q in allQuestions)
+      if (!q.id.startsWith('kind-')) q,
+  ];
 
   /// The id of the question that asks what one opening is.
   static String openingKindQuestion(String openingId) => 'kind-$openingId';
@@ -144,24 +168,23 @@ class WorkspaceState {
     bool? groundPlane,
     Set<String>? notSymbols,
     Set<String>? settledQuestions,
-  }) =>
-      WorkspaceState(
-        design: design ?? this.design,
-        tool: tool ?? this.tool,
-        view: view ?? this.view,
-        selectedId: clearSelection ? null : (selectedId ?? this.selectedId),
-        questions: questions ?? this.questions,
-        needsReading: needsReading ?? this.needsReading,
-        showSketch: showSketch ?? this.showSketch,
-        camera: camera ?? this.camera,
-        openFraction: openFraction ?? this.openFraction,
-        penColour: penColour ?? this.penColour,
-        layers: layers ?? this.layers,
-        displayStyle: displayStyle ?? this.displayStyle,
-        groundPlane: groundPlane ?? this.groundPlane,
-        notSymbols: notSymbols ?? this.notSymbols,
-        settledQuestions: settledQuestions ?? this.settledQuestions,
-      );
+  }) => WorkspaceState(
+    design: design ?? this.design,
+    tool: tool ?? this.tool,
+    view: view ?? this.view,
+    selectedId: clearSelection ? null : (selectedId ?? this.selectedId),
+    questions: questions ?? this.questions,
+    needsReading: needsReading ?? this.needsReading,
+    showSketch: showSketch ?? this.showSketch,
+    camera: camera ?? this.camera,
+    openFraction: openFraction ?? this.openFraction,
+    penColour: penColour ?? this.penColour,
+    layers: layers ?? this.layers,
+    displayStyle: displayStyle ?? this.displayStyle,
+    groundPlane: groundPlane ?? this.groundPlane,
+    notSymbols: notSymbols ?? this.notSymbols,
+    settledQuestions: settledQuestions ?? this.settledQuestions,
+  );
 }
 
 /// The workspace: the design, what is being done to it, and the way back.
@@ -177,8 +200,8 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
   @override
   WorkspaceState build() => WorkspaceState(
-        design: Design.empty(id: _newId('design'), kind: DesignKind.window),
-      );
+    design: Design.empty(id: _newId('design'), kind: DesignKind.window),
+  );
 
   String _newId(String prefix) =>
       '$prefix-${DateTime.now().microsecondsSinceEpoch}-${_ids++}';
@@ -233,48 +256,42 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
   // ------------------------------------------------------------------ tools
 
-  void useTool(Tool tool) => state = state.copyWith(
-        tool: tool,
-        clearSelection: tool != Tool.select,
-      );
+  void useTool(Tool tool) =>
+      state = state.copyWith(tool: tool, clearSelection: tool != Tool.select);
 
   void showView(WorkspaceView view) => state = state.copyWith(view: view);
 
-  void toggleSketch() =>
-      state = state.copyWith(showSketch: !state.showSketch);
+  void toggleSketch() => state = state.copyWith(showSketch: !state.showSketch);
 
   void setPenColour(int colour) => state = state.copyWith(penColour: colour);
 
   void setLayers(CadLayers layers) => state = state.copyWith(layers: layers);
 
   /// Swings the view round the model.
-  void orbit(double byYaw, double byPitch) => state = state.copyWith(
-        camera: state.camera.orbited(byYaw, byPitch),
-      );
+  void orbit(double byYaw, double byPitch) =>
+      state = state.copyWith(camera: state.camera.orbited(byYaw, byPitch));
 
   /// Slides the view across the model, in millimetres of model.
-  void panCamera(double acrossMm, double downMm) => state = state.copyWith(
-        camera: state.camera.pannedBy(acrossMm, downMm),
-      );
+  void panCamera(double acrossMm, double downMm) =>
+      state = state.copyWith(camera: state.camera.pannedBy(acrossMm, downMm));
 
-  void zoomCamera(double factor) => state = state.copyWith(
-        camera: state.camera.zoomedBy(factor),
-      );
+  void zoomCamera(double factor) =>
+      state = state.copyWith(camera: state.camera.zoomedBy(factor));
 
   /// Looks at the model from one of the named views, keeping the zoom and
   /// the pan so it reads as walking round it rather than starting again.
   void lookFrom(Camera view, {double? zoom}) => state = state.copyWith(
-        camera: state.camera.lookingFrom(view).copyWith(zoom: zoom),
-      );
+    camera: state.camera.lookingFrom(view).copyWith(zoom: zoom),
+  );
 
   /// Frames the whole model from where it is being looked at now.
   void zoomToFit(double zoom) => state = state.copyWith(
-        camera: state.camera.copyWith(zoom: zoom, target: Vec3.zero),
-      );
+    camera: state.camera.copyWith(zoom: zoom, target: Vec3.zero),
+  );
 
   void setProjection(Projection projection) => state = state.copyWith(
-        camera: state.camera.copyWith(projection: projection),
-      );
+    camera: state.camera.copyWith(projection: projection),
+  );
 
   /// Back to the whole model, centred.
   void zoomExtents() => state = state.copyWith(camera: state.camera.reset());
@@ -301,9 +318,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       colour: state.penColour,
     );
     state = state.copyWith(
-      design: state.design.copyWith(
-        sketch: state.design.sketch.add(stroke),
-      ),
+      design: state.design.copyWith(sketch: state.design.sketch.add(stroke)),
       needsReading: tool.structural,
     );
 
@@ -319,41 +334,45 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   }
 
   StrokeTool _toolKind(Tool tool) => switch (tool) {
-        Tool.line => StrokeTool.line,
-        Tool.rectangle => StrokeTool.rectangle,
-        Tool.polyline => StrokeTool.polyline,
-        Tool.dimension => StrokeTool.dimension,
-        Tool.arrow => StrokeTool.arrow,
-        _ => StrokeTool.pen,
-      };
+    Tool.line => StrokeTool.line,
+    Tool.rectangle => StrokeTool.rectangle,
+    Tool.polyline => StrokeTool.polyline,
+    Tool.dimension => StrokeTool.dimension,
+    Tool.arrow => StrokeTool.arrow,
+    _ => StrokeTool.pen,
+  };
 
   void _addDimension(Stroke stroke) {
     state = state.copyWith(
-      design: state.design.copyWith(dimensions: [
-        ...state.design.dimensions,
-        DimensionElement(
-          id: _newId('dim'),
-          a: stroke.start,
-          b: stroke.end,
-          offsetMm: 0,
-          fromStrokeId: stroke.id,
-        ),
-      ]),
+      design: state.design.copyWith(
+        dimensions: [
+          ...state.design.dimensions,
+          DimensionElement(
+            id: _newId('dim'),
+            a: stroke.start,
+            b: stroke.end,
+            offsetMm: 0,
+            fromStrokeId: stroke.id,
+          ),
+        ],
+      ),
     );
   }
 
   void _addArrow(Stroke stroke) {
     state = state.copyWith(
-      design: state.design.copyWith(arrows: [
-        ...state.design.arrows,
-        ArrowElement(
-          id: _newId('arrow'),
-          from: stroke.start,
-          to: stroke.end,
-          colour: state.penColour,
-          fromStrokeId: stroke.id,
-        ),
-      ]),
+      design: state.design.copyWith(
+        arrows: [
+          ...state.design.arrows,
+          ArrowElement(
+            id: _newId('arrow'),
+            from: stroke.start,
+            to: stroke.end,
+            colour: state.penColour,
+            fromStrokeId: stroke.id,
+          ),
+        ],
+      ),
     );
   }
 
@@ -365,10 +384,12 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     if (a.distanceTo(b) < Tol.minLineMm) return;
     _remember();
     state = state.copyWith(
-      design: state.design.copyWith(dimensions: [
-        ...state.design.dimensions,
-        DimensionElement(id: _newId('dimension'), a: a, b: b),
-      ]),
+      design: state.design.copyWith(
+        dimensions: [
+          ...state.design.dimensions,
+          DimensionElement(id: _newId('dimension'), a: a, b: b),
+        ],
+      ),
     );
   }
 
@@ -377,15 +398,17 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     if (from.distanceTo(to) < Tol.minLineMm) return;
     _remember();
     state = state.copyWith(
-      design: state.design.copyWith(arrows: [
-        ...state.design.arrows,
-        ArrowElement(
-          id: _newId('arrow'),
-          from: from,
-          to: to,
-          colour: state.penColour,
-        ),
-      ]),
+      design: state.design.copyWith(
+        arrows: [
+          ...state.design.arrows,
+          ArrowElement(
+            id: _newId('arrow'),
+            from: from,
+            to: to,
+            colour: state.penColour,
+          ),
+        ],
+      ),
     );
   }
 
@@ -394,16 +417,18 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     _remember();
     final size = (state.design.heightMm * 0.045).clamp(40.0, 200.0);
     state = state.copyWith(
-      design: state.design.copyWith(texts: [
-        ...state.design.texts,
-        TextElement(
-          id: _newId('note'),
-          text: text.trim(),
-          at: at,
-          sizeMm: size,
-          colour: state.penColour,
-        ),
-      ]),
+      design: state.design.copyWith(
+        texts: [
+          ...state.design.texts,
+          TextElement(
+            id: _newId('note'),
+            text: text.trim(),
+            at: at,
+            sizeMm: size,
+            colour: state.penColour,
+          ),
+        ],
+      ),
     );
   }
 
@@ -465,13 +490,14 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     if (question.id.isEmpty) return;
 
     if (questionId.startsWith('kind-')) {
-      setOpeningKind(
-        questionId.substring('kind-'.length),
-        DesignKind.values.firstWhere(
-          (k) => k.name == optionKey,
-          orElse: () => state.design.kind,
-        ),
-      );
+      // Only a leaf kind can be the answer, and an unrecognised key is no
+      // answer at all rather than a guess written onto the opening.
+      final said = DesignKind.leafKinds
+          .where((k) => k.name == optionKey)
+          .firstOrNull;
+      if (said != null) {
+        setOpeningKind(questionId.substring('kind-'.length), said);
+      }
     } else if (questionId.startsWith('symbol-')) {
       _answerSymbol(questionId.substring('symbol-'.length), optionKey);
     } else if (questionId.startsWith('opening-')) {
@@ -494,7 +520,10 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     }
 
     state = state.copyWith(
-      questions: [for (final q in state.questions) if (q.id != questionId) q],
+      questions: [
+        for (final q in state.questions)
+          if (q.id != questionId) q,
+      ],
       settledQuestions: {...state.settledQuestions, questionId},
     );
   }
@@ -587,15 +616,22 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   /// door's lever goes and a leaf that becomes a window gets its fastener
   /// where a window's goes.
   void setOpeningKind(String openingId, DesignKind kind) {
+    // A leaf is a door or a window. `both` describes an assembly, so it can
+    // never be written onto one opening.
+    if (!DesignKind.leafKinds.contains(kind)) return;
     final opening = state.design.openingById(openingId);
     if (opening == null || opening.kind == kind) return;
 
     _remember();
     state = state.copyWith(
-      design: OpeningHardware.settle(state.design.copyWith(openings: [
-        for (final o in state.design.openings)
-          if (o.id == openingId) o.copyWith(kind: kind) else o,
-      ])),
+      design: OpeningHardware.settle(
+        state.design.copyWith(
+          openings: [
+            for (final o in state.design.openings)
+              if (o.id == openingId) o.copyWith(kind: kind) else o,
+          ],
+        ),
+      ),
       questions: [
         for (final q in state.questions)
           if (q.id != WorkspaceState.openingKindQuestion(openingId)) q,
@@ -613,19 +649,24 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
     _remember();
     state = state.copyWith(
-      design: OpeningHardware.settle(state.design.copyWith(openings: [
-        for (final o in state.design.openings)
-          if (o.id == openingId) o.copyWith(handleKind: handleKind) else o,
-      ])),
+      design: OpeningHardware.settle(
+        state.design.copyWith(
+          openings: [
+            for (final o in state.design.openings)
+              if (o.id == openingId) o.copyWith(handleKind: handleKind) else o,
+          ],
+        ),
+      ),
     );
   }
 
   void dismissQuestion(String questionId) => state = state.copyWith(
-        questions: [
-          for (final q in state.questions) if (q.id != questionId) q,
-        ],
-        settledQuestions: {...state.settledQuestions, questionId},
-      );
+    questions: [
+      for (final q in state.questions)
+        if (q.id != questionId) q,
+    ],
+    settledQuestions: {...state.settledQuestions, questionId},
+  );
 
   // -------------------------------------------------------------- editing
 
@@ -642,7 +683,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     final id = state.selectedId;
     if (id == null) return;
     _remember(coalesce: 'drag-$id');
-    state = state.copyWith(design: DesignEdits.dragElement(state.design, id, by));
+    state = state.copyWith(
+      design: DesignEdits.dragElement(state.design, id, by),
+    );
   }
 
   /// Moves a bar so that its middle lands on [to].
@@ -812,8 +855,11 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
   /// Makes a bar a given length, about its own middle.
   void setDividerLength(String dividerId, double lengthMm) {
-    final design =
-        DesignEdits.setDividerLength(state.design, dividerId, lengthMm);
+    final design = DesignEdits.setDividerLength(
+      state.design,
+      dividerId,
+      lengthMm,
+    );
     if (identical(design, state.design)) return;
     _remember(coalesce: 'length-$dividerId');
     state = state.copyWith(design: design);
@@ -821,8 +867,11 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
   /// Turns a bar to a given heading, about its own middle.
   void setDividerAngle(String dividerId, double degrees) {
-    final design =
-        DesignEdits.setDividerAngle(state.design, dividerId, degrees);
+    final design = DesignEdits.setDividerAngle(
+      state.design,
+      dividerId,
+      degrees,
+    );
     if (identical(design, state.design)) return;
     _remember(coalesce: 'angle-$dividerId');
     state = state.copyWith(design: design);
@@ -853,8 +902,11 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   /// is the user overruling their own mark. The mark is remembered as not
   /// being one, or reading the drawing again would put the opening straight
   /// back and their decision would not stick.
-  void setOpening(String sectionId, OpeningMechanism mechanism,
-      {OpeningDirection direction = OpeningDirection.inward}) {
+  void setOpening(
+    String sectionId,
+    OpeningMechanism mechanism, {
+    OpeningDirection direction = OpeningDirection.inward,
+  }) {
     _remember();
     final existing = state.design.openingOf(sectionId);
     final markStroke = existing?.fromStrokeId;
@@ -867,8 +919,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         mechanism: mechanism,
         direction: direction,
         markAt: mechanism == OpeningMechanism.fixed ? null : existing?.markAt,
-        markGlyph:
-            mechanism == OpeningMechanism.fixed ? null : existing?.markGlyph,
+        markGlyph: mechanism == OpeningMechanism.fixed
+            ? null
+            : existing?.markGlyph,
         fromStrokeId: mechanism == OpeningMechanism.fixed ? null : markStroke,
       ),
     );
@@ -882,11 +935,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   void setDividerParent(String dividerId, String? sectionId) {
     _remember();
     state = state.copyWith(
-      design: DesignEdits.setDividerParent(
-        state.design,
-        dividerId,
-        sectionId,
-      ),
+      design: DesignEdits.setDividerParent(state.design, dividerId, sectionId),
     );
   }
 
@@ -916,11 +965,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   /// the opening from the moment it is made, so drawing in an opening
   /// divides the opening rather than ending it, and the new bar is selected
   /// so it can be moved or given a size straight away.
-  void addLineInside(
-    String sectionId,
-    Vec2 at, {
-    required bool horizontal,
-  }) {
+  void addLineInside(String sectionId, Vec2 at, {required bool horizontal}) {
     final id = _newId('divider');
     _remember();
     final design = DesignEdits.addLineInside(
@@ -1012,10 +1057,12 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   void addHardware(HardwareKind kind, Vec2 at) {
     _remember();
     state = state.copyWith(
-      design: state.design.copyWith(hardware: [
-        ...state.design.hardware,
-        HardwareElement(id: _newId('hw'), kind: kind, at: at),
-      ]),
+      design: state.design.copyWith(
+        hardware: [
+          ...state.design.hardware,
+          HardwareElement(id: _newId('hw'), kind: kind, at: at),
+        ],
+      ),
     );
   }
 
@@ -1040,8 +1087,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   void setRealHeight(double heightMm) {
     if (heightMm <= 0) return;
     _remember();
-    state =
-        state.copyWith(design: DesignScale.toHeight(state.design, heightMm));
+    state = state.copyWith(
+      design: DesignScale.toHeight(state.design, heightMm),
+    );
   }
 
   void rename(String name) =>
@@ -1060,7 +1108,6 @@ final savedDesignsProvider = FutureProvider<List<Design>>(
   (ref) => ref.watch(designStoreProvider).all(),
 );
 
-final workspaceProvider =
-    NotifierProvider<WorkspaceController, WorkspaceState>(
+final workspaceProvider = NotifierProvider<WorkspaceController, WorkspaceState>(
   WorkspaceController.new,
 );

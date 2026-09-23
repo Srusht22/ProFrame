@@ -72,20 +72,35 @@ class StartScreen extends ConsumerWidget {
                             onTap: () =>
                                 _begin(context, ref, DesignKind.window),
                           ),
+                          // One assembly holding leaves of each kind. It
+                          // assumes nothing about any of them: every opening
+                          // marked is asked about, because a set that holds
+                          // both says nothing about which this one is.
+                          _KindCard(
+                            kind: DesignKind.both,
+                            icon: Icons.splitscreen_outlined,
+                            blurb: 'One frame holding leaves of each kind. '
+                                'You say which every opening is.',
+                            onTap: () => _begin(context, ref, DesignKind.both),
+                          ),
                         ];
                         return narrow
                             ? Column(
                                 children: [
-                                  cards[0],
-                                  const SizedBox(height: 12),
-                                  cards[1],
+                                  for (final card in cards) ...[
+                                    card,
+                                    if (card != cards.last)
+                                      const SizedBox(height: 12),
+                                  ],
                                 ],
                               )
                             : Row(
                                 children: [
-                                  Expanded(child: cards[0]),
-                                  const SizedBox(width: 12),
-                                  Expanded(child: cards[1]),
+                                  for (final card in cards) ...[
+                                    Expanded(child: card),
+                                    if (card != cards.last)
+                                      const SizedBox(width: 12),
+                                  ],
                                 ],
                               );
                       },
@@ -160,9 +175,12 @@ class _SavedDesigns extends ConsumerWidget {
                       child: Row(
                         children: [
                           Icon(
-                            design.kind == DesignKind.door
-                                ? Icons.door_front_door_outlined
-                                : Icons.window_outlined,
+                            switch (design.kind) {
+                              DesignKind.door =>
+                                Icons.door_front_door_outlined,
+                              DesignKind.window => Icons.window_outlined,
+                              DesignKind.both => Icons.splitscreen_outlined,
+                            },
                             size: 19,
                             color: AppTheme.accent.withValues(alpha: 0.8),
                           ),

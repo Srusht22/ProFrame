@@ -4,6 +4,7 @@ import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/editing/design_edits.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
+import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 
 // A mark says a section opens. It does not say whether the leaf is a door
@@ -166,6 +167,14 @@ void main() {
       final c = read();
       final opening = c.state.design.openingsInOrder[0];
 
+      Set<HardwareKind> piecesOn(Design design, String openingId) {
+        final held = design.openingById(openingId)!.sectionId;
+        return {
+          for (final piece in design.hardware)
+            if (design.sectionHolding(piece.parentId) == held) piece.kind,
+        };
+      }
+
       double handleUp(Design design, String openingId) {
         final held = design.openingById(openingId)!.sectionId;
         final handle = design.hardware.firstWhere((piece) =>
@@ -174,17 +183,25 @@ void main() {
         return design.sectionById(held)!.outline.bottom - handle.at.y;
       }
 
-      final asWindow = handleUp(c.state.design, opening.id);
+      final asWindow = piecesOn(c.state.design, opening.id);
+      final wasAt = handleUp(c.state.design, opening.id);
       c.answer('kind-${opening.id}', 'door');
-      final asDoor = handleUp(c.state.design, opening.id);
+      final asDoor = piecesOn(c.state.design, opening.id);
 
-      expect(asDoor, greaterThan(asWindow),
-          reason: 'a door’s lever is higher than a window’s fastener');
-      expect(asDoor, closeTo(1000, 1));
+      // The answer rebuilds what the leaf carries: a window's espagnolette
+      // becomes a door's lever, and the door gains a lock.
+      expect(asWindow, {HardwareKind.hinge, HardwareKind.handle});
+      expect(asDoor,
+          {HardwareKind.hinge, HardwareKind.lever, HardwareKind.lock});
 
-      // And the leaf beside it, which nobody answered for, did not move.
+      // And it does not move anything. The handle is at the middle of the
+      // leaf either way, so saying what a leaf is slides nothing up a stile
+      // whose geometry the user never touched.
+      expect(handleUp(c.state.design, opening.id), closeTo(wasAt, 0.01));
+
+      // Nor does the leaf beside it, which nobody answered for, change.
       final other = c.state.design.openingsInOrder[1];
-      expect(handleUp(c.state.design, other.id), closeTo(asWindow, 0.01));
+      expect(piecesOn(c.state.design, other.id), asWindow);
     });
   });
 
@@ -279,29 +296,36 @@ void main() {
       }
     });
 
-    test('changing it moves that leaf’s handle and no other', () {
+    test('changing it rebuilds that leaf’s ironmongery and no other', () {
       final c = read();
       final order = c.state.design.openingsInOrder;
       for (final opening in order) {
         c.setOpeningKind(opening.id, DesignKind.door);
       }
 
-      Map<String, double> handles(Design design) => {
-            for (final piece in design.hardware)
-              if (piece.kind.isHandle)
-                design.sectionHolding(piece.parentId)!: piece.at.y,
-          };
-      final before = handles(c.state.design);
+      Map<String, String> ironmongery(Design design) {
+        final byLeaf = <String, List<String>>{};
+        for (final piece in design.hardware) {
+          final held = design.sectionHolding(piece.parentId)!;
+          (byLeaf[held] ??= []).add('${piece.kind.name}@${piece.at}');
+        }
+        return {
+          for (final entry in byLeaf.entries)
+            entry.key: (entry.value..sort()).join('|'),
+        };
+      }
 
+      final before = ironmongery(c.state.design);
       c.setOpeningKind(order[1].id, DesignKind.window);
-      final after = handles(c.state.design);
+      final after = ironmongery(c.state.design);
 
-      expect(after[order[1].sectionId],
-          isNot(closeTo(before[order[1].sectionId]!, 1)));
-      expect(after[order[0].sectionId],
-          closeTo(before[order[0].sectionId]!, 0.01));
-      expect(after[order[2].sectionId],
-          closeTo(before[order[2].sectionId]!, 0.01));
+      // The leaf that was answered for is built differently — a lever and a
+      // lock give way to an espagnolette.
+      expect(after[order[1].sectionId], isNot(before[order[1].sectionId]));
+      // And the two either side are untouched, piece for piece and place
+      // for place.
+      expect(after[order[0].sectionId], before[order[0].sectionId]);
+      expect(after[order[2].sectionId], before[order[2].sectionId]);
     });
 
     test('setting it to what it already is does nothing at all', () {

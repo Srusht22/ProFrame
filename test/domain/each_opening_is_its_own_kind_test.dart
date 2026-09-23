@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
+import 'package:proframe/domain/hardware/opening_hardware.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/recognition/interpreter.dart';
@@ -117,12 +118,45 @@ void main() {
     });
 
     test('and follows the design, which is a kind they did choose', () {
-      for (final kind in DesignKind.values) {
+      for (final kind in DesignKind.leafKinds) {
         final design = run(kind: kind);
         for (final opening in design.openings) {
           expect(design.kindOf(opening), kind);
         }
       }
+    });
+
+    test('unless the design does not say either, and then nothing does', () {
+      // A design begun as a door and window set says its assembly holds
+      // both, which is not a statement about any one leaf. So there is
+      // nothing for an unanswered leaf to follow, and the application does
+      // not pick one for it.
+      final design = run(kind: DesignKind.both);
+      for (final opening in design.openings) {
+        expect(opening.kind, isNull);
+        expect(design.kindOf(opening), isNull);
+      }
+
+      // It still opens, so it still hangs on its hinges — that is what the
+      // mark said. It has no handle, because which handle is exactly what
+      // has not been said.
+      final leaf = design.openings.first;
+      final mine = [
+        for (final piece in design.hardware)
+          if (design.openingHolding(piece.parentId)?.id == leaf.id) piece,
+      ];
+      expect(mine, isNotEmpty);
+      expect({for (final p in mine) p.kind}, {HardwareKind.hinge});
+
+      // And saying puts the handle on.
+      final said = OpeningHardware.settle(design.copyWith(openings: [
+        for (final o in design.openings)
+          if (o.id == leaf.id) o.copyWith(kind: DesignKind.door) else o,
+      ]));
+      expect({
+        for (final piece in said.hardware)
+          if (said.openingHolding(piece.parentId)?.id == leaf.id) piece.kind,
+      }, {HardwareKind.hinge, HardwareKind.lever, HardwareKind.lock});
     });
 
     test('the user’s own example: window, door, window in one design', () {
