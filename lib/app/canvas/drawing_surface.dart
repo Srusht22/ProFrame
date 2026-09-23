@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/geometry/polygon.dart';
+import '../../domain/geometry/segment.dart';
 import '../../domain/geometry/vec2.dart';
+import '../../domain/recognition/stroke_fit.dart';
 import '../../domain/sketch/stroke.dart';
 import '../state/tools.dart';
 import '../state/workspace.dart';
@@ -44,18 +49,44 @@ class _DrawingSurfaceState extends ConsumerState<DrawingSurface> {
   final _polyline = <Vec2>[];
   int? _startedAtMs;
 
+  /// How long the pen rests, still down, before the line it has drawn is
+  /// straightened. The user's own figure: long enough that the pauses of
+  /// ordinary drawing do not trigger it, short enough to feel like asking.
+  static const _pause = Duration(seconds: 1);
+
+  /// How far a resting pen may still wander on the **screen** and count as
+  /// resting. A hand held still trembles by a few pixels whatever the zoom,
+  /// so this is in screen pixels and not in millimetres of the design.
+  static const double _stillPx = 6;
+
+  /// How close together the samples of a straightened line are laid, on the
+  /// screen — about what a pen lays down, so the eraser finds it anywhere
+  /// along its length.
+  static const double _inkSpacingPx = 6;
+
+  Timer? _hold;
+  Offset? _restingAt;
+  bool _straightened = false;
+  bool _oneRun = false;
+
   Vec2? _dragFrom;
   Offset? _panFrom;
 
-  ViewTransform get _transform =>
-      _view ?? ViewTransform.fit(_fittedTo, _size);
+  @override
+  void dispose() {
+    _hold?.cancel();
+    super.dispose();
+  }
+
+  ViewTransform get _transform => _view ?? ViewTransform.fit(_fittedTo, _size);
 
   /// Refits when the design first appears or changes size a lot, and leaves
   /// the view alone once the user has moved it themselves.
   void _fitIfNeeded(Polygon? content) {
     if (content == null) return;
     final previous = _fittedTo;
-    final changed = previous == null ||
+    final changed =
+        previous == null ||
         (previous.width - content.width).abs() > previous.width * 0.35 ||
         (previous.height - content.height).abs() > previous.height * 0.35;
     if (!changed) return;
@@ -112,7 +143,9 @@ class _DrawingSurfaceState extends ConsumerState<DrawingSurface> {
                         _view = _transform
                             .panned(details.localFocalPoint - from)
                             .zoomed(
-                              details.scale == 0 ? 1 : 1 + (details.scale - 1) * 0.2,
+                              details.scale == 0
+                                  ? 1
+                                  : 1 + (details.scale - 1) * 0.2,
                               details.localFocalPoint,
                             );
                       });
@@ -126,10 +159,7 @@ class _DrawingSurfaceState extends ConsumerState<DrawingSurface> {
                         view: view,
                         selectedId: state.selectedId,
                         showSketch: state.showSketch && !widget.planOnly,
-                        liveStroke: [
-                          for (final s in _live) s.at,
-                          ..._polyline,
-                        ],
+                        liveStroke: [for (final s in _live) s.at, ..._polyline],
                         liveColour: state.penColour,
                         highlighted: widget.highlighted,
                       ),
@@ -142,10 +172,16 @@ class _DrawingSurfaceState extends ConsumerState<DrawingSurface> {
                 bottom: 12,
                 child: _ZoomButtons(
                   onIn: () => setState(
-                    () => _view = _transform.zoomed(1.25, size.center(Offset.zero)),
+                    () => _view = _transform.zoomed(
+                      1.25,
+                      size.center(Offset.zero),
+                    ),
                   ),
                   onOut: () => setState(
-                    () => _view = _transform.zoomed(0.8, size.center(Offset.zero)),
+                    () => _view = _transform.zoomed(
+                      0.8,
+                      size.center(Offset.zero),
+                    ),
                   ),
                   onFit: () => setState(() {
                     _fittedTo = state.design.bounds;
@@ -187,8 +223,7 @@ class _DrawingSurfaceState extends ConsumerState<DrawingSurface> {
       case Tool.polyline:
         setState(() {
           if (_polyline.isNotEmpty &&
-              _polyline.first.distanceTo(at) <
-                  view.lengthToSheet(24)) {
+              _polyline.first.distanceTo(at) < view.lengthToSheet(24)) {
             _finishPolyline(controller, closing: true);
           } else {
             _polyline.add(at);
@@ -201,7 +236,53 @@ class _DrawingSurfaceState extends ConsumerState<DrawingSurface> {
             ..clear()
             ..add(StrokeSample(at, pressure: _pressureOf(event)));
         });
+        if (state.tool == Tool.pen) {
+          _straightened = false;
+          _restingAt = event.localPosition;
+          _waitForRest(view);
+        }
     }
+  }
+
+  // --------------------------------------------------- pause to straighten
+
+  /// Starts, or starts again, the wait for the pen to rest.
+  void _waitForRest(ViewTransform view) {
+    _hold?.cancel();
+    _hold = Timer(_pause, () => _straighten(view));
+  }
+
+  /// The line drawn so far, straightened where it lies.
+  ///
+  /// **The user asked for this by pausing, and it is the reading drawn back
+  /// onto the sheet.** `StrokeFitter.straightRuns` is the same fit the
+  /// design is built from, so what snaps is exactly what gets built: the
+  /// wobble along each run comes out, every corner stays at the angle it was
+  /// drawn, and both ends stay where the pen put them. A stroke too short or
+  /// too scribbled to be a line is left as it was — there is nothing to
+  /// straighten, and inventing a line would be drawing for the user.
+  void _straighten(ViewTransform view) {
+    if (!mounted || _straightened || _live.length < 2) return;
+    final corners = StrokeFitter.straightRuns(
+      Stroke(id: 'live', samples: List.of(_live)),
+    );
+    if (corners == null) return;
+    final pressure =
+        _live.map((s) => s.pressure).reduce((a, b) => a + b) / _live.length;
+    setState(() {
+      _live
+        ..clear()
+        ..addAll(
+          StrokeFitter.samplesAlong(
+            corners,
+            spacingMm: view.lengthToSheet(_inkSpacingPx),
+            pressure: pressure,
+          ),
+        );
+      _straightened = true;
+      _oneRun = corners.length == 2;
+    });
+    HapticFeedback.selectionClick();
   }
 
   void _move(
@@ -250,17 +331,53 @@ class _DrawingSurfaceState extends ConsumerState<DrawingSurface> {
       return;
     }
 
+    if (state.tool == Tool.pen) {
+      if (_straightened) {
+        // Once straightened, a single line swings from where it started to
+        // wherever the pen goes next, squared near the axes as the reading
+        // squares it; a shape of several runs stays as it snapped.
+        if (_oneRun) {
+          final run = StrokeFitter.straightened(Segment(_live.first.at, at));
+          final pressure = _live.first.pressure;
+          setState(() {
+            _live
+              ..clear()
+              ..addAll(
+                StrokeFitter.samplesAlong(
+                  [run.a, run.b],
+                  spacingMm: view.lengthToSheet(_inkSpacingPx),
+                  pressure: pressure,
+                ),
+              );
+          });
+        }
+        return;
+      }
+      final resting = _restingAt;
+      if (resting == null ||
+          (event.localPosition - resting).distance > _stillPx) {
+        _restingAt = event.localPosition;
+        _waitForRest(view);
+      }
+    }
+
     setState(() {
-      _live.add(StrokeSample(
-        at,
-        atMs: DateTime.now().millisecondsSinceEpoch - (_startedAtMs ?? 0),
-        pressure: _pressureOf(event),
-      ));
+      _live.add(
+        StrokeSample(
+          at,
+          atMs: DateTime.now().millisecondsSinceEpoch - (_startedAtMs ?? 0),
+          pressure: _pressureOf(event),
+        ),
+      );
     });
   }
 
   void _up(WorkspaceController controller) {
     final state = ref.read(workspaceProvider);
+    _hold?.cancel();
+    _hold = null;
+    _restingAt = null;
+    _straightened = false;
     _dragFrom = null;
     controller.endGesture();
 
@@ -282,10 +399,9 @@ class _DrawingSurfaceState extends ConsumerState<DrawingSurface> {
       return;
     }
     final points = [..._polyline, if (closing) _polyline.first];
-    controller.addStroke(
-      [for (final p in points) StrokeSample(p)],
-      tool: Tool.polyline,
-    );
+    controller.addStroke([
+      for (final p in points) StrokeSample(p),
+    ], tool: Tool.polyline);
     _polyline.clear();
   }
 
@@ -343,10 +459,8 @@ class _Sheet extends StatelessWidget {
   const _Sheet({required this.view});
 
   @override
-  Widget build(BuildContext context) => CustomPaint(
-        painter: _GridPainter(view),
-        size: Size.infinite,
-      );
+  Widget build(BuildContext context) =>
+      CustomPaint(painter: _GridPainter(view), size: Size.infinite);
 }
 
 class _GridPainter extends CustomPainter {
@@ -395,37 +509,37 @@ class _ZoomButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: AppTheme.surface,
-        elevation: 1,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(2),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                onPressed: onIn,
-                icon: const Icon(Icons.add),
-                tooltip: 'Zoom in',
-                color: AppTheme.primary,
-                visualDensity: VisualDensity.compact,
-              ),
-              IconButton(
-                onPressed: onOut,
-                icon: const Icon(Icons.remove),
-                tooltip: 'Zoom out',
-                color: AppTheme.primary,
-                visualDensity: VisualDensity.compact,
-              ),
-              IconButton(
-                onPressed: onFit,
-                icon: const Icon(Icons.fit_screen_outlined),
-                tooltip: 'Fit',
-                color: AppTheme.primary,
-                visualDensity: VisualDensity.compact,
-              ),
-            ],
+    color: AppTheme.surface,
+    elevation: 1,
+    borderRadius: BorderRadius.circular(12),
+    child: Padding(
+      padding: const EdgeInsets.all(2),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: onIn,
+            icon: const Icon(Icons.add),
+            tooltip: 'Zoom in',
+            color: AppTheme.primary,
+            visualDensity: VisualDensity.compact,
           ),
-        ),
-      );
+          IconButton(
+            onPressed: onOut,
+            icon: const Icon(Icons.remove),
+            tooltip: 'Zoom out',
+            color: AppTheme.primary,
+            visualDensity: VisualDensity.compact,
+          ),
+          IconButton(
+            onPressed: onFit,
+            icon: const Icon(Icons.fit_screen_outlined),
+            tooltip: 'Fit',
+            color: AppTheme.primary,
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    ),
+  );
 }

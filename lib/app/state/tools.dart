@@ -5,7 +5,8 @@
 /// a rectangle-shaped image.
 enum Tool {
   select('Select', 'Tap a part to pick it. Drag to move it.'),
-  pen('Freehand', 'Draw as you would on paper.'),
+  pen('Freehand',
+      'Draw as you would on paper. Pause with the pen down to straighten.'),
   line('Straight line', 'Two taps, or drag from one end to the other.'),
   rectangle('Rectangle', 'Drag a corner to the opposite corner.'),
   polyline('Polyline', 'Tap each corner. Tap the first one again to close.'),

@@ -318,6 +318,93 @@ class _DesignFields extends StatelessWidget {
         _Readout('Sections', '${design.sections.length}'),
         _Readout('Bars', '${design.dividers.length}'),
         _Readout('Openings', '${design.openings.length}'),
+        if (design.openings.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          _OpeningKinds(state: state, controller: controller),
+        ],
+      ],
+    );
+  }
+}
+
+/// Every opening in the design, and what each one is — with the switch that
+/// changes it right beside it.
+///
+/// **An answer given in a hurry has to be as easy to take back as it was to
+/// give.** The alert asks once, and asking again would be the application
+/// nagging; but a leaf said to be a door that should have been a window is
+/// then a door with a lever and a lock on it, and the only way back was to
+/// find that one leaf on the drawing, pick it, and find its own panel. This
+/// is the panel that is there whenever nothing is picked, in both the
+/// drawing and the model, so the answer is one tap from wherever the user
+/// notices it is wrong.
+///
+/// It is the same control as the opening's own panel and it calls the same
+/// edit, so there is one way to say what a leaf is and two places to reach
+/// it. Nothing is asked: changing it rebuilds that leaf's ironmongery and
+/// leaves every other leaf, and every line inside this one, where it was.
+class _OpeningKinds extends StatelessWidget {
+  final WorkspaceState state;
+  final WorkspaceController controller;
+
+  const _OpeningKinds({required this.state, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final design = state.design;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _Label('Opening types'),
+        const SizedBox(height: 4),
+        Text(
+          'Picked the wrong one? Change it here.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 8),
+        for (final opening in design.openingsInOrder)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(6),
+                    onTap: () => controller.select(opening.id),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text(
+                        design.nameOf(opening),
+                        style: Theme.of(context).textTheme.bodyMedium,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ),
+                SegmentedButton<DesignKind>(
+                  key: ValueKey('kind-switch-${opening.id}'),
+                  style: const ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  segments: [
+                    for (final kind in DesignKind.leafKinds)
+                      ButtonSegment(value: kind, label: Text(kind.label)),
+                  ],
+                  // Empty where nobody has said and the design does not
+                  // say either: showing one selected would be the panel
+                  // answering for them.
+                  selected: {?design.kindOf(opening)},
+                  emptySelectionAllowed: true,
+                  showSelectedIcon: false,
+                  onSelectionChanged: (values) {
+                    if (values.isEmpty) return;
+                    controller.setOpeningKind(opening.id, values.first);
+                  },
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -716,8 +803,13 @@ class _OpeningFields extends StatelessWidget {
           selected: {?state.design.kindOf(opening)},
           emptySelectionAllowed: true,
           showSelectedIcon: false,
-          onSelectionChanged: (values) =>
-              controller.setOpeningKind(opening.id, values.first),
+          // Tapping the kind already chosen empties the set, since an empty
+          // one is allowed for a leaf nobody has named. That is not an
+          // answer, so it changes nothing.
+          onSelectionChanged: (values) {
+            if (values.isEmpty) return;
+            controller.setOpeningKind(opening.id, values.first);
+          },
         ),
         if (opening.kind == null) ...[
           const SizedBox(height: 7),

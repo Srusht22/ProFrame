@@ -202,6 +202,62 @@ abstract final class StrokeFitter {
   /// This is the line between cleaning and redesigning. Within a few degrees
   /// the user was drawing a straight bar and their hand moved; beyond that
   /// they were drawing a slope, and the slope is theirs to keep.
+  /// The stroke drawn again as the straight runs it is read as — the corner
+  /// points, in order, closed back to the first where it closes — or null
+  /// when it is too short or too scribbled to be a line at all.
+  ///
+  /// **This is the reading, drawn back onto the sheet, and nothing more.**
+  /// It is what the user asks for by pausing with the pen down: make this
+  /// line straight. So it is not a second opinion about the stroke; it is
+  /// [fit], the same corners the design is built from, which means what
+  /// snaps on the screen is exactly what gets built and nothing the reading
+  /// would not have made is invented for the look of it. A wobble along a
+  /// line comes out, a corner the user drew stays at the angle they drew
+  /// it, and both ends stay where the pen put them.
+  ///
+  /// A single line near an axis is squared as the reading squares it, by
+  /// [straightened] — two degrees off vertical is a hand, not a design.
+  static List<Vec2>? straightRuns(Stroke stroke) {
+    if (stroke.isEmpty) return null;
+    final fit = StrokeFitter.fit(stroke);
+    switch (fit.kind) {
+      case FitKind.mark:
+        return null;
+      case FitKind.line:
+        final run = straightened(Segment(fit.vertices.first, fit.vertices.last));
+        return [run.a, run.b];
+      case FitKind.polyline:
+        return List.of(fit.vertices);
+      case FitKind.loop:
+        return [...fit.vertices, fit.vertices.first];
+    }
+  }
+
+  /// Samples laid along [corners] no further apart than [spacingMm].
+  ///
+  /// A straightened stroke is still a stroke — the eraser finds one by its
+  /// samples, and the reading fits one from them — so it is laid down as
+  /// ink along its runs rather than as its corners alone, every corner kept
+  /// exactly.
+  static List<StrokeSample> samplesAlong(
+    List<Vec2> corners, {
+    required double spacingMm,
+    double pressure = 1,
+  }) {
+    if (corners.isEmpty) return const [];
+    final step = math.max(spacingMm, Tol.samePointMm);
+    final samples = [StrokeSample(corners.first, pressure: pressure)];
+    for (var i = 1; i < corners.length; i++) {
+      final from = corners[i - 1];
+      final to = corners[i];
+      final pieces = math.max(1, (from.distanceTo(to) / step).ceil());
+      for (var k = 1; k <= pieces; k++) {
+        samples.add(StrokeSample(from.lerp(to, k / pieces), pressure: pressure));
+      }
+    }
+    return samples;
+  }
+
   static Segment straightened(Segment run) {
     if (run.offAxisDegrees > Tol.axisSnapDegrees) return run;
     if (run.isHorizontalish) {

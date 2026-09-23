@@ -717,6 +717,65 @@ given a bar of the opening's, and no bar of the design is trimmed as though
 it were inside one; and a bar appears at one level of the tree only, so
 nothing is drawn twice or at the wrong weight.
 
+### An end drawn onto a line stays on it
+
+**An end that touches a line on the sheet touches it in the design**, and
+straightening is not allowed to break that. The outline is straightened leg
+by leg with the fitter's corner tolerance — a kink of a few centimetres in a
+metre-long jamb is a hand's wobble, and taking it out is cleaning — but the
+straight leg can then lie a hand's width from where the user actually drew
+it. A transom drawn to *their* jamb stops short of the straightened one and
+divides nothing on that side.
+
+That is what happened on a real drawing: a jamb upright above the transom
+and leaning out below it, a small upper-left light marked `<`, and the
+window came back as the whole left column from head to sill, because the
+light above the transom and the light below it ran together. A few
+millimetres decided it — a third of hand-wobbled copies of that drawing
+read wrong — which is the sign of a relationship being lost rather than a
+tolerance being a little off.
+
+`_ontoWhatTheyWereDrawnOn` asks the **ink** rather than the fit. An end
+within a weld of another stroke's own samples was drawn onto it, and is
+carried along its own line to where that line meets the leg the stroke
+became — along its own line, so the angle it was drawn at is kept; never
+further than that stroke's straightening was allowed to move it, so this can
+only undo the fitter's own displacement; and only when the fit really did
+move the line away. A line drawn to stop part way is nowhere near the ink of
+anything and is left exactly where it ends.
+
+The limit is a weld, stated rather than hidden: an end further than that
+from the ink was not drawn onto the line by the same measure the rest of the
+reading uses. `test/domain/a_line_drawn_to_the_frame_reaches_it_test.dart`
+holds the traced drawing, a hundred and twenty hand-wobbled copies of it,
+the transom started either side of the jamb, the angle kept, and a line that
+genuinely stops short staying short.
+
+### Pause to straighten
+
+Drawing with the pen, the user rests it — still down — for a second, and the
+line just drawn is straightened where it lies. Keep moving, or lift sooner,
+and the ink is exactly what the hand put down. Once a single line has
+snapped, moving on swings its far end, squared near the axes as the reading
+squares a line.
+
+**What snaps is the reading, drawn back onto the sheet, and nothing more.**
+`StrokeFitter.straightRuns` is `StrokeFitter.fit` — the same corners the
+design is built from — so what the user sees straighten is exactly what gets
+built. The wobble along each run comes out, every corner stays at the angle
+it was drawn, both ends stay where the pen put them, and a stroke too short
+or too scribbled to be a line is left alone rather than turned into one. A
+straightened stroke is laid down as ink along its runs, by `samplesAlong`,
+because the eraser finds a stroke by its samples.
+
+It is the user asking, which is what makes it cleaning rather than
+redesigning: nothing is straightened that was not paused on. The pause is
+the user's own figure, a second; the rest radius is a few screen pixels,
+because a still hand trembles by pixels whatever the zoom.
+`test/domain/pause_to_straighten_test.dart` holds the rule and
+`test/app/pause_and_take_it_back_test.dart` holds the gesture on the real
+app.
+
 ### Reading a mark drawn by a hand
 
 A `<`, `>`, `^` or `v` is the only thing that creates an opening, so failing
@@ -1152,6 +1211,15 @@ route, so the design underneath goes on being the design: it is blurred,
 not replaced, and nothing about it is waiting. One leaf at a time, in
 reading order, each naming the opening it is about, with how many are left
 to say — three marks must not read as one question coming back three times.
+
+**An answer given in a hurry is as easy to take back as it was to give.**
+The notice that confirms each answer carries *Change to door* or *Change to
+window*, because the moment someone is likeliest to notice a slip is the
+moment they make it; and the design's own panel — the one showing whenever
+nothing is picked, in the drawing and the model alike — lists every opening
+with its own Door | Window switch under **Opening types**. Both call the
+same `setOpeningKind` as the opening's own panel, so there is one way to say
+what a leaf is and three places to reach it, and nothing is asked again.
 
 **It is an alert and not a gate.** *Not now* puts it away, the leaf keeps
 no kind, and the design is exactly as the mark made it — which is what

@@ -111,7 +111,9 @@ abstract final class SketchInterpreter {
       );
     }
 
-    final welded = _weld(runs);
+    final welded = _weld(_ontoWhatTheyWereDrawnOn(runs, {
+      for (final fit in fits) fit.stroke.id: fit.stroke,
+    }));
     final span = _spanOf(welded);
     final weld = Tol.weldFor(span);
     final shape = PlanarSubdivision.subdivide(
@@ -768,6 +770,104 @@ abstract final class SketchInterpreter {
       return (openingId: opening.id, outline: section.outline);
     }
     return null;
+  }
+
+  /// Each end of a run that the user drew **onto** another line, carried
+  /// onto the straight line that other line became.
+  ///
+  /// **An end that touches a line on the sheet touches it in the design.**
+  /// That is a fact of the drawing, and straightening is not allowed to
+  /// break it. A hand's outline is straightened leg by leg — a kink of a few
+  /// centimetres in a metre-long jamb is wobble, and taking it out is the
+  /// cleaning this file exists to do — but the straight leg can then lie a
+  /// hand's width from where the user actually drew it, and a transom drawn
+  /// to their jamb now stops short of the straightened one. It divides
+  /// nothing on that side: the light above it and the light below run
+  /// together, and a `<` the user drew in a small upper light opened the
+  /// whole column from head to sill.
+  ///
+  /// So the question is asked of the **ink**, not of the fit. An end within
+  /// a weld of another stroke's own samples was drawn onto it, and is moved
+  /// along its own line to where that line meets the leg the stroke became.
+  /// Along its own line, so the angle the user drew it at is kept; never
+  /// further than that stroke's straightening was allowed to move it, so
+  /// this can only undo the fitter's own displacement and never reach
+  /// across the design; and only when the fit really did move the line
+  /// away, so an end already on its line is left exactly where it was.
+  static List<_Run> _ontoWhatTheyWereDrawnOn(
+    List<_Run> runs,
+    Map<String, Stroke> drawn,
+  ) {
+    final weld = Tol.weldFor(_spanOf(runs));
+    final legs = <String, List<Segment>>{};
+    for (final run in runs) {
+      legs.putIfAbsent(run.strokeId, () => []).add(run.segment);
+    }
+
+    double offTheInk(Vec2 point, Stroke stroke) {
+      final ink = stroke.points;
+      var nearest = double.infinity;
+      for (var i = 1; i < ink.length; i++) {
+        nearest =
+            math.min(nearest, Segment(ink[i - 1], ink[i]).distanceTo(point));
+      }
+      return nearest;
+    }
+
+    Vec2 follow(Vec2 end, Vec2 from, String own) {
+      final along = end - from;
+      if (along.length <= Tol.samePointMm) return end;
+
+      Vec2? best;
+      var nearest = double.infinity;
+      for (final entry in legs.entries) {
+        if (entry.key == own) continue;
+        final stroke = drawn[entry.key];
+        if (stroke == null || offTheInk(end, stroke) > weld) continue;
+
+        var already = double.infinity;
+        for (final leg in entry.value) {
+          already = math.min(already, leg.distanceTo(end));
+        }
+        if (already <= weld) continue;
+
+        // How far that stroke's own straightening could have moved it —
+        // the fitter's tolerance for it, not a figure chosen here.
+        final allowance = math.max(
+            stroke.diagonal * Tol.cornerFraction, Tol.cornerFloorMm);
+        for (final leg in entry.value) {
+          final hit = _whereLinesMeet(from, end, leg);
+          if (hit == null || leg.distanceTo(hit) > weld) continue;
+          if ((hit - from).dot(along) <= 0) continue;
+          final move = hit.distanceTo(end);
+          if (move > allowance + weld || move >= nearest) continue;
+          best = hit;
+          nearest = move;
+        }
+      }
+      return best ?? end;
+    }
+
+    return [
+      for (final run in runs)
+        _Run(
+          Segment(
+            follow(run.segment.a, run.segment.b, run.strokeId),
+            follow(run.segment.b, run.segment.a, run.strokeId),
+          ),
+          run.strokeId,
+        ),
+    ];
+  }
+
+  /// Where the line through [from] and [to] meets the line [leg] lies on.
+  static Vec2? _whereLinesMeet(Vec2 from, Vec2 to, Segment leg) {
+    final r = to - from;
+    final s = leg.direction;
+    final denominator = r.cross(s);
+    if (denominator.abs() < 1e-9) return null;
+    final t = (leg.a - from).cross(s) / denominator;
+    return from + r * t;
   }
 
   static List<_Run> _weld(List<_Run> runs) {
