@@ -200,17 +200,36 @@ void main() {
       }
     });
 
-    test('the door’s hinges are hidden and the window’s are not', () {
-      // The assembly is drawn from the design's own side; a leaf's kind
-      // decides which face its hinges are screwed to.
+    test('a door in the assembly puts you outside it, for every leaf', () {
+      // **One face for the whole assembly, and the door decides it.** You
+      // stand on one side of the wall and look at the whole thing, so which
+      // side that is is a fact about the assembly and never about one leaf.
+      // A set with a door in it is a set you walk up to, and you walk up to
+      // a door from outside — one window light or five does not change
+      // that.
       final design = theScreen();
-      for (final piece in design.hardware) {
-        expect(design.isConcealed(piece),
-            piece.kind.onTheInsideFace &&
-                design.kind.seenFrom == Face.outside);
+      expect(design.kind, DesignKind.window,
+          reason: 'the user began this as a window assembly');
+      expect(design.seenFrom, Face.outside,
+          reason: 'and then said one of its leaves is a door');
+
+      // So every hinge in it is round the back — the window sash's as much
+      // as the door's, because they are on the same wall.
+      final hinges = design.hardware.where((p) => p.kind == HardwareKind.hinge);
+      expect(hinges, isNotEmpty);
+      for (final hinge in hinges) {
+        expect(design.isConcealed(hinge), isTrue);
       }
-      // This design is a window assembly, so nothing is concealed.
-      expect(design.kind.seenFrom, Face.inside);
+      // The handles go through the leaf and are worked from either side, so
+      // they stand on the face you are at whatever the assembly is.
+      for (final piece in design.hardware.where((p) => p.kind.isHandle)) {
+        expect(design.isConcealed(piece), isFalse);
+      }
+
+      // And it is one answer, not one per leaf: the two leaves may not
+      // disagree about which way round the design is.
+      expect({for (final hinge in hinges) design.isConcealed(hinge)},
+          hasLength(1));
     });
 
     test('their handles are different objects, built differently', () {

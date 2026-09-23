@@ -902,6 +902,33 @@ caught every one of them. `test/domain/the_mark_drawn_through_a_line_test.dart` 
 and holds the two marks that must leave the rail alone: one that stops inside
 the far half, and one drawn clear of the rail altogether.
 
+**Which end of the arm is the one past the bar is the whole of it, and
+getting that wrong made every mark "through".** The test above measures from
+the arm's far end, so it has to *have* one. When neither end was strictly
+beyond the bar the code fell back to the **apex** — a point on the near
+side, the mark's own middle end of the arm — and then measured a line
+running the wrong way across the light. Every distance came out favourable
+and the bar was taken every time.
+
+That is not a rare shape. **A chevron drawn to fill its light ends on the
+bar bounding that light**, which is how anybody draws one. A window with a
+full-height mullion, a transom across one side and a `>` in each of the two
+lights the transom made came back as **one** opening with the transom
+swallowed into it: two leaves marked, one leaf built, and one question asked
+where there should have been two — so the user could not say that the upper
+light was a window and the lower one a door, which was the whole of what
+they had drawn.
+
+An arm that comes to rest *on* a bar has not got past it, and then neither
+of its ends is the far one, so that arm went through nothing.
+`_barsTheMarkRunsThrough` says so outright now, and the side test is a real
+perpendicular distance — the bar's *unit* normal — rather than a cross
+product that grows with how long the bar happens to be, so the tolerance it
+is compared against is a length like every other in this repository.
+`test/domain/two_marks_two_leaves_test.dart` holds the drawing, with the
+tails stopping short of the line, on it, and past it, and holds that a mark
+genuinely drawn across the transom still takes it.
+
 **A line drawn on the sheet inside a region the design *already* opens joins
 that opening.** This is the one automatic case, and *already* is the whole
 of what makes it safe rather than a third go at the two rules above. Both of
@@ -1135,13 +1162,32 @@ streams for this — `openingKindQuestions` is raised as the alert and
 `sheetQuestions` stays in the panel below the drawing, because everything
 the reading could not settle is about the sheet rather than about one leaf.
 
-**Which face the drawing is of stays the design's, and must not follow the
-opening.** You stand on one side of the wall and look at the whole assembly,
-so the side you are on is a fact about the assembly. A window light in a
-door set does not put you indoors for that one leaf, and `Design.isConcealed`
-therefore reads `kind.seenFrom` of the design — see *Which face you are
-looking at*. Making it read the opening's kind is the obvious next move and
-it is wrong.
+**Which face the drawing is of is one fact about the whole assembly, and
+must not be asked leaf by leaf.** You stand on one side of the wall and look
+at the whole thing, so the side you are on is a fact about the thing. A
+window light in a door set does not put you indoors for that one leaf.
+`Design.isConcealed` reads `Design.seenFrom`, which answers once for the
+design — see *Which face you are looking at*. Making it read `kindOf` of the
+leaf being drawn is the obvious next move and it is wrong: the two leaves
+would disagree about which way round their own wall is, and a hinge would be
+behind the leaf in one and in front of it in the other.
+
+**A door in the assembly decides it.** `seenFrom` asks whether *any* leaf is
+a door, and only where none is does it fall back to the kind the user began
+the drawing as. A set with a door in it is a set you walk up to, and you walk
+up to a door from outside; one window light or five does not change that,
+because the door is what you meet. It read `kind.seenFrom` alone before,
+which put a door standing in a window assembly **indoors** — its hinges
+drawn on the face you are at, which is a drawing of the wrong side of the
+door. A `both` assembly comes out outside by the same question rather than by
+a special case, because a set the user says holds both holds a door.
+
+`test/domain/two_marks_two_leaves_test.dart` holds this, and
+`mixed_door_and_window_test.dart` holds it on its own screen: one leaf said
+to be a door, and then every hinge in the assembly is round the back — the
+window sash's as much as the door's, because they are on the same wall —
+while the handles stay on the face you are at, since a handle goes through
+the leaf and is worked from either side.
 
 `Face` and `DesignKind` sit in `elements.dart` with the other element enums
 now that an element carries one; `design.dart` gives them again, so
@@ -1892,7 +1938,15 @@ is not the same side for the two kinds:
 | Door | outside — where you walk up to it | round the back, out of sight |
 | Window | inside — where you stand to open it | on the face you are at |
 
-`DesignKind.seenFrom` says which, `HardwareKind.onTheInsideFace` says which
+**And a door anywhere in the assembly settles it.** The table is about a
+design of one kind throughout; a set holding both is a set you walk up to a
+door in, so `Design.seenFrom` answers *outside* whenever any leaf is a door
+and falls back to `DesignKind.seenFrom` only where none is. It is still one
+answer for the whole design — see *One design, many openings, each its own
+kind* — and never one per leaf.
+
+`DesignKind.seenFrom` says which for a design with no door leaf in it,
+`HardwareKind.onTheInsideFace` says which
 pieces are fixed to one face only — a butt hinge is screwed to the inside
 face; a handle, a lever, a knob and a lock go through the leaf and are
 worked from either side — and `Design.isConcealed` is the one answer both

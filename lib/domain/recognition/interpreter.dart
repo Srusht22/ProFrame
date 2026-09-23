@@ -460,20 +460,45 @@ abstract final class SketchInterpreter {
 
     final through = <DividerElement>[];
     for (final bar in design.topLevelDividers) {
-      final here = bar.segment.direction.cross(symbol.centre - bar.a);
+      // How far each point lies to one side of the bar, as a real distance
+      // — the unit normal, so the tolerances below are lengths and not
+      // areas that grow with how long the bar happens to be.
+      double sideOf(Vec2 p) => bar.segment.unit.cross(p - bar.a);
+
+      final here = sideOf(symbol.centre);
       if (here.abs() <= Tol.samePointMm) continue;
+
+      /// How far past the bar [p] is, counting from the side the mark's own
+      /// middle is on. Positive is beyond it.
+      double past(Vec2 p) => here > 0 ? -sideOf(p) : sideOf(p);
 
       for (final arm in arms) {
         final crossing = bar.segment.crossing(arm);
         if (crossing == null) continue;
 
         // The end of the arm on the other side of the bar from the mark's
-        // own middle, and the region it goes into — picked up just past the
-        // bar's own material rather than at its centre line, which is inside
-        // the bar and in no region at all.
-        final away = bar.segment.direction.cross(arm.b - bar.a) * here < 0
-            ? arm.b
-            : arm.a;
+        // own middle.
+        //
+        // **An arm that comes to rest *on* the bar has not got past it, and
+        // then neither of its ends is the far one.** This used to fall back
+        // to the apex — a point on the *near* side, the mark's own middle
+        // end of the arm — and everything below was then measured from the
+        // wrong end of the line and came out as "through" every time. It is
+        // not a rare shape: a chevron drawn to fill its light ends on the
+        // bar bounding that light, which is how anybody draws one. A window
+        // with a full-height mullion, a transom across one side and a `>`
+        // in each of the two lights it made came back as **one** opening
+        // with the transom swallowed into it — two leaves marked, one leaf
+        // built, and one question asked where there should have been two.
+        final Vec2 away;
+        if (past(arm.b) > Tol.samePointMm) {
+          away = arm.b;
+        } else if (past(arm.a) > Tol.samePointMm) {
+          away = arm.a;
+        } else {
+          continue;
+        }
+
         final beyond = Segment(crossing.at, away);
         if (beyond.length < Tol.minLineMm) continue;
 
@@ -495,21 +520,40 @@ abstract final class SketchInterpreter {
         // in over. Nearer the far side, it was drawn across that light;
         // nearer the bar, it strayed over the bar and stopped.
         //
-        // **Two distances of the drawing's own, and no chosen size.** The
-        // measure used to be a weld tolerance — a hand's width off the far
-        // edge — and a weld is a couple of centimetres, which is the wrong
-        // scale entirely for where a chevron's point comes to rest. A `>`
-        // drawn across a door stops a hand short of the stile, not a weld
-        // short of it, so the rule read that mark as having strayed over
-        // the upright it plainly crossed. Whether it crossed the bar or not
-        // then depended on where the user had drawn their other lines,
-        // because that is what decides how big the far light is.
-        if (far.outline.contains(away)) {
-          final run = DesignEdits.spanAcross(
-              far.outline, Segment(entering, entering + beyond.unit));
-          if (run == null) continue;
-          if (away.distanceTo(run.b) > away.distanceTo(entering)) continue;
-        }
+        // **Both figures are the drawing's own, and there is no chosen size
+        // in it.** An arm crosses a light whether that light is a hand's
+        // width or three metres. The measure was a weld tolerance at
+        // first — reach the far side, give or take a hand's width — and a
+        // weld is a couple of centimetres, which is the wrong scale
+        // entirely for where a chevron's point comes to rest: a `>` drawn
+        // across a door stops a hand short of the stile, not a weld short
+        // of it.
+        //
+        // **And it is asked of every arm, not only of one that ends inside
+        // the far light.** This ran under `far.outline.contains(away)`, so
+        // an arm whose end was *not* in that light skipped the test
+        // altogether and took the bar unconditionally — and an end lands
+        // outside a light very easily: on the bar's own material, or a
+        // hand's width over the mullion beside it. A window with a
+        // full-height mullion, a transom across one side and a `>` in each
+        // of the two lights it made came back as **one** opening with the
+        // transom swallowed into it, because each chevron's tail came to
+        // rest on a bar rather than in the daylight. Two leaves the user
+        // had marked, one leaf built, and one question asked where there
+        // should have been two.
+        //
+        // Both distances are taken **along the arm's own line**, by
+        // projection rather than by asking whether the end is inside the
+        // light, so there is no case left to skip: an end resting on the
+        // bar has got nowhere at all, and an end that strayed over the
+        // mullion beside it has got however far along this line it really
+        // did get.
+        final run = DesignEdits.spanAcross(
+            far.outline, Segment(entering, entering + beyond.unit));
+        if (run == null) continue;
+        final across = (run.b - entering).dot(beyond.unit);
+        if (across <= Tol.samePointMm) continue;
+        if ((away - entering).dot(beyond.unit) * 2 < across) continue;
 
         through.add(bar);
         break;

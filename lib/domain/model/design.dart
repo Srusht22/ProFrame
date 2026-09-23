@@ -239,6 +239,30 @@ class Design {
   DesignKind? kindOf(OpeningElement opening) =>
       opening.kind ?? kind.leafDefault;
 
+  /// The face this whole assembly is met from, and so the face both views
+  /// show.
+  ///
+  /// **A door in the assembly decides it.** You stand on one side of the
+  /// wall and look at the whole thing, so which side that is is a fact
+  /// about the assembly and never about one leaf — but a set with a door in
+  /// it is a set you walk up to, and you walk up to a door from outside.
+  /// One window light or five does not change that; the door is what you
+  /// meet. So this asks whether *any* leaf is a door, and only where none
+  /// is does it fall back to the kind the user began the drawing as.
+  ///
+  /// It read `kind.seenFrom` alone before, which put a door standing in a
+  /// window assembly indoors — its hinges drawn on the face you are at,
+  /// which is a drawing of the wrong side of the door.
+  ///
+  /// **This is still one answer for the whole design, which is the rule it
+  /// must keep.** It is not `kindOf` of the leaf being drawn: every piece
+  /// in the assembly is on the same side as every other, and a window light
+  /// in a door set does not put you indoors for that one leaf.
+  Face get seenFrom =>
+      openings.any((o) => kindOf(o) == DesignKind.door)
+          ? Face.outside
+          : kind.seenFrom;
+
   /// True when [piece] is on the face this design is **not** seen from, so
   /// it is behind the leaf in the solid and hidden detail in the drawing.
   ///
@@ -247,7 +271,7 @@ class Design {
   /// hinge would be behind the leaf in one view and in front of it in the
   /// other.
   bool isConcealed(HardwareElement piece) =>
-      piece.kind.onTheInsideFace && kind.seenFrom == Face.outside;
+      piece.kind.onTheInsideFace && seenFrom == Face.outside;
 
   /// True when this section is filled by other sections rather than by glass
   /// or a panel of its own.
