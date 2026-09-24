@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +5,7 @@ import '../inspector/colour_picker.dart';
 import '../state/tools.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
+import 'workspace_bars.dart';
 
 /// The tools, down the left.
 ///
@@ -41,30 +40,88 @@ class ToolRail extends ConsumerWidget {
     // quietly doing nothing when tapped.
     final drawing = state.view == WorkspaceView.draw;
 
+    // Every tool takes the same room, so the highlight can glide from one
+    // to the next rather than jumping: it is one pill that moves, not nine
+    // that switch on and off.
+    final extent = compact ? 50.0 : 62.0;
+    final chosen = Tool.values.indexOf(state.tool);
+    final change = BarMotion.of(context, BarMotion.change);
+
     return Container(
       width: width,
       color: AppTheme.surface,
       child: ListView(
         padding: const EdgeInsets.symmetric(vertical: 10),
         children: [
-          for (final tool in Tool.values)
-            _ToolButton(
-              tool: tool,
-              icon: _icons[tool]!,
-              selected: drawing && state.tool == tool,
-              dimmed: !drawing && tool != Tool.select,
-              compact: compact,
-              onTap: () {
-                if (!drawing && tool != Tool.select) {
-                  controller.showView(WorkspaceView.draw);
-                }
-                controller.useTool(tool);
-              },
+          SizedBox(
+            height: extent * Tool.values.length,
+            child: Stack(
+              children: [
+                AnimatedPositioned(
+                  duration: change,
+                  curve: Curves.easeOutBack,
+                  top: extent * chosen + 3,
+                  left: 8,
+                  right: 8,
+                  height: extent - 6,
+                  child: AnimatedOpacity(
+                    // On the drawing and the model there is no pen in hand,
+                    // so there is nothing to highlight.
+                    opacity: drawing ? 1 : 0,
+                    duration: change,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primary.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Column(
+                  children: [
+                    for (final (i, tool) in Tool.values.indexed)
+                      BarArrival(
+                        // Down the rail one after another, from the side
+                        // they sit on.
+                        order: i,
+                        from: const Offset(-16, 0),
+                        child: SizedBox(
+                          height: extent,
+                          child: _ToolButton(
+                            tool: tool,
+                            icon: _icons[tool]!,
+                            selected: drawing && state.tool == tool,
+                            dimmed: !drawing && tool != Tool.select,
+                            compact: compact,
+                            onTap: () {
+                              if (!drawing && tool != Tool.select) {
+                                controller.showView(WorkspaceView.draw);
+                              }
+                              controller.useTool(tool);
+                            },
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
             ),
+          ),
           const Divider(height: 22, indent: 14, endIndent: 14),
-          _PenColour(
-            colour: state.penColour,
-            onTap: () => _pickColour(context, ref, state.penColour),
+          BarArrival(
+            order: Tool.values.length,
+            from: const Offset(-16, 0),
+            child: _PenColour(
+              colour: state.penColour,
+              onTap: () => _pickColour(context, ref, state.penColour),
+            ),
           ),
         ],
       ),
@@ -121,27 +178,26 @@ class _ToolButton extends StatefulWidget {
 }
 
 class _ToolButtonState extends State<_ToolButton> {
-  static const _quick = Duration(milliseconds: 220);
-
   bool _hover = false;
+  bool _down = false;
 
   @override
   Widget build(BuildContext context) {
     final selected = widget.selected;
     final dimmed = widget.dimmed;
+    final quick = BarMotion.of(context, BarMotion.hover);
+    final change = BarMotion.of(context, BarMotion.change);
     final iconColour = selected
         ? AppTheme.accent
         : dimmed
             ? AppTheme.muted.withValues(alpha: 0.45)
-            : AppTheme.ink;
+            : (_hover ? AppTheme.primary : AppTheme.ink);
     final labelColour = selected
         ? AppTheme.accent
         : AppTheme.muted.withValues(alpha: dimmed ? 0.45 : 1);
-    final background = selected
-        ? AppTheme.primary
-        : _hover && !dimmed
-            ? AppTheme.primary.withValues(alpha: 0.07)
-            : AppTheme.primary.withValues(alpha: 0);
+    // The chosen tool's highlight is the rail's one gliding pill; a hover
+    // only tints, so the two are never mistaken for each other.
+    final tint = !selected && _hover && !dimmed ? 0.07 : 0.0;
 
     return Tooltip(
       message: dimmed
@@ -150,62 +206,56 @@ class _ToolButtonState extends State<_ToolButton> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         child: MouseRegion(
+          cursor: SystemMouseCursors.click,
           onEnter: (_) => setState(() => _hover = true),
           onExit: (_) => setState(() => _hover = false),
-          child: AnimatedContainer(
-            duration: _quick,
-            curve: Curves.easeOutCubic,
-            decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primary.withValues(
-                    alpha: selected ? 0.28 : 0,
-                  ),
-                  blurRadius: selected ? 10 : 0,
-                  offset: Offset(0, selected ? 3 : 0),
-                ),
-              ],
-            ),
-            child: Material(
-              type: MaterialType.transparency,
-              child: InkWell(
-                onTap: widget.onTap,
+          child: AnimatedScale(
+            // It gives a little under the finger.
+            scale: _down ? 0.92 : 1,
+            duration: quick,
+            curve: Curves.easeOutBack,
+            child: AnimatedContainer(
+              duration: quick,
+              curve: Curves.easeOutCubic,
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: tint),
                 borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding:
-                      EdgeInsets.symmetric(vertical: widget.compact ? 9 : 8),
+              ),
+              child: Material(
+                type: MaterialType.transparency,
+                child: InkWell(
+                  onTap: widget.onTap,
+                  onHighlightChanged: (down) => setState(() => _down = down),
+                  borderRadius: BorderRadius.circular(12),
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // A bounce, once, as it is chosen: keyed on being
-                      // chosen, so it plays when that changes and not on
-                      // every rebuild.
-                      TweenAnimationBuilder<double>(
-                        key: ValueKey(selected),
-                        tween: Tween(begin: selected ? 0 : 1, end: 1),
-                        duration: const Duration(milliseconds: 420),
-                        curve: Curves.easeOut,
-                        builder: (context, t, child) => Transform.scale(
-                          scale: 1 + 0.2 * math.sin(math.pi * t),
-                          child: child,
-                        ),
-                        child: TweenAnimationBuilder<Color?>(
-                          tween: ColorTween(end: iconColour),
-                          duration: _quick,
-                          builder: (context, colour, _) =>
-                              Icon(widget.icon, size: 21, color: colour),
+                      // Lifted a little under the pointer, and a bounce, once,
+                      // as it is chosen.
+                      AnimatedSlide(
+                        offset: Offset(0, _hover && !selected ? -0.08 : 0),
+                        duration: quick,
+                        curve: Curves.easeOutCubic,
+                        child: ChosenBounce(
+                          chosen: selected,
+                          child: TweenAnimationBuilder<Color?>(
+                            tween: ColorTween(end: iconColour),
+                            duration: change,
+                            builder: (context, colour, _) =>
+                                Icon(widget.icon, size: 21, color: colour),
+                          ),
                         ),
                       ),
                       if (!widget.compact) ...[
                         const SizedBox(height: 3),
                         AnimatedDefaultTextStyle(
-                          duration: _quick,
+                          duration: change,
                           style: TextStyle(
                             fontFamily: AppTheme.fontFamily,
                             fontSize: 9.5,
                             height: 1.15,
-                            fontWeight: FontWeight.w600,
+                            fontWeight:
+                                selected ? FontWeight.w700 : FontWeight.w600,
                             color: labelColour,
                           ),
                           child: Text(

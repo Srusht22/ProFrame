@@ -863,10 +863,21 @@ them (`AlertPressable`) lift under the pointer and give when pressed; the
 tools down the left fill their highlight in and bounce once when chosen;
 the panel of questions under the drawing opens up from its foot.
 
+The bars move the same way, by `BarMotion` in `workspace_bars.dart`. The
+tools down the left and the views across the top (`ViewTabs`) each have
+**one** highlight that glides to what is chosen, settling with a slight
+overshoot, rather than nine that switch on and off — so every tool takes
+the same room. When the workspace opens, the title, the top icons and the
+tools arrive one after another (`BarArrival`). The top icons (`BarIcon`)
+take a halo under the pointer, squeeze when pressed, fade when there is
+nothing to undo, and turn as their icon changes; save becomes a tick for a
+moment (`SaveIcon`).
+
 **Every movement finishes.** Nothing loops, so the screen is still while it
 is read and `pumpAndSettle` settles; and a device asking for less motion
-gets each alert already in place. `test/app/the_alerts_move_test.dart`
-holds all of it.
+gets each alert and each highlight already in place.
+`test/app/the_alerts_move_test.dart` and `test/app/the_bars_move_test.dart`
+hold all of it.
 
 ### Reading a mark drawn by a hand
 
@@ -1656,6 +1667,17 @@ together rather than four things that happen to move similarly. It also means
 the hinge stile stands its own thickness off the hinge line at ninety
 degrees, as a real door does; a test that wants it exactly on the line is
 describing a leaf that never turned.
+
+**Inward is into the building, and which way that is on the screen depends
+on which face the drawing is of.** A window is drawn from inside, so an
+inward sash swings towards the viewer; a design with a door in it is drawn
+from outside, so an inward door swings *away*, into the room — the door you
+walk up to and push. Every inward leaf used to swing towards the viewer,
+which opened a front door out into the street. `MeshBuilder.swingsTowardViewer`
+reads `Design.seenFrom`, the one answer for the assembly, and the leaf turns
+about the face it swings towards — `leafFront` or `leafBack`, the face its
+hinges are on — so it comes out of the frame rather than through it.
+`test/domain/a_door_opens_into_the_room_test.dart` holds it.
 
 **A section the user marked is a leaf wherever it sits.** `_addSection` is the
 one place that decides, at every level of the tree, so a pane of a sash the

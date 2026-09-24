@@ -335,7 +335,7 @@ abstract final class MeshBuilder {
     // Its own swing, then whatever its parent is doing. A leaf inside a leaf
     // swings within the one it hangs in; a leaf hanging in the frame has no
     // parent movement and this is its swing alone.
-    final swing = _swingFor(opening, section, openFraction);
+    final swing = _swingFor(design, opening, section, depth, openFraction);
     final outer = place;
     Vec3 move(Vec3 point) =>
         outer == null ? swing(point) : outer(swing(point));
@@ -458,9 +458,28 @@ abstract final class MeshBuilder {
   static double _leafDepth(double depth) => depth * 0.66;
 
   /// Swings a point about the hinge edge of [opening].
+  /// Whether [opening] swings towards the viewer — out of the face the
+  /// drawing is of — rather than away from it.
+  ///
+  /// **Inward is into the building, and which way that is on the screen
+  /// depends on which side of the wall the drawing is of.** A window is
+  /// drawn from inside, so an inward sash swings towards you. A design with
+  /// a door in it is drawn from outside, so an inward door swings *away*,
+  /// into the room behind it — which is what the user expects of a door they
+  /// walk up to and push. Swinging every inward leaf towards the viewer, as
+  /// it used to, opened a front door out into the street.
+  /// `Design.seenFrom` is the one answer for the whole assembly.
+  static bool swingsTowardViewer(Design design, OpeningElement opening) {
+    final inward = opening.direction != OpeningDirection.outward;
+    final seenFromInside = design.seenFrom == Face.inside;
+    return inward == seenFromInside;
+  }
+
   static Vec3 Function(Vec3) _swingFor(
+    Design design,
     OpeningElement opening,
     SectionElement section,
+    double depth,
     double openFraction,
   ) {
     final edge = opening.mechanism.hingeEdge;
@@ -469,11 +488,15 @@ abstract final class MeshBuilder {
     // Ninety degrees is as far as anything swings here; a leaf drawn further
     // than that in a preview reads as broken rather than as open.
     final angle = (openFraction.clamp(0.0, 1.0)) * math.pi / 2;
-    final towards =
-        opening.direction == OpeningDirection.outward ? -1.0 : 1.0;
+    final toward = swingsTowardViewer(design, opening);
+    final towards = toward ? 1.0 : -1.0;
     final cos = math.cos(angle);
     final sin = math.sin(angle) * towards;
     final box = section.outline;
+
+    // It turns about the face it swings towards — the face its hinges are
+    // screwed to — so it comes out of the frame rather than through it.
+    final pivot = toward ? leafFront(depth) : leafBack(depth);
 
     // A turn about the hinge, not a squash towards it. The leaf has depth,
     // so its far face has to come round with its near face: rotating the
@@ -486,34 +509,38 @@ abstract final class MeshBuilder {
     return switch (edge) {
       OpeningEdge.left => (p) {
           final d = p.x - box.left;
+          final q = p.z - pivot;
           return Vec3(
-            box.left + d * cos - p.z * sin,
+            box.left + d * cos - q * sin,
             p.y,
-            p.z * cos + d * sin,
+            pivot + q * cos + d * sin,
           );
         },
       OpeningEdge.right => (p) {
           final d = p.x - box.right;
+          final q = p.z - pivot;
           return Vec3(
-            box.right + d * cos + p.z * sin,
+            box.right + d * cos + q * sin,
             p.y,
-            p.z * cos - d * sin,
+            pivot + q * cos - d * sin,
           );
         },
       OpeningEdge.top => (p) {
           final d = p.y - box.top;
+          final q = p.z - pivot;
           return Vec3(
             p.x,
-            box.top + d * cos - p.z * sin,
-            p.z * cos + d * sin,
+            box.top + d * cos - q * sin,
+            pivot + q * cos + d * sin,
           );
         },
       OpeningEdge.bottom => (p) {
           final d = p.y - box.bottom;
+          final q = p.z - pivot;
           return Vec3(
             p.x,
-            box.bottom + d * cos + p.z * sin,
-            p.z * cos - d * sin,
+            box.bottom + d * cos + q * sin,
+            pivot + q * cos - d * sin,
           );
         },
     };

@@ -454,7 +454,10 @@ void main() {
 
       final shut = frontOf(0);
       final ajar = frontOf(0.4);
-      expect(ajar, greaterThan(shut + 50),
+      // Which way is the leaf's business — this is a door, seen from
+      // outside, so it swings away into the room — and the handle goes
+      // with it either way.
+      expect((ajar - shut).abs(), greaterThan(50),
           reason: 'the handle comes away from the frame with the leaf');
     });
   });

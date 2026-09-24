@@ -13,6 +13,7 @@ import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import '../viewer/model_view.dart';
 import 'tool_rail.dart';
+import 'workspace_bars.dart';
 
 /// Where the work happens: tools on the left, the drawing in the middle,
 /// what is selected on the right.
@@ -36,43 +37,58 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
     final controller = ref.read(workspaceProvider.notifier);
 
     return Scaffold(
+      // The bar across the top arrives with the workspace — the name, then
+      // each icon in turn — and every icon answers to the pointer. How it
+      // all moves is `BarMotion`'s, in one place.
       appBar: AppBar(
-        title: Text(state.design.name),
-        actions: [
-          IconButton(
-            tooltip: 'Undo',
-            onPressed: controller.canUndo ? controller.undo : null,
-            icon: const Icon(Icons.undo),
-            color: AppTheme.accent,
-            disabledColor: AppTheme.accent.withValues(alpha: 0.3),
-          ),
-          IconButton(
-            tooltip: 'Redo',
-            onPressed: controller.canRedo ? controller.redo : null,
-            icon: const Icon(Icons.redo),
-            color: AppTheme.accent,
-            disabledColor: AppTheme.accent.withValues(alpha: 0.3),
-          ),
-          IconButton(
-            tooltip: 'Save',
-            onPressed: () async {
-              await controller.save();
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context)
-                  .showSnackBar(const SnackBar(content: Text('Design saved.')));
-            },
-            icon: const Icon(Icons.save_outlined),
-            color: AppTheme.accent,
-          ),
-          IconButton(
-            tooltip: state.showSketch ? 'Hide my drawing' : 'Show my drawing',
-            onPressed: controller.toggleSketch,
-            icon: Icon(
-              state.showSketch ? Icons.gesture : Icons.gesture_outlined,
+        title: BarArrival(
+          order: 0,
+          from: const Offset(-14, 0),
+          child: AnimatedSwitcher(
+            duration: BarMotion.of(context, BarMotion.change),
+            child: Text(
+              state.design.name,
+              key: ValueKey(state.design.name),
             ),
-            color: state.showSketch
-                ? AppTheme.accent
-                : AppTheme.accent.withValues(alpha: 0.45),
+          ),
+        ),
+        actions: [
+          BarArrival(
+            order: 1,
+            child: BarIcon(
+              tooltip: 'Undo',
+              icon: Icons.undo,
+              onPressed: controller.canUndo ? controller.undo : null,
+            ),
+          ),
+          BarArrival(
+            order: 2,
+            child: BarIcon(
+              tooltip: 'Redo',
+              icon: Icons.redo,
+              onPressed: controller.canRedo ? controller.redo : null,
+            ),
+          ),
+          BarArrival(
+            order: 3,
+            child: SaveIcon(
+              onSave: () async {
+                await controller.save();
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Design saved.')),
+                );
+              },
+            ),
+          ),
+          BarArrival(
+            order: 4,
+            child: BarIcon(
+              tooltip: state.showSketch ? 'Hide my drawing' : 'Show my drawing',
+              icon: state.showSketch ? Icons.gesture : Icons.gesture_outlined,
+              dim: !state.showSketch,
+              onPressed: controller.toggleSketch,
+            ),
           ),
           const SizedBox(width: 8),
         ],
@@ -195,19 +211,15 @@ class _ViewBar extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     child: Row(
       children: [
-        SegmentedButton<WorkspaceView>(
-          segments: [
-            for (final view in WorkspaceView.values)
-              ButtonSegment(
-                value: view,
-                label: Text(view.label),
-                enabled:
-                    view == WorkspaceView.draw || state.design.frame != null,
-              ),
-          ],
-          selected: {state.view},
-          showSelectedIcon: false,
-          onSelectionChanged: (values) => controller.showView(values.first),
+        BarArrival(
+          order: 1,
+          child: ViewTabs(
+            selected: state.view,
+            compact: compact,
+            enabled: (view) =>
+                view == WorkspaceView.draw || state.design.frame != null,
+            onSelected: controller.showView,
+          ),
         ),
         const Spacer(),
         if (state.design.frame != null)
