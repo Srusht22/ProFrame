@@ -18,9 +18,11 @@ import 'hinges_round_the_back_test.dart' show pen;
 // user's photographs — and neither is a template.
 //
 // A sliding panel hangs on no hinge. It is drawn along by a pull on the
-// stile it closes with, away from the way it slides, and in the solid it
-// steps back onto a track of its own and runs along it behind the frame,
-// its own width and never past the jamb, while nothing else moves.
+// stile it closes with, away from the way it slides. In the solid every
+// panel stands in the frame on a track, the fixed ones outermost, and a
+// slider glides along its own track past the panel beside it — its own
+// width and never past the jamb, never out of the frame — while nothing
+// else moves.
 
 /// Two lights side by side, with [left] and [right] drawn in them: `'<'`,
 /// `'>'`, or null for no mark.
@@ -189,25 +191,75 @@ void main() {
       expect(by.x.abs(), greaterThan(box.width * 0.9));
     });
 
-    test('it runs behind the frame, into the building, and not past it', () {
-      final open = facetsOf(MeshBuilder.build(design, openFraction: 1), {
-        slider.sectionId,
-      });
-      for (final c in open.expand((f) => f.corners)) {
-        expect(c.z, lessThanOrEqualTo(-depth + 1e-6), reason: 'behind');
+    test('it stays in the frame, on a track behind the fixed panel', () {
+      final mesh = MeshBuilder.build(design, openFraction: 1);
+      final fixed = design.topLevelSections.firstWhere(
+        (s) => s.id != slider.sectionId,
+      );
+      List<double> zs(String id) => [
+        for (final f in facetsOf(mesh, {id}))
+          for (final c in f.corners) c.z,
+      ];
+      final slid = facetsOf(mesh, {slider.sectionId});
+      for (final c in slid.expand((f) => f.corners)) {
+        expect(c.z, lessThanOrEqualTo(1e-6), reason: 'not out of the face');
+        expect(c.z, greaterThanOrEqualTo(-depth - 1e-6), reason: 'nor out '
+            'of the back');
         expect(c.x, greaterThanOrEqualTo(room.left - 1e-6), reason: 'jamb');
       }
+      // Seen from outside, the fixed panel is on the outer track and the
+      // slider passes behind it.
+      final fixedBack = zs(fixed.id).reduce((a, b) => a < b ? a : b);
+      final sliderFront = zs(slider.sectionId).reduce((a, b) => a > b ? a : b);
+      expect(sliderFront, lessThanOrEqualTo(fixedBack + 1e-6));
     });
 
-    test('part way open it has stepped back before it slides', () {
+    test('it glides from the start: along its track, never out of it', () {
       final shut = facetsOf(MeshBuilder.build(design), {slider.sectionId});
       final early = facetsOf(
         MeshBuilder.build(design, openFraction: 0.1),
         {slider.sectionId},
       );
       final d = early.first.corners.first - shut.first.corners.first;
-      expect(d.x, 0, reason: 'not along yet');
-      expect(d.z, lessThan(0), reason: 'already stepping back');
+      expect(d.x, lessThan(0), reason: 'already moving along');
+      expect(d.z, 0, reason: 'and only along');
+    });
+
+    test('the fixed panel is a sash on its track, like the one that slides',
+        () {
+      final fixed = design.topLevelSections.firstWhere(
+        (s) => s.id != slider.sectionId,
+      );
+      final mesh = MeshBuilder.build(design);
+      expect(
+        facetsOf(mesh, {fixed.id}).any((f) => f.role == FacetRole.sash),
+        isTrue,
+      );
+    });
+
+    test('where the two panels meet is their stiles, not a post', () {
+      final mullion = design.topLevelDividers.single;
+      final mesh = MeshBuilder.build(design);
+      expect(facetsOf(mesh, {mullion.id}), isEmpty);
+      // Both panels reach to the middle of the line between them, so from
+      // the front there is no gap where it was drawn.
+      final middle = mullion.segment.midpoint.x;
+      final fixed = design.topLevelSections.firstWhere(
+        (s) => s.id != slider.sectionId,
+      );
+      double reach(String id, bool right) {
+        final xs = [
+          for (final f in facetsOf(mesh, {id}))
+            for (final c in f.corners) c.x,
+        ];
+        return right
+            ? xs.reduce((a, b) => a > b ? a : b)
+            : xs.reduce((a, b) => a < b ? a : b);
+      }
+      expect(reach(fixed.id, true), closeTo(middle, 1e-6));
+      expect(reach(slider.sectionId, false), closeTo(middle, 1e-6));
+      // And the line is still the user's, on the drawing and in the design.
+      expect(design.dividers.map((d) => d.id), contains(mullion.id));
     });
 
     test('nothing else moves', () {
@@ -219,6 +271,63 @@ void main() {
             '${f.elementId}:${f.corners.map((c) => '${c.x},${c.y},${c.z}')}',
       ].join('\n');
       expect(others(open), others(shut));
+    });
+
+    test('four panels, the middle two parting: they share one track', () {
+      final time = DateTime(2026);
+      final four = SketchInterpreter.interpret(
+        Design(
+          id: 'd4',
+          name: 'test',
+          kind: DesignKind.sliding,
+          createdAt: time,
+          updatedAt: time,
+          sketch: Sketch(
+            strokes: [
+              pen('outline', const [
+                Vec2(0, 0),
+                Vec2(3200, 0),
+                Vec2(3200, 2100),
+                Vec2(0, 2100),
+                Vec2(0, 0),
+              ]),
+              for (final x in [800.0, 1600.0, 2400.0])
+                pen('m$x', [Vec2(x, 0), Vec2(x, 2100)]),
+              // The second slides left, the third slides right.
+              pen('a', const [Vec2(1255, 940), Vec2(1145, 1050),
+                Vec2(1255, 1160)]),
+              pen('b', const [Vec2(1945, 940), Vec2(2055, 1050),
+                Vec2(1945, 1160)]),
+            ],
+          ),
+        ),
+      ).design;
+      final order = four.openingsInOrder;
+      expect(
+        [for (final o in order) o.mechanism],
+        [OpeningMechanism.slidingLeft, OpeningMechanism.slidingRight],
+      );
+      final mesh = MeshBuilder.build(four, openFraction: 1);
+      (double, double) zRange(String id) {
+        final zs = [
+          for (final f in facetsOf(mesh, {id}))
+            if (f.role != FacetRole.hardware)
+              for (final c in f.corners) c.z,
+        ];
+        return (
+          zs.reduce((a, b) => a < b ? a : b),
+          zs.reduce((a, b) => a > b ? a : b),
+        );
+      }
+
+      final a = zRange(order[0].sectionId), b = zRange(order[1].sectionId);
+      expect(a.$1, closeTo(b.$1, 1e-6), reason: 'the same track');
+      expect(a.$2, closeTo(b.$2, 1e-6));
+      // Behind the two fixed panels, which are on the outer track.
+      for (final fixed in four.topLevelSections) {
+        if (order.any((o) => o.sectionId == fixed.id)) continue;
+        expect(a.$2, lessThanOrEqualTo(zRange(fixed.id).$1 + 1e-6));
+      }
     });
 
     test('two sliders run on two tracks and pass each other', () {

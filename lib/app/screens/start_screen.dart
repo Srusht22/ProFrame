@@ -542,23 +542,42 @@ class _PenDrawing extends CustomPainter {
       [Offset(0.18, 0.4), Offset(0.36, 0.52), Offset(0.18, 0.64)],
       [Offset(0.74, 0.18), Offset(0.56, 0.28), Offset(0.74, 0.38)],
     ],
-    // Two panels side by side, the right one marked to slide left behind
-    // the left: the plainest sliding door there is.
+    // A sliding door as one is drawn: the frame, two panels overlapping
+    // where they meet — one on each track — and the way the moving one
+    // goes, in gold.
     DesignKind.sliding => const [
       [
-        Offset(0.1, 0.18),
-        Offset(0.9, 0.18),
-        Offset(0.9, 0.82),
-        Offset(0.1, 0.82),
-        Offset(0.1, 0.18),
+        Offset(0.08, 0.2),
+        Offset(0.92, 0.2),
+        Offset(0.92, 0.8),
+        Offset(0.08, 0.8),
+        Offset(0.08, 0.2),
       ],
-      [Offset(0.5, 0.18), Offset(0.5, 0.82)],
-      [Offset(0.8, 0.38), Offset(0.6, 0.5), Offset(0.8, 0.62)],
+      [
+        Offset(0.13, 0.25),
+        Offset(0.55, 0.25),
+        Offset(0.55, 0.75),
+        Offset(0.13, 0.75),
+        Offset(0.13, 0.25),
+      ],
+      [
+        Offset(0.45, 0.25),
+        Offset(0.87, 0.25),
+        Offset(0.87, 0.75),
+        Offset(0.45, 0.75),
+        Offset(0.45, 0.25),
+      ],
+      [Offset(0.8, 0.5), Offset(0.58, 0.5)],
+      [Offset(0.65, 0.43), Offset(0.58, 0.5), Offset(0.65, 0.57)],
     ],
   };
 
   /// How many of the lines are marks rather than structure.
-  static int _marks(DesignKind kind) => kind == DesignKind.both ? 2 : 1;
+  static int _marks(DesignKind kind) => switch (kind) {
+    // Two marks in one frame, or an arrow — a shaft and its head.
+    DesignKind.both || DesignKind.sliding => 2,
+    _ => 1,
+  };
 
   @override
   void paint(Canvas canvas, Size size) {

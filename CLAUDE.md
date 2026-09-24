@@ -806,8 +806,10 @@ it was noise and is not to come back.
 
 ### The start screen
 
-Each of the four cards — door, window, door & window, sliding — is drawn by a pen
-as it arrives: the outline, the bars, then the mark in gold. It is painted
+Each of the four cards — door, window, door & window, sliding — is drawn by
+a pen as it arrives: the outline, the bars, then the mark in gold. The
+sliding card is two panels overlapping where they meet, with the way one
+slides as a gold arrow. It is painted
 from lines, like everything else, never a picture. Every movement finishes:
 the cards arrive once, in turn, and a card draws itself again only when the
 pointer comes onto it. Nothing loops, so the screen is still while it is
@@ -837,14 +839,26 @@ would, so it is half way up like every handle and the user's own figure
 moves it. Its leaf follows a door unless they say otherwise, so its pull is
 on both faces.
 
-**In the solid it steps back and runs along.** `MeshBuilder._slideFor`: in
-the frame the panel stands in line with the fixed lights, so it first steps
-back into the building, clear of the frame's depth, and then slides towards
-the edge it leads with — its own width, stopping at the jamb where that is
-nearer. Each sliding panel has a track of its own in reading order, a leaf's
-thickness further back than the one before, so two sliders pass rather than
-run through each other. It is a translation, never a turn, and nothing else
-moves. `test/domain/a_sliding_design_test.dart` holds all of it.
+**In the solid every panel stands in the frame, on a track.** `_Tracks`
+in `mesh_builder.dart`: the frame's depth holds tracks, the fixed panels —
+each a sash of its own, as on a real sliding door — share the outermost, and
+each sliding panel stands on the first track behind that where nothing is in
+its way. A slider beside a fixed light runs behind it; two sliders that pass
+each other are on two tracks; the two middle panels of a four-panel door
+that part to either side share one, because they never meet. Opening a
+slider is a translation along its own track and nothing else
+(`MeshBuilder._slideFor`) — its own width, stopping at the jamb where that is
+nearer — and nothing else moves.
+
+**The line between two panels is where they meet, not a post.** Each panel
+reaches to the middle of it, so it is the two panels' own stiles, one on
+each track. A post there would stand in the very track the slider runs
+along, which is what the first version got wrong: it kept the post and
+stepped the slider out of the back of the frame to get past it, and the
+user's videos of real sliding doors showed it plainly. The line stays the
+user's, on the drawing and in the design.
+
+`test/domain/a_sliding_design_test.dart` holds all of it.
 
 ### A side left open
 

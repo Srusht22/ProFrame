@@ -36,12 +36,24 @@ abstract final class MeshBuilder {
 
     _addFrame(facets, frame, depth);
 
+    // A sliding design is panels standing on tracks in the frame, and the
+    // lines between them are where the panels meet — see [_Tracks].
+    final tracks = design.kind.slides
+        ? _Tracks.of(design, tree, frame, depth)
+        : null;
+
     // Only the bars that divide the design itself. A bar drawn inside a
     // section is built with that section, so that it swings with the leaf it
     // is part of instead of staying behind on the frame.
     for (final id in tree.barIds) {
       final divider = design.dividerById(id);
-      if (divider != null) _addBar(facets, divider, frame, depth);
+      // In a sliding design a line between two panels is where they meet:
+      // its material is the two panels' own stiles, which reach to its
+      // middle, and not a post standing in the frame for one of them to run
+      // into.
+      if (divider != null && tracks == null) {
+        _addBar(facets, divider, frame, depth);
+      }
     }
 
     // Only the main divisions are built here. What is inside a section is
@@ -50,6 +62,10 @@ abstract final class MeshBuilder {
     for (final branch in tree.sections) {
       final section = design.sectionById(branch.sectionId);
       if (section == null) continue;
+      if (tracks != null) {
+        tracks.addPanel(facets, branch, section, openFraction);
+        continue;
+      }
       _addSection(facets, design, branch, section, frame, depth, openFraction);
     }
 
@@ -325,12 +341,14 @@ abstract final class MeshBuilder {
     double depth,
     double openFraction, {
     Vec3 Function(Vec3)? place,
+    Polygon? outline,
   }) {
     // The same leaf the drawing shows, described in one place so the
     // elevation and the solid cannot disagree about where it is.
-    final sashOuter = OpeningLeaf.outerOf(section);
-    final sashInner =
-        OpeningLeaf.innerOf(section, frame) ?? const Polygon([]);
+    final sashOuter = outline ?? OpeningLeaf.outerOf(section);
+    final sashInner = outline != null
+        ? _insideOf(outline, frame)
+        : OpeningLeaf.innerOf(section, frame) ?? const Polygon([]);
 
     // Its own swing, then whatever its parent is doing. A leaf inside a leaf
     // swings within the one it hangs in; a leaf hanging in the frame has no
@@ -340,9 +358,38 @@ abstract final class MeshBuilder {
     Vec3 move(Vec3 point) =>
         outer == null ? swing(point) : outer(swing(point));
 
-    Vec3 at(Vec2 point, double z) => move(_at(point, z));
     _addLeafHardware(out, design, section, depth, move);
+    _addSash(out, design, branch, section, frame, depth, openFraction,
+        sashOuter, sashInner, move);
+  }
 
+  /// The daylight inside a sash whose outside is [outer].
+  static Polygon _insideOf(Polygon outer, FrameElement frame) {
+    final inner = outer.inset(OpeningLeaf.profileFor(frame));
+    if (inner.isEmpty ||
+        inner.corners.length != outer.corners.length ||
+        inner.area <= 0 ||
+        inner.area >= outer.area) {
+      return const Polygon([]);
+    }
+    return inner;
+  }
+
+  /// A sash — its ring of material between [sashOuter] and [sashInner], and
+  /// whatever fills it — placed by [move].
+  static void _addSash(
+    List<Facet> out,
+    Design design,
+    TreeSection branch,
+    SectionElement section,
+    FrameElement frame,
+    double depth,
+    double openFraction,
+    Polygon sashOuter,
+    Polygon sashInner,
+    Vec3 Function(Vec3) move,
+  ) {
+    Vec3 at(Vec2 point, double z) => move(_at(point, z));
     final leafFront = MeshBuilder.leafFront(depth);
     final leafDepth = _leafDepth(depth);
 
@@ -549,29 +596,18 @@ abstract final class MeshBuilder {
     };
   }
 
-  /// How much of opening a sliding panel spends stepping onto its track,
-  /// before it slides along it.
-  static const _stepShare = 0.2;
-
   /// Slides a point of a sliding panel, [openFraction] of the way open.
   ///
-  /// **A sliding panel does not turn; it steps back onto its track and runs
-  /// along it.** In the frame it stands in line with the fixed lights, so
-  /// sliding it straight sideways would take it through the mullion and the
-  /// glass beside it. It first steps back — into the building, the same way
-  /// an inward door swings, so from outside it goes behind the frame and
-  /// from inside in front of it — clear of the frame's own depth, and then
-  /// runs towards the edge it leads with.
+  /// **A sliding panel runs along its own track, and does nothing else.** It
+  /// already stands on that track in the frame — [_Tracks] puts it there —
+  /// so opening it is a translation along the track and nothing more: no
+  /// turn, no step out of the frame, as a real sliding door glides past the
+  /// panel beside it.
   ///
   /// **How far is the panel's own width, and never past the frame.** That
   /// is what opening a slider means: it clears its own light. Where the
-  /// frame is nearer than that, it stops at the jamb. Nothing here is a
+  /// jamb is nearer than that, it stops at the jamb. Nothing here is a
   /// distance chosen to look right.
-  ///
-  /// **Each sliding panel has a track of its own.** Two panels that both
-  /// slide pass each other, so the second in reading order stands a leaf's
-  /// thickness further back than the first, and neither runs through the
-  /// other.
   static Vec3 Function(Vec3) _slideFor(
     Design design,
     OpeningElement opening,
@@ -581,35 +617,27 @@ abstract final class MeshBuilder {
     double openFraction,
   ) {
     if (openFraction <= 0) return (p) => p;
-    final f = openFraction.clamp(0.0, 1.0);
-    final t = (f / _stepShare).clamp(0.0, 1.0);
-    final stepped = t * t * (3 - 2 * t);
-    final slid = ((f - _stepShare) / (1 - _stepShare)).clamp(0.0, 1.0);
+    final along =
+        _travelOf(design, section, leads) * openFraction.clamp(0.0, 1.0);
+    return (p) => Vec3(p.x + along, p.y, p.z);
+  }
 
-    final sliders = [
-      for (final o in design.openingsInOrder)
-        if (o.mechanism.slideEdge != null) o.id,
-    ];
-    final track = math.max(0, sliders.indexOf(opening.id));
-    final leafDepth = _leafDepth(depth);
-    final intoBuilding = design.seenFrom == Face.outside ? -1.0 : 1.0;
-    // Clear of the frame: from outside, its near face meets the frame's
-    // back; from inside, its far face meets the frame's front.
-    final clear =
-        intoBuilding < 0 ? -depth - leafFront(depth) : -leafBack(depth);
-    final back = (clear + intoBuilding * track * leafDepth) * stepped;
-
+  /// How far a panel in [section] slides when fully open, towards [leads]:
+  /// negative to the left.
+  static double _travelOf(
+    Design design,
+    SectionElement section,
+    OpeningEdge leads,
+  ) {
     final box = section.outline;
     final room = design.frame?.innerOutline;
-    final travel = switch (leads) {
+    return switch (leads) {
       OpeningEdge.left => -math.min(
           box.width, math.max(0.0, box.left - (room?.left ?? box.left))),
       OpeningEdge.right => math.min(
           box.width, math.max(0.0, (room?.right ?? box.right) - box.right)),
       _ => 0.0,
     };
-    final along = travel * slid;
-    return (p) => Vec3(p.x + along, p.y, p.z + back);
   }
 
   /// A piece of ironmongery, at the point the user put it — or at the point
@@ -1360,5 +1388,173 @@ abstract final class MeshBuilder {
     final to = bIn ? 1.0 : hits.last;
     if (to - from < 1e-6) return null;
     return Segment(line.pointAt(from), line.pointAt(to));
+  }
+}
+
+/// A sliding design as the thing it is: panels standing on tracks in the
+/// depth of the frame.
+///
+/// **Every panel stands in the frame, on a track of its own.** The fixed
+/// panels share the outermost track; each sliding panel stands on the first
+/// track behind that where it will not run into anything on its way — so a
+/// slider beside a fixed light runs behind it, two sliders that pass each
+/// other are on two tracks, and two that part in the middle of a four-panel
+/// door share one, because they never meet. Which track that is follows from
+/// where the panels are and which way they go, nothing else.
+///
+/// **A panel reaches to the middle of the line it meets its neighbour at.**
+/// The line the user drew between two panels is where they meet, and that
+/// meeting is the two panels' own stiles, one on each track, rather than a
+/// post in the frame. A post there would stand in the very track the slider
+/// runs along.
+class _Tracks {
+  final Design design;
+  final FrameElement frame;
+  final double depth;
+  final Map<String, int> _track;
+
+  /// How many tracks the frame holds.
+  final int count;
+
+  _Tracks._(this.design, this.frame, this.depth, this._track, this.count);
+
+  /// How much of its track a panel fills: the rest is the clearance that
+  /// keeps two panels on neighbouring tracks from touching.
+  static const _fills = 0.86;
+
+  static _Tracks of(
+    Design design,
+    DesignTree tree,
+    FrameElement frame,
+    double depth,
+  ) {
+    // The ground each panel covers: its own, and for a slider everything it
+    // passes over on its way open.
+    final spans = <String, (double, double)>{};
+    final sliders = <String>[];
+    for (final branch in tree.sections) {
+      final section = design.sectionById(branch.sectionId);
+      if (section == null) continue;
+      final box = section.outline;
+      final opening =
+          branch.opens ? design.openingById(branch.openingId!) : null;
+      final leads = opening?.mechanism.slideEdge;
+      if (leads == null) {
+        spans[section.id] = (box.left, box.right);
+        continue;
+      }
+      final travel = MeshBuilder._travelOf(design, section, leads);
+      spans[section.id] = (
+        math.min(box.left, box.left + travel),
+        math.max(box.right, box.right + travel),
+      );
+      sliders.add(section.id);
+    }
+
+    final track = <String, int>{
+      for (final id in spans.keys)
+        if (!sliders.contains(id)) id: 0,
+    };
+    bool clash(String a, String b) =>
+        spans[a]!.$1 < spans[b]!.$2 - 1 && spans[b]!.$1 < spans[a]!.$2 - 1;
+    for (final id in sliders) {
+      var t = 1;
+      while (track.entries.any((e) => e.value == t && clash(e.key, id))) {
+        t++;
+      }
+      track[id] = t;
+    }
+
+    // Numbered from the outermost track anything actually stands on.
+    final lowest = track.values.fold(1 << 30, math.min);
+    final numbered = {
+      for (final e in track.entries) e.key: e.value - lowest,
+    };
+    final count = numbered.values.fold(0, math.max) + 1;
+    return _Tracks._(design, frame, depth, numbered, count);
+  }
+
+  /// The track [sectionId] stands on, 0 the outermost.
+  int trackOf(String sectionId) => _track[sectionId] ?? 0;
+
+  /// Where the face of track [k] is: the outermost at the face of the
+  /// frame that is outside.
+  double _frontOf(int k) {
+    final each = depth / count;
+    return design.seenFrom == Face.outside
+        ? -k * each
+        : -(count - 1 - k) * each;
+  }
+
+  /// [section]'s panel, reaching to the middle of the lines it meets its
+  /// neighbours at.
+  Polygon outlineOf(SectionElement section) {
+    final outline = section.outline;
+    final grow = <double>[];
+    for (final edge in outline.edges) {
+      var by = 0.0;
+      if (edge.direction.length > 1e-9) {
+        for (final bar in design.topLevelDividers) {
+          final line = bar.segment;
+          if (line.direction.length < 1e-9) continue;
+          if (edge.unit.cross(line.unit).abs() > 0.05) continue;
+          if (line.distanceTo(edge.midpoint) <= bar.widthMm / 2 + 1) {
+            by = -bar.widthMm / 2;
+          }
+        }
+      }
+      grow.add(by);
+    }
+    return outline.insetEach(grow);
+  }
+
+  /// The panel in [section], on its track: a sliding panel runs along it,
+  /// and a fixed one is a sash standing on it.
+  void addPanel(
+    List<Facet> out,
+    TreeSection branch,
+    SectionElement section,
+    double openFraction,
+  ) {
+    final each = depth / count;
+    // The depth the leaf builders are given so that the leaf they build is
+    // as thick as its share of the track, and the shift that stands it
+    // there.
+    final asBuilt = each * _fills / MeshBuilder._leafDepth(1);
+    final shift = _frontOf(trackOf(section.id)) -
+        each * (1 - _fills) / 2 -
+        MeshBuilder.leafFront(asBuilt);
+    Vec3 onTrack(Vec3 p) => Vec3(p.x, p.y, p.z + shift);
+
+    final outline = outlineOf(section);
+    final opening =
+        branch.opens ? design.openingById(branch.openingId!) : null;
+    if (opening != null) {
+      MeshBuilder._addLeaf(
+        out,
+        design,
+        branch,
+        section,
+        opening,
+        frame,
+        asBuilt,
+        openFraction,
+        place: onTrack,
+        outline: outline,
+      );
+      return;
+    }
+    MeshBuilder._addSash(
+      out,
+      design,
+      branch,
+      section,
+      frame,
+      asBuilt,
+      openFraction,
+      outline,
+      MeshBuilder._insideOf(outline, frame),
+      onTrack,
+    );
   }
 }
