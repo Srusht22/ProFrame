@@ -854,6 +854,9 @@ abstract final class DesignEdits {
         // The form of the handle is the user's too, and the sheet never says
         // it: a knob chosen for a leaf is a knob after the next reading.
         handleKind: said?.handleKind,
+        // And so are the screen and the drive: fitted because they said so.
+        pleatedScreen: said?.pleatedScreen ?? false,
+        automatic: said?.automatic ?? false,
       ),
     ]));
   }

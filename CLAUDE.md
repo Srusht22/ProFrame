@@ -808,8 +808,8 @@ it was noise and is not to come back.
 
 Each of the four cards — door, window, door & window, sliding — is drawn by
 a pen as it arrives: the outline, the bars, then the mark in gold. The
-sliding card is two panels overlapping where they meet, with the way one
-slides as a gold arrow. It is painted
+sliding card is the user's first reference: the left panel, its pull on its
+left stile, overlapping the fixed right one, and a gold arrow to the right. It is painted
 from lines, like everything else, never a picture. Every movement finishes:
 the cards arrive once, in turn, and a card draws itself again only when the
 pointer comes onto it. Nothing loops, so the screen is still while it is
@@ -858,7 +858,47 @@ stepped the slider out of the back of the frame to get past it, which is
 not how any sliding door works and which the user said was wrong. The line
 stays the user's, on the drawing and in the design.
 
-`test/domain/a_sliding_design_test.dart` holds all of it.
+**The user's two references are two drawings.** They described two videos:
+a two-panel patio door whose left panel slides right, uncovering the
+passage on the left, with a long pull on that panel's left stile; and a
+four-panel entrance whose middle two leaves part to either side over the
+fixed outer ones. The first is `>` in the left panel; the second is `<` and
+`>` in the middle two. Nothing else is needed to build either, and a panel
+clears **its own light** — its closing edge comes to rest where that light
+ends, its meeting stile still reaching half the line it met at.
+
+**The pull is a long bar**, `OpeningHardware.pullOfLeafHeight` of the leaf,
+because a whole hand draws a heavy panel along by it; `pullLengthOf` is the
+one figure the solid and both drawings read.
+
+**What the references also showed is fitted when the user says, never
+before.** Both are switches on a sliding panel's own settings, off until
+turned on, carried across every reading and saved:
+
+- **Pleated screen** (`OpeningElement.pleatedScreen`,
+  `HardwareKind.screen`). A cassette at the jamb the panel closes against —
+  as wide as a sash stile, hidden behind the shut panel's stile, and so on
+  the inside face like a hinge — and a screen that fans out of it across
+  exactly the passage the panel uncovers, its free edge following the
+  panel. It runs on a track of its own behind every panel. It pleats: each
+  face of each fold is as long as its track is deep and stays that size as
+  the screen gathers or spreads, so it folds rather than stretches.
+- **Automatic, by sensor** (`OpeningElement.automatic`,
+  `HardwareKind.sensor`). One sensor for the entrance, on the outside face
+  of the head, centred over all the automatic leaves together — for a
+  centre-opening pair, over the line they meet at.
+
+Both are `HardwareKind.staysOnFrame`: the opening's, but fixed to the frame,
+so the solid builds them apart from the leaf and they do not move with it.
+`OpeningHardware.footprintOf` is where each stands, read by the solid and
+both drawings.
+
+**Play** beside the **Open** slider runs the leaves open, holds them, and
+closes them again — once. It is the slider moved for the user, a way of
+looking, and it changes nothing.
+
+`test/domain/a_sliding_design_test.dart` holds all of it, with both
+references drawn stroke by stroke.
 
 ### A side left open
 

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import '../geometry/polygon.dart';
 import '../geometry/segment.dart';
 import '../geometry/vec2.dart';
+import '../hardware/opening_hardware.dart';
 import '../model/design.dart';
 import '../model/design_tree.dart';
 import '../model/elements.dart';
@@ -75,6 +76,20 @@ abstract final class MeshBuilder {
     for (final piece in design.hardware) {
       if (piece.isOpeningHardware) continue;
       _addHardware(facets, piece, design, depth);
+    }
+
+    // What an opening has fixed to the frame — a screen's cassette at its
+    // jamb, a sensor on the head — stays where it is while the leaf moves.
+    for (final piece in design.hardware) {
+      if (!piece.isOpeningHardware || !piece.kind.staysOnFrame) continue;
+      switch (piece.kind) {
+        case HardwareKind.screen:
+          _addScreen(facets, design, piece, depth, openFraction, tracks);
+        case HardwareKind.sensor:
+          _addSensor(facets, design, piece, depth);
+        default:
+          break;
+      }
     }
 
     return Mesh(facets);
@@ -486,6 +501,7 @@ abstract final class MeshBuilder {
     // its handle left behind on the frame.
     for (final piece in design.hardware) {
       if (design.sectionHolding(piece.parentId) != section.id) continue;
+      if (piece.kind.staysOnFrame) continue;
       _addHardware(out, piece, design, depth, place: place);
     }
   }
@@ -895,7 +911,8 @@ abstract final class MeshBuilder {
           final stile = design.frame == null
               ? 0.0
               : OpeningLeaf.profileFor(design.frame!);
-          _addPull(out, piece, inward, face, scale, stile, put);
+          _addPull(out, piece, inward, face, scale, stile,
+              OpeningHardware.pullLengthOf(design, piece), put);
           return true;
         default:
           return false;
@@ -1061,13 +1078,13 @@ abstract final class MeshBuilder {
     double face,
     double scale,
     double stile,
+    double length,
     Vec3 Function(Vec3) put,
   ) {
     final id = piece.id;
     final finish = piece.finish;
     final x = piece.at.x + inward.x * stile / 2;
     final y = piece.at.y;
-    final length = 380 * scale;
     final stand = 34 * scale;
 
     // The two posts, out of the face.
@@ -1094,6 +1111,103 @@ abstract final class MeshBuilder {
       finish,
       put,
     );
+  }
+
+  /// How near flat a fold of a screen lies when the screen is fully out:
+  /// never quite, because mesh pulled flat is a sheet and not a pleat.
+  static const _flattest = 0.94;
+
+  /// A pleated screen: its cassette at the jamb, and the mesh fanned out of
+  /// it as far as its panel has opened.
+  ///
+  /// A pleated screen is one length of mesh folded to and fro. Drawn across
+  /// the passage it opens flatter; gathered back it folds deeper — every
+  /// face of every fold stays the same size throughout, which is what makes
+  /// it pleat rather than stretch.
+  static void _addScreen(
+    List<Facet> out,
+    Design design,
+    HardwareElement piece,
+    double depth,
+    double openFraction,
+    _Tracks? tracks,
+  ) {
+    final frame = design.frame;
+    final housing = OpeningHardware.footprintOf(design, piece);
+    final opening = design.openingHolding(piece.parentId);
+    final section =
+        opening == null ? null : design.sectionById(opening.sectionId);
+    final leads = opening?.mechanism.slideEdge;
+    if (frame == null || housing == null || section == null || leads == null) {
+      return;
+    }
+
+    // Its own track, behind the panels; without tracks, the back of the
+    // frame's depth, which is the same place in a frame with one.
+    final band = tracks?.screenBand ?? (front: -depth * 0.8, depth: depth * 0.2);
+    final front = band.front - band.depth * 0.1;
+    final thick = band.depth * 0.8;
+
+    // The cassette, in the frame's finish: it is part of the frame's line.
+    _addSlab(out, housing, front, thick, piece.id, frame.finish,
+        FacetRole.hardware);
+
+    final into = leads == OpeningEdge.left ? -1.0 : 1.0;
+    final travel = _travelOf(design, section, leads).abs();
+    final pitch = housing.width;
+    final full = travel - pitch;
+    if (full <= 0 || thick <= 0) return;
+    final span = (travel * openFraction.clamp(0.0, 1.0) - pitch)
+        .clamp(0.0, full);
+    if (span <= 0) return;
+
+    // Each face of a fold is as long as the screen's track is deep, so the
+    // gathered screen fits its track exactly; and there are enough folds
+    // that fully out they still stand a little proud of flat.
+    final fold = thick;
+    final folds = math.max(1, (full / (2 * fold * _flattest)).ceil());
+    final half = span / (2 * folds);
+    final deep = math.sqrt(math.max(0.0, fold * fold - half * half));
+    final middle = front - thick / 2;
+    final from = piece.at.x + into * pitch;
+    final box = section.outline;
+
+    for (var i = 0; i < 2 * folds; i++) {
+      final x0 = from + into * i * half, x1 = from + into * (i + 1) * half;
+      final z0 = middle + (i.isEven ? deep / 2 : -deep / 2);
+      final z1 = middle + (i.isEven ? -deep / 2 : deep / 2);
+      out.add(Facet(
+        corners: [
+          Vec3(x0, box.top, z0),
+          Vec3(x1, box.top, z1),
+          Vec3(x1, box.bottom, z1),
+          Vec3(x0, box.bottom, z0),
+        ],
+        elementId: piece.id,
+        colour: i.isEven
+            ? piece.finish.colour
+            : _darken(piece.finish.colour, 0.86),
+        transparency: piece.finish.material.transparency,
+        gloss: piece.finish.material.gloss,
+        role: FacetRole.glazing,
+      ).inPart('pleats'));
+    }
+  }
+
+  /// An automatic entrance's sensor, on the outside face of the head: the
+  /// face somebody walks up to it from.
+  static void _addSensor(
+    List<Facet> out,
+    Design design,
+    HardwareElement piece,
+    double depth,
+  ) {
+    final housing = OpeningHardware.footprintOf(design, piece);
+    if (housing == null) return;
+    final stand = housing.height * 0.8;
+    final outside = design.seenFrom == Face.outside;
+    _addSlab(out, housing, outside ? stand : -depth, stand, piece.id,
+        piece.finish, FacetRole.hardware);
   }
 
   /// A knob on its rose: a stem out of the leaf and a ball on the end.
@@ -1416,7 +1530,14 @@ class _Tracks {
   /// How many tracks the frame holds.
   final int count;
 
-  _Tracks._(this.design, this.frame, this.depth, this._track, this.count);
+  _Tracks._(
+    this.design,
+    this.frame,
+    this.depth,
+    this._track,
+    this.count, {
+    this.screened = false,
+  });
 
   /// How much of its track a panel fills: the rest is the clearance that
   /// keeps two panels on neighbouring tracks from touching.
@@ -1470,9 +1591,25 @@ class _Tracks {
     final numbered = {
       for (final e in track.entries) e.key: e.value - lowest,
     };
-    final count = numbered.values.fold(0, math.max) + 1;
-    return _Tracks._(design, frame, depth, numbered, count);
+    final panels = numbered.values.fold(0, math.max) + 1;
+
+    // A pleated screen runs in a track of its own behind every panel, so
+    // it can fan out across the passage without meeting any of them.
+    final screened = design.openings.any(
+      (o) => o.pleatedScreen && o.mechanism.slideEdge != null,
+    );
+    return _Tracks._(design, frame, depth, numbered,
+        panels + (screened ? 1 : 0),
+        screened: screened);
   }
+
+  /// Whether the innermost track is a screen's.
+  final bool screened;
+
+  /// The screen's track: where its face is, and how deep it is.
+  ({double front, double depth})? get screenBand => screened
+      ? (front: _frontOf(count - 1), depth: depth / count)
+      : null;
 
   /// The track [sectionId] stands on, 0 the outermost.
   int trackOf(String sectionId) => _track[sectionId] ?? 0;

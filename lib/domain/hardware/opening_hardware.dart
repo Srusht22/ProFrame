@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 
+import '../geometry/polygon.dart';
 import '../geometry/vec2.dart';
 import '../model/design.dart';
 import '../model/elements.dart';
 import '../model/materials.dart';
+import '../model/opening_leaf.dart';
 
 /// The hinges and handle an opening carries.
 ///
@@ -87,16 +89,31 @@ abstract final class OpeningHardware {
     final leads = opening.mechanism.slideEdge;
     if (leads != null) {
       final id = '${opening.id}-handle';
+      final pull = handleAt(opening, outline.left, outline.right, outline.top,
+          outline.bottom, leads);
       return [
         HardwareElement(
           id: id,
           kind: opening.handleKind ?? HardwareKind.pull,
           parentId: opening.id,
-          at: handleAt(opening, outline.left, outline.right, outline.top,
-              outline.bottom, leads),
+          at: pull,
           rotation: 90,
           finish: _finishOf(design, id),
         ),
+        // The screen's cassette stands at the jamb the panel closes against
+        // — the stile its pull is on — so the screen fans out across exactly
+        // the passage the panel uncovers, and nowhere else.
+        if (opening.pleatedScreen)
+          HardwareElement(
+            id: '${opening.id}-screen',
+            kind: HardwareKind.screen,
+            parentId: opening.id,
+            at: Vec2(pull.x, (outline.top + outline.bottom) / 2),
+            rotation: 90,
+            finish: _finishOf(design, '${opening.id}-screen',
+                fresh: screenFinish),
+          ),
+        ?_sensorFor(design, opening),
       ];
     }
 
@@ -203,15 +220,113 @@ abstract final class OpeningHardware {
   /// Only the finish is carried. Where a piece *is* is worked out from the
   /// leaf every time and must stay that way, or a resize would leave the
   /// handle where the old leaf had it.
-  static Finish _finishOf(Design design, String id) {
+  static Finish _finishOf(Design design, String id, {Finish? fresh}) {
     for (final piece in design.hardware) {
       if (piece.id == id) return piece.finish;
     }
+    if (fresh != null) return fresh;
     return const HardwareElement(
       id: '',
       kind: HardwareKind.handle,
       at: Vec2.zero,
     ).finish;
+  }
+
+  /// How much of its leaf's height a sliding panel's pull bar runs.
+  ///
+  /// A pull is gripped by a whole hand drawing a heavy panel along, so it is
+  /// a long bar rather than a lever — the user's own references show one
+  /// running a good part of the stile — and it is sized from the leaf, so a
+  /// tall door gets a long one and a low window a short one.
+  static const double pullOfLeafHeight = 0.35;
+
+  /// How long [piece]'s pull bar is, from the leaf it is on.
+  static double pullLengthOf(Design design, HardwareElement piece) {
+    final opening = design.openingHolding(piece.parentId);
+    final box = opening == null
+        ? null
+        : design.sectionById(opening.sectionId)?.outline;
+    return (box?.height ?? 0) * pullOfLeafHeight;
+  }
+
+  /// Where a piece that stays on the frame stands on the drawing, or null
+  /// for every other piece.
+  ///
+  /// A screen's cassette is as wide as a sash stile — the stile of the shut
+  /// panel stands in front of it — and runs the leaf's height, from the
+  /// jamb into the passage the panel uncovers. A sensor sits on the head:
+  /// as tall as a little over half the head, and a few times as long as it
+  /// is tall, as a sensor housing is. Both drawings and the solid read this,
+  /// so the three cannot put either somewhere different.
+  static Polygon? footprintOf(Design design, HardwareElement piece) {
+    final frame = design.frame;
+    if (frame == null) return null;
+    final opening = design.openingHolding(piece.parentId);
+    switch (piece.kind) {
+      case HardwareKind.screen:
+        final box = opening == null
+            ? null
+            : design.sectionById(opening.sectionId)?.outline;
+        final leads = opening?.mechanism.slideEdge;
+        if (box == null || leads == null) return null;
+        final into = leads == OpeningEdge.left ? -1.0 : 1.0;
+        final wide = OpeningLeaf.profileFor(frame);
+        final x0 = piece.at.x, x1 = piece.at.x + into * wide;
+        return Polygon.rect(
+            math.min(x0, x1), box.top, math.max(x0, x1), box.bottom);
+      case HardwareKind.sensor:
+        final head = frame.innerOutline.top - frame.outline.top;
+        final tall = head * 0.6;
+        final long = tall * 4;
+        return Polygon.rect(piece.at.x - long / 2, piece.at.y - tall / 2,
+            piece.at.x + long / 2, piece.at.y + tall / 2);
+      default:
+        return null;
+    }
+  }
+
+  /// What a pleated screen is made of until the user says otherwise: pale
+  /// insect mesh, which is what one is.
+  static const screenFinish =
+      Finish(colour: 0xFFE9E6DC, material: MaterialKind.mesh);
+
+  /// The sensor over the automatic leaves [opening] is one of, carried by
+  /// the first of them in reading order — or null when [opening] is not
+  /// automatic or is not that first one.
+  ///
+  /// **One sensor for the entrance, not one per leaf.** The two leaves of a
+  /// centre-opening door open together because one sensor sees somebody
+  /// coming, so it stands on the head over the middle of all the automatic
+  /// leaves together — which for a pair parting in the middle is the line
+  /// they meet at, as in the user's reference.
+  static HardwareElement? _sensorFor(Design design, OpeningElement opening) {
+    if (!opening.automatic) return null;
+    final frame = design.frame;
+    if (frame == null) return null;
+    final automatic = [
+      for (final o in design.openingsInOrder)
+        if (o.automatic && o.mechanism.slideEdge != null) o,
+    ];
+    if (automatic.isEmpty || automatic.first.id != opening.id) return null;
+
+    var left = double.infinity, right = double.negativeInfinity;
+    for (final o in automatic) {
+      final box = design.sectionById(o.sectionId)?.outline;
+      if (box == null) continue;
+      left = math.min(left, box.left);
+      right = math.max(right, box.right);
+    }
+    if (!left.isFinite) return null;
+    // On the head, half way through its own depth of material.
+    final head = (frame.outline.top + frame.innerOutline.top) / 2;
+    final id = '${opening.id}-sensor';
+    return HardwareElement(
+      id: id,
+      kind: HardwareKind.sensor,
+      parentId: opening.id,
+      at: Vec2((left + right) / 2, head),
+      finish: _finishOf(design, id),
+    );
   }
 
   /// How many hinges an opening carries.

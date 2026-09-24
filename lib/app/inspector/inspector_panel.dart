@@ -864,6 +864,35 @@ class _OpeningFields extends StatelessWidget {
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
+        // What a sliding panel can have fitted: both off until the user
+        // turns them on, because nothing is fitted that was not asked for.
+        if (opening.mechanism.slideEdge != null) ...[
+          const SizedBox(height: 14),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: const Text('Pleated screen'),
+            subtitle: const Text(
+              'An insect screen that fans out of a cassette at the jamb '
+              'across the passage as the panel opens.',
+            ),
+            value: opening.pleatedScreen,
+            onChanged: (on) =>
+                controller.setOpeningFittings(opening.id, pleatedScreen: on),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: const Text('Automatic, by sensor'),
+            subtitle: const Text(
+              'Opened by a drive when the sensor on the head sees somebody '
+              'coming.',
+            ),
+            value: opening.automatic,
+            onChanged: (on) =>
+                controller.setOpeningFittings(opening.id, automatic: on),
+          ),
+        ],
         const SizedBox(height: 18),
         const _Label('How it opens'),
         const SizedBox(height: 6),

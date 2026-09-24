@@ -580,6 +580,23 @@ class OpeningElement extends DesignElement {
   /// written down here, so it follows the leaf if they change what it is.
   final HardwareKind? handleKind;
 
+  /// Whether a pleated insect screen runs across this leaf's opening — off
+  /// until the user puts one on.
+  ///
+  /// A sliding panel can carry one: a slim cassette fixed at the jamb the
+  /// panel closes against, and a pleated screen that fans out of it across
+  /// the passage the panel uncovers, folding back in as the panel shuts. It
+  /// is a thing somebody chooses to fit, so nothing puts it on for them.
+  final bool pleatedScreen;
+
+  /// Whether this leaf is opened by a sensor and a drive rather than by
+  /// hand — off until the user says.
+  ///
+  /// An automatic entrance carries a sensor on the head above the leaves it
+  /// opens. Like the screen, it is fitted because the user says so, never
+  /// because a leaf looks like an entrance.
+  final bool automatic;
+
   const OpeningElement({
     required super.id,
     required this.sectionId,
@@ -594,6 +611,8 @@ class OpeningElement extends DesignElement {
     this.handleAlongMm,
     this.kind,
     this.handleKind,
+    this.pleatedScreen = false,
+    this.automatic = false,
     super.fromStrokeId,
   });
 
@@ -625,6 +644,8 @@ class OpeningElement extends DesignElement {
     DesignKind? kind,
     bool clearKind = false,
     HardwareKind? handleKind,
+    bool? pleatedScreen,
+    bool? automatic,
   }) =>
       OpeningElement(
         id: id,
@@ -640,6 +661,8 @@ class OpeningElement extends DesignElement {
         handleAlongMm: handleAlongMm ?? this.handleAlongMm,
         kind: clearKind ? null : (kind ?? this.kind),
         handleKind: handleKind ?? this.handleKind,
+        pleatedScreen: pleatedScreen ?? this.pleatedScreen,
+        automatic: automatic ?? this.automatic,
         fromStrokeId: fromStrokeId,
       );
 
@@ -662,6 +685,8 @@ class OpeningElement extends DesignElement {
         // been asked about comes back saying they have not been asked.
         if (kind != null) 'kind': kind!.name,
         if (handleKind != null) 'handleKind': handleKind!.name,
+        if (pleatedScreen) 'pleatedScreen': true,
+        if (automatic) 'automatic': true,
       };
 
   static OpeningElement fromJson(Map<String, Object?> map) => OpeningElement(
@@ -698,6 +723,8 @@ class OpeningElement extends DesignElement {
                 (k) => k.name == map['handleKind'],
                 orElse: () => HardwareKind.lever,
               ),
+        pleatedScreen: map['pleatedScreen'] as bool? ?? false,
+        automatic: map['automatic'] as bool? ?? false,
       );
 }
 
@@ -714,7 +741,14 @@ enum HardwareKind {
   /// A slim upright bar a sliding panel is pulled by. A sliding panel turns
   /// nothing, so a lever or a turned fastener would be a handle for a
   /// different kind of leaf.
-  pull('Pull handle');
+  pull('Pull handle'),
+
+  /// The slim cassette a pleated insect screen is stowed in, and the screen
+  /// itself: fixed at the jamb, fanning out as its sliding panel opens.
+  screen('Pleated screen'),
+
+  /// The sensor on the head that opens an automatic entrance.
+  sensor('Sensor');
 
   const HardwareKind(this.label);
   final String label;
@@ -741,7 +775,17 @@ enum HardwareKind {
   /// and you do not see them. A handle, a lever, a knob and a lock go
   /// through the leaf and are worked from either side, so they are on the
   /// face you are standing at whichever that is.
-  bool get onTheInsideFace => this == HardwareKind.hinge;
+  bool get onTheInsideFace =>
+      this == HardwareKind.hinge ||
+      // A screen is fitted on the room side of the panel it follows, where
+      // it keeps the insects out; from outside it is behind that panel.
+      this == HardwareKind.screen;
+
+  /// True for a piece that belongs to an opening but is fixed to the frame
+  /// rather than carried by the leaf: a screen's cassette stays at its jamb
+  /// and a sensor stays on the head while the panel slides away from them.
+  bool get staysOnFrame =>
+      this == HardwareKind.screen || this == HardwareKind.sensor;
 }
 
 /// A piece of ironmongery, at the exact point the user put it — or the exact

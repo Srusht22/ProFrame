@@ -7,6 +7,7 @@ import '../../domain/dimensions/units.dart';
 import '../../domain/geometry/polygon.dart';
 import '../../domain/geometry/segment.dart';
 import '../../domain/geometry/vec2.dart';
+import '../../domain/hardware/opening_hardware.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import '../theme/app_theme.dart';
@@ -244,6 +245,26 @@ class DesignPainter extends CustomPainter {
       // back: out of sight here, as they are in the solid. `isConcealed` is
       // the one answer every view reads.
       if (design.isConcealed(piece)) continue;
+
+      // A screen's cassette and a sensor are fixed to the frame, and drawn
+      // as the shapes they are — from the same footprint the solid builds.
+      final footprint = OpeningHardware.footprintOf(design, piece);
+      if (footprint != null) {
+        final path = Path()
+          ..addPolygon(
+            [for (final c in footprint.corners) view.toScreen(c)],
+            true,
+          );
+        canvas.drawPath(path, Paint()..color = Color(piece.finish.colour));
+        canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.1
+            ..color = AppTheme.ink.withValues(alpha: 0.45),
+        );
+        continue;
+      }
       final at = view.toScreen(piece.at);
       final scale = math.max(design.widthMm, design.heightMm);
       final length = view.lengthToScreen(
@@ -251,11 +272,17 @@ class DesignPainter extends CustomPainter {
           HardwareKind.lever => scale * 0.07,
           HardwareKind.handle => scale * 0.09,
           HardwareKind.letterplate => scale * 0.22,
+          HardwareKind.pull => OpeningHardware.pullLengthOf(design, piece),
           _ => scale * 0.035,
         })
             .clamp(24.0, 420.0),
       );
-      final width = math.max(3.0, length * 0.26);
+      // A pull is a slender bar, not a plate: its width is a small part of
+      // its length, where a lever's backplate is a good part of it.
+      final width = math.max(
+        3.0,
+        length * (piece.kind == HardwareKind.pull ? 0.06 : 0.26),
+      );
 
       canvas.save();
       canvas.translate(at.dx, at.dy);

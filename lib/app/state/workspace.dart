@@ -688,6 +688,36 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     );
   }
 
+  /// Fits or takes off a sliding leaf's pleated screen, or says whether it
+  /// is opened by a sensor. Both are the opening's, and nothing else moves.
+  void setOpeningFittings(
+    String openingId, {
+    bool? pleatedScreen,
+    bool? automatic,
+  }) {
+    final opening = state.design.openingById(openingId);
+    if (opening == null) return;
+    if ((pleatedScreen ?? opening.pleatedScreen) == opening.pleatedScreen &&
+        (automatic ?? opening.automatic) == opening.automatic) {
+      return;
+    }
+
+    _remember();
+    state = state.copyWith(
+      design: OpeningHardware.settle(
+        state.design.copyWith(
+          openings: [
+            for (final o in state.design.openings)
+              if (o.id == openingId)
+                o.copyWith(pleatedScreen: pleatedScreen, automatic: automatic)
+              else
+                o,
+          ],
+        ),
+      ),
+    );
+  }
+
   void dismissQuestion(String questionId) => state = state.copyWith(
     questions: [
       for (final q in state.questions)

@@ -72,6 +72,56 @@ Set<String> partsOf(Design design, OpeningElement opening) => {
     if (piece.parentId == opening.id) piece.id,
 };
 
+/// The user's second reference: four panels, the outer two fixed and the
+/// middle two parting to either side — `<` in the second, `>` in the third.
+Design fourPanels() {
+  final time = DateTime(2026);
+  return SketchInterpreter.interpret(
+    Design(
+      id: 'd4',
+      name: 'test',
+      kind: DesignKind.sliding,
+      createdAt: time,
+      updatedAt: time,
+      sketch: Sketch(
+        strokes: [
+          pen('outline', const [
+            Vec2(0, 0),
+            Vec2(3200, 0),
+            Vec2(3200, 2100),
+            Vec2(0, 2100),
+            Vec2(0, 0),
+          ]),
+          for (final x in [800.0, 1600.0, 2400.0])
+            pen('m$x', [Vec2(x, 0), Vec2(x, 2100)]),
+          pen('a', const [Vec2(1255, 940), Vec2(1145, 1050), Vec2(1255, 1160)]),
+          pen('b', const [Vec2(1945, 940), Vec2(2055, 1050), Vec2(1945, 1160)]),
+        ],
+      ),
+    ),
+  ).design;
+}
+
+/// [design] with [change] made to every opening, and its hardware worked
+/// out again, as the opening's own panel does it.
+Design fitted(Design design, OpeningElement Function(OpeningElement) change) =>
+    OpeningHardware.settle(
+      design.copyWith(openings: [for (final o in design.openings) change(o)]),
+    );
+
+List<double> xsOf(List<Facet> facets) => [
+  for (final f in facets)
+    for (final c in f.corners) c.x,
+];
+
+List<double> zsOf(List<Facet> facets) => [
+  for (final f in facets)
+    for (final c in f.corners) c.z,
+];
+
+double least(List<double> v) => v.reduce((a, b) => a < b ? a : b);
+double most(List<double> v) => v.reduce((a, b) => a > b ? a : b);
+
 void main() {
   group('the drawing says which panels slide', () {
     test('one marked beside a fixed light is a single slider', () {
@@ -274,34 +324,7 @@ void main() {
     });
 
     test('four panels, the middle two parting: they share one track', () {
-      final time = DateTime(2026);
-      final four = SketchInterpreter.interpret(
-        Design(
-          id: 'd4',
-          name: 'test',
-          kind: DesignKind.sliding,
-          createdAt: time,
-          updatedAt: time,
-          sketch: Sketch(
-            strokes: [
-              pen('outline', const [
-                Vec2(0, 0),
-                Vec2(3200, 0),
-                Vec2(3200, 2100),
-                Vec2(0, 2100),
-                Vec2(0, 0),
-              ]),
-              for (final x in [800.0, 1600.0, 2400.0])
-                pen('m$x', [Vec2(x, 0), Vec2(x, 2100)]),
-              // The second slides left, the third slides right.
-              pen('a', const [Vec2(1255, 940), Vec2(1145, 1050),
-                Vec2(1255, 1160)]),
-              pen('b', const [Vec2(1945, 940), Vec2(2055, 1050),
-                Vec2(1945, 1160)]),
-            ],
-          ),
-        ),
-      ).design;
+      final four = fourPanels();
       final order = four.openingsInOrder;
       expect(
         [for (final o in order) o.mechanism],
@@ -347,6 +370,151 @@ void main() {
         lessThanOrEqualTo(firstBack + 1e-6),
         reason: 'the second track is wholly behind the first',
       );
+    });
+  });
+
+  group('the first reference: the left panel slides right', () {
+    final design = sheet(left: '>');
+    final slider = design.openings.single;
+    final box = design.sectionById(slider.sectionId)!.outline;
+
+    test('it slides right, its pull on its left stile, a long bar', () {
+      expect(slider.mechanism, OpeningMechanism.slidingRight);
+      final pull = design.hardware.single;
+      expect(pull.at.x, closeTo(box.left, 1e-6));
+      expect(
+        OpeningHardware.pullLengthOf(design, pull),
+        closeTo(box.height * OpeningHardware.pullOfLeafHeight, 1e-6),
+      );
+    });
+
+    test('opened, the passage it uncovers is on the left', () {
+      final open = facetsOf(
+        MeshBuilder.build(design, openFraction: 1),
+        {slider.sectionId},
+      );
+      // It clears its own light exactly: its left edge, the one it closes
+      // against the jamb with, comes to rest where that light ends.
+      expect(least(xsOf(open)), closeTo(box.right, 1e-6));
+    });
+  });
+
+  group('a pleated screen, when the user fits one', () {
+    final bare = sheet(left: '>');
+    final design = fitted(bare, (o) => o.copyWith(pleatedScreen: true));
+    final slider = design.openings.single;
+    final box = design.sectionById(slider.sectionId)!.outline;
+    HardwareElement screen(Design d) =>
+        d.hardware.firstWhere((p) => p.kind == HardwareKind.screen);
+    List<Facet> pleats(Mesh mesh, Design d) => [
+      for (final f in mesh.facets)
+        if (f.elementId == screen(d).id && f.part == 'pleats') f,
+    ];
+
+    test('nothing is fitted until the user says', () {
+      expect(bare.hardware.where((p) => p.kind.staysOnFrame), isEmpty);
+    });
+
+    test('its cassette stands at the jamb the panel closes against', () {
+      expect(screen(design).at.x, closeTo(box.left, 1e-6));
+      expect(screen(design).parentId, slider.id);
+    });
+
+    test('shut, it is all in its cassette', () {
+      expect(pleats(MeshBuilder.build(design), design), isEmpty);
+      expect(facetsOf(MeshBuilder.build(design), {screen(design).id}),
+          isNotEmpty);
+    });
+
+    test('open, it reaches from the cassette to the panel it follows', () {
+      final mesh = MeshBuilder.build(design, openFraction: 0.6);
+      final folds = pleats(mesh, design);
+      expect(folds, isNotEmpty);
+      final panel = facetsOf(mesh, {slider.sectionId});
+      expect(most(xsOf(folds)), closeTo(least(xsOf(panel)), 1e-6));
+      // Behind every panel, on its own track, and within the frame.
+      expect(most(zsOf(folds)), lessThan(least(zsOf(panel))));
+      expect(least(zsOf(folds)), greaterThanOrEqualTo(-design.depthMm));
+    });
+
+    test('it pleats rather than stretches: every fold keeps its size', () {
+      double foldOf(Design d, double t) {
+        final f = pleats(MeshBuilder.build(d, openFraction: t), d).first;
+        final a = f.corners[0], b = f.corners[1];
+        return (a - b).length;
+      }
+
+      expect(foldOf(design, 0.5), closeTo(foldOf(design, 1), 1e-6));
+    });
+
+    test('the cassette does not move with the panel', () {
+      String cassette(Mesh m) => [
+        for (final f in m.facets)
+          if (f.elementId == screen(design).id && f.part == null)
+            f.corners.map((c) => '${c.x},${c.y},${c.z}').join(';'),
+      ].join('|');
+      expect(
+        cassette(MeshBuilder.build(design, openFraction: 1)),
+        cassette(MeshBuilder.build(design)),
+      );
+    });
+
+    test('it outlasts a reading and a save', () {
+      final again = SketchInterpreter.interpret(design).design;
+      expect(again.openings.single.pleatedScreen, isTrue);
+      final back = Design.fromJson(design.toJson());
+      expect(back.openings.single.pleatedScreen, isTrue);
+    });
+  });
+
+  group('the second reference: an automatic centre-opening entrance', () {
+    final bare = fourPanels();
+    final design = fitted(bare, (o) => o.copyWith(automatic: true));
+    final sensors = [
+      for (final p in design.hardware)
+        if (p.kind == HardwareKind.sensor) p,
+    ];
+
+    test('no sensor until the user says the leaves are automatic', () {
+      expect(bare.hardware.where((p) => p.kind == HardwareKind.sensor),
+          isEmpty);
+    });
+
+    test('one sensor for the entrance, over the line the leaves meet at', () {
+      expect(sensors, hasLength(1));
+      final meeting = bare.topLevelDividers
+          .map((d) => d.segment.midpoint.x)
+          .firstWhere((x) => (x - 1600).abs() < 50);
+      expect(sensors.single.at.x, closeTo(meeting, 60));
+      final frame = design.frame!;
+      expect(sensors.single.at.y, greaterThan(frame.outline.top));
+      expect(sensors.single.at.y, lessThan(frame.innerOutline.top));
+    });
+
+    test('it is on the outside face, and stays there as the leaves part', () {
+      final shut = facetsOf(MeshBuilder.build(design), {sensors.single.id});
+      final open = facetsOf(
+        MeshBuilder.build(design, openFraction: 1),
+        {sensors.single.id},
+      );
+      expect(least(zsOf(shut)), greaterThanOrEqualTo(-1e-6));
+      expect(xsOf(open), xsOf(shut));
+    });
+
+    test('the leaves part to either side and leave the middle clear', () {
+      final mesh = MeshBuilder.build(design, openFraction: 1);
+      final order = design.openingsInOrder;
+      final leftBox = design.sectionById(order[0].sectionId)!.outline;
+      final rightBox = design.sectionById(order[1].sectionId)!.outline;
+      final left = facetsOf(mesh, {order[0].sectionId});
+      final right = facetsOf(mesh, {order[1].sectionId});
+      // Each clears its own light: nothing of it is left over the passage
+      // but the half of the line between them its meeting stile reached.
+      final meeting = design.topLevelDividers.first.widthMm / 2;
+      expect(most(xsOf(left)), closeTo(leftBox.left + meeting, 1e-6));
+      expect(least(xsOf(right)), closeTo(rightBox.right - meeting, 1e-6));
+      expect(order[0].mechanism, OpeningMechanism.slidingLeft);
+      expect(order[1].mechanism, OpeningMechanism.slidingRight);
     });
   });
 }

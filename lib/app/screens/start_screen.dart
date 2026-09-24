@@ -542,9 +542,10 @@ class _PenDrawing extends CustomPainter {
       [Offset(0.18, 0.4), Offset(0.36, 0.52), Offset(0.18, 0.64)],
       [Offset(0.74, 0.18), Offset(0.56, 0.28), Offset(0.74, 0.38)],
     ],
-    // A sliding door as one is drawn: the frame, two panels overlapping
-    // where they meet — one on each track — and the way the moving one
-    // goes, in gold.
+    // A sliding door as the user's own reference shows one: the frame, the
+    // fixed panel on the right, the left panel overlapping it with its long
+    // pull on its left stile, and the way it slides — to the right,
+    // uncovering the passage on the left — in gold.
     DesignKind.sliding => const [
       [
         Offset(0.08, 0.2),
@@ -554,21 +555,22 @@ class _PenDrawing extends CustomPainter {
         Offset(0.08, 0.2),
       ],
       [
+        Offset(0.47, 0.25),
+        Offset(0.87, 0.25),
+        Offset(0.87, 0.75),
+        Offset(0.47, 0.75),
+        Offset(0.47, 0.25),
+      ],
+      [
         Offset(0.13, 0.25),
         Offset(0.55, 0.25),
         Offset(0.55, 0.75),
         Offset(0.13, 0.75),
         Offset(0.13, 0.25),
       ],
-      [
-        Offset(0.45, 0.25),
-        Offset(0.87, 0.25),
-        Offset(0.87, 0.75),
-        Offset(0.45, 0.75),
-        Offset(0.45, 0.25),
-      ],
-      [Offset(0.8, 0.5), Offset(0.58, 0.5)],
-      [Offset(0.65, 0.43), Offset(0.58, 0.5), Offset(0.65, 0.57)],
+      [Offset(0.18, 0.4), Offset(0.18, 0.6)],
+      [Offset(0.25, 0.5), Offset(0.46, 0.5)],
+      [Offset(0.39, 0.43), Offset(0.46, 0.5), Offset(0.39, 0.57)],
     ],
   };
 

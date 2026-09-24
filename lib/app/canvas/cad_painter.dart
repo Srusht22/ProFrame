@@ -7,6 +7,7 @@ import '../../domain/dimensions/units.dart';
 import '../../domain/geometry/polygon.dart';
 import '../../domain/geometry/segment.dart';
 import '../../domain/geometry/vec2.dart';
+import '../../domain/hardware/opening_hardware.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/design_tree.dart';
 import '../../domain/model/elements.dart';
@@ -495,11 +496,17 @@ class CadPainter extends CustomPainter {
           HardwareKind.lever => scale * 0.07,
           HardwareKind.handle => scale * 0.09,
           HardwareKind.letterplate => scale * 0.22,
+          HardwareKind.pull => OpeningHardware.pullLengthOf(design, piece),
           _ => scale * 0.035,
         })
             .clamp(24.0, 420.0),
       );
-      final width = math.max(3.0, length * 0.26);
+      // A pull is a slender bar, not a plate: its width is a small part of
+      // its length, where a lever's backplate is a good part of it.
+      final width = math.max(
+        3.0,
+        length * (piece.kind == HardwareKind.pull ? 0.06 : 0.26),
+      );
 
       // **A piece on the face this drawing is not of is hidden detail.** A
       // door is drawn from outside, so its hinges are round the back and
@@ -512,6 +519,27 @@ class CadPainter extends CustomPainter {
       // alike.
       final concealed = design.isConcealed(piece);
       if (concealed && !layers.hiddenDetail) continue;
+
+      // A screen's cassette and a sensor are fixed to the frame, and drawn
+      // as the shapes they are — from the same footprint the solid builds.
+      final footprint = OpeningHardware.footprintOf(design, piece);
+      if (footprint != null) {
+        final path = Path()
+          ..addPolygon(
+            [for (final c in footprint.corners) view.toScreen(c)],
+            true,
+          );
+        if (concealed) {
+          canvas.drawPath(
+            Cad.dashed(path, dash: 6, gap: 4),
+            Cad.stroke(Cad.hidden, Cad.hairline),
+          );
+        } else {
+          canvas.drawPath(path, Cad.fill(Cad.sheet));
+          canvas.drawPath(path, Cad.stroke(Cad.medium, Cad.hairline));
+        }
+        continue;
+      }
 
       canvas.save();
       canvas.translate(at.dx, at.dy);

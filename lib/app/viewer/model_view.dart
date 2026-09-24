@@ -263,6 +263,7 @@ class _SolidBar extends StatelessWidget {
                         onChanged: controller.setOpenFraction,
                       ),
                     ),
+                    _PlayOpening(controller: controller),
                   ],
                 ),
               ),
@@ -626,6 +627,70 @@ class _NothingYet extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      );
+}
+
+/// Plays the leaves open, holds them there a moment, and closes them again
+/// — once, and then it is still.
+///
+/// It is the **Open** slider moved for the user, so it is a way of looking
+/// at the model like the slider and changes nothing in the design. Every
+/// leaf moves as it would by hand: a sliding panel along its track, a
+/// hinged one about its hinges.
+class _PlayOpening extends StatefulWidget {
+  final WorkspaceController controller;
+
+  const _PlayOpening({required this.controller});
+
+  /// Opening, holding and closing, end to end.
+  static const cycle = Duration(milliseconds: 4200);
+
+  @override
+  State<_PlayOpening> createState() => _PlayOpeningState();
+}
+
+class _PlayOpeningState extends State<_PlayOpening>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _clock = AnimationController(
+    vsync: this,
+    duration: _PlayOpening.cycle,
+  )..addListener(_step);
+
+  // Opening takes the first part, a pause at full open, then closing.
+  static const _open = Interval(0, 0.38, curve: Curves.easeInOutCubic);
+  static const _close = Interval(0.62, 1, curve: Curves.easeInOutCubic);
+
+  void _step() {
+    final t = _clock.value;
+    final open = t < 0.62 ? _open.transform(t) : 1 - _close.transform(t);
+    widget.controller.setOpenFraction(open);
+  }
+
+  @override
+  void dispose() {
+    _clock.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+        tooltip: 'Open, pause and close',
+        visualDensity: VisualDensity.compact,
+        onPressed: _clock.isAnimating
+            ? null
+            : () {
+                if (MediaQuery.of(context).disableAnimations) return;
+                setState(() {});
+                _clock.forward(from: 0).whenComplete(() {
+                  if (mounted) setState(() {});
+                });
+              },
+        icon: Icon(
+          _clock.isAnimating
+              ? Icons.hourglass_top_rounded
+              : Icons.play_circle_outline_rounded,
+          color: AppTheme.primary,
         ),
       );
 }
