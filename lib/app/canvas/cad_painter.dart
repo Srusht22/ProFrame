@@ -240,13 +240,19 @@ class CadPainter extends CustomPainter {
   /// lighter, exactly on the outline the user drew.
   void _frame(Canvas canvas) {
     final frame = design.frame!;
-    canvas.drawPath(
-      view.pathOf(frame.outline),
-      Cad.stroke(Cad.heavy, Cad.outline),
-    );
+    // Side by side rather than as two closed outlines, because a side the
+    // user left open has no member and so no line.
+    final lines = frame.lines;
+    final heavy = Cad.stroke(Cad.heavy, Cad.outline);
+    for (final edge in lines.outside) {
+      canvas.drawLine(view.toScreen(edge.a), view.toScreen(edge.b), heavy);
+    }
     final inner = frame.innerOutline;
     if (!inner.isEmpty) {
-      canvas.drawPath(view.pathOf(inner), Cad.stroke(Cad.medium, Cad.profile));
+      final medium = Cad.stroke(Cad.medium, Cad.profile);
+      for (final edge in lines.daylight) {
+        canvas.drawLine(view.toScreen(edge.a), view.toScreen(edge.b), medium);
+      }
       if (layers.hatching) _profileHatch(canvas, frame.outline, inner);
     }
   }

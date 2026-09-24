@@ -6,6 +6,7 @@ import '../canvas/drawing_surface.dart';
 import '../inspector/component_tree.dart';
 import '../inspector/inspector_panel.dart';
 import '../inspector/opening_kind_alert.dart';
+import '../inspector/outline_gap_alert.dart';
 import '../inspector/questions_panel.dart';
 import '../state/tools.dart';
 import '../state/workspace.dart';
@@ -140,6 +141,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
             },
           ),
           const OpeningKindAlert(),
+          const OutlineGapAlert(),
         ],
       ),
       endDrawer: MediaQuery.of(context).size.width >= 900

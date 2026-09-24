@@ -283,7 +283,8 @@ the drawing does not hold the answer:
 
 - **The outline does not close.** There is no shape, so there is no frame,
   and joining the ends would move lines the user drew. The lines are kept as
-  geometry and the question offers to close them.
+  geometry and the user is asked to finish it — or, where one side is all
+  that is missing, whether they meant it (see *A side left open*).
 - **No face of the design holds any part of the mark.** Drawn right off the
   design, or entirely on top of the bars, it is in no closed region, so
   there is nothing to open.
@@ -302,11 +303,12 @@ stands whether the question is answered or waved away. It has an editing
 control beside it, as rule 17 requires — the same control answers it later
 and changes it afterwards.
 
-It is also the only one raised as an **alert over the work**, with the
-drawing behind it blurred back — `OpeningKindAlert`, and see *One design,
-many openings, each its own kind*. The other two stay in the panel below
-the drawing, because they are about the sheet; this one is about a leaf the
-application has just built and decides what is built on it. Being an alert
+It is also raised as an **alert over the work**, with the drawing behind
+it blurred back — `OpeningKindAlert`, and see *One design, many openings,
+each its own kind*. The questions about the sheet stay in the panel below
+the drawing, except one: an outline with a single side missing, which is
+`OutlineGapAlert` over the work, because until it is answered there is no
+frame and so nothing to draw, open or build. Being an alert
 does not make it a gate: *Not now* puts it away and nothing was waiting on
 it. In a design begun as holding both kinds it is the only way a leaf gets
 a handle at all, which is why it is worth interrupting for.
@@ -811,6 +813,41 @@ the cards arrive once, in turn, and a card draws itself again only when the
 pointer comes onto it. Nothing loops, so the screen is still while it is
 read, `pumpAndSettle` settles, and a device asking for less motion sees it
 already drawn.
+
+### A side left open
+
+A door drawn as a head and two jambs with nothing across its foot is how a
+door frame is very often built — with no sill — and it is also how an
+outline looks before it is finished. The drawing cannot say which, so the
+user is asked, in their words: *the design is not closed — do you want it
+this way, or are you going to change it?*
+
+- **Keep it open** builds it exactly as drawn. `FrameElement.openEdges`
+  names the side with no member; `innerOutline` is not inset there, so the
+  daylight — and a door leaf — runs right out to the floor; there is no
+  sill in `frameMembers`; and both drawings draw `FrameElement.lines`
+  rather than two closed outlines, because a closed outline has a line
+  along the open side, which is a member nobody drew. The solid builds the
+  cut end of each jamb and nothing across the gap.
+- **Close it** puts a member across, straight between the two ends drawn.
+- **I will change it** changes nothing; the drawing is theirs to finish.
+
+The answer is `Design.outlineGap`, saved with the design, so the same sheet
+read again is built the same way and the question is never put twice.
+Nothing is added to the sketch either way.
+
+**One side missing is found by the shape it would close.** `_gapIn` takes
+the loose ends — ends touching no other line — and tries a line across each
+pair; the pair closing the **largest** shape is the side left off, because
+that is the outline the user drew. A shape can close and still not be it:
+a transom near the head closes the strip above it, with the jambs hanging on
+below, and that door came back as the strip alone. So the gap is also the
+answer when the shape it closes is bigger than the one already closed by
+more than `Tol.openSideFraction` — which a jamb drawn a hand's width past a
+sill never is. `test/domain/a_side_left_open_test.dart` holds the door both
+ways and both of those near misses, and
+`test/app/the_design_is_not_closed_test.dart` holds the alert and each of
+its three answers on the real app.
 
 ### Reading a mark drawn by a hand
 

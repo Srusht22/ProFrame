@@ -226,11 +226,24 @@ class Polygon {
   /// section of a window is — that is exact.
   Polygon inset(double by) {
     if (isEmpty || by == 0) return this;
+    return insetEach([for (var i = 0; i < corners.length; i++) by]);
+  }
+
+  /// [inset], with each edge moved in by its own distance — `by[i]` for the
+  /// edge from corner `i` to the next.
+  ///
+  /// A frame left open on one side has no member there, so its daylight
+  /// runs right out to the outline on that side and is inset by the profile
+  /// everywhere else.
+  Polygon insetEach(List<double> by) {
+    if (isEmpty) return this;
     final clockwise = signedArea > 0;
     final moved = <Segment>[];
-    for (final edge in edges) {
+    final sides = edges;
+    for (var i = 0; i < sides.length; i++) {
+      final edge = sides[i];
       final normal = edge.unit.perpendicular * (clockwise ? 1.0 : -1.0);
-      final shift = normal * by;
+      final shift = normal * by[i];
       moved.add(Segment(edge.a + shift, edge.b + shift));
     }
 

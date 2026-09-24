@@ -81,6 +81,29 @@ abstract final class MeshBuilder {
       final o1 = outer.corners[i], o2 = outer.corners[j];
       final i1 = inner.corners[i], i2 = inner.corners[j];
 
+      // A side the user left open has no member to build. The members
+      // either side of it stop there, so each is given its cut end — the
+      // face that stands on the floor at the foot of a door with no sill.
+      if (!frame.hasMember(i)) {
+        if (o1.distanceTo(i1) > 0) {
+          _quad(out, [
+            _at(o1, 0),
+            _at(i1, 0),
+            _at(i1, -depth),
+            _at(o1, -depth),
+          ], frame.id, frame.finish, FacetRole.frame, shade: 0.7);
+        }
+        if (o2.distanceTo(i2) > 0) {
+          _quad(out, [
+            _at(i2, 0),
+            _at(o2, 0),
+            _at(o2, -depth),
+            _at(i2, -depth),
+          ], frame.id, frame.finish, FacetRole.frame, shade: 0.7);
+        }
+        continue;
+      }
+
       // The face you see from the front, and its twin at the back.
       _quad(out, [
         _at(o1, 0),

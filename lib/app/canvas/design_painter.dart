@@ -132,13 +132,16 @@ class DesignPainter extends CustomPainter {
         ..style = PaintingStyle.fill
         ..color = Color(frame.finish.colour),
     );
-    canvas.drawPath(
-      ring,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.4
-        ..color = AppTheme.primary.withValues(alpha: 0.75),
-    );
+    // Edge by edge rather than round the ring, because a side the user
+    // left open has no member and so no line.
+    final edge = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..color = AppTheme.primary.withValues(alpha: 0.75);
+    final lines = frame.lines;
+    for (final line in [...lines.outside, ...lines.daylight]) {
+      canvas.drawLine(view.toScreen(line.a), view.toScreen(line.b), edge);
+    }
   }
 
   void _paintDividers(Canvas canvas) {

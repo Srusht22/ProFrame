@@ -7,7 +7,7 @@ import 'hierarchy.dart';
 
 // `Face` and `DesignKind` live with the other element enums, and are given
 // again here so that importing the design still brings them.
-export 'elements.dart' show DesignKind, Face;
+export 'elements.dart' show DesignKind, Face, OutlineGap;
 
 /// One design: the user's drawing, and the structured geometry read from it.
 ///
@@ -54,6 +54,10 @@ class Design {
   /// How thick the whole thing is, front to back — the depth of the 3D model.
   final double depthMm;
 
+  /// What the user said about an outline drawn with one side missing, or
+  /// null while nobody has said. See [OutlineGap].
+  final OutlineGap? outlineGap;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -73,6 +77,7 @@ class Design {
     this.texts = const [],
     this.arrows = const [],
     this.depthMm = 70,
+    this.outlineGap,
   });
 
   factory Design.empty({
@@ -116,15 +121,18 @@ class Design {
     final middleY = (outline.top + outline.bottom) / 2;
     final middleX = (outline.left + outline.right) / 2;
 
+    // A side the user left open has no member, so there is nothing there
+    // to list, pick or move.
     return [
       for (var i = 0; i < edges.length; i++)
-        FrameMemberElement(
-          id: FrameMemberElement.idFor(frame!.id, i),
-          frameId: frame!.id,
-          index: i,
-          run: edges[i],
-          placement: _placementOf(edges[i], middleX, middleY),
-        ),
+        if (frame!.hasMember(i))
+          FrameMemberElement(
+            id: FrameMemberElement.idFor(frame!.id, i),
+            frameId: frame!.id,
+            index: i,
+            run: edges[i],
+            placement: _placementOf(edges[i], middleX, middleY),
+          ),
     ];
   }
 
@@ -420,6 +428,7 @@ class Design {
     List<TextElement>? texts,
     List<ArrowElement>? arrows,
     double? depthMm,
+    OutlineGap? outlineGap,
     DateTime? updatedAt,
   }) {
     // Every edit passes through here, so this is where the two things that
@@ -459,6 +468,7 @@ class Design {
       texts: texts ?? this.texts,
       arrows: arrows ?? this.arrows,
       depthMm: depthMm ?? this.depthMm,
+      outlineGap: outlineGap ?? this.outlineGap,
     );
   }
 
@@ -515,6 +525,7 @@ class Design {
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
         'depthMm': depthMm,
+        if (outlineGap != null) 'outlineGap': outlineGap!.name,
         'sketch': sketch.toJson(),
         if (frame != null) 'frame': frame!.toJson(),
         'dividers': [for (final d in dividers) d.toJson()],
@@ -564,6 +575,9 @@ class Design {
       createdAt: DateTime.parse(map['createdAt']! as String),
       updatedAt: DateTime.parse(map['updatedAt']! as String),
       depthMm: (map['depthMm'] as num?)?.toDouble() ?? 70,
+      outlineGap: OutlineGap.values
+          .where((g) => g.name == map['outlineGap'])
+          .firstOrNull,
       sketch: Sketch.fromJson(map['sketch']),
       frame: map['frame'] == null
           ? null

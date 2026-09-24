@@ -98,8 +98,20 @@ class WorkspaceState {
   /// could not settle, which is about the sheet rather than about one leaf.
   List<DesignQuestion> get sheetQuestions => [
     for (final q in allQuestions)
-      if (!q.id.startsWith('kind-')) q,
+      if (!q.id.startsWith('kind-') &&
+          q.id != SketchInterpreter.outlineGapQuestion)
+        q,
   ];
+
+  /// The outline drawn with one side missing, if it has not been answered.
+  ///
+  /// Put as an alert over the work rather than in the panel below it: the
+  /// whole design waits on it — there is no frame, no section and nothing to
+  /// open until the user says whether that side is meant to be open — and
+  /// it is the first thing they need to know after reading the drawing.
+  DesignQuestion? get outlineGapQuestion => allQuestions
+      .where((q) => q.id == SketchInterpreter.outlineGapQuestion)
+      .firstOrNull;
 
   /// The id of the question that asks what one opening is.
   static String openingKindQuestion(String openingId) => 'kind-$openingId';
@@ -497,6 +509,22 @@ class WorkspaceController extends Notifier<WorkspaceState> {
           .firstOrNull;
       if (said != null) {
         setOpeningKind(questionId.substring('kind-'.length), said);
+      }
+    } else if (questionId == SketchInterpreter.outlineGapQuestion) {
+      // Kept open or closed, the answer is the design's, so every later
+      // reading of the same sheet builds it the same way; and the sheet is
+      // read again now, because that side is what the whole frame waited on.
+      // "I will change it" changes nothing: the drawing is theirs to finish.
+      final said = switch (optionKey) {
+        'leave-open' => OutlineGap.leaveOpen,
+        'close-it' => OutlineGap.closeIt,
+        _ => null,
+      };
+      if (said != null) {
+        state = state.copyWith(
+          design: state.design.copyWith(outlineGap: said),
+        );
+        readDrawing();
       }
     } else if (questionId.startsWith('symbol-')) {
       _answerSymbol(questionId.substring('symbol-'.length), optionKey);

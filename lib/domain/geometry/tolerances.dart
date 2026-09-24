@@ -66,4 +66,16 @@ abstract final class Tol {
 
   /// The shortest line that is a line rather than a slip of the finger.
   static const double minLineMm = 30;
+
+  /// How much bigger, as a fraction of itself, the shape one line across two
+  /// loose ends would close must be than the shape that is already closed,
+  /// for the drawing to be an outline with a side missing.
+  ///
+  /// A door drawn as head and jambs with a transom near the top closes — as
+  /// the strip above the transom, with the rest of the jambs hanging below
+  /// it. The shape the user drew is the whole door, many times that strip.
+  /// A jamb drawn a hand's width past the sill closes a sliver a few
+  /// percent of the door, and that is an overshoot to trim, not a side
+  /// left open. A fifth separates the two with room either side.
+  static const double openSideFraction = 0.2;
 }

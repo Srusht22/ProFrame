@@ -122,9 +122,52 @@ abstract final class SketchInterpreter {
       minAreaMmSq: math.max(Tol.minSectionAreaMmSq, weld * weld * 4),
     );
 
-    final outline = shape.outline?.simplified(weld);
-    if (outline == null || outline.isEmpty) {
-      return _unclosed(design, welded, structural);
+    var outline = shape.outline?.simplified(weld);
+    var openEdges = const <int>{};
+    // A shape can close and still not be the shape the user drew: a transom
+    // near the head closes the strip above it, and the jambs hang on below
+    // with nothing across their feet. That is an outline with its bottom
+    // left open, and it is asked about like one.
+    final gap = _gapIn(welded, weld);
+    final gapIsTheSide = gap != null &&
+        (outline == null ||
+            outline.isEmpty ||
+            gap.closes.area - outline.area >
+                gap.closes.area * Tol.openSideFraction);
+    if (outline == null || outline.isEmpty || gapIsTheSide) {
+      // **One side missing is not the same as no shape.** A head and two
+      // jambs with nothing across the foot is how a door frame is very
+      // often built, and it is also how an outline looks before it is
+      // finished. The drawing cannot say which, so the user is asked — and
+      // once they have said, the outline is read with that side across it,
+      // carrying a member or not as they said.
+      final said = design.outlineGap;
+      if (!gapIsTheSide || said == null) {
+        return _unclosed(
+          design,
+          welded,
+          structural,
+          gap: gapIsTheSide ? gap : null,
+        );
+      }
+      final closed = PlanarSubdivision.subdivide(
+        [for (final r in welded) r.segment, gap.segment],
+        weldTolerance: weld,
+        minAreaMmSq: math.max(Tol.minSectionAreaMmSq, weld * weld * 4),
+      ).outline?.simplified(weld);
+      if (closed == null || closed.isEmpty) {
+        return _unclosed(design, welded, structural);
+      }
+      outline = closed;
+      if (said == OutlineGap.leaveOpen) {
+        final edges = closed.edges;
+        openEdges = {
+          for (var i = 0; i < edges.length; i++)
+            if (gap.segment.distanceTo(edges[i].a) <= weld &&
+                gap.segment.distanceTo(edges[i].b) <= weld)
+              i,
+        };
+      }
     }
 
     var counter = 0;
@@ -136,6 +179,7 @@ abstract final class SketchInterpreter {
       outline: outline,
       profileMm: design.frame?.profileMm ?? _profileFor(outline),
       finish: design.frame?.finish ?? Finish.frameDefault,
+      openEdges: openEdges,
     );
 
     // Every run that is not part of the outline is a line inside the design:
@@ -714,11 +758,16 @@ abstract final class SketchInterpreter {
   /// Nothing closed. The lines are still kept as dividers so the user sees
   /// their own drawing turned into real geometry, and the question tells
   /// them what is missing rather than guessing a frame around it.
+  ///
+  /// Where one line across the two loose ends would close it — a [gap] —
+  /// the question says which side is open and asks whether they want it
+  /// that way. Where nothing so simple would, it asks them to finish it.
   static Interpretation _unclosed(
     Design design,
     List<_Run> runs,
-    List<Stroke> structural,
-  ) {
+    List<Stroke> structural, {
+    _Gap? gap,
+  }) {
     var counter = 0;
     return Interpretation(
       design: design.copyWith(
@@ -735,28 +784,110 @@ abstract final class SketchInterpreter {
         ],
       ),
       questions: [
-        const DesignQuestion(
-          id: 'frame-not-closed',
-          prompt: 'The outline does not close. What would you like to do?',
-          detail: 'Your lines do not join up into a shape, so there is no '
-              'outer frame yet. Nothing has been changed or added.',
-          options: [
-            QuestionOption(
-              key: 'draw-more',
-              label: 'Let me draw the rest',
-              detail: 'Go back to the drawing and close the outline yourself.',
-            ),
-            QuestionOption(
-              key: 'join-ends',
-              label: 'Join the nearest ends for me',
-              detail: 'Extend the lines you drew until they meet. Their '
-                  'angles and positions are kept.',
-            ),
-          ],
-        ),
+        if (gap != null)
+          DesignQuestion(
+            id: outlineGapQuestion,
+            prompt: 'Your design is not closed — ${gap.side} is open.',
+            detail: 'Do you want it this way, or are you going to change '
+                'it? Nothing has been added or taken away.',
+            options: [
+              QuestionOption(
+                key: 'leave-open',
+                label: 'Keep it open',
+                detail: 'Build it as drawn, with no frame across '
+                    '${gap.side}${gap.isFoot ? ' — a door runs down to the '
+                        'floor' : ''}.',
+              ),
+              QuestionOption(
+                key: 'close-it',
+                label: 'Close it',
+                detail: 'Put the frame across ${gap.side}, straight between '
+                    'the two ends you drew.',
+              ),
+              const QuestionOption(
+                key: 'change-it',
+                label: 'I will change it',
+                detail: 'Go back to the drawing and draw it as you want it.',
+              ),
+            ],
+          )
+        else
+          const DesignQuestion(
+            id: 'frame-not-closed',
+            prompt: 'The outline does not close. What would you like to do?',
+            detail: 'Your lines do not join up into a shape, so there is no '
+                'outer frame yet. Nothing has been changed or added.',
+            options: [
+              QuestionOption(
+                key: 'draw-more',
+                label: 'Let me draw the rest',
+                detail:
+                    'Go back to the drawing and close the outline yourself.',
+              ),
+            ],
+          ),
       ],
       unusedStrokeIds: [for (final s in structural) s.id],
     );
+  }
+
+  /// The id of the question asked about an outline with one side missing.
+  static const outlineGapQuestion = 'outline-gap';
+
+  /// The one side missing from an outline that does not close: the line
+  /// between two loose ends that would close it, or null when no single
+  /// line would.
+  ///
+  /// A loose end is one that touches no other line. Where there are more
+  /// than two — a line hanging inside the design has one too — every pair
+  /// is tried, and the pair that closes the **largest** shape is the gap,
+  /// because that is the outline the user drew; a line from a jamb to the
+  /// end of a hanging bar closes something smaller, and is not what was
+  /// left undrawn. Nothing is added here: this only says where the gap is.
+  static _Gap? _gapIn(List<_Run> runs, double weld) {
+    final loose = <Vec2>[];
+    for (var i = 0; i < runs.length; i++) {
+      for (final end in [runs[i].segment.a, runs[i].segment.b]) {
+        var touches = false;
+        for (var j = 0; j < runs.length && !touches; j++) {
+          if (j != i && runs[j].segment.distanceTo(end) <= weld) {
+            touches = true;
+          }
+        }
+        if (touches) continue;
+        if (loose.any((p) => p.distanceTo(end) <= weld)) continue;
+        loose.add(end);
+      }
+    }
+    // A drawing with this many loose ends is not an outline with one side
+    // left off, and trying every pair of them would say nothing useful.
+    if (loose.length < 2 || loose.length > 8) return null;
+
+    final segments = [for (final r in runs) r.segment];
+    Segment? best;
+    Polygon? bestOutline;
+    for (var i = 0; i < loose.length; i++) {
+      for (var j = i + 1; j < loose.length; j++) {
+        final across = Segment(loose[i], loose[j]);
+        if (across.length < Tol.minLineMm) continue;
+        final closed = PlanarSubdivision.subdivide(
+          [...segments, across],
+          weldTolerance: weld,
+          minAreaMmSq: math.max(Tol.minSectionAreaMmSq, weld * weld * 4),
+        ).outline;
+        if (closed == null || closed.isEmpty) continue;
+        final better = bestOutline == null ||
+            closed.area > bestOutline.area + weld * weld ||
+            ((closed.area - bestOutline.area).abs() <= weld * weld &&
+                across.length < best!.length);
+        if (better) {
+          best = across;
+          bestOutline = closed;
+        }
+      }
+    }
+    if (best == null || bestOutline == null) return null;
+    return _Gap(best, bestOutline);
   }
 
   /// Endpoints drawn near each other were meant to be the same point.
@@ -971,6 +1102,29 @@ abstract final class SketchInterpreter {
     final smallest = math.min(outline.width, outline.height);
     return math.max(20.0, math.min(60.0, smallest * 0.06));
   }
+}
+
+/// The side missing from an outline, and the shape it would close.
+class _Gap {
+  final Segment segment;
+  final Polygon closes;
+  const _Gap(this.segment, this.closes);
+
+  /// Which side of the shape the gap is, the way somebody would say it.
+  String get side {
+    final at = segment.midpoint;
+    final middle = closes.centroid;
+    if (segment.isHorizontalish) {
+      return at.y > middle.y ? 'the bottom' : 'the top';
+    }
+    if (segment.isVerticalish) {
+      return at.x < middle.x ? 'the left side' : 'the right side';
+    }
+    return 'one side';
+  }
+
+  /// Whether it is the foot of the shape — where a door meets the floor.
+  bool get isFoot => side == 'the bottom';
 }
 
 class _Run {

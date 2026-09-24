@@ -12,6 +12,20 @@ import 'materials.dart';
 /// trade's convention and not a preference of this application's.
 enum Face { outside, inside }
 
+/// What the user said about an outline drawn with one side missing.
+///
+/// A head and two jambs with nothing across the foot is how a door frame is
+/// very often built — and it is also how an outline looks when the user has
+/// not finished it. The drawing cannot say which, so the user is asked, and
+/// this is the answer, kept with the design so it is never asked twice.
+enum OutlineGap {
+  /// Built as drawn: that side carries no member.
+  leaveOpen,
+
+  /// A member is put across the gap, the side the user did not draw.
+  closeIt,
+}
+
 /// A door or a window.
 enum DesignKind {
   door('Door', Face.outside),
@@ -87,16 +101,68 @@ class FrameElement extends DesignElement {
 
   final Finish finish;
 
+  /// The sides of the outline the user left open — by edge, the edge from
+  /// corner `i` to the next. There is no member on an open side: a door
+  /// drawn as a head and two jambs and nothing across the foot is a door
+  /// with no sill, and its leaf runs down to the floor.
+  ///
+  /// Empty for a frame closed all round, which is every frame the user drew
+  /// closed.
+  final Set<int> openEdges;
+
   const FrameElement({
     required super.id,
     required this.outline,
     this.profileMm = 60,
     this.finish = Finish.frameDefault,
+    this.openEdges = const {},
     super.fromStrokeId,
   });
 
   /// The daylight opening: what is left inside once the frame is taken off.
-  Polygon get innerOutline => outline.inset(profileMm);
+  /// On a side left open there is no frame to take off.
+  Polygon get innerOutline => openEdges.isEmpty
+      ? outline.inset(profileMm)
+      : outline.insetEach([
+          for (var i = 0; i < outline.corners.length; i++)
+            openEdges.contains(i) ? 0 : profileMm,
+        ]);
+
+  /// Whether the side from corner [edge] to the next carries a member.
+  bool hasMember(int edge) => !openEdges.contains(edge);
+
+  /// The lines a drawing of this frame is made of: every side that carries
+  /// a member, on the outside and on the daylight, and — where a member
+  /// stops at a side left open — its cut end, across the profile.
+  ///
+  /// Both views draw these rather than the two outlines whole, because a
+  /// whole outline has a line along the open side, and that is a member the
+  /// user did not draw.
+  ({List<Segment> outside, List<Segment> daylight}) get lines {
+    final outer = outline.edges;
+    final inner = innerOutline;
+    if (openEdges.isEmpty || inner.corners.length != outline.corners.length) {
+      return (outside: outer, daylight: inner.edges);
+    }
+    final innerEdges = inner.edges;
+    final n = outline.corners.length;
+    final outside = <Segment>[];
+    final daylight = <Segment>[];
+    for (var i = 0; i < n; i++) {
+      if (hasMember(i)) {
+        outside.add(outer[i]);
+        daylight.add(innerEdges[i]);
+        continue;
+      }
+      // The two members either side of the gap end here, cut square to
+      // the open side.
+      for (final corner in [i, (i + 1) % n]) {
+        final end = Segment(outline.corners[corner], inner.corners[corner]);
+        if (end.length > 0) outside.add(end);
+      }
+    }
+    return (outside: outside, daylight: daylight);
+  }
 
   double get widthMm => outline.width;
   double get heightMm => outline.height;
@@ -111,12 +177,14 @@ class FrameElement extends DesignElement {
     Polygon? outline,
     double? profileMm,
     Finish? finish,
+    Set<int>? openEdges,
   }) =>
       FrameElement(
         id: id,
         outline: outline ?? this.outline,
         profileMm: profileMm ?? this.profileMm,
         finish: finish ?? this.finish,
+        openEdges: openEdges ?? this.openEdges,
         fromStrokeId: fromStrokeId,
       );
 
@@ -128,6 +196,7 @@ class FrameElement extends DesignElement {
         'outline': outline.toJson(),
         'profileMm': profileMm,
         'finish': finish.toJson(),
+        if (openEdges.isNotEmpty) 'openEdges': (openEdges.toList()..sort()),
       };
 
   static FrameElement fromJson(Map<String, Object?> map) => FrameElement(
@@ -136,6 +205,10 @@ class FrameElement extends DesignElement {
         outline: Polygon.fromJson(map['outline']),
         profileMm: (map['profileMm'] as num?)?.toDouble() ?? 60,
         finish: Finish.fromJson(map['finish']),
+        openEdges: {
+          for (final i in (map['openEdges'] as List?) ?? const [])
+            (i as num).toInt(),
+        },
       );
 }
 
