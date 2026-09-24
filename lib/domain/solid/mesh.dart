@@ -64,6 +64,13 @@ class Facet {
   /// frame without having to look the material up again.
   final FacetRole role;
 
+  /// Which part of its element this face is, where an element is built in
+  /// more than one place — a door's lever, which is on both faces of the
+  /// leaf. Null for an element built as one piece. The painter orders each
+  /// part by itself, because a lever in front of the leaf and its twin
+  /// behind it are, taken together, neither in front of nor behind anything.
+  final String? part;
+
   const Facet({
     required this.corners,
     required this.elementId,
@@ -71,7 +78,19 @@ class Facet {
     this.transparency = 0,
     this.gloss = 0.3,
     this.role = FacetRole.frame,
+    this.part,
   });
+
+  /// The same face, said to be [part] of its element.
+  Facet inPart(String part) => Facet(
+        corners: corners,
+        elementId: elementId,
+        colour: colour,
+        transparency: transparency,
+        gloss: gloss,
+        role: role,
+        part: part,
+      );
 
   Vec3 get centre {
     var sum = Vec3.zero;

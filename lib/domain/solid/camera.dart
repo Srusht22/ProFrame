@@ -261,25 +261,29 @@ class Camera {
   /// [eye] is the eye in eye space for a perspective view, and null for a
   /// parallel one, whose eye is infinitely far along +z.
   static void _ironmongeryWhereItIs(List<_Seen> order, Vec3? eye) {
+    // A piece built on both faces of the leaf is two pieces here: taken
+    // together they are neither in front of nor behind anything.
+    String pieceOf(_Seen seen) =>
+        '${seen.facet.elementId}|${seen.facet.source.part ?? ''}';
     final pieces = <String>{
       for (final seen in order)
-        if (seen.facet.source.role == FacetRole.hardware) seen.facet.elementId,
+        if (seen.facet.source.role == FacetRole.hardware) pieceOf(seen),
     };
 
     for (final id in pieces) {
       final members = [
         for (final seen in order)
-          if (seen.facet.elementId == id) seen,
+          if (pieceOf(seen) == id) seen,
       ];
       final others = [
         for (final seen in order)
-          if (seen.facet.elementId != id) seen,
+          if (pieceOf(seen) != id) seen,
       ];
       // Where the piece sits among the rest, before anything is decided.
       final at = order.indexOf(members.first);
       var place = 0;
       for (var i = 0; i < at; i++) {
-        if (order[i].facet.elementId != id) place++;
+        if (pieceOf(order[i]) != id) place++;
       }
 
       final bounds = _Box.around(members);

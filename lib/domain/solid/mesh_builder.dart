@@ -763,26 +763,49 @@ abstract final class MeshBuilder {
     // espagnolette — but once the user has chosen one, that is what is
     // built, on either kind of leaf. A door with a window handle on it is a
     // door the user put a window handle on.
-    switch (piece.kind) {
-      case HardwareKind.hinge:
-        _addButtHinge(out, piece, hinge, face, outward, scale, put);
-        return true;
-      case HardwareKind.lock:
-        _addEscutcheon(out, piece, face, scale, put);
-        return true;
-      case HardwareKind.lever:
-        _addLeverOnBackplate(out, piece, opening, hinge, inward, face, scale,
-            put);
-        return true;
-      case HardwareKind.handle:
-        _addWindowHandle(out, piece, hinge, inward, face, scale, put);
-        return true;
-      case HardwareKind.knob:
-        _addKnob(out, piece, face, scale, put);
-        return true;
-      default:
-        return false;
+    //
+    // **A piece that goes through the leaf is on both of its faces.** A
+    // lever, a window's handle, a knob and a lock are worked from either
+    // side — you open a door from the room as well as from the street — so
+    // each is built on the face the drawing is of and again on the other,
+    // the same piece turned through the leaf's middle. A hinge is screwed
+    // to one face only, and stays there.
+    final bothFaces = !piece.kind.onTheInsideFace;
+    final through = MeshBuilder.leafFront(depth) + MeshBuilder.leafBack(depth);
+    Vec3 otherFace(Vec3 p) => put(Vec3(p.x, p.y, through - p.z));
+
+    bool build(Vec3 Function(Vec3) put) {
+      switch (piece.kind) {
+        case HardwareKind.hinge:
+          _addButtHinge(out, piece, hinge, face, outward, scale, put);
+          return true;
+        case HardwareKind.lock:
+          _addEscutcheon(out, piece, face, scale, put);
+          return true;
+        case HardwareKind.lever:
+          _addLeverOnBackplate(
+              out, piece, opening, hinge, inward, face, scale, put);
+          return true;
+        case HardwareKind.handle:
+          _addWindowHandle(out, piece, hinge, inward, face, scale, put);
+          return true;
+        case HardwareKind.knob:
+          _addKnob(out, piece, face, scale, put);
+          return true;
+        default:
+          return false;
+      }
     }
+
+    final built = build(put);
+    if (built && bothFaces) {
+      final from = out.length;
+      build(otherFace);
+      for (var i = from; i < out.length; i++) {
+        out[i] = out[i].inPart('the other face');
+      }
+    }
+    return built;
   }
 
   /// A lever on a long backplate: plate, rose, neck, lever, return.
