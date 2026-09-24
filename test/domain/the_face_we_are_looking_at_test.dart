@@ -131,9 +131,10 @@ void main() {
       // reaches the face the drawing is of, so there is nothing to see
       // standing on the outside of the door.
       final middle = depths.reduce((a, b) => a + b) / depths.length;
-      expect(middle, lessThan(0), reason: 'fixed to the inside face');
+      expect(middle, lessThan(MeshBuilder.leafBack(design.depthMm)),
+          reason: 'fixed to the inside face');
       expect(depths.reduce((a, b) => a > b ? a : b),
-          lessThan(design.depthMm),
+          lessThan(MeshBuilder.leafFront(design.depthMm)),
           reason: 'nothing of it is on the face you are looking at');
     });
 
@@ -146,7 +147,8 @@ void main() {
           .firstWhere((piece) => piece.kind == HardwareKind.hinge);
       final depths = depthsOf(MeshBuilder.build(design), hinge.id);
 
-      expect(depths.reduce((a, b) => a > b ? a : b), greaterThan(0));
+      expect(depths.reduce((a, b) => a > b ? a : b),
+          greaterThan(MeshBuilder.leafBack(design.depthMm)));
     });
 
     test('a window’s hinge is on the face you are looking at', () {
@@ -159,8 +161,9 @@ void main() {
       // On the near side of the leaf: you are standing indoors, which is
       // where a window's hinges are, and there they are.
       final middle = depths.reduce((a, b) => a + b) / depths.length;
-      expect(middle, greaterThan(0));
-      expect(depths.reduce((a, b) => a > b ? a : b), greaterThan(0));
+      final near = MeshBuilder.leafFront(design.depthMm);
+      expect(middle, greaterThan(near));
+      expect(depths.reduce((a, b) => a > b ? a : b), greaterThan(near));
     });
 
     test('the handle stands on the near face for both kinds', () {
@@ -171,7 +174,8 @@ void main() {
         final handle = design.hardware
             .firstWhere((piece) => piece.kind.isHandle);
         final depths = depthsOf(MeshBuilder.build(design), handle.id);
-        expect(depths.reduce((a, b) => a > b ? a : b), greaterThan(0),
+        expect(depths.reduce((a, b) => a > b ? a : b),
+            greaterThan(MeshBuilder.leafFront(design.depthMm)),
             reason: 'a ${kind.label}’s handle is on the face you are at');
       }
     });

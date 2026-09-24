@@ -24,6 +24,13 @@ class CadLayers {
   /// Whether a drag lands on the geometry that is already there.
   final bool snap;
 
+  /// What is on the face the drawing is not of — a door's hinges, which
+  /// are round the back — drawn dashed, as a joiner's hidden detail.
+  ///
+  /// Off unless asked for: the drawing is of the face you are standing at,
+  /// and from there those pieces cannot be seen.
+  final bool hiddenDetail;
+
   const CadLayers({
     this.grid = true,
     this.dimensions = true,
@@ -34,6 +41,7 @@ class CadLayers {
     this.sketch = false,
     this.grips = true,
     this.snap = true,
+    this.hiddenDetail = false,
   });
 
   CadLayers copyWith({
@@ -46,6 +54,7 @@ class CadLayers {
     bool? sketch,
     bool? grips,
     bool? snap,
+    bool? hiddenDetail,
   }) =>
       CadLayers(
         grid: grid ?? this.grid,
@@ -57,6 +66,7 @@ class CadLayers {
         sketch: sketch ?? this.sketch,
         grips: grips ?? this.grips,
         snap: snap ?? this.snap,
+        hiddenDetail: hiddenDetail ?? this.hiddenDetail,
       );
 
   @override
@@ -70,7 +80,8 @@ class CadLayers {
       other.annotations == annotations &&
       other.sketch == sketch &&
       other.grips == grips &&
-      other.snap == snap;
+      other.snap == snap &&
+      other.hiddenDetail == hiddenDetail;
 
   @override
   int get hashCode => Object.hash(
@@ -83,5 +94,6 @@ class CadLayers {
         sketch,
         grips,
         snap,
+        hiddenDetail,
       );
 }

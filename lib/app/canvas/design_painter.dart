@@ -235,6 +235,12 @@ class DesignPainter extends CustomPainter {
 
   void _paintHardware(Canvas canvas) {
     for (final piece in design.hardware) {
+      // **The drawing is of the face you are standing at**, and a piece on
+      // the other face is not something you can see from there. A design
+      // with a door in it is met from outside, so its hinges are round the
+      // back: out of sight here, as they are in the solid. `isConcealed` is
+      // the one answer every view reads.
+      if (design.isConcealed(piece)) continue;
       final at = view.toScreen(piece.at);
       final scale = math.max(design.widthMm, design.heightMm);
       final length = view.lengthToScreen(

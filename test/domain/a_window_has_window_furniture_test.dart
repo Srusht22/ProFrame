@@ -108,7 +108,7 @@ void main() {
       final corners = cornersOf(design, handleOf(design).id);
 
       expect(corners.map((c) => c.z).reduce((a, b) => a > b ? a : b),
-          greaterThan(design.depthMm),
+          greaterThan(MeshBuilder.leafFront(design.depthMm)),
           reason: 'a handle you can get a hand round');
     });
 
@@ -136,7 +136,7 @@ void main() {
         // The plate lies on the face; the arm is what stands off it.
         final onFace = [
           for (final c in corners)
-            if (c.z <= design.depthMm + 9) c,
+            if (c.z <= MeshBuilder.leafFront(design.depthMm) + 9) c,
         ];
         return spread(onFace.map((c) => c.y));
       }
@@ -175,7 +175,7 @@ void main() {
         expect(spread(corners.map((c) => c.x)),
             closeTo(spread(corners.map((c) => c.y)), 20));
         expect(corners.map((c) => c.z).reduce((a, b) => a > b ? a : b),
-            greaterThan(design.depthMm));
+            greaterThan(MeshBuilder.leafFront(design.depthMm)));
       }
     });
 
@@ -228,7 +228,7 @@ void main() {
       expect(corners, isNotEmpty);
       final middle = corners.map((c) => c.z).reduce((a, b) => a + b) /
           corners.length;
-      expect(middle, greaterThan(0),
+      expect(middle, greaterThan(MeshBuilder.leafFront(design.depthMm)),
           reason: 'a window is met from inside, where its hinges are');
     });
 

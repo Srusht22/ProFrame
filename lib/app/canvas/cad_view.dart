@@ -1116,6 +1116,16 @@ class _LayerBar extends StatelessWidget {
                 on: layers.sketch,
                 onTap: () => onChanged(layers.copyWith(sketch: !layers.sketch)),
               ),
+              // What is round the back — a door's hinges — dashed. Off by
+              // default, because the drawing is of the face you are at.
+              _Chip(
+                label: 'Hidden',
+                icon: Icons.visibility_off_outlined,
+                on: layers.hiddenDetail,
+                onTap: () => onChanged(
+                  layers.copyWith(hiddenDetail: !layers.hiddenDetail),
+                ),
+              ),
               _Chip(
                 label: 'Grid',
                 icon: Icons.grid_4x4,

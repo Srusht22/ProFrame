@@ -144,7 +144,7 @@ void main() {
           cornersOf(MeshBuilder.build(design), handleOf(design).id);
 
       expect(corners.map((c) => c.z).reduce((a, b) => a > b ? a : b),
-          greaterThan(design.depthMm),
+          greaterThan(MeshBuilder.leafFront(design.depthMm)),
           reason: 'a lever you can get a hand behind');
     });
 

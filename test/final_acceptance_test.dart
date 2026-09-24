@@ -308,7 +308,7 @@ void main() {
       expect(spread(corners.map((c) => c.y)),
           greaterThan(spread(corners.map((c) => c.x))));
       expect(corners.map((c) => c.z).reduce((a, b) => a > b ? a : b),
-          greaterThan(design.depthMm));
+          greaterThan(MeshBuilder.leafFront(design.depthMm)));
     }
   });
 

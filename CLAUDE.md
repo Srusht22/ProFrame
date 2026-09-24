@@ -2078,10 +2078,35 @@ face the user drew, so the solid's near face is theirs by construction, and
 a door hinged where they marked it is hinged there in both views. What the
 kind decides is only what is on the *other* side. In the solid a concealed
 piece is simply placed behind the leaf, so it is out of sight because of
-where it is and not because the renderer declined to draw it. In the
-elevation it is drawn as **hidden detail** — dashed, in `Cad.hidden` —
-because somebody still has to fit it, and a drawing that leaves a part out
-is a drawing that loses it.
+where it is and not because the renderer declined to draw it.
+
+**By default it is not seen, in any view.** The user's words: *when we have
+a door in a design it means we see the design from outside, so we don't see
+hinges by default.* The drawing they draw on leaves a concealed piece out,
+and so does the technical drawing — unless its **Hidden** layer
+(`CadLayers.hiddenDetail`) is switched on, when it is drawn as hidden
+detail, dashed in `Cad.hidden`, because somebody still has to fit it. Off
+is the default because the elevation is of the face you are standing at.
+
+**Behind the leaf means behind the leaf's own face.** The frame's face is at
+zero and the design runs back from it; the leaf stands between
+`MeshBuilder.leafFront` and `MeshBuilder.leafBack`. The ironmongery was
+measured as though the leaf ran *forward* from zero to the frame's depth,
+so every handle floated seven centimetres in front of its door and a door's
+"concealed" hinges were built into the front of the leaf — where the user
+saw them. Both faces are now the leaf's own, read from one place, and a
+test that asks whether a handle stands off the leaf asks of `leafFront`.
+
+**And the renderer has to agree about what is in front.** The model is
+painted far to near by each face's average distance, which is wrong exactly
+where a small thing sits against a long one: a stile's face is as long as
+the door, so its average is its middle, and a hinge near the foot came out
+nearer than the stile it was behind. `Camera.project` settles every piece
+of ironmongery by planes instead — wholly behind a face it overlaps, it is
+painted before it; wholly in front, after.
+`test/domain/hinges_round_the_back_test.dart` holds it on what is actually
+painted last at each point of every hinge, from five angles outside and
+from behind, where the same hinges must be what you see.
 
 `test/domain/the_face_we_are_looking_at_test.dart` reads one drawing as
 each kind and requires the same design from both — the same frame, the same
@@ -2089,8 +2114,9 @@ bars, the same hinges in the same places — with only the side of the leaf
 they sit on differing, and the handle on the near face either way.
 `test/app/the_drawing_is_of_one_face_test.dart` holds the drawing's side of
 it on the pixels: a door and a window are different pictures, taking the
-hinges off both makes them the same picture again, and a door with hinges
-is not the same picture as a door without them.
+hinges off both makes them the same picture again, a door with hinges is
+the same picture as a door without them — on the technical drawing and on
+the sheet — and with **Hidden** switched on it is not.
 
 **Each leaf's ironmongery is its own, and the movement tests say so.**
 

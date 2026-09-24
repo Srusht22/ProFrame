@@ -320,8 +320,8 @@ abstract final class MeshBuilder {
     Vec3 at(Vec2 point, double z) => move(_at(point, z));
     _addLeafHardware(out, design, section, depth, move);
 
-    final leafFront = -depth * 0.08;
-    final leafDepth = depth * 0.66;
+    final leafFront = MeshBuilder.leafFront(depth);
+    final leafDepth = _leafDepth(depth);
 
     if (!sashInner.isEmpty &&
         sashInner.corners.length == sashOuter.corners.length) {
@@ -419,6 +419,20 @@ abstract final class MeshBuilder {
       _addHardware(out, piece, design, depth, place: place);
     }
   }
+
+  /// Where a leaf's near face stands: a little back from the frame's own
+  /// face, which is at zero, with the frame running back from there.
+  ///
+  /// Public because the ironmongery is measured from it, and a test asking
+  /// whether a handle stands off the leaf has to ask of the leaf's face and
+  /// not of a figure it believes the leaf is at.
+  static double leafFront(double depth) => -depth * 0.08;
+
+  /// Where a leaf's far face stands — the one a door's hinges are on.
+  static double leafBack(double depth) => leafFront(depth) - _leafDepth(depth);
+
+  /// How thick a leaf is, within the frame's depth.
+  static double _leafDepth(double depth) => depth * 0.66;
 
   /// Swings a point about the hinge edge of [opening].
   static Vec3 Function(Vec3) _swingFor(
@@ -671,8 +685,16 @@ abstract final class MeshBuilder {
     // A door's hinges are on the inside face, so theirs is the far one and
     // they stand away from the viewer; the lever and the escutcheon are on
     // the face the drawing is of. `Design.isConcealed` is the one answer.
+    //
+    // **Both are the leaf's own faces**, the ones the sash is built between,
+    // and not figures of their own. The frame's face is at zero and the
+    // design runs back from it, but these were measured as though the leaf
+    // ran forward from zero to the frame's depth: every handle floated
+    // three inches in front of its door, and a door's hinges, meant to be
+    // round the back, were built into the front of the leaf — which is
+    // where the user saw them, on a design seen from outside.
     final concealed = design.isConcealed(piece);
-    final face = concealed ? 0.0 : depth;
+    final face = concealed ? leafBack(depth) : leafFront(depth);
     final outward = concealed ? -1.0 : 1.0;
 
     // Back across the leaf, from the stile the handle is on towards the

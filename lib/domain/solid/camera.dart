@@ -186,15 +186,17 @@ class Camera {
       return Vec3(x, y, zz);
     }
 
-    final projected = <ProjectedFacet>[];
+    final projected = <_Seen>[];
     for (final facet in mesh.facets) {
       if (facet.corners.length < 3) continue;
 
       final corners = <Vec2>[];
+      final inEye = <Vec3>[];
       var depthSum = 0.0;
       var behind = false;
       for (final corner in facet.corners) {
         final eye = toEye(corner);
+        inEye.add(eye);
         final away = eyeDistance - eye.z;
         if (projection == Projection.perspective && away <= span * 0.02) {
           behind = true;
@@ -218,16 +220,94 @@ class Camera {
       final lambert = facing.dot(light).abs();
       final shade = (0.32 + 0.68 * lambert).clamp(0.0, 1.0);
 
-      projected.add(ProjectedFacet(
-        corners: corners,
-        depth: depthSum / corners.length,
-        light: shade,
-        source: facet,
+      projected.add(_Seen(
+        ProjectedFacet(
+          corners: corners,
+          depth: depthSum / corners.length,
+          light: shade,
+          source: facet,
+        ),
+        inEye,
       ));
     }
 
-    projected.sort((a, b) => b.depth.compareTo(a.depth));
-    return projected;
+    projected.sort((a, b) => b.facet.depth.compareTo(a.facet.depth));
+    _ironmongeryWhereItIs(
+      projected,
+      projection == Projection.perspective ? Vec3(0, 0, eyeDistance) : null,
+    );
+    return [for (final seen in projected) seen.facet];
+  }
+
+  /// Puts each piece of ironmongery where it actually is in the painting
+  /// order: behind every face it is behind, in front of every face it is in
+  /// front of.
+  ///
+  /// Sorting on each face's average distance is the painter's algorithm,
+  /// and it is wrong exactly where a small thing sits against a long one. A
+  /// door's hinges are round the back of the leaf, and a stile's face runs
+  /// the height of the door, so its average distance is that of its middle:
+  /// a hinge near the foot came out nearer than the stile it was behind and
+  /// was painted over it, and hinges the drawing says cannot be seen from
+  /// outside were on the front of the model.
+  ///
+  /// A plane settles it rather than an average. A piece lying wholly on the
+  /// far side of a face's plane, from where the eye is, cannot be in front
+  /// of that face, so it is painted first; wholly on the near side, it is
+  /// painted after. Only faces that overlap the piece on the screen are
+  /// asked, because nothing else can hide it or be hidden by it. Where the
+  /// two cannot both be met the order is left as the sort had it.
+  ///
+  /// [eye] is the eye in eye space for a perspective view, and null for a
+  /// parallel one, whose eye is infinitely far along +z.
+  static void _ironmongeryWhereItIs(List<_Seen> order, Vec3? eye) {
+    final pieces = <String>{
+      for (final seen in order)
+        if (seen.facet.source.role == FacetRole.hardware) seen.facet.elementId,
+    };
+
+    for (final id in pieces) {
+      final members = [
+        for (final seen in order)
+          if (seen.facet.elementId == id) seen,
+      ];
+      final others = [
+        for (final seen in order)
+          if (seen.facet.elementId != id) seen,
+      ];
+      // Where the piece sits among the rest, before anything is decided.
+      final at = order.indexOf(members.first);
+      var place = 0;
+      for (var i = 0; i < at; i++) {
+        if (order[i].facet.elementId != id) place++;
+      }
+
+      final bounds = _Box.around(members);
+      final corners = [for (final m in members) ...m.eye];
+      var before = others.length; // the earliest face it must precede
+      var after = -1; // the latest face it must follow
+      for (var i = 0; i < others.length; i++) {
+        final face = others[i];
+        if (!bounds.overlaps(face.box)) continue;
+        switch (face.sideOf(corners, eye)) {
+          case _Side.behind:
+            if (i < before) before = i;
+          case _Side.inFront:
+            after = i;
+          case _Side.across:
+            break;
+        }
+      }
+      if (after < before) {
+        if (place > before) place = before;
+        if (place <= after) place = after + 1;
+      }
+
+      order
+        ..clear()
+        ..addAll(others)
+        ..insertAll(place, members);
+    }
   }
 
   /// How many view units across the model is, looked at from any angle.
@@ -270,4 +350,78 @@ class Camera {
     if (value < -180) value += 360;
     return value;
   }
+}
+
+/// A projected face with its corners still in eye space, for the one
+/// question an average depth cannot answer: which side of it something is.
+class _Seen {
+  final ProjectedFacet facet;
+  final List<Vec3> eye;
+  final _Box box;
+
+  _Seen(this.facet, this.eye) : box = _Box.of(facet.corners);
+
+  /// Where [points] lie against this face's plane, as seen [from] the eye —
+  /// null for a parallel view, looking along -z.
+  _Side sideOf(List<Vec3> points, Vec3? from) {
+    if (eye.length < 3) return _Side.across;
+    final normal = (eye[1] - eye[0]).cross(eye[2] - eye[0]);
+    final size = normal.length;
+    if (size == 0) return _Side.across;
+    final n = normal * (1 / size);
+    // Which way the eye is from the plane. Edge on, the plane hides
+    // nothing and nothing hides it.
+    final toEye = from == null ? n.z : n.dot(from - eye[0]);
+    if (toEye.abs() < _onIt) return _Side.across;
+    final facing = toEye > 0 ? 1.0 : -1.0;
+
+    var allBehind = true;
+    var allInFront = true;
+    for (final p in points) {
+      final d = n.dot(p - eye[0]) * facing;
+      if (d > -_onIt) allBehind = false;
+      if (d < _onIt) allInFront = false;
+      if (!allBehind && !allInFront) return _Side.across;
+    }
+    return allBehind ? _Side.behind : _Side.inFront;
+  }
+
+  /// A hundredth of a millimetre: a point closer than this to a plane is on
+  /// it, not either side of it.
+  static const _onIt = 0.01;
+}
+
+enum _Side { behind, inFront, across }
+
+/// A face's extent on the screen.
+class _Box {
+  final double left, top, right, bottom;
+  const _Box(this.left, this.top, this.right, this.bottom);
+
+  factory _Box.of(List<Vec2> corners) {
+    var l = double.infinity, t = double.infinity;
+    var r = -double.infinity, b = -double.infinity;
+    for (final c in corners) {
+      l = math.min(l, c.x);
+      r = math.max(r, c.x);
+      t = math.min(t, c.y);
+      b = math.max(b, c.y);
+    }
+    return _Box(l, t, r, b);
+  }
+
+  factory _Box.around(List<_Seen> faces) {
+    var l = double.infinity, t = double.infinity;
+    var r = -double.infinity, b = -double.infinity;
+    for (final f in faces) {
+      l = math.min(l, f.box.left);
+      r = math.max(r, f.box.right);
+      t = math.min(t, f.box.top);
+      b = math.max(b, f.box.bottom);
+    }
+    return _Box(l, t, r, b);
+  }
+
+  bool overlaps(_Box o) =>
+      left < o.right && o.left < right && top < o.bottom && o.top < bottom;
 }

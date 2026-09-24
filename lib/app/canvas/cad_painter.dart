@@ -495,15 +495,17 @@ class CadPainter extends CustomPainter {
       );
       final width = math.max(3.0, length * 0.26);
 
-      // **A piece on the face this drawing is not of is hidden detail**, and
-      // a drawing shows hidden detail dashed rather than leaving it out. A
-      // door is drawn from outside, so its hinges are round the back: they
-      // are still on the drawing, because somebody has to fit them, but
-      // they are not lines you could see standing where this elevation is
-      // drawn from. A window is drawn from inside, where its hinges are, so
-      // they are solid. `Design.isConcealed` is the one answer, read here
-      // and by the solid alike.
+      // **A piece on the face this drawing is not of is hidden detail.** A
+      // door is drawn from outside, so its hinges are round the back and
+      // cannot be seen standing where this elevation is drawn from — so by
+      // default they are not drawn, as they are not seen in the solid. The
+      // **Hidden** layer puts them back dashed, as a joiner's hidden
+      // detail, because somebody still has to fit them. A window is drawn
+      // from inside, where its hinges are, so they are solid.
+      // `Design.isConcealed` is the one answer, read here and by the solid
+      // alike.
       final concealed = design.isConcealed(piece);
+      if (concealed && !layers.hiddenDetail) continue;
 
       canvas.save();
       canvas.translate(at.dx, at.dy);
