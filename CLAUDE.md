@@ -806,13 +806,45 @@ it was noise and is not to come back.
 
 ### The start screen
 
-Each of the three cards — door, window, door & window — is drawn by a pen
+Each of the four cards — door, window, door & window, sliding — is drawn by a pen
 as it arrives: the outline, the bars, then the mark in gold. It is painted
 from lines, like everything else, never a picture. Every movement finishes:
 the cards arrive once, in turn, and a card draws itself again only when the
 pointer comes onto it. Nothing loops, so the screen is still while it is
 read, `pumpAndSettle` settles, and a device asking for less motion sees it
 already drawn.
+
+### A sliding design
+
+Sliding is a fourth thing to begin from, beside a door, a window and both,
+and like *both* it is a fact about the assembly: `DesignKind.sliding`. The
+drawing says the rest. The panels are the lights the user drew; a `<` or a
+`>` in one says that panel slides, **the way the chevron points** — its
+point is the edge that moves, as on every mark, and on a sliding panel that
+edge leads. A panel with no mark stays where it is. So the two kinds in the
+user's photographs are two drawings and not two templates: one panel marked
+beside a fixed light is a single slider, left or right; two marked are a
+pair that both slide. `SketchInterpreter._said` is the whole of the
+difference, and the same sheet begun as a door is hinged exactly as before.
+
+**A sliding panel hangs on no hinge and is pulled, not turned.** It carries
+one piece, `HardwareKind.pull`, on the stile it **closes with** — away from
+the way it slides, where it meets the jamb or its partner when shut. That is
+where the photographs have it, and a pull on the leading stile would run
+into the panel it slides behind. `OpeningHardware.forOpening` puts it there
+by `handleAt` with the leading edge standing where a hinged leaf's hinges
+would, so it is half way up like every handle and the user's own figure
+moves it. Its leaf follows a door unless they say otherwise, so its pull is
+on both faces.
+
+**In the solid it steps back and runs along.** `MeshBuilder._slideFor`: in
+the frame the panel stands in line with the fixed lights, so it first steps
+back into the building, clear of the frame's depth, and then slides towards
+the edge it leads with — its own width, stopping at the jamb where that is
+nearer. Each sliding panel has a track of its own in reading order, a leaf's
+thickness further back than the one before, so two sliders pass rather than
+run through each other. It is a translation, never a turn, and nothing else
+moves. `test/domain/a_sliding_design_test.dart` holds all of it.
 
 ### A side left open
 

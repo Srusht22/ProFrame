@@ -451,7 +451,7 @@ abstract final class SketchInterpreter {
         choosing,
         section.id,
         openingId: openingId,
-        mechanism: sameMark ? before.mechanism : symbol.mechanism,
+        mechanism: sameMark ? before.mechanism : _said(design, symbol),
         direction: sameMark ? before.direction : OpeningDirection.inward,
         markAt: symbol.centre,
         markGlyph: symbol.glyph,
@@ -622,6 +622,24 @@ abstract final class SketchInterpreter {
       }
     }
     return through;
+  }
+
+  /// What [symbol] says about the section it is in, in [design].
+  ///
+  /// **In a sliding design the chevron points the way the panel slides.**
+  /// Its point is at the edge that moves, as it is everywhere: on a hinged
+  /// leaf that edge swings, and on a sliding panel it leads — so `>` slides
+  /// right and `<` slides left. The user chose a sliding design on the
+  /// start screen, so this is reading their mark in the terms they set, not
+  /// deciding how the panel opens. A `^` or a `v` says what it always says,
+  /// because nothing here slides up or down.
+  static OpeningMechanism _said(Design design, OpeningSymbol symbol) {
+    if (!design.kind.slides) return symbol.mechanism;
+    return switch (symbol.mechanism) {
+      OpeningMechanism.hingedLeft => OpeningMechanism.slidingRight,
+      OpeningMechanism.hingedRight => OpeningMechanism.slidingLeft,
+      final other => other,
+    };
   }
 
   /// The id the opening carries, which is the same one every time the sheet

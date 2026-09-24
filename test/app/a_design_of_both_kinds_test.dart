@@ -289,6 +289,27 @@ void main() {
       expect(container.read(workspaceProvider).design.kind, DesignKind.both);
     });
 
+    testWidgets('and a fourth: sliding', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1280, 820));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const ProFrameApp(),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('SLIDING'), findsOneWidget);
+      await tester.tap(find.text('SLIDING'));
+      await tester.pumpAndSettle();
+      expect(
+        container.read(workspaceProvider).design.kind,
+        DesignKind.sliding,
+      );
+    });
+
     testWidgets('it is raised over the work, with the work blurred back',
         (tester) async {
       await open(tester);

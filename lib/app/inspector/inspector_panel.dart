@@ -442,7 +442,9 @@ class _OpeningHardwareFields extends StatelessWidget {
     if (section == null) return const SizedBox.shrink();
 
     final outline = section.outline;
-    final edge = opening.mechanism.hingeEdge;
+    // A sliding panel's leading edge stands where a hinged leaf's hinges
+    // would, so its handle is measured up its stile the same way.
+    final edge = opening.mechanism.hingeEdge ?? opening.mechanism.slideEdge;
     final sideHung =
         edge == OpeningEdge.left || edge == OpeningEdge.right;
     final along = sideHung ? outline.height : outline.width;
@@ -508,10 +510,26 @@ class _OpeningHardwareFields extends StatelessWidget {
           const _Label('Handle type'),
           const SizedBox(height: 7),
           SegmentedButton<HardwareKind>(
-            segments: const [
-              ButtonSegment(value: HardwareKind.lever, label: Text('Lever')),
-              ButtonSegment(value: HardwareKind.knob, label: Text('Knob')),
-              ButtonSegment(value: HardwareKind.handle, label: Text('Pull')),
+            segments: [
+              // A sliding panel is drawn along by a bar, so that is the
+              // first of its forms; a leaf that swings has none.
+              if (opening.mechanism.slideEdge != null)
+                const ButtonSegment(
+                  value: HardwareKind.pull,
+                  label: Text('Bar'),
+                ),
+              const ButtonSegment(
+                value: HardwareKind.lever,
+                label: Text('Lever'),
+              ),
+              const ButtonSegment(
+                value: HardwareKind.knob,
+                label: Text('Knob'),
+              ),
+              const ButtonSegment(
+                value: HardwareKind.handle,
+                label: Text('Pull'),
+              ),
             ],
             selected: {piece.kind},
             showSelectedIcon: false,
@@ -872,6 +890,9 @@ class _OpeningFields extends StatelessWidget {
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 14),
+        // A sliding panel steps back into the building and runs along its
+        // track; it swings neither in nor out.
+        if (opening.mechanism.slideEdge == null)
         SegmentedButton<OpeningDirection>(
           segments: const [
             ButtonSegment(
@@ -954,12 +975,21 @@ class _DirectionPicker extends StatelessWidget {
     required this.onChanged,
   });
 
-  static const _options = <OpeningMechanism>[
+  static const _hung = <OpeningMechanism>[
     OpeningMechanism.hingedRight,
     OpeningMechanism.hingedLeft,
     OpeningMechanism.bottomHung,
     OpeningMechanism.topHung,
   ];
+
+  /// A sliding panel goes one way or the other, and the mark says which.
+  static const _sliding = <OpeningMechanism>[
+    OpeningMechanism.slidingLeft,
+    OpeningMechanism.slidingRight,
+  ];
+
+  List<OpeningMechanism> get _options =>
+      mechanism.slideEdge != null ? _sliding : _hung;
 
   @override
   Widget build(BuildContext context) => Row(

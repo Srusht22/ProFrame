@@ -295,7 +295,7 @@ String _placeOn(
   SectionElement section,
   OpeningElement? opening,
 ) {
-  final edge = opening?.mechanism.hingeEdge;
+  final edge = opening?.mechanism.hingeEdge ?? opening?.mechanism.slideEdge;
   final alongARail = edge == OpeningEdge.top || edge == OpeningEdge.bottom;
   final figure = alongARail
       ? '${Units.label(piece.at.x - section.outline.left)} from the left'

@@ -73,11 +73,35 @@ abstract final class OpeningHardware {
   ) {
     final section = design.sectionById(opening.sectionId);
     if (section == null) return const [];
-    final edge = opening.mechanism.hingeEdge;
-    if (edge == null) return const [];
-
     final outline = section.outline;
     if (outline.width <= 0 || outline.height <= 0) return const [];
+
+    // **A sliding panel hangs on no hinge and is pulled, not turned.** It
+    // carries one thing: a pull on the stile it closes with — the edge
+    // *away from* the way it slides, which meets the jamb or its partner
+    // when it is shut. That is where a hand takes it to draw it open, and
+    // where the user's own photographs of sliding doors have it; a pull on
+    // the leading stile would run into the panel it slides behind. So the
+    // edge it leads with stands where a hinged leaf's hinges would, and the
+    // handle is opposite it, half way up, by the same rule as every handle.
+    final leads = opening.mechanism.slideEdge;
+    if (leads != null) {
+      final id = '${opening.id}-handle';
+      return [
+        HardwareElement(
+          id: id,
+          kind: opening.handleKind ?? HardwareKind.pull,
+          parentId: opening.id,
+          at: handleAt(opening, outline.left, outline.right, outline.top,
+              outline.bottom, leads),
+          rotation: 90,
+          finish: _finishOf(design, id),
+        ),
+      ];
+    }
+
+    final edge = opening.mechanism.hingeEdge;
+    if (edge == null) return const [];
 
     // The hinged edge, and the one opposite it that the handle is on.
     final sideHung = edge == OpeningEdge.left || edge == OpeningEdge.right;
@@ -131,7 +155,7 @@ abstract final class OpeningHardware {
           // window's fastener keeps the plain form it had.
           DesignKind.door => HardwareKind.lever,
           DesignKind.window => HardwareKind.handle,
-          DesignKind.both || null => null,
+          DesignKind.both || DesignKind.sliding || null => null,
         };
     if (form != null) {
       pieces.add(HardwareElement(

@@ -30,7 +30,16 @@ enum OutlineGap {
 enum DesignKind {
   door('Door', Face.outside),
   window('Window', Face.inside),
-  both('Door & window', Face.outside);
+  both('Door & window', Face.outside),
+
+  /// Panels that slide past each other rather than swing — a patio door.
+  ///
+  /// Like [both] it is a fact about the assembly, chosen on the start
+  /// screen: in a sliding design a `<` or a `>` says *this panel slides, that
+  /// way*, rather than which side it is hinged on. Two panels marked is a
+  /// pair that both slide; one marked beside a fixed light is a single
+  /// slider. The drawing says which, not a template.
+  sliding('Sliding', Face.outside);
 
   const DesignKind(this.label, this.seenFrom);
   final String label;
@@ -56,7 +65,17 @@ enum DesignKind {
   /// answered, because which handle is exactly what has not been said.
   /// Picking one would be the application deciding what a leaf is, which is
   /// the thing this whole arrangement exists to avoid.
-  DesignKind? get leafDefault => this == both ? null : this;
+  ///
+  /// A sliding design's leaves follow a door: the user chose sliding for a
+  /// set they walk through, and the leaf's own switch says otherwise.
+  DesignKind? get leafDefault => switch (this) {
+        both => null,
+        sliding => door,
+        _ => this,
+      };
+
+  /// Whether a mark in this design says a panel slides rather than swings.
+  bool get slides => this == sliding;
 
   /// The face the user draws, and the face both views show.
   ///
@@ -458,6 +477,9 @@ enum OpeningMechanism {
         hingedRight => '<',
         bottomHung => '^',
         topHung => 'v',
+        // On a sliding panel the point leads: `>` slides right.
+        slidingRight => '>',
+        slidingLeft => '<',
         _ => null,
       };
 
@@ -473,6 +495,16 @@ enum OpeningMechanism {
 }
 
 enum OpeningEdge { left, right, top, bottom }
+
+/// The edge a sliding leaf leads with: the side it slides towards.
+extension SlideEdge on OpeningMechanism {
+  /// Which edge leads, for a leaf that slides; null for one that does not.
+  OpeningEdge? get slideEdge => switch (this) {
+        OpeningMechanism.slidingLeft => OpeningEdge.left,
+        OpeningMechanism.slidingRight => OpeningEdge.right,
+        _ => null,
+      };
+}
 
 /// Which way it opens relative to the viewer.
 enum OpeningDirection { inward, outward, either }
@@ -677,7 +709,12 @@ enum HardwareKind {
   hinge('Hinge'),
   letterplate('Letter plate'),
   peephole('Peephole'),
-  closer('Closer');
+  closer('Closer'),
+
+  /// A slim upright bar a sliding panel is pulled by. A sliding panel turns
+  /// nothing, so a lever or a turned fastener would be a handle for a
+  /// different kind of leaf.
+  pull('Pull handle');
 
   const HardwareKind(this.label);
   final String label;
@@ -693,7 +730,8 @@ enum HardwareKind {
   bool get isHandle =>
       this == HardwareKind.handle ||
       this == HardwareKind.lever ||
-      this == HardwareKind.knob;
+      this == HardwareKind.knob ||
+      this == HardwareKind.pull;
 
   /// True when this piece is fixed to the **inside face** of a leaf and to
   /// nowhere else.

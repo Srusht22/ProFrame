@@ -482,6 +482,9 @@ abstract final class MeshBuilder {
     double depth,
     double openFraction,
   ) {
+    if (opening.mechanism.slideEdge case final leads?) {
+      return _slideFor(design, opening, section, leads, depth, openFraction);
+    }
     final edge = opening.mechanism.hingeEdge;
     if (edge == null || openFraction <= 0) return (p) => p;
 
@@ -546,6 +549,69 @@ abstract final class MeshBuilder {
     };
   }
 
+  /// How much of opening a sliding panel spends stepping onto its track,
+  /// before it slides along it.
+  static const _stepShare = 0.2;
+
+  /// Slides a point of a sliding panel, [openFraction] of the way open.
+  ///
+  /// **A sliding panel does not turn; it steps back onto its track and runs
+  /// along it.** In the frame it stands in line with the fixed lights, so
+  /// sliding it straight sideways would take it through the mullion and the
+  /// glass beside it. It first steps back — into the building, the same way
+  /// an inward door swings, so from outside it goes behind the frame and
+  /// from inside in front of it — clear of the frame's own depth, and then
+  /// runs towards the edge it leads with.
+  ///
+  /// **How far is the panel's own width, and never past the frame.** That
+  /// is what opening a slider means: it clears its own light. Where the
+  /// frame is nearer than that, it stops at the jamb. Nothing here is a
+  /// distance chosen to look right.
+  ///
+  /// **Each sliding panel has a track of its own.** Two panels that both
+  /// slide pass each other, so the second in reading order stands a leaf's
+  /// thickness further back than the first, and neither runs through the
+  /// other.
+  static Vec3 Function(Vec3) _slideFor(
+    Design design,
+    OpeningElement opening,
+    SectionElement section,
+    OpeningEdge leads,
+    double depth,
+    double openFraction,
+  ) {
+    if (openFraction <= 0) return (p) => p;
+    final f = openFraction.clamp(0.0, 1.0);
+    final t = (f / _stepShare).clamp(0.0, 1.0);
+    final stepped = t * t * (3 - 2 * t);
+    final slid = ((f - _stepShare) / (1 - _stepShare)).clamp(0.0, 1.0);
+
+    final sliders = [
+      for (final o in design.openingsInOrder)
+        if (o.mechanism.slideEdge != null) o.id,
+    ];
+    final track = math.max(0, sliders.indexOf(opening.id));
+    final leafDepth = _leafDepth(depth);
+    final intoBuilding = design.seenFrom == Face.outside ? -1.0 : 1.0;
+    // Clear of the frame: from outside, its near face meets the frame's
+    // back; from inside, its far face meets the frame's front.
+    final clear =
+        intoBuilding < 0 ? -depth - leafFront(depth) : -leafBack(depth);
+    final back = (clear + intoBuilding * track * leafDepth) * stepped;
+
+    final box = section.outline;
+    final room = design.frame?.innerOutline;
+    final travel = switch (leads) {
+      OpeningEdge.left => -math.min(
+          box.width, math.max(0.0, box.left - (room?.left ?? box.left))),
+      OpeningEdge.right => math.min(
+          box.width, math.max(0.0, (room?.right ?? box.right) - box.right)),
+      _ => 0.0,
+    };
+    final along = travel * slid;
+    return (p) => Vec3(p.x + along, p.y, p.z + back);
+  }
+
   /// A piece of ironmongery, at the point the user put it — or at the point
   /// its opening puts it, carried through the leaf's swing by [place].
   static void _addHardware(
@@ -578,7 +644,10 @@ abstract final class MeshBuilder {
     // and a flat tab standing on the leaf is a placeholder for one rather
     // than one of them.
     if (design.openingHolding(piece.parentId) case final opening?) {
-      final hinge = opening.mechanism.hingeEdge;
+      // A sliding panel has no hinges; the edge it leads with stands where
+      // they would, opposite its handle.
+      final hinge =
+          opening.mechanism.hingeEdge ?? opening.mechanism.slideEdge;
       if (_addFurniture(out, piece, design, opening, hinge, depth, place)) {
         return;
       }
@@ -794,6 +863,12 @@ abstract final class MeshBuilder {
         case HardwareKind.knob:
           _addKnob(out, piece, face, scale, put);
           return true;
+        case HardwareKind.pull:
+          final stile = design.frame == null
+              ? 0.0
+              : OpeningLeaf.profileFor(design.frame!);
+          _addPull(out, piece, inward, face, scale, stile, put);
+          return true;
         default:
           return false;
       }
@@ -942,6 +1017,55 @@ abstract final class MeshBuilder {
       radii.add((7.5 + 2.6 * t) * scale);
     }
     _tube(out, path, radii, id, finish, put);
+  }
+
+  /// A sliding panel's pull: an upright bar held off the stile on two
+  /// posts, which a hand closes round and draws along.
+  ///
+  /// Nothing on it turns, because nothing on a sliding panel does — a lever
+  /// or a turned fastener would be the handle of a leaf that swings. It is
+  /// centred on the stile rather than on the stile's outer edge, so it is on
+  /// the panel's own material and not over the frame it closes against.
+  static void _addPull(
+    List<Facet> out,
+    HardwareElement piece,
+    Vec3 inward,
+    double face,
+    double scale,
+    double stile,
+    Vec3 Function(Vec3) put,
+  ) {
+    final id = piece.id;
+    final finish = piece.finish;
+    final x = piece.at.x + inward.x * stile / 2;
+    final y = piece.at.y;
+    final length = 380 * scale;
+    final stand = 34 * scale;
+
+    // The two posts, out of the face.
+    for (final end in [-1.0, 1.0]) {
+      final at = Vec3(x, y + end * (length / 2 - 28 * scale), face);
+      _sweep(
+        out,
+        _ring(at, const Vec3(1, 0, 0), const Vec3(0, 1, 0), 8 * scale),
+        Vec3(0, 0, stand),
+        id,
+        finish,
+        put,
+        capStart: false,
+      );
+    }
+
+    // The bar, upright between them, standing off the face by the posts.
+    final foot = Vec3(x, y + length / 2, face + stand);
+    _sweep(
+      out,
+      _ring(foot, const Vec3(1, 0, 0), const Vec3(0, 0, 1), 12 * scale),
+      Vec3(0, -length, 0),
+      id,
+      finish,
+      put,
+    );
   }
 
   /// A knob on its rose: a stem out of the leaf and a ball on the end.

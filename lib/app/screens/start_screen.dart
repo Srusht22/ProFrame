@@ -99,6 +99,11 @@ class _StartScreenState extends ConsumerState<StartScreen>
         'One frame holding leaves of each kind. You say which every '
             'opening is.',
       ),
+      (
+        DesignKind.sliding,
+        'Panels that slide past each other. Mark each one that slides with '
+            'the way it goes.',
+      ),
     ];
 
     return Scaffold(
@@ -137,6 +142,9 @@ class _StartScreenState extends ConsumerState<StartScreen>
                       LayoutBuilder(
                         builder: (context, constraints) {
                           final narrow = constraints.maxWidth < 720;
+                          // Four across where there is room for four, and
+                          // two by two where there is not.
+                          final twoByTwo = constraints.maxWidth < 900;
                           final cards = [
                             for (var i = 0; i < kinds.length; i++)
                               _arriving(
@@ -161,7 +169,7 @@ class _StartScreenState extends ConsumerState<StartScreen>
                               ],
                             );
                           }
-                          return IntrinsicHeight(
+                          Widget row(List<Widget> cards) => IntrinsicHeight(
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -173,6 +181,16 @@ class _StartScreenState extends ConsumerState<StartScreen>
                               ],
                             ),
                           );
+                          if (twoByTwo) {
+                            return Column(
+                              children: [
+                                row(cards.sublist(0, 2)),
+                                const SizedBox(height: 16),
+                                row(cards.sublist(2)),
+                              ],
+                            );
+                          }
+                          return row(cards);
                         },
                       ),
                       const SizedBox(height: 32),
@@ -442,11 +460,15 @@ class _KindCardState extends State<_KindCard>
                       padding: const EdgeInsets.only(top: 14),
                       child: Row(
                         children: [
-                          Text(
-                            'Start drawing',
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              color: AppTheme.primary,
-                              fontWeight: FontWeight.w700,
+                          // Four cards share the width, so the words give
+                          // way to the arrow rather than run past the card.
+                          Flexible(
+                            child: Text(
+                              'Start drawing',
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                color: AppTheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                           AnimatedPadding(
@@ -473,8 +495,9 @@ class _KindCardState extends State<_KindCard>
   }
 }
 
-/// A door, a window, or a frame holding both, drawn by a pen up to
-/// [progress] of the way: the outline, then the bars, then the mark in gold.
+/// A door, a window, a frame holding both, or a sliding set, drawn by a pen
+/// up to [progress] of the way: the outline, then the bars, then the mark in
+/// gold.
 class _PenDrawing extends CustomPainter {
   final DesignKind kind;
   final double progress;
@@ -518,6 +541,19 @@ class _PenDrawing extends CustomPainter {
       [Offset(0.44, 0.46), Offset(0.88, 0.46)],
       [Offset(0.18, 0.4), Offset(0.36, 0.52), Offset(0.18, 0.64)],
       [Offset(0.74, 0.18), Offset(0.56, 0.28), Offset(0.74, 0.38)],
+    ],
+    // Two panels side by side, the right one marked to slide left behind
+    // the left: the plainest sliding door there is.
+    DesignKind.sliding => const [
+      [
+        Offset(0.1, 0.18),
+        Offset(0.9, 0.18),
+        Offset(0.9, 0.82),
+        Offset(0.1, 0.82),
+        Offset(0.1, 0.18),
+      ],
+      [Offset(0.5, 0.18), Offset(0.5, 0.82)],
+      [Offset(0.8, 0.38), Offset(0.6, 0.5), Offset(0.8, 0.62)],
     ],
   };
 
@@ -672,6 +708,8 @@ class _SavedDesigns extends ConsumerWidget {
                               DesignKind.door => Icons.door_front_door_outlined,
                               DesignKind.window => Icons.window_outlined,
                               DesignKind.both => Icons.splitscreen_outlined,
+                              DesignKind.sliding =>
+                                Icons.door_sliding_outlined,
                             },
                             size: 19,
                             color: AppTheme.accent.withValues(alpha: 0.8),
