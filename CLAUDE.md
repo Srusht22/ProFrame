@@ -854,9 +854,9 @@ nearer — and nothing else moves.
 reaches to the middle of it, so it is the two panels' own stiles, one on
 each track. A post there would stand in the very track the slider runs
 along, which is what the first version got wrong: it kept the post and
-stepped the slider out of the back of the frame to get past it, and the
-user's videos of real sliding doors showed it plainly. The line stays the
-user's, on the drawing and in the design.
+stepped the slider out of the back of the frame to get past it, which is
+not how any sliding door works and which the user said was wrong. The line
+stays the user's, on the drawing and in the design.
 
 `test/domain/a_sliding_design_test.dart` holds all of it.
 
