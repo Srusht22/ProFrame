@@ -1,11 +1,10 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/question.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
+import 'alert_layer.dart';
 
 /// What a new opening is, put over the workspace with the work behind it
 /// blurred back.
@@ -34,38 +33,16 @@ class OpeningKindAlert extends ConsumerWidget {
     final pending = ref.watch(
       workspaceProvider.select((s) => s.openingKindQuestions),
     );
-    if (pending.isEmpty) return const SizedBox.shrink();
-
     final controller = ref.read(workspaceProvider.notifier);
-    final question = pending.first;
 
-    return Positioned.fill(
-      child: Stack(
-        children: [
-          // Everything behind, blurred back and dimmed. The barrier swallows
-          // taps so a stray one on the drawing underneath cannot edit a
-          // design the user cannot presently see clearly.
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
-              child: const ModalBarrier(
-                dismissible: false,
-                color: Color(0x4D0C1613),
-              ),
-            ),
-          ),
-          Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: _Card(
-                question: question,
-                remaining: pending.length,
-                onAnswer: (key) => controller.answer(question.id, key),
-                onDismiss: () => controller.dismissQuestion(question.id),
-              ),
-            ),
-          ),
-        ],
+    // How it comes and goes is `AlertLayer`'s, shared with every alert.
+    return AlertLayer(
+      question: pending.firstOrNull,
+      cardFor: (question) => _Card(
+        question: question,
+        remaining: pending.length,
+        onAnswer: (key) => controller.answer(question.id, key),
+        onDismiss: () => controller.dismissQuestion(question.id),
       ),
     );
   }
@@ -100,18 +77,7 @@ class _Card extends StatelessWidget {
           children: [
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.accent,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.help_outline,
-                    size: 20,
-                    color: AppTheme.primary,
-                  ),
-                ),
+                const AlertBadge(icon: Icons.help_outline),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -131,47 +97,66 @@ class _Card extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            Text(
-              question.prompt,
-              style: Theme.of(context).textTheme.titleLarge
-                  ?.copyWith(fontSize: 21),
+            AlertStep(
+              order: 0,
+              child: Text(
+                question.prompt,
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(fontSize: 21),
+              ),
             ),
             if (question.detail != null) ...[
               const SizedBox(height: 8),
-              Text(
-                question.detail!,
-                style: Theme.of(context).textTheme.bodyMedium
-                    ?.copyWith(color: AppTheme.muted, height: 1.45),
+              AlertStep(
+                order: 1,
+                child: Text(
+                  question.detail!,
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: AppTheme.muted, height: 1.45),
+                ),
               ),
             ],
             const SizedBox(height: 20),
-            Row(
-              children: [
-                for (final option in question.options) ...[
-                  Expanded(
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(0, 48),
-                        textStyle: AppTheme.buttonLabel,
+            AlertStep(
+              order: 2,
+              child: Row(
+                children: [
+                  for (final option in question.options) ...[
+                    Expanded(
+                      child: AlertPressable(
+                        color: AppTheme.primary,
+                        onTap: () => onAnswer(option.key),
+                        child: SizedBox(
+                          height: 48,
+                          child: Center(
+                            child: Text(
+                              option.label,
+                              style: AppTheme.buttonLabel.copyWith(
+                                color: AppTheme.accent,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                      onPressed: () => onAnswer(option.key),
-                      child: Text(option.label),
                     ),
-                  ),
-                  if (option != question.options.last)
-                    const SizedBox(width: 10),
+                    if (option != question.options.last)
+                      const SizedBox(width: 10),
+                  ],
                 ],
-              ],
+              ),
             ),
             const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerRight,
-              // Waving it away is not an answer: the leaf keeps no kind
-              // of its own and the opening is untouched. The same
-              // control on the opening's own panel says it later.
-              child: TextButton(
-                onPressed: onDismiss,
-                child: const Text('Not now'),
+            AlertStep(
+              order: 3,
+              child: Align(
+                alignment: Alignment.centerRight,
+                // Waving it away is not an answer: the leaf keeps no kind
+                // of its own and the opening is untouched. The same
+                // control on the opening's own panel says it later.
+                child: TextButton(
+                  onPressed: onDismiss,
+                  child: const Text('Not now'),
+                ),
               ),
             ),
           ],

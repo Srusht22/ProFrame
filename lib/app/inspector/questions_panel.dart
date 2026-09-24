@@ -20,10 +20,38 @@ class QuestionsPanel extends ConsumerWidget {
     final questions = ref.watch(
       workspaceProvider.select((s) => s.sheetQuestions),
     );
-    if (questions.isEmpty) return const SizedBox.shrink();
-
     final controller = ref.read(workspaceProvider.notifier);
 
+    // It opens up from the foot of the drawing and closes back down into
+    // it, rather than appearing whole and shoving the drawing up in one
+    // frame. Once open, it grows and shrinks with what it holds.
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 340),
+      reverseDuration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) => SizeTransition(
+        sizeFactor: animation,
+        alignment: Alignment.topCenter,
+        child: FadeTransition(opacity: animation, child: child),
+      ),
+      child: questions.isEmpty
+          ? const SizedBox.shrink(key: ValueKey('none'))
+          : AnimatedSize(
+              key: const ValueKey('asking'),
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: _panel(context, questions, controller),
+            ),
+    );
+  }
+
+  Widget _panel(
+    BuildContext context,
+    List<DesignQuestion> questions,
+    WorkspaceController controller,
+  ) {
     return Container(
       decoration: const BoxDecoration(
         color: AppTheme.accent,

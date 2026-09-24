@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -93,7 +95,11 @@ class ToolRail extends ConsumerWidget {
   }
 }
 
-class _ToolButton extends StatelessWidget {
+/// One tool: it lights up when the pointer is over it, and when chosen its
+/// highlight fills in and its icon gives a small bounce, so the eye follows
+/// the choice rather than hunting for which one changed. Every movement is a
+/// fraction of a second and finishes.
+class _ToolButton extends StatefulWidget {
   final Tool tool;
   final IconData icon;
   final bool selected;
@@ -111,55 +117,114 @@ class _ToolButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Tooltip(
-        message: dimmed
-            ? '${tool.label}\nTap to go back to the drawing and use it.'
-            : '${tool.label}\n${tool.hint}',
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          child: Material(
-            color: selected ? AppTheme.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              onTap: onTap,
+  State<_ToolButton> createState() => _ToolButtonState();
+}
+
+class _ToolButtonState extends State<_ToolButton> {
+  static const _quick = Duration(milliseconds: 220);
+
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = widget.selected;
+    final dimmed = widget.dimmed;
+    final iconColour = selected
+        ? AppTheme.accent
+        : dimmed
+            ? AppTheme.muted.withValues(alpha: 0.45)
+            : AppTheme.ink;
+    final labelColour = selected
+        ? AppTheme.accent
+        : AppTheme.muted.withValues(alpha: dimmed ? 0.45 : 1);
+    final background = selected
+        ? AppTheme.primary
+        : _hover && !dimmed
+            ? AppTheme.primary.withValues(alpha: 0.07)
+            : AppTheme.primary.withValues(alpha: 0);
+
+    return Tooltip(
+      message: dimmed
+          ? '${widget.tool.label}\nTap to go back to the drawing and use it.'
+          : '${widget.tool.label}\n${widget.tool.hint}',
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _hover = true),
+          onExit: (_) => setState(() => _hover = false),
+          child: AnimatedContainer(
+            duration: _quick,
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              color: background,
               borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: compact ? 9 : 8),
-                child: Column(
-                  children: [
-                    Icon(
-                      icon,
-                      size: 21,
-                      color: selected
-                          ? AppTheme.accent
-                          : dimmed
-                              ? AppTheme.muted.withValues(alpha: 0.45)
-                              : AppTheme.ink,
-                    ),
-                    if (!compact) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        tool.label,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          height: 1.15,
-                          fontWeight: FontWeight.w600,
-                          color: selected
-                              ? AppTheme.accent
-                              : AppTheme.muted
-                                  .withValues(alpha: dimmed ? 0.45 : 1),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primary.withValues(
+                    alpha: selected ? 0.28 : 0,
+                  ),
+                  blurRadius: selected ? 10 : 0,
+                  offset: Offset(0, selected ? 3 : 0),
+                ),
+              ],
+            ),
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: widget.onTap,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding:
+                      EdgeInsets.symmetric(vertical: widget.compact ? 9 : 8),
+                  child: Column(
+                    children: [
+                      // A bounce, once, as it is chosen: keyed on being
+                      // chosen, so it plays when that changes and not on
+                      // every rebuild.
+                      TweenAnimationBuilder<double>(
+                        key: ValueKey(selected),
+                        tween: Tween(begin: selected ? 0 : 1, end: 1),
+                        duration: const Duration(milliseconds: 420),
+                        curve: Curves.easeOut,
+                        builder: (context, t, child) => Transform.scale(
+                          scale: 1 + 0.2 * math.sin(math.pi * t),
+                          child: child,
+                        ),
+                        child: TweenAnimationBuilder<Color?>(
+                          tween: ColorTween(end: iconColour),
+                          duration: _quick,
+                          builder: (context, colour, _) =>
+                              Icon(widget.icon, size: 21, color: colour),
                         ),
                       ),
+                      if (!widget.compact) ...[
+                        const SizedBox(height: 3),
+                        AnimatedDefaultTextStyle(
+                          duration: _quick,
+                          style: TextStyle(
+                            fontFamily: AppTheme.fontFamily,
+                            fontSize: 9.5,
+                            height: 1.15,
+                            fontWeight: FontWeight.w600,
+                            color: labelColour,
+                          ),
+                          child: Text(
+                            widget.tool.label,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _PenColour extends StatelessWidget {

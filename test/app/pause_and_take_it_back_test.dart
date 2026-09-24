@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/app.dart';
 import 'package:proframe/app/canvas/drawing_surface.dart';
+import 'package:proframe/app/inspector/alert_layer.dart';
 import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
@@ -191,7 +192,7 @@ void main() {
       await twoLeaves(c);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Window'));
+      await tester.tap(find.widgetWithText(AlertPressable, 'Window'));
       await tester.pumpAndSettle();
 
       expect(find.byType(SnackBar), findsNothing);

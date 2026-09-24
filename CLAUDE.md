@@ -849,6 +849,25 @@ ways and both of those near misses, and
 `test/app/the_design_is_not_closed_test.dart` holds the alert and each of
 its three answers on the real app.
 
+### How the alerts and the tools move
+
+Both alerts over the work come and go through one widget, `AlertLayer`, so
+they cannot drift apart. Arriving (`AlertLayer.arriving`, about half a
+second) the work behind blurs back and dims over a moment, the card rises
+and settles with a slight overshoot, its icon pops into its badge
+(`AlertBadge`), and its parts follow one another in (`AlertStep`) — the
+question, then the choices. Leaving (`AlertLayer.leaving`) is quicker, and
+the card on its way out takes no second answer. The next of several
+questions plays its arrival again, so three read as three. The buttons on
+them (`AlertPressable`) lift under the pointer and give when pressed; the
+tools down the left fill their highlight in and bounce once when chosen;
+the panel of questions under the drawing opens up from its foot.
+
+**Every movement finishes.** Nothing loops, so the screen is still while it
+is read and `pumpAndSettle` settles; and a device asking for less motion
+gets each alert already in place. `test/app/the_alerts_move_test.dart`
+holds all of it.
+
 ### Reading a mark drawn by a hand
 
 A `<`, `>`, `^` or `v` is the only thing that creates an opening, so failing

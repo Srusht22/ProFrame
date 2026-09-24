@@ -1,11 +1,10 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/question.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
+import 'alert_layer.dart';
 
 /// An outline drawn with one side missing, put over the workspace with the
 /// work behind it blurred back.
@@ -28,31 +27,14 @@ class OutlineGapAlert extends ConsumerWidget {
     final question = ref.watch(
       workspaceProvider.select((s) => s.outlineGapQuestion),
     );
-    if (question == null) return const SizedBox.shrink();
     final controller = ref.read(workspaceProvider.notifier);
 
-    return Positioned.fill(
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
-              child: const ModalBarrier(
-                dismissible: false,
-                color: Color(0x4D0C1613),
-              ),
-            ),
-          ),
-          Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: _Card(
-                question: question,
-                onAnswer: (key) => controller.answer(question.id, key),
-              ),
-            ),
-          ),
-        ],
+    // How it comes and goes is `AlertLayer`'s, shared with every alert.
+    return AlertLayer(
+      question: question,
+      cardFor: (question) => _Card(
+        question: question,
+        onAnswer: (key) => controller.answer(question.id, key),
       ),
     );
   }
@@ -82,18 +64,7 @@ class _Card extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accent,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.crop_free,
-                      size: 20,
-                      color: AppTheme.primary,
-                    ),
-                  ),
+                  const AlertBadge(icon: Icons.crop_free),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -104,27 +75,38 @@ class _Card extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              Text(
-                question.prompt,
-                style: theme.textTheme.titleLarge?.copyWith(fontSize: 21),
+              AlertStep(
+                order: 0,
+                child: Text(
+                  question.prompt,
+                  style: theme.textTheme.titleLarge?.copyWith(fontSize: 21),
+                ),
               ),
               if (question.detail != null) ...[
                 const SizedBox(height: 8),
-                Text(
-                  question.detail!,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: AppTheme.muted, height: 1.45),
+                AlertStep(
+                  order: 1,
+                  child: Text(
+                    question.detail!,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.muted,
+                      height: 1.45,
+                    ),
+                  ),
                 ),
               ],
               const SizedBox(height: 18),
               for (final (i, option) in question.options.indexed) ...[
                 if (i > 0) const SizedBox(height: 10),
-                _Choice(
-                  option: option,
-                  // The first is the drawing as it stands; the others are
-                  // the two ways of changing it.
-                  primary: i == 0,
-                  onTap: () => onAnswer(option.key),
+                AlertStep(
+                  order: 2 + i,
+                  child: _Choice(
+                    option: option,
+                    // The first is the drawing as it stands; the others are
+                    // the two ways of changing it.
+                    primary: i == 0,
+                    onTap: () => onAnswer(option.key),
+                  ),
                 ),
               ],
             ],
@@ -149,47 +131,41 @@ class _Choice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fore = primary ? AppTheme.accent : AppTheme.primary;
-    return Material(
+    return AlertPressable(
       color: primary ? AppTheme.primary : AppTheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: primary
-            ? BorderSide.none
-            : const BorderSide(color: AppTheme.hairline),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+      side: primary
+          ? BorderSide.none
+          : const BorderSide(color: AppTheme.hairline),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    option.label,
+                    style: AppTheme.buttonLabel.copyWith(color: fore),
+                  ),
+                  if (option.detail != null) ...[
+                    const SizedBox(height: 3),
                     Text(
-                      option.label,
-                      style: AppTheme.buttonLabel.copyWith(color: fore),
-                    ),
-                    if (option.detail != null) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        option.detail!,
-                        style: TextStyle(
-                          fontFamily: AppTheme.fontFamily,
-                          fontSize: 12.5,
-                          height: 1.35,
-                          color: fore.withValues(alpha: 0.78),
-                        ),
+                      option.detail!,
+                      style: TextStyle(
+                        fontFamily: AppTheme.fontFamily,
+                        fontSize: 12.5,
+                        height: 1.35,
+                        color: fore.withValues(alpha: 0.78),
                       ),
-                    ],
+                    ),
                   ],
-                ),
+                ],
               ),
-              Icon(Icons.chevron_right, color: fore, size: 20),
-            ],
-          ),
+            ),
+            Icon(Icons.chevron_right, color: fore, size: 20),
+          ],
         ),
       ),
     );

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/app.dart';
+import 'package:proframe/app/inspector/alert_layer.dart';
 import 'package:proframe/app/inspector/opening_kind_alert.dart';
 import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
@@ -325,14 +326,14 @@ void main() {
       expect(find.textContaining('What is Opening 2'), findsNothing);
       expect(find.text('1 of 2'), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Door'));
+      await tester.tap(find.widgetWithText(AlertPressable, 'Door'));
       await tester.pumpAndSettle();
 
       // The first is answered and gone; the second is now the one asked.
       expect(find.textContaining('What is Opening 2'), findsOneWidget);
       expect(find.text('1 of 2'), findsNothing, reason: 'one left');
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Window'));
+      await tester.tap(find.widgetWithText(AlertPressable, 'Window'));
       await tester.pumpAndSettle();
 
       expect(find.byType(OpeningKindAlert), findsOneWidget);
