@@ -733,14 +733,15 @@ abstract final class SketchInterpreter {
 
   /// Where the sliding panels drawn together in one light meet.
   ///
-  /// **Two sliding marks in one light are two panels.** `<-  ->` drawn side
-  /// by side in one light says the light is a pair: the left one runs left
-  /// and the right one runs right, parting in the middle of it. The user
-  /// drew no line between them because the marks say it — so the line they
-  /// meet at is read from the marks, as a mark is read, and put where the
-  /// drawing leaves room for it: half way across the gap between the two
-  /// marks. Nothing about it is made equal to anything; move the marks and
-  /// it moves with them.
+  /// **Two sliding marks in one light are two equal panels.** `<-  ->` side
+  /// by side in one light is a pair parting in the middle: the left one
+  /// runs left and the right one runs right. That is the user's own
+  /// notation, in their words — *when we have `<-  ->` that symbol splits
+  /// the opening part into two equal parts and opens it* — so the light is
+  /// divided equally, by what the symbol says, and not by where the hand
+  /// happened to put each arrow. Three marks make three equal panels, and
+  /// so on. The line each pair meets at is as wide as any other bar, so
+  /// the daylight either side of it is equal too.
   ///
   /// It lasts as long as the marks do. It is made again from them at every
   /// reading, and rubbing one of them out takes it away.
@@ -765,25 +766,25 @@ abstract final class SketchInterpreter {
       if (marks.length < 2) continue;
       final light = design.sectionById(entry.key)!.outline;
       marks.sort((a, b) => a.centre.x.compareTo(b.centre.x));
+      // Each meeting line takes its own width out of the light, so the
+      // panels are equal in the daylight they close: n panels and n - 1
+      // lines share the light's width between them.
+      final panel = (light.width - (marks.length - 1) * width) / marks.length;
+      if (panel <= 0) continue;
       for (var i = 0; i + 1 < marks.length; i++) {
-        final left = marks[i], right = marks[i + 1];
-        final leftReach = left.drawn.map((p) => p.x).reduce(math.max);
-        final rightReach = right.drawn.map((p) => p.x).reduce(math.min);
-        final x = leftReach < rightReach
-            ? (leftReach + rightReach) / 2
-            : (left.centre.x + right.centre.x) / 2;
+        final x = light.left + (i + 1) * panel + i * width + width / 2;
         final across = DesignEdits.spanAcross(
           light,
           Segment(Vec2(x, light.top), Vec2(x, light.bottom)),
         );
         if (across == null) continue;
         meetings.add(DividerElement(
-          id: 'meeting-${left.strokeId}-${right.strokeId}',
+          id: 'meeting-${marks[i].strokeId}-${marks[i + 1].strokeId}',
           a: across.a,
           b: across.b,
           widthMm: width,
           finish: frame.finish,
-          fromStrokeId: left.strokeId,
+          fromStrokeId: marks[i].strokeId,
         ));
       }
     }

@@ -878,12 +878,16 @@ ends, its meeting stile still reaching half the line it met at.
   mark happens to sit on, which runs far beyond it, is never taken for one.
   Only in a sliding design: a door or a window reads its sheet exactly as
   before.
-- **Two marks in one light are two panels.** `<-  ->` side by side in one
-  light is a pair parting in the middle, and `_meetingsOf` puts the line
-  they meet at half way across the gap the drawing leaves between the two
-  marks — the drawing's own room, not the middle of the light made equal.
-  It is read from the marks at every reading, named after them, and goes
-  when either is rubbed out. Each half then opens by its own mark.
+- **Two marks in one light are two equal panels.** `<-  ->` side by side
+  in one light is a pair parting in the middle, and the user said what the
+  symbol means: *it splits the opening part into two equal parts and opens
+  it.* So `_meetingsOf` divides the light equally — the daylight either side
+  of the meeting line the same, three marks three equal panels — by what
+  the symbol says and not by where the hand put each arrow. This is the one
+  place a division is made equal, and it is because the user's own notation
+  says so; nothing else in this file is licensed by it. The meeting line is
+  read from the marks at every reading, named after them, and goes when
+  either is rubbed out. Each panel then opens by its own mark.
 
 `test/domain/arrows_mean_sliding_panels_test.dart` holds the user's own
 drawing, traced from their screenshot.

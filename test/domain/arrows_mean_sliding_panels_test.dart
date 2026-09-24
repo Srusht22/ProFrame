@@ -16,8 +16,8 @@ import 'hinges_round_the_back_test.dart' show pen;
 // one (->) goes to the right side.*
 //
 // So the shaft of each arrow is part of the mark and never a bar, and the
-// two marks in one light make it two panels, meeting where the drawing
-// leaves room between the arrows, each sliding the way its arrow points.
+// two marks in one light split it into two equal panels — the user's own
+// rule for the symbol — each sliding the way its arrow points.
 
 /// A point of the user's screenshot, in millimetres on the sheet.
 Vec2 at(double x, double y) => Vec2((x - 157) * 6, (y - 326) * 6);
@@ -78,15 +78,50 @@ void main() {
     expect(design.topLevelSections, hasLength(4));
   });
 
-  test('they meet half way across the gap the drawing leaves', () {
+  test('the light is split into two equal panels', () {
+    // In the user's words: `<-  ->` splits the opening part into two equal
+    // parts and opens it.
+    final order = design.openingsInOrder;
+    final left = design.sectionById(order[0].sectionId)!.outline;
+    final right = design.sectionById(order[1].sectionId)!.outline;
+    expect(left.width, closeTo(right.width, 1e-6));
+    expect(left.height, closeTo(right.height, 1e-6));
+
+    // The line they meet at runs right across the light, head to sill,
+    // in the middle of the light the user drew between their uprights.
     final meeting = design.dividers.singleWhere(
       (d) => d.id.startsWith('meeting-'),
     );
-    final between = (at(425, 0).x + at(477, 0).x) / 2;
-    expect(meeting.segment.midpoint.x, closeTo(between, 1e-6));
-    // Right across the light, head to sill.
+    expect(
+      meeting.segment.midpoint.x,
+      closeTo((left.left + right.right) / 2, 1e-6),
+    );
     final daylight = design.frame!.innerOutline;
     expect(meeting.segment.length, greaterThan(daylight.height * 0.99));
+  });
+
+  test('equal wherever in the light the arrows were drawn', () {
+    // The same light with both arrows drawn well over to one side: the
+    // symbol says two equal panels, so where the hand put it moves nothing.
+    Design shifted(double by) {
+      final strokes = [
+        for (final s in design.sketch.strokes)
+          s.id.startsWith('head') || s.id.startsWith('shaft')
+              ? s.translated(Vec2(by, 0))
+              : s,
+      ];
+      return SketchInterpreter.interpret(
+        design.copyWith(sketch: Sketch(strokes: strokes)),
+      ).design;
+    }
+
+    List<double> widths(Design d) => [
+      for (final o in d.openingsInOrder)
+        d.sectionById(o.sectionId)!.outline.width,
+    ];
+    expect(widths(shifted(-60)), [
+      for (final w in widths(design)) closeTo(w, 1e-6),
+    ]);
   });
 
   test('reading it again gives the same design', () {
