@@ -61,13 +61,38 @@ class OpeningSymbol {
 
   final SymbolDirection direction;
 
+  /// The shaft drawn behind the point, when the mark is an arrow — `<-` or
+  /// `->` — and the stroke it was drawn as. Null for a bare chevron.
+  ///
+  /// It is part of the mark, not a line of the design: a shaft built as a
+  /// bar would be a stray member hanging in the middle of a light.
+  final Segment? shaft;
+  final String? shaftStrokeId;
+
   const OpeningSymbol({
     required this.strokeId,
     required this.apex,
     required this.armA,
     required this.armB,
     required this.direction,
+    this.shaft,
+    this.shaftStrokeId,
   });
+
+  /// This mark with [shaft], drawn as [strokeId], behind its point.
+  OpeningSymbol withShaft(Segment shaft, String strokeId) => OpeningSymbol(
+        strokeId: this.strokeId,
+        apex: apex,
+        armA: armA,
+        armB: armB,
+        direction: direction,
+        shaft: shaft,
+        shaftStrokeId: strokeId,
+      );
+
+  /// Everything the user drew for this mark, the shaft included — the
+  /// ground the mark covers on the sheet.
+  List<Vec2> get drawn => [apex, armA, armB, ?shaft?.a, ?shaft?.b];
 
   String get glyph => direction.glyph;
 

@@ -75,6 +75,26 @@ abstract final class SketchInterpreter {
       symbolStrokes.add(stroke.id);
     }
 
+    // **In a sliding design an arrow is a mark.** `<-` and `->` are how a
+    // sliding panel is drawn — the head says it opens, the shaft behind it
+    // says which way it runs — and the shaft is part of the mark, not a line
+    // to build. Built as a bar it would be a member hanging loose in the
+    // middle of a light that nobody drew one in.
+    if (design.kind.slides) {
+      for (var i = 0; i < symbols.length; i++) {
+        for (final stroke in design.sketch.strokes) {
+          if (!_isStructural(stroke) || symbolStrokes.contains(stroke.id)) {
+            continue;
+          }
+          final shaft = _shaftOf(symbols[i], stroke);
+          if (shaft == null) continue;
+          symbols[i] = symbols[i].withShaft(shaft, stroke.id);
+          symbolStrokes.add(stroke.id);
+          break;
+        }
+      }
+    }
+
     final structural = [
       for (final stroke in design.sketch.strokes)
         if (_isStructural(stroke) && !symbolStrokes.contains(stroke.id))
@@ -317,6 +337,17 @@ abstract final class SketchInterpreter {
 
     var read = design.copyWith(frame: frame, dividers: dividers);
     read = SectionBuilder.rebuild(read, newId: newId);
+
+    // Two sliding panels drawn in one light: they meet between the marks.
+    if (design.kind.slides) {
+      final meetings = _meetingsOf(read, symbols, width: frame.profileMm * 0.8);
+      if (meetings.isNotEmpty) {
+        read = SectionBuilder.rebuild(
+          read.copyWith(dividers: [...read.dividers, ...meetings]),
+          newId: newId,
+        );
+      }
+    }
 
     // An opening that came from a mark lasts exactly as long as the mark
     // does. Rub the mark out, or say it was never one, and the opening goes
@@ -640,6 +671,123 @@ abstract final class SketchInterpreter {
       OpeningMechanism.hingedRight => OpeningMechanism.slidingLeft,
       final other => other,
     };
+  }
+
+  /// [stroke] as the shaft of the arrow [symbol] heads, or null when it is
+  /// not one.
+  ///
+  /// A shaft is a short straight line behind the point of a chevron: it
+  /// lies along the way the chevron points, starts within the mark's own
+  /// reach of the point, and runs back away from it. Every figure is the
+  /// mark's own — how long its arms are — so a small arrow and a large one
+  /// are read alike, and a rail the mark happens to sit on, which runs far
+  /// beyond it, is never taken for its shaft.
+  static Segment? _shaftOf(OpeningSymbol symbol, Stroke stroke) {
+    final points = stroke.points;
+    if (points.length < 2) return null;
+    final line = Segment(points.first, points.last);
+    final length = line.length;
+    final size = symbol.sizeMm;
+    if (length <= 0 || size <= 0) return null;
+
+    // Straight, near enough: a hand's wobble, not a corner.
+    for (final p in points) {
+      if (line.distanceTo(p) > length * _shaftWander) return null;
+    }
+    // Short: a shaft, not a line of the design.
+    if (length > size * _longestShaft) return null;
+
+    // Along the way the mark points.
+    final middle = symbol.armA.lerp(symbol.armB, 0.5);
+    final pointing = symbol.apex - middle;
+    if (pointing.length <= 0) return null;
+    final axis = pointing.normalised;
+    if ((line.unit.x * axis.x + line.unit.y * axis.y).abs() < _shaftAlong) {
+      return null;
+    }
+
+    // Starting at the point and running back from it.
+    final near = points.first.distanceTo(symbol.apex) <=
+            points.last.distanceTo(symbol.apex)
+        ? points.first
+        : points.last;
+    final far = identical(near, points.first) ? points.last : points.first;
+    if (near.distanceTo(symbol.apex) > size) return null;
+    double ahead(Vec2 p) =>
+        (p.x - symbol.apex.x) * axis.x + (p.y - symbol.apex.y) * axis.y;
+    if (ahead(far) >= ahead(near) || ahead(far) >= 0) return null;
+    return Segment(near, far);
+  }
+
+  /// How far a shaft may wander off straight, as a share of its length.
+  static const _shaftWander = 0.15;
+
+  /// How long a shaft may be, in lengths of the mark's own arms. An arrow's
+  /// shaft is about as long as its head is wide; a few times that is still
+  /// an arrow, and anything longer is a line of the design.
+  static const _longestShaft = 4.0;
+
+  /// How nearly a shaft lies along the way its mark points: the cosine of
+  /// the widest angle a hand draws one at.
+  static const _shaftAlong = 0.9;
+
+  /// Where the sliding panels drawn together in one light meet.
+  ///
+  /// **Two sliding marks in one light are two panels.** `<-  ->` drawn side
+  /// by side in one light says the light is a pair: the left one runs left
+  /// and the right one runs right, parting in the middle of it. The user
+  /// drew no line between them because the marks say it — so the line they
+  /// meet at is read from the marks, as a mark is read, and put where the
+  /// drawing leaves room for it: half way across the gap between the two
+  /// marks. Nothing about it is made equal to anything; move the marks and
+  /// it moves with them.
+  ///
+  /// It lasts as long as the marks do. It is made again from them at every
+  /// reading, and rubbing one of them out takes it away.
+  static List<DividerElement> _meetingsOf(
+    Design design,
+    List<OpeningSymbol> symbols, {
+    required double width,
+  }) {
+    final frame = design.frame;
+    if (frame == null) return const [];
+    final byLight = <String, List<OpeningSymbol>>{};
+    for (final symbol in symbols) {
+      if (symbol.glyph != '<' && symbol.glyph != '>') continue;
+      final light = sectionFor(design, symbol);
+      if (light == null) continue;
+      byLight.putIfAbsent(light.id, () => []).add(symbol);
+    }
+
+    final meetings = <DividerElement>[];
+    for (final entry in byLight.entries) {
+      final marks = entry.value;
+      if (marks.length < 2) continue;
+      final light = design.sectionById(entry.key)!.outline;
+      marks.sort((a, b) => a.centre.x.compareTo(b.centre.x));
+      for (var i = 0; i + 1 < marks.length; i++) {
+        final left = marks[i], right = marks[i + 1];
+        final leftReach = left.drawn.map((p) => p.x).reduce(math.max);
+        final rightReach = right.drawn.map((p) => p.x).reduce(math.min);
+        final x = leftReach < rightReach
+            ? (leftReach + rightReach) / 2
+            : (left.centre.x + right.centre.x) / 2;
+        final across = DesignEdits.spanAcross(
+          light,
+          Segment(Vec2(x, light.top), Vec2(x, light.bottom)),
+        );
+        if (across == null) continue;
+        meetings.add(DividerElement(
+          id: 'meeting-${left.strokeId}-${right.strokeId}',
+          a: across.a,
+          b: across.b,
+          widthMm: width,
+          finish: frame.finish,
+          fromStrokeId: left.strokeId,
+        ));
+      }
+    }
+    return meetings;
   }
 
   /// The id the opening carries, which is the same one every time the sheet

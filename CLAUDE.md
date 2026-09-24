@@ -867,6 +867,27 @@ fixed outer ones. The first is `>` in the left panel; the second is `<` and
 clears **its own light** — its closing edge comes to rest where that light
 ends, its meeting stile still reaching half the line it met at.
 
+**In a sliding design the user draws arrows: `<-` and `->`.** Their words:
+*`<-` goes to the left side and `->` goes to the right side.* So:
+
+- **The shaft is part of the mark.** `SketchInterpreter._shaftOf` takes a
+  short straight stroke behind a chevron's point — along the way it points,
+  starting within the mark's own arm's reach of the point and running back
+  from it, no longer than a few of its arms — as that mark's shaft, and it
+  is never built as a bar. Every figure is the mark's own, so a rail the
+  mark happens to sit on, which runs far beyond it, is never taken for one.
+  Only in a sliding design: a door or a window reads its sheet exactly as
+  before.
+- **Two marks in one light are two panels.** `<-  ->` side by side in one
+  light is a pair parting in the middle, and `_meetingsOf` puts the line
+  they meet at half way across the gap the drawing leaves between the two
+  marks — the drawing's own room, not the middle of the light made equal.
+  It is read from the marks at every reading, named after them, and goes
+  when either is rubbed out. Each half then opens by its own mark.
+
+`test/domain/arrows_mean_sliding_panels_test.dart` holds the user's own
+drawing, traced from their screenshot.
+
 **The pull is a long bar**, `OpeningHardware.pullOfLeafHeight` of the leaf,
 because a whole hand draws a heavy panel along by it; `pullLengthOf` is the
 one figure the solid and both drawings read.
