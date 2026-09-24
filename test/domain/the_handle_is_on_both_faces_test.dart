@@ -7,11 +7,11 @@ import 'package:proframe/domain/solid/mesh_builder.dart';
 
 import 'hinges_round_the_back_test.dart' as leaves;
 
-// A door is opened from the room as well as from the street, so its lever is
-// on both faces of the leaf — and so is a window's handle, a knob and a
-// lock's escutcheon. Each is built on the face the drawing is of and again
-// on the other, the same piece turned through the leaf. A hinge is screwed
-// to one face only, and is not doubled.
+// A door is opened from the room as well as from the street, so its lever
+// and its lock's escutcheon are on both faces of the leaf: built on the face
+// the drawing is of and again on the other, the same piece turned through
+// the leaf. A window is opened from inside only, so its handle is on the one
+// face. A hinge is screwed to one face of either, and is not doubled.
 
 Design design() => leaves.windowAndDoor();
 
@@ -34,14 +34,49 @@ int showing(Design design, String id, Camera camera) {
 
 void main() {
   final door = design();
+  DesignKind? leafOf(HardwareElement piece) =>
+      door.kindOf(door.openingHolding(piece.parentId)!);
+  // The door leaf's lever and lock.
   final handles = [
     for (final piece in door.hardware)
-      if (!piece.kind.onTheInsideFace) piece,
+      if (!piece.kind.onTheInsideFace && leafOf(piece) == DesignKind.door)
+        piece,
   ];
   final front = MeshBuilder.leafFront(door.depthMm);
   final back = MeshBuilder.leafBack(door.depthMm);
 
-  test('every handle and lock is built on both faces of its leaf', () {
+  test('a window\'s handle is on the one face, the one you are at', () {
+    final mesh = MeshBuilder.build(door);
+    final windowHandles = [
+      for (final piece in door.hardware)
+        if (piece.kind.isHandle && leafOf(piece) == DesignKind.window) piece,
+    ];
+    expect(windowHandles, isNotEmpty);
+    for (final piece in windowHandles) {
+      final facets = facetsOf(mesh, piece.id);
+      expect(facets, isNotEmpty);
+      expect(facets.every((f) => f.part == null), isTrue);
+      expect(
+        facets.expand((f) => f.corners).every((c) => c.z > back),
+        isTrue,
+        reason: 'nothing of it is on the far face',
+      );
+    }
+  });
+
+  test('saying a window is a door puts its handle on both faces', () {
+    final window = door.openings.firstWhere(
+      (o) => door.kindOf(o) == DesignKind.window,
+    );
+    final saidDoor = door.withElement(window.copyWith(kind: DesignKind.door));
+    final handle = saidDoor.hardware.firstWhere(
+      (p) => p.kind.isHandle && p.parentId == window.id,
+    );
+    final facets = facetsOf(MeshBuilder.build(saidDoor), handle.id);
+    expect(facets.any((f) => f.part != null), isTrue);
+  });
+
+  test('every door handle and lock is built on both faces of its leaf', () {
     expect(handles, isNotEmpty);
     final mesh = MeshBuilder.build(door);
     for (final piece in handles) {

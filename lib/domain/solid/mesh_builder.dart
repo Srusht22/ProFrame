@@ -764,13 +764,15 @@ abstract final class MeshBuilder {
     // built, on either kind of leaf. A door with a window handle on it is a
     // door the user put a window handle on.
     //
-    // **A piece that goes through the leaf is on both of its faces.** A
-    // lever, a window's handle, a knob and a lock are worked from either
-    // side — you open a door from the room as well as from the street — so
-    // each is built on the face the drawing is of and again on the other,
-    // the same piece turned through the leaf's middle. A hinge is screwed
-    // to one face only, and stays there.
-    final bothFaces = !piece.kind.onTheInsideFace;
+    // **A door's handle is on both of its faces.** You open a door from the
+    // room as well as from the street, so its lever and its lock are built
+    // on the face the drawing is of and again on the other, the same piece
+    // turned through the leaf's middle. A window is opened from inside
+    // only, so its handle is on the one face — the one you are standing
+    // at. A hinge is screwed to one face of either, and stays there. Which
+    // the leaf is comes from `Design.kindOf`, the user's own answer.
+    final bothFaces = !piece.kind.onTheInsideFace &&
+        design.kindOf(opening) == DesignKind.door;
     final through = MeshBuilder.leafFront(depth) + MeshBuilder.leafBack(depth);
     Vec3 otherFace(Vec3 p) => put(Vec3(p.x, p.y, through - p.z));
 

@@ -2046,12 +2046,14 @@ stile it is on towards the stile it hangs on, because that is the way a hand
 closes on it; pointing it the other way runs it off the edge of the door into
 the frame, which is what the first attempt did and what looking at it caught.
 
-**A piece that goes through the leaf is on both of its faces.** A door is
+**A door's handle is on both of its faces; a window's is not.** A door is
 opened from the room as well as from the street, so the solid builds its
-lever — and a window's handle, a knob and a lock's escutcheon — on the face
-the drawing is of and again on the other, the same piece turned through the
-middle of the leaf, and both turn with it. A hinge is screwed to one face
-only and is not doubled. The far copy carries `Facet.part`, so the painter
+lever, knob or lock's escutcheon on the face the drawing is of and again on
+the other, the same piece turned through the middle of the leaf, and both
+turn with it. A window is opened from inside only, so its handle is on the
+one face you are standing at. Which the leaf is comes from `Design.kindOf`,
+the user's own answer, so saying a window is a door doubles its handle. A
+hinge is screwed to one face of either and is never doubled. The far copy carries `Facet.part`, so the painter
 orders each copy by itself: taken together, a lever in front of the leaf
 and its twin behind it are neither in front of nor behind anything, and the
 near one was being painted under the stile.
