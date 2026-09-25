@@ -913,9 +913,9 @@ kept, the most recently edited first, a search, and **New Design**. The
 user's words: create a new design, or open an existing one.
 
 ```
-Designs  →  New Design  →  who it is for, what it is called  →  Continue
-                                                                    ↓
-          ←───────── back ─────────  the workspace  ←  Choose your design
+Designs  →  New Design  →  who it is for  →  Continue
+                                                 ↓
+          ←──── back ────  the workspace  ←  Choose your design
 ```
 
 - **A card is the design itself, drawn.** `DesignPreview` draws a read
@@ -923,30 +923,52 @@ Designs  →  New Design  →  who it is for, what it is called  →  Continue
   grid and handles left off — and a design not read yet as its own strokes.
   Nothing on the screen is a picture of doors in general
   (`no_stock_content_test.dart` still holds), and a design with nothing
-  drawn says *Nothing drawn yet*. Each card carries who it is for, its name,
-  its kind, its size where it has a frame, when it was last edited and its
+  drawn says *Nothing drawn yet*. Each card carries who it is for, its
+  kind, its size where it has a frame, when it was last edited and its
   number (`shortIdOf`: the moment it was made, to the millisecond, in eight
   letters and figures — the web's clock stops at the millisecond, so the
   last six digits of an id are always `000` there).
-- **Who a design is for is `Design.customer`.** Metadata, nothing to do
-  with the geometry, written to the file only when there is one, so every
-  design saved before it still loads. `designMatches` finds a design by
-  customer, name, id or number.
-- **New Design asks two things and nothing else**, both optional, then
-  goes into **Choose your design** (`StartScreen`, given the two answers). Choosing keeps the design at
+- **Who a design is for is `Design.customer`, and it is the design's
+  name too.** Metadata, nothing to do with the geometry, written to the
+  file only when there is one, so every design saved before it still
+  loads — and one saved before is known in the list by its own name
+  (`DesignSummary.title`). A design name of its own was asked for once
+  and the user took it out: *only the person / customer is enough*.
+- **New Design asks one thing**, who the design is for, and needs it —
+  **Continue** waits for a name, because the customer is what finds the
+  design again among the rest. Then **Choose your design** (`StartScreen`,
+  given the answer). Choosing keeps the design at
   once, so it is in the list from the moment it exists, and goes into the
   workspace with the designs underneath it — back is to the list, not
   through the steps that began it.
 - **Opening a design is `openDesign` on exactly what was saved** — nothing
   read again, nothing rebuilt — and the test compares the two as JSON.
+- **The list reads pages, never the whole store** — the user's words:
+  *the recent section must be able to have millions of customers*.
+  `DesignStore` keeps each design under a key of its own and an index
+  beside them of one `DesignSummary` a design — who, kind, size, dates, no
+  strokes. The screen asks `page(query, offset, limit)` for
+  `DesignsScreen.pageSize` at a time and the next page as the end comes
+  into view; searching is the same call with a query; and a card reads its
+  own design by `load` only when it is built, so only what is on the
+  screen is ever read in full. Designs kept in the old single list are
+  moved over, whole, the first time the store is read.
+  **The limit is the device, stated rather than hidden:** this store keeps
+  designs in the browser's own storage, which holds a few megabytes. Every
+  screen asks only for pages and single designs, so a store on a server —
+  which millions need — stands in for this one without the screens
+  changing. `test/infrastructure/many_customers_test.dart` holds the
+  paging, a search among thousands, the migration, and the screen
+  scrolling past its first page.
 - **An edit brings a design to the top, by being kept.** The workspace
   keeps the design without being asked once it has stood still for
   `WorkspaceScreen.keepAfter`, and again when it is left, through
   `WorkspaceController.keep`, which swallows a failure to store: keeping is
   never a reason for the work to stop. Only a change to the design counts —
   looking at one, picking a part or swinging a leaf leaves it where it is
-  in the list. `Design.copyWith` stamps `updatedAt` on every edit, and the
-  store sorts by it.
+  in the list. `Design.copyWith` stamps `updatedAt` on every edit, the
+  store sorts by it, and `designsRevisionProvider` tells the list to read
+  its page again.
 
 A phone gets a list of cards a thumb works down, the picture beside the
 words; anything wider a grid, every picture the same height.
@@ -957,19 +979,21 @@ designs to the choice of door or window.
 ### Choose your design
 
 After the new design's form, one question: what the product is.
-`StartScreen` puts **Door** and **Window** as the two large main choices —
-side by side where there is room, one above the other on a phone, each
-most of the width and a thumb's target — and **Door & window** and
-**Sliding** as smaller cards under *More types*. The user was asked whether
-to drop those two, since the brief named only door and window, and said
-*I want all of them*: a sliding design cannot be begun any other way,
-because a design's kind is fixed once it is started.
+`StartScreen` offers **Door**, **Window**, **Door & window** and **Sliding**
+as four cards, **all alike** — the user asked *why are all four cards not
+the same?* when two were large and two were smaller under *More types*.
+They are one row of four where the screen holds them, two by two on a
+tablet, and one above another on a phone, each most of the width and a
+thumb's target. The two that are not door or window stay because the
+user said *I want all of them*: a sliding design cannot be begun any other
+way, because a design's kind is fixed once it is started.
 
 A card is chosen by tapping it and stays plainly chosen — the brand's green
-edge, a tint, a tick, and *Door selected* in the bar at the foot — and a
+edge, a tint, a tick, and *Door selected* in the bar at the foot, with the
+edge the same width chosen or not so nothing moves — and a
 second tap on another moves the choice rather than adding to it. **Start
 drawing**, in that bar and so always in reach, is off until something is
-chosen; it begins the design with the kind, the customer and the name,
+chosen; it begins the design with the kind and the customer,
 keeps it, and goes into the existing drawing with the designs underneath.
 Nothing else is asked.
 

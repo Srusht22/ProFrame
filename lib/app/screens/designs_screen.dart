@@ -3,44 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/dimensions/units.dart';
 import '../../domain/model/design.dart';
+import '../../infrastructure/design_store.dart';
 import '../canvas/design_preview.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'new_design_screen.dart';
 import 'workspace_screen.dart';
-
-/// Whether [design] is one the user is looking for with [query]: its
-/// customer, its name, its id or its [shortIdOf] holding what they typed,
-/// whatever the case. An empty query finds every design.
-bool designMatches(Design design, String query) {
-  final wanted = query.trim().toLowerCase();
-  if (wanted.isEmpty) return true;
-  return [
-    design.customer ?? '',
-    design.name,
-    design.id,
-    shortIdOf(design),
-  ].any((field) => field.toLowerCase().contains(wanted));
-}
-
-/// A short number for [design] that a person can read out and type back
-/// in: the moment it was made, to the millisecond, written in letters and
-/// figures — eight characters, and different for every design made a
-/// millisecond apart. A design whose id carries no such moment is known by
-/// the end of its id.
-String shortIdOf(Design design) {
-  final runs = RegExp(r'\d+').allMatches(design.id).map((m) => m[0]!);
-  final longest = runs.fold('', (a, b) => b.length > a.length ? b : a);
-  final moment = longest.length >= 13 ? int.tryParse(longest) : null;
-  if (moment == null) {
-    final id = design.id;
-    return id.substring(id.length > 6 ? id.length - 6 : 0).toUpperCase();
-  }
-  // Microseconds where the platform has them, milliseconds where it does
-  // not — the web's clock stops at the millisecond.
-  final millis = longest.length >= 16 ? moment ~/ 1000 : moment;
-  return millis.toRadixString(36).toUpperCase();
-}
 
 /// How long ago [then] was, as a person would say it, seen from [now].
 String editedAgo(DateTime then, DateTime now) {
@@ -79,13 +47,43 @@ String editedAgo(DateTime then, DateTime now) {
 class DesignsScreen extends ConsumerStatefulWidget {
   const DesignsScreen({super.key});
 
+  /// How many designs are read at a time. The list reads the next page as
+  /// its end comes into view, so however many designs are kept, only the
+  /// ones being looked at are ever read.
+  static const pageSize = 40;
+
   @override
   ConsumerState<DesignsScreen> createState() => _DesignsScreenState();
 }
 
 class _DesignsScreenState extends ConsumerState<DesignsScreen> {
+  static const pageSize = DesignsScreen.pageSize;
+
   final _search = TextEditingController();
   String _query = '';
+
+  /// The designs the search has found and read so far, and how many it
+  /// found in all.
+  final _found = <DesignSummary>[];
+  int _total = 0;
+
+  /// How many designs are kept, whatever the search.
+  int _kept = 0;
+
+  bool _loaded = false;
+  bool _fetching = false;
+
+  /// Which reading is the latest: an answer to an older search, arriving
+  /// after a newer one, is thrown away.
+  int _asked = 0;
+
+  DesignStore get _store => ref.read(designStoreProvider);
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
 
   @override
   void dispose() {
@@ -93,28 +91,78 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen> {
     super.dispose();
   }
 
+  /// Reads the first page of what the search finds, again.
+  Future<void> _reload() async {
+    final ask = ++_asked;
+    _fetching = false;
+    DesignPage page;
+    int kept;
+    try {
+      page = await _store.page(query: _query, limit: pageSize);
+      kept = _query.trim().isEmpty ? page.total : await _store.count();
+    } on Object {
+      // Nowhere to keep designs reads as none kept yet, not as a failure:
+      // the way forward is the same.
+      page = const DesignPage([], 0);
+      kept = 0;
+    }
+    if (!mounted || ask != _asked) return;
+    setState(() {
+      _found
+        ..clear()
+        ..addAll(page.items);
+      _total = page.total;
+      _kept = kept;
+      _loaded = true;
+    });
+  }
+
+  /// Reads the next page, as the end of what has been read comes into view.
+  Future<void> _more() async {
+    if (_fetching || _found.length >= _total) return;
+    _fetching = true;
+    final ask = _asked;
+    DesignPage page;
+    try {
+      page = await _store.page(
+        query: _query,
+        offset: _found.length,
+        limit: pageSize,
+      );
+    } on Object {
+      page = const DesignPage([], 0);
+    }
+    if (!mounted || ask != _asked) return;
+    setState(() {
+      _found.addAll(page.items);
+      if (page.items.isEmpty) _total = _found.length;
+      _fetching = false;
+    });
+  }
+
+  void _searchFor(String query) {
+    _query = query;
+    _reload();
+  }
+
   void _newDesign() => Navigator.of(context)
       .push(MaterialPageRoute<void>(builder: (_) => const NewDesignScreen()));
 
-  /// Opens [design] exactly as it was saved — its sketch, its geometry, its
-  /// openings, its materials — to carry on where it was left.
-  void _open(Design design) {
+  /// Opens the design exactly as it was saved — its sketch, its geometry,
+  /// its openings, its materials — to carry on where it was left.
+  Future<void> _open(DesignSummary summary) async {
+    final design = await _store.load(summary.id);
+    if (design == null || !mounted) return;
     ref.read(workspaceProvider.notifier).openDesign(design);
-    Navigator.of(context)
+    await Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => const WorkspaceScreen()));
   }
 
   @override
   Widget build(BuildContext context) {
-    final saved = ref.watch(savedDesignsProvider);
-    // Nowhere to keep designs reads as none kept yet, not as a failure: the
-    // way forward is the same.
-    final all = saved.value ?? const <Design>[];
-    final loading = saved.isLoading && !saved.hasValue;
-    final found = [
-      for (final design in all)
-        if (designMatches(design, _query)) design,
-    ];
+    // A design kept anywhere — made, edited, left — and the page is read
+    // again, so the list is the store's and never a copy of it.
+    ref.listen(designsRevisionProvider, (_, _) => _reload());
 
     return Scaffold(
       backgroundColor: AppTheme.shell,
@@ -128,18 +176,18 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen> {
                 child: _Header(
                   phone: phone,
                   gutter: gutter,
-                  count: all.length,
+                  count: _kept,
                   search: _search,
-                  onSearch: (query) => setState(() => _query = query),
+                  onSearch: _searchFor,
                   onNewDesign: _newDesign,
                 ),
               ),
-              if (loading)
+              if (!_loaded)
                 // Reading the kept designs takes a moment; nothing is said
                 // in that moment rather than a spinner that would be gone
                 // before it was read.
                 const SliverToBoxAdapter(child: SizedBox.shrink())
-              else if (all.isEmpty)
+              else if (_kept == 0)
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: _NothingYet(onNewDesign: _newDesign),
@@ -154,12 +202,12 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen> {
                         title: _query.trim().isEmpty
                             ? 'Recent Designs'
                             : 'Results',
-                        count: found.length,
+                        count: _total,
                       ),
                     ),
                   ),
                 ),
-                if (found.isEmpty)
+                if (_total == 0)
                   SliverToBoxAdapter(
                     child: _Centred(
                       gutter: gutter,
@@ -168,11 +216,13 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen> {
                   )
                 else
                   _Designs(
-                    designs: found,
+                    designs: _found,
                     width: room.maxWidth,
                     gutter: gutter,
                     phone: phone,
                     onOpen: _open,
+                    onNearEnd: () => WidgetsBinding.instance
+                        .addPostFrameCallback((_) => _more()),
                   ),
                 const SliverToBoxAdapter(child: SizedBox(height: 40)),
               ],
@@ -390,11 +440,15 @@ class _SectionTitle extends StatelessWidget {
 /// The designs found, as a grid of cards where there is room and a list of
 /// cards a thumb can work down on a phone.
 class _Designs extends StatelessWidget {
-  final List<Design> designs;
+  final List<DesignSummary> designs;
   final double width;
   final double gutter;
   final bool phone;
-  final ValueChanged<Design> onOpen;
+  final ValueChanged<DesignSummary> onOpen;
+
+  /// Called as the last few cards read so far are built, so the next page
+  /// is read before the list runs out.
+  final VoidCallback onNearEnd;
 
   const _Designs({
     required this.designs,
@@ -402,7 +456,19 @@ class _Designs extends StatelessWidget {
     required this.gutter,
     required this.phone,
     required this.onOpen,
+    required this.onNearEnd,
   });
+
+  Widget _card(int i, DateTime now, {required bool wide}) {
+    if (i >= designs.length - 8) onNearEnd();
+    return DesignCard(
+      key: ValueKey(designs[i].id),
+      summary: designs[i],
+      now: now,
+      wide: wide,
+      onOpen: () => onOpen(designs[i]),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -415,12 +481,7 @@ class _Designs extends StatelessWidget {
         sliver: SliverList.separated(
           itemCount: designs.length,
           separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemBuilder: (context, i) => DesignCard(
-            design: designs[i],
-            now: now,
-            wide: true,
-            onOpen: () => onOpen(designs[i]),
-          ),
+          itemBuilder: (context, i) => _card(i, now, wide: true),
         ),
       );
     }
@@ -435,24 +496,19 @@ class _Designs extends StatelessWidget {
           mainAxisExtent: DesignCard.gridHeight,
         ),
         itemCount: designs.length,
-        itemBuilder: (context, i) => DesignCard(
-          design: designs[i],
-          now: now,
-          wide: false,
-          onOpen: () => onOpen(designs[i]),
-        ),
+        itemBuilder: (context, i) => _card(i, now, wide: false),
       ),
     );
   }
 }
 
-/// One design: a picture of it, who it is for, what it is called, how big
-/// it is, what kind, when it was last edited, and the way into it.
+/// One design: a picture of it, who it is for, its number, how big it is,
+/// what kind, when it was last edited, and the way into it.
 ///
 /// [wide] lays it out as a row — the picture beside the words — for a
 /// phone, where a column of tall cards would be a long way to scroll.
 class DesignCard extends StatefulWidget {
-  final Design design;
+  final DesignSummary summary;
   final DateTime now;
   final bool wide;
   final VoidCallback onOpen;
@@ -462,11 +518,11 @@ class DesignCard extends StatefulWidget {
 
   /// How tall a card in the grid is: the picture, and room under it for the
   /// words to run to two lines of tags and still leave the way in.
-  static const gridHeight = previewHeight + 196;
+  static const gridHeight = previewHeight + 170;
 
   const DesignCard({
     super.key,
-    required this.design,
+    required this.summary,
     required this.now,
     required this.wide,
     required this.onOpen,
@@ -479,7 +535,7 @@ class DesignCard extends StatefulWidget {
 class _DesignCardState extends State<DesignCard> {
   bool _hover = false;
 
-  IconData get _kindIcon => switch (widget.design.kind) {
+  IconData get _kindIcon => switch (widget.summary.kind) {
     DesignKind.door => Icons.door_front_door_outlined,
     DesignKind.window => Icons.window_outlined,
     DesignKind.both => Icons.splitscreen_outlined,
@@ -488,9 +544,7 @@ class _DesignCardState extends State<DesignCard> {
 
   @override
   Widget build(BuildContext context) {
-    final design = widget.design;
-    final customer = design.customer?.trim();
-    final hasCustomer = customer != null && customer.isNotEmpty;
+    final design = widget.summary;
     final preview = ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: DecoratedBox(
@@ -498,7 +552,7 @@ class _DesignCardState extends State<DesignCard> {
           border: Border.all(color: AppTheme.hairline),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: RepaintBoundary(child: DesignPreview(design: design)),
+        child: RepaintBoundary(child: _Picture(summary: design)),
       ),
     );
 
@@ -506,32 +560,24 @@ class _DesignCardState extends State<DesignCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          hasCustomer ? customer : 'No customer',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: hasCustomer ? AppTheme.ink : AppTheme.muted,
-            fontStyle: hasCustomer ? FontStyle.normal : FontStyle.italic,
-          ),
-        ),
-        const SizedBox(height: 2),
         Row(
           children: [
             Expanded(
               child: Text(
-                design.name,
+                design.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14, color: AppTheme.ink),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.ink,
+                ),
               ),
             ),
             const SizedBox(width: 8),
             // The design's number, to read out and search for.
             Text(
-              '#${shortIdOf(design)}',
+              '#${design.number}',
               style: const TextStyle(
                 fontSize: 11.5,
                 letterSpacing: 0.4,
@@ -547,12 +593,12 @@ class _DesignCardState extends State<DesignCard> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             _Chip(icon: _kindIcon, label: design.kind.label),
-            if (design.frame != null)
+            if (design.widthMm case final width?)
               _Chip(
                 icon: Icons.straighten,
                 label:
-                    '${Units.format(design.widthMm)} × '
-                    '${Units.label(design.heightMm)}',
+                    '${Units.format(width)} × '
+                    '${Units.label(design.heightMm ?? 0)}',
               ),
           ],
         ),
@@ -663,6 +709,50 @@ class _DesignCardState extends State<DesignCard> {
       ),
     );
   }
+}
+
+/// The picture on a card: the design itself, read from the store when the
+/// card is built — so only the designs on the screen are ever read — and
+/// read again only when it has been edited since.
+class _Picture extends ConsumerStatefulWidget {
+  final DesignSummary summary;
+
+  const _Picture({required this.summary});
+
+  @override
+  ConsumerState<_Picture> createState() => _PictureState();
+}
+
+class _PictureState extends ConsumerState<_Picture> {
+  late Future<Design?> _design = _read();
+
+  Future<Design?> _read() async {
+    try {
+      return await ref.read(designStoreProvider).load(widget.summary.id);
+    } on Object {
+      return null;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_Picture old) {
+    super.didUpdateWidget(old);
+    if (old.summary.id != widget.summary.id ||
+        old.summary.updatedAt != widget.summary.updatedAt) {
+      _design = _read();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<Design?>(
+    future: _design,
+    builder: (context, read) => switch (read.data) {
+      final design? => DesignPreview(design: design),
+      // Still being read, or not there: the sheet, and nothing on it
+      // pretending to be the design.
+      null => const ColoredBox(color: AppTheme.canvas),
+    },
+  );
 }
 
 class _Chip extends StatelessWidget {
@@ -778,7 +868,7 @@ class _NoMatch extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         const Text(
-          'Search by customer, design name or design number.',
+          'Search by customer or design number.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 13.5, color: AppTheme.muted),
         ),

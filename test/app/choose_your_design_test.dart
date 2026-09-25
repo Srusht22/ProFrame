@@ -57,12 +57,12 @@ FilledButton startButton(WidgetTester tester) => tester.widget<FilledButton>(
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('New Design, who and what, Continue: choose your design', (
+  testWidgets('New Design, who it is for, Continue: choose your design', (
     tester,
   ) async {
     await openTheApp(tester);
     expect(find.byType(DesignsScreen), findsOneWidget);
-    await toTheCategories(tester, customer: 'Ahmed', name: 'Main entrance');
+    await toTheCategories(tester, customer: 'Ahmed');
 
     expect(find.byType(StartScreen), findsOneWidget);
     expect(find.text('Choose your design'), findsOneWidget);
@@ -70,18 +70,20 @@ void main() {
       find.text('Select the type of product you want to create.'),
       findsOneWidget,
     );
-    // The two main choices, with what each is for.
-    expect(find.text('DOOR'), findsOneWidget);
-    expect(find.text('WINDOW'), findsOneWidget);
-    expect(find.text('Create a custom door design'), findsOneWidget);
-    expect(find.text('Create a custom window design'), findsOneWidget);
-    // And the other two, under More types.
-    expect(find.text('MORE TYPES'), findsOneWidget);
-    expect(find.text('DOOR & WINDOW'), findsOneWidget);
-    expect(find.text('SLIDING'), findsOneWidget);
+    // All four, each with what it is for.
+    for (final (card, blurb) in const [
+      ('DOOR', 'Create a custom door design'),
+      ('WINDOW', 'Create a custom window design'),
+      ('DOOR & WINDOW', 'Doors and windows in one frame'),
+      ('SLIDING', 'Panels that slide past each other'),
+    ]) {
+      expect(find.text(card), findsOneWidget);
+      expect(find.text(blurb), findsOneWidget);
+    }
+    // None of them set apart as a lesser kind.
+    expect(find.text('MORE TYPES'), findsNothing);
     // Who it is for, so nobody has to remember.
     expect(find.textContaining('Ahmed'), findsOneWidget);
-    expect(find.textContaining('Main entrance'), findsOneWidget);
     // Nothing else is asked: no field to fill in.
     expect(find.byType(TextField), findsNothing);
   });
@@ -132,7 +134,7 @@ void main() {
       tester,
     ) async {
       final c = await openTheApp(tester);
-      await toTheCategories(tester, customer: 'Sara', name: 'Kitchen');
+      await toTheCategories(tester, customer: 'Sara');
       await chooseDesign(tester, card);
 
       // The existing drawing, not a new screen.
@@ -141,7 +143,7 @@ void main() {
       final design = c.read(workspaceProvider).design;
       expect(design.kind, kind);
       expect(design.customer, 'Sara');
-      expect(design.name, 'Kitchen');
+      expect(design.name, 'Sara');
       expect(find.text('Read my drawing'), findsNothing);
 
       // The kind chosen is kept with the design.
@@ -164,7 +166,7 @@ void main() {
   ) async {
     // Made the way a user makes one: named, chosen, drawn.
     final c = await openTheApp(tester);
-    await toTheCategories(tester, customer: 'Karwan', name: 'Garden door');
+    await toTheCategories(tester, customer: 'Karwan');
     await chooseDesign(tester, 'DOOR');
     await sheet.twoLeaves(c);
     await tester.pumpAndSettle();
@@ -197,7 +199,7 @@ void main() {
   testWidgets('a door design can still hold a window opening, and a fixed '
       'area beside it', (tester) async {
     final c = await openTheApp(tester);
-    await toTheCategories(tester, customer: 'Dilan', name: 'Shop front');
+    await toTheCategories(tester, customer: 'Dilan');
     await chooseDesign(tester, 'DOOR');
     final controller = await sheet.twoLeaves(c);
     await tester.pumpAndSettle();
@@ -258,6 +260,16 @@ void main() {
           expect(window.top, closeTo(door.top, 1));
           expect(window.left, greaterThan(door.right));
         }
+        // All four cards the same size.
+        final sizes = {
+          for (final card in ['DOOR', 'WINDOW', 'DOOR & WINDOW', 'SLIDING'])
+            tester.getSize(
+              find
+                  .ancestor(of: find.text(card), matching: find.byType(InkWell))
+                  .first,
+            ),
+        };
+        expect(sizes, hasLength(1), reason: 'every card alike: $sizes');
         // The way in is always on screen, whatever has scrolled.
         final start = tester.getRect(find.text(StartScreen.startLabel));
         expect(start.bottom, lessThanOrEqualTo(size.height));

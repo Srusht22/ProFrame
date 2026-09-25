@@ -12,12 +12,12 @@ import 'workspace_screen.dart';
 /// **Choose your design**: the one step between naming a new design and
 /// drawing it — what kind of product it is.
 ///
-/// A door and a window are the two main choices, large, side by side where
-/// there is room and one above the other on a phone. A frame holding both
-/// and a sliding set are there too, smaller, under **More types**: the user
-/// asked for all of them. A card is chosen by tapping it and stays visibly
-/// chosen; **Start drawing** then begins the design and goes into the
-/// drawing, exactly as it always has.
+/// Four choices, all alike — a door, a window, a frame holding both and a
+/// sliding set — two by two where there is room and one above the other
+/// on a phone. The user asked for all four and for them to be the same:
+/// none is a lesser kind of design. A card is chosen by tapping it and
+/// stays visibly chosen; **Start drawing** then begins the design and goes
+/// into the drawing, exactly as it always has.
 ///
 /// **The choice is where the design starts, not a fence round it.** It is
 /// `Design.kind`, kept with the design, and every opening in it can still be
@@ -25,8 +25,8 @@ import 'workspace_screen.dart';
 /// window leaf, and a window design a door.
 ///
 /// It is reached from the new design's form, which has already asked who
-/// the design is for and what it is called; [customer] and [name] are those
-/// answers. Opening a saved design never comes here: it goes straight into
+/// the design is for; [customer] is that answer, and the design is called
+/// by it. Opening a saved design never comes here: it goes straight into
 /// the design as it was kept.
 ///
 /// **Each card shows the application doing what it does**, not a picture of
@@ -34,22 +34,15 @@ import 'workspace_screen.dart';
 /// leaf opens, from lines like everything else on the screen
 /// (`no_stock_content_test.dart`). Every movement finishes; nothing loops.
 class StartScreen extends ConsumerStatefulWidget {
-  /// Who the new design is for, where the user said.
+  /// Who the new design is for.
   final String? customer;
 
-  /// What the new design is called, where the user said.
-  final String? name;
+  const StartScreen({super.key, this.customer});
 
-  const StartScreen({super.key, this.customer, this.name});
-
-  /// The two main choices, and what each card says.
-  static const mainChoices = [
+  /// The four choices, in the order they are shown, and what each card says.
+  static const choices = [
     (DesignKind.door, 'Create a custom door design'),
     (DesignKind.window, 'Create a custom window design'),
-  ];
-
-  /// The other two, under **More types**.
-  static const moreChoices = [
     (DesignKind.both, 'Doors and windows in one frame'),
     (DesignKind.sliding, 'Panels that slide past each other'),
   ];
@@ -116,7 +109,7 @@ class _StartScreenState extends ConsumerState<StartScreen>
     final kind = _chosen;
     if (kind == null) return;
     final controller = ref.read(workspaceProvider.notifier)
-      ..startDesign(kind, name: widget.name, customer: widget.customer);
+      ..startDesign(kind, name: widget.customer, customer: widget.customer);
     // Kept straight away, so it is among the recent designs from the moment
     // it exists, not only once something has been drawn.
     unawaited(controller.keep());
@@ -129,55 +122,59 @@ class _StartScreenState extends ConsumerState<StartScreen>
     );
   }
 
-  Widget _cards(
-    List<(DesignKind, String)> choices, {
-    required bool large,
-    required bool stacked,
-    required double from,
-    required int delayFrom,
-  }) {
+  /// The four cards, every one the same size: one above another on a phone
+  /// ([columns] 1), two by two on a tablet, and all four in a row on a
+  /// screen wide enough to hold them, so the choice is one look.
+  Widget _cards({required int columns}) {
     final cards = [
-      for (final (i, (kind, blurb)) in choices.indexed)
+      for (final (i, (kind, blurb)) in StartScreen.choices.indexed)
         _arriving(
-          from + i * 0.08,
+          0.1 + i * 0.07,
           _ChoiceCard(
             kind: kind,
             blurb: blurb,
-            large: large,
             chosen: _chosen == kind,
             // Each pen starts as its card arrives.
-            delay: Duration(milliseconds: 200 + (delayFrom + i) * 140),
+            delay: Duration(milliseconds: 200 + i * 140),
             onTap: () => setState(() => _chosen = kind),
           ),
         ),
     ];
-    if (stacked) {
+    if (columns == 1) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (final card in cards) ...[
             card,
-            if (card != cards.last) SizedBox(height: large ? 14 : 10),
+            if (card != cards.last) const SizedBox(height: 14),
           ],
         ],
       );
     }
-    return IntrinsicHeight(
+    Widget row(List<Widget> these) => IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final card in cards) ...[
+          for (final card in these) ...[
             Expanded(child: card),
-            if (card != cards.last) const SizedBox(width: 18),
+            if (card != these.last) const SizedBox(width: 18),
           ],
         ],
       ),
+    );
+    return Column(
+      children: [
+        for (var i = 0; i < cards.length; i += columns) ...[
+          if (i > 0) const SizedBox(height: 18),
+          row(cards.sublist(i, i + columns)),
+        ],
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final forWhom = [?widget.customer, ?widget.name].join('  ·  ');
+    final forWhom = widget.customer ?? '';
 
     return Scaffold(
       appBar: AppBar(title: const Text('New Design')),
@@ -185,6 +182,8 @@ class _StartScreenState extends ConsumerState<StartScreen>
         builder: (context, room) {
           final phone = room.maxWidth < 600;
           final gutter = phone ? 16.0 : 32.0;
+          final columns = phone ? 1 : (room.maxWidth < 1000 ? 2 : 4);
+          final across = columns == 4 ? 1180.0 : 880.0;
           return Column(
             children: [
               Expanded(
@@ -192,7 +191,7 @@ class _StartScreenState extends ConsumerState<StartScreen>
                   padding: EdgeInsets.fromLTRB(gutter, 28, gutter, 28),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 880),
+                      constraints: BoxConstraints(maxWidth: across),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -201,34 +200,7 @@ class _StartScreenState extends ConsumerState<StartScreen>
                             _Heading(forWhom: forWhom, phone: phone),
                           ),
                           SizedBox(height: phone ? 20 : 28),
-                          _cards(
-                            StartScreen.mainChoices,
-                            large: true,
-                            stacked: phone,
-                            from: 0.1,
-                            delayFrom: 0,
-                          ),
-                          const SizedBox(height: 28),
-                          _arriving(
-                            0.3,
-                            const Text(
-                              'MORE TYPES',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.6,
-                                color: AppTheme.muted,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          _cards(
-                            StartScreen.moreChoices,
-                            large: false,
-                            stacked: phone,
-                            from: 0.34,
-                            delayFrom: 2,
-                          ),
+                          _cards(columns: columns),
                           const SizedBox(height: 22),
                           _arriving(0.45, const _StillMixed()),
                         ],
@@ -241,6 +213,7 @@ class _StartScreenState extends ConsumerState<StartScreen>
                 chosen: _chosen,
                 phone: phone,
                 gutter: gutter,
+                across: across,
                 onStart: _begin,
               ),
             ],
@@ -341,12 +314,16 @@ class _StartBar extends StatelessWidget {
   final DesignKind? chosen;
   final bool phone;
   final double gutter;
+
+  /// How wide the screen's content is, so the bar lines up with the cards.
+  final double across;
   final VoidCallback onStart;
 
   const _StartBar({
     required this.chosen,
     required this.phone,
     required this.gutter,
+    required this.across,
     required this.onStart,
   });
 
@@ -388,7 +365,7 @@ class _StartBar extends StatelessWidget {
           padding: EdgeInsets.fromLTRB(gutter, 12, gutter, 12),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 880),
+              constraints: BoxConstraints(maxWidth: across),
               child: phone
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -415,13 +392,12 @@ class _StartBar extends StatelessWidget {
 }
 
 /// One thing to start from: its drawing, drawn by a pen as it arrives, its
-/// name and what it is for. [large] for the two main choices, and a compact
-/// row for the others. Chosen, it takes the brand's green edge, a tint and
+/// name and what it is for. Every card is the same size and made the same
+/// way. Chosen, it takes the brand's green edge, a tint and
 /// a tick, so which one is chosen is plain from across the room.
 class _ChoiceCard extends StatefulWidget {
   final DesignKind kind;
   final String blurb;
-  final bool large;
   final bool chosen;
   final Duration delay;
   final VoidCallback onTap;
@@ -429,7 +405,6 @@ class _ChoiceCard extends StatefulWidget {
   const _ChoiceCard({
     required this.kind,
     required this.blurb,
-    required this.large,
     required this.chosen,
     required this.delay,
     required this.onTap,
@@ -500,7 +475,7 @@ class _ChoiceCardState extends State<_ChoiceCard>
     final chosen = widget.chosen;
     final quick = _still ? Duration.zero : const Duration(milliseconds: 220);
     final drawing = ClipRRect(
-      borderRadius: BorderRadius.circular(widget.large ? 14 : 10),
+      borderRadius: BorderRadius.circular(14),
       child: ColoredBox(
         color: AppTheme.canvas,
         child: AnimatedBuilder(
@@ -515,7 +490,7 @@ class _ChoiceCardState extends State<_ChoiceCard>
     final title = Text(
       widget.kind.label.toUpperCase(),
       style: TextStyle(
-        fontSize: widget.large ? 18 : 14.5,
+        fontSize: 18,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.4,
         color: AppTheme.primary,
@@ -523,57 +498,34 @@ class _ChoiceCardState extends State<_ChoiceCard>
     );
     final blurb = Text(
       widget.blurb,
-      style: TextStyle(
-        fontSize: widget.large ? 14 : 13,
-        height: 1.4,
-        color: AppTheme.muted,
-      ),
+      style: TextStyle(fontSize: 14, height: 1.4, color: AppTheme.muted),
     );
     final tick = _Tick(chosen: chosen, duration: quick);
 
-    final body = widget.large
-        ? Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Stack(
-                  children: [
-                    SizedBox(height: 168, child: drawing),
-                    Positioned(top: 10, right: 10, child: tick),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: title,
-                ),
-                const SizedBox(height: 4),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: blurb,
-                ),
-              ],
-            ),
-          )
-        : Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                SizedBox(width: 76, height: 64, child: drawing),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [title, const SizedBox(height: 2), blurb],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                tick,
-              ],
-            ),
-          );
+    final body = Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
+            children: [
+              SizedBox(height: 140, child: drawing),
+              Positioned(top: 10, right: 10, child: tick),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: title,
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: blurb,
+          ),
+        ],
+      ),
+    );
 
     return Semantics(
       button: true,
@@ -597,14 +549,15 @@ class _ChoiceCardState extends State<_ChoiceCard>
                     AppTheme.surface,
                   )
                 : AppTheme.surface,
-            borderRadius: BorderRadius.circular(widget.large ? 22 : 16),
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(
               color: chosen
                   ? AppTheme.primary
                   : _hovering
                   ? AppTheme.primary.withValues(alpha: 0.35)
                   : AppTheme.hairline,
-              width: chosen ? 2 : 1,
+              // One width chosen or not, so choosing moves nothing.
+              width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
@@ -619,7 +572,7 @@ class _ChoiceCardState extends State<_ChoiceCard>
           child: Material(
             type: MaterialType.transparency,
             child: InkWell(
-              borderRadius: BorderRadius.circular(widget.large ? 22 : 16),
+              borderRadius: BorderRadius.circular(22),
               onTap: widget.onTap,
               child: body,
             ),

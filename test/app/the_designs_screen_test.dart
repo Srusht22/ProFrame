@@ -24,7 +24,7 @@ import 'pause_and_take_it_back_test.dart' as sheet;
 // The app opens on the designs, not on "door or window": a workshop draws
 // for hundreds of people, so the first choice is to carry on with one of
 // them or to begin another. Every design is shown by its own saved geometry,
-// found by who it is for, what it is called or its number, and opened
+// found by who it is for or its number, and opened
 // exactly as it was left. The drawing, the CAD drawing and the model are
 // what they always were — this is only the way in to them.
 
@@ -32,7 +32,6 @@ import 'pause_and_take_it_back_test.dart' as sheet;
 /// millimetres across, a mullion, and a `>` in the left light.
 Design drawn({
   required String customer,
-  required String name,
   required DesignKind kind,
   required DateTime edited,
   double wide = 2400,
@@ -40,7 +39,7 @@ Design drawn({
   final c = ProviderContainer();
   addTearDown(c.dispose);
   final controller = c.read(workspaceProvider.notifier)
-    ..startDesign(kind, name: name, customer: customer);
+    ..startDesign(kind, name: customer, customer: customer);
   controller.state = controller.state.copyWith(
     design: controller.state.design.copyWith(
       sketch: Sketch(
@@ -72,20 +71,17 @@ Future<List<Design>> keepThree() async {
   final designs = [
     drawn(
       customer: 'Karwan',
-      name: 'Garden door',
       kind: DesignKind.door,
       edited: now.subtract(const Duration(days: 1)),
       wide: 1000,
     ),
     drawn(
       customer: 'Ahmed',
-      name: 'Main entrance',
       kind: DesignKind.both,
       edited: now.subtract(const Duration(hours: 1)),
     ),
     drawn(
       customer: 'Sara',
-      name: 'Kitchen window',
       kind: DesignKind.window,
       edited: now.subtract(const Duration(days: 7)),
       wide: 1600,
@@ -163,8 +159,7 @@ void main() {
         'Karwan',
         'Sara',
       ]);
-      // Each card says who, what, how big, what kind and when.
-      expect(find.text('Main entrance'), findsOneWidget);
+      // Each card says who, how big, what kind and when.
       expect(find.text('240 × 210 cm'), findsOneWidget);
       expect(find.text('100 × 210 cm'), findsOneWidget);
       expect(find.text('Door & window'), findsOneWidget);
@@ -238,9 +233,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('by customer, by design name, by design number', (
-      tester,
-    ) async {
+    testWidgets('by customer and by design number', (tester) async {
       final kept = await keepThree();
       await openTheApp(tester);
 
@@ -248,12 +241,12 @@ void main() {
       expect(find.byType(DesignCard), findsOneWidget);
       expect(find.text('Ahmed'), findsOneWidget);
 
-      await search(tester, 'WINDOW');
+      await search(tester, 'SAR');
       expect(find.byType(DesignCard), findsOneWidget);
       expect(find.text('Sara'), findsOneWidget);
 
       final karwan = kept.first;
-      await search(tester, shortIdOf(karwan));
+      await search(tester, shortIdOf(karwan.id));
       expect(find.byType(DesignCard), findsOneWidget);
       expect(find.text('Karwan'), findsOneWidget);
 
@@ -268,41 +261,42 @@ void main() {
     });
 
     test('what a search matches', () {
-      final design = Design.empty(
-        id: 'design-1727000123456-0',
-        kind: DesignKind.door,
-        name: 'Main entrance',
-        customer: 'Ahmed',
+      final design = DesignSummary.of(
+        Design.empty(
+          id: 'design-1727000123456-0',
+          kind: DesignKind.door,
+          name: 'Ahmed',
+          customer: 'Ahmed',
+        ),
       );
-      expect(designMatches(design, ''), isTrue);
-      expect(designMatches(design, '  ahMED '), isTrue);
-      expect(designMatches(design, 'entrance'), isTrue);
-      expect(designMatches(design, '1727000123456'), isTrue);
-      expect(designMatches(design, 'Sara'), isFalse);
+      expect(design.matches(''), isTrue);
+      expect(design.matches('  ahMED '), isTrue);
+      expect(design.matches('1727000123456'), isTrue);
+      expect(design.matches('Sara'), isFalse);
       // The moment it was made, to the millisecond, in eight characters.
-      expect(shortIdOf(design), 1727000123456.toRadixString(36).toUpperCase());
-      expect(shortIdOf(design), hasLength(8));
-      expect(designMatches(design, shortIdOf(design).toLowerCase()), isTrue);
+      expect(design.number, 1727000123456.toRadixString(36).toUpperCase());
+      expect(design.number, hasLength(8));
+      expect(design.matches(design.number.toLowerCase()), isTrue);
       // Made on a platform that counts microseconds, the same millisecond
       // reads the same.
-      final micro = Design.empty(
-        id: 'design-1727000123456789-3',
-        kind: DesignKind.door,
-      );
-      expect(shortIdOf(micro), shortIdOf(design));
+      expect(shortIdOf('design-1727000123456789-3'), design.number);
       // Two designs a millisecond apart are told apart.
-      final next = Design.empty(
-        id: 'design-1727000123457000-4',
-        kind: DesignKind.door,
-      );
-      expect(shortIdOf(next), isNot(shortIdOf(design)));
+      expect(shortIdOf('design-1727000123457000-4'), isNot(design.number));
       // Kurdish names are found as they are written.
-      final kurdish = Design.empty(
-        id: 'design-1',
-        kind: DesignKind.window,
-        customer: 'سۆران',
+      final kurdish = DesignSummary.of(
+        Design.empty(
+          id: 'design-1',
+          kind: DesignKind.window,
+          customer: 'سۆران',
+        ),
       );
-      expect(designMatches(kurdish, 'سۆران'), isTrue);
+      expect(kurdish.matches('سۆران'), isTrue);
+      // A design kept before there was a customer is known by its name.
+      final older = DesignSummary.of(
+        Design.empty(id: 'd', kind: DesignKind.door, name: 'Garden door'),
+      );
+      expect(older.title, 'Garden door');
+      expect(older.matches('garden'), isTrue);
     });
 
     test('how long ago, as a person says it', () {
@@ -414,12 +408,12 @@ void main() {
       final stored = (await tester.runAsync(DesignStore().all))!;
       expect(stored.first.id, kept.first.id);
       expect(stored.first.name, 'Back door');
-      expect(find.text('Back door'), findsOneWidget);
+      expect(shownInOrder(tester, ['Ahmed', 'Karwan', 'Sara']).first, 'Karwan');
     });
   });
 
   group('a new design', () {
-    testWidgets('who it is for and what it is called, then door or window', (
+    testWidgets('who it is for, and nothing else, then door or window', (
       tester,
     ) async {
       final c = await openTheApp(tester);
@@ -430,21 +424,17 @@ void main() {
       expect(find.byType(NewDesignScreen), findsOneWidget);
       expect(find.byType(StartScreen), findsNothing);
       expect(find.text('Person / Customer'), findsOneWidget);
-      expect(find.text('Design Name'), findsOneWidget);
-      expect(find.byType(TextField), findsNWidgets(2));
+      expect(find.text('Design Name'), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
 
       await tester.enterText(
-        find.byKey(const ValueKey('new-design-customer')),
+        find.byKey(NewDesignScreen.customerField),
         'Hawre',
       );
-      await tester.enterText(
-        find.byKey(const ValueKey('new-design-name')),
-        'Shop front',
-      );
+      await tester.pump();
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
 
-      // The door-or-window step, exactly as it was.
       expect(find.byType(StartScreen), findsOneWidget);
       for (final card in ['DOOR', 'WINDOW', 'DOOR & WINDOW', 'SLIDING']) {
         expect(find.text(card), findsOneWidget);
@@ -454,9 +444,10 @@ void main() {
       expect(find.byType(WorkspaceScreen), findsOneWidget);
       final design = c.read(workspaceProvider).design;
       expect(design.customer, 'Hawre');
-      expect(design.name, 'Shop front');
       expect(design.kind, DesignKind.window);
-      expect(find.text('Shop front'), findsOneWidget);
+      // Known by who it is for, at the top of the drawing too.
+      expect(design.name, 'Hawre');
+      expect(find.text('Hawre'), findsOneWidget);
 
       // Back is to the designs, where it now is.
       await tester.tap(find.byIcon(Icons.arrow_back));
@@ -464,13 +455,12 @@ void main() {
       expect(find.byType(DesignsScreen), findsOneWidget);
       expect(find.byType(DesignCard), findsOneWidget);
       expect(find.text('Hawre'), findsOneWidget);
-      expect(find.text('Shop front'), findsOneWidget);
     });
 
     testWidgets('a new design goes to the top of the others', (tester) async {
       await keepThree();
       await openTheApp(tester);
-      await toTheCategories(tester, customer: 'Dilan', name: 'Balcony');
+      await toTheCategories(tester, customer: 'Dilan');
       await chooseDesign(tester, 'DOOR');
       await tester.tap(find.byIcon(Icons.arrow_back));
       await tester.pumpAndSettle();
@@ -482,13 +472,27 @@ void main() {
       ]);
     });
 
-    testWidgets('left empty, it is named as it always was', (tester) async {
-      final c = await openTheApp(tester);
-      await toTheCategories(tester);
-      await chooseDesign(tester, 'DOOR');
-      final design = c.read(workspaceProvider).design;
-      expect(design.name, 'Untitled door');
-      expect(design.customer, isNull);
+    testWidgets('without who it is for, it does not go on', (tester) async {
+      await openTheApp(tester);
+      await tester.tap(find.text('New Design').first);
+      await tester.pumpAndSettle();
+      FilledButton go() => tester.widget<FilledButton>(
+        find.ancestor(
+          of: find.text('Continue'),
+          matching: find.byWidgetPredicate((w) => w is FilledButton),
+        ),
+      );
+      expect(go().onPressed, isNull);
+      // Spaces are not a name.
+      await tester.enterText(find.byKey(NewDesignScreen.customerField), '   ');
+      await tester.pump();
+      expect(go().onPressed, isNull);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.byType(NewDesignScreen), findsOneWidget);
+      await tester.enterText(find.byKey(NewDesignScreen.customerField), 'Ari');
+      await tester.pump();
+      expect(go().onPressed, isNotNull);
     });
 
     testWidgets('back from door or window is back to the form', (tester) async {

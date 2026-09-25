@@ -3,14 +3,19 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'start_screen.dart';
 
-/// The one step before a new design: who it is for, and what it is called.
+/// The one step before a new design: who it is for.
 ///
-/// Nothing else is asked here. **Continue** goes on to the choice of door,
-/// window, both or sliding, exactly as it has always been made, and the
-/// design is begun with these two answers on it. Either may be left empty:
-/// a design with no name is called what it always was, *Untitled door*.
+/// That is all that is asked, because it is what finds the design again
+/// among every other one the workshop has drawn — the list of designs is
+/// searched by the person it was drawn for. So it is needed: **Continue**
+/// waits until there is a name, and then goes on to *Choose your design*
+/// with it. The design is known by that name everywhere after, from the
+/// list to the top of the drawing.
 class NewDesignScreen extends StatefulWidget {
   const NewDesignScreen({super.key});
+
+  /// The field's key, for finding it.
+  static const customerField = ValueKey('new-design-customer');
 
   @override
   State<NewDesignScreen> createState() => _NewDesignScreenState();
@@ -18,56 +23,27 @@ class NewDesignScreen extends StatefulWidget {
 
 class _NewDesignScreenState extends State<NewDesignScreen> {
   final _customer = TextEditingController();
-  final _name = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _customer.addListener(() => setState(() {}));
+  }
 
   @override
   void dispose() {
     _customer.dispose();
-    _name.dispose();
     super.dispose();
   }
 
-  static String? _said(TextEditingController field) {
-    final text = field.text.trim();
-    return text.isEmpty ? null : text;
-  }
+  String get _who => _customer.text.trim();
 
   void _continue() {
+    if (_who.isEmpty) return;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) =>
-            StartScreen(customer: _said(_customer), name: _said(_name)),
-      ),
+      MaterialPageRoute<void>(builder: (_) => StartScreen(customer: _who)),
     );
   }
-
-  InputDecoration _field(String hint) => InputDecoration(
-    hintText: hint,
-    hintStyle: const TextStyle(color: AppTheme.muted),
-    filled: true,
-    fillColor: AppTheme.shell,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide.none,
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: AppTheme.primary, width: 1.6),
-    ),
-  );
-
-  Widget _label(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Text(
-      text,
-      style: const TextStyle(
-        fontSize: 13.5,
-        fontWeight: FontWeight.w700,
-        color: AppTheme.ink,
-      ),
-    ),
-  );
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -99,32 +75,57 @@ class _NewDesignScreenState extends State<NewDesignScreen> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Who is it for, and what is it called?',
+                    'Who is this design for?',
                     style: TextStyle(fontSize: 14, color: AppTheme.muted),
                   ),
                   const SizedBox(height: 26),
-                  _label('Person / Customer'),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Person / Customer',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.ink,
+                      ),
+                    ),
+                  ),
                   TextField(
-                    key: const ValueKey('new-design-customer'),
+                    key: NewDesignScreen.customerField,
                     controller: _customer,
                     autofocus: true,
                     textCapitalization: TextCapitalization.words,
-                    textInputAction: TextInputAction.next,
-                    decoration: _field('e.g. Ahmed'),
-                  ),
-                  const SizedBox(height: 18),
-                  _label('Design Name'),
-                  TextField(
-                    key: const ValueKey('new-design-name'),
-                    controller: _name,
-                    textCapitalization: TextCapitalization.sentences,
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _continue(),
-                    decoration: _field('e.g. Main entrance'),
+                    decoration: InputDecoration(
+                      hintText: 'e.g. Ahmed',
+                      hintStyle: const TextStyle(color: AppTheme.muted),
+                      prefixIcon: const Icon(
+                        Icons.person_outline,
+                        color: AppTheme.muted,
+                      ),
+                      filled: true,
+                      fillColor: AppTheme.shell,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: AppTheme.primary,
+                          width: 1.6,
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 28),
                   FilledButton(
-                    onPressed: _continue,
+                    onPressed: _who.isEmpty ? null : _continue,
                     child: const Text('Continue'),
                   ),
                 ],

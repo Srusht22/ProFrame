@@ -1163,7 +1163,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   /// Keeps the design, sketch and all.
   Future<void> save() async {
     await ref.read(designStoreProvider).save(state.design);
-    ref.invalidate(savedDesignsProvider);
+    ref.read(designsRevisionProvider.notifier).changed();
   }
 
   /// Keeps the design without being asked, so the list of designs has it as
@@ -1181,9 +1181,20 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
 final designStoreProvider = Provider<DesignStore>((ref) => DesignStore());
 
-final savedDesignsProvider = FutureProvider<List<Design>>(
-  (ref) => ref.watch(designStoreProvider).all(),
+/// Counts every change to the kept designs, so the list of them knows to
+/// read its page again. The list itself is never held here: it is paged
+/// out of the store as it is looked at.
+final designsRevisionProvider = NotifierProvider<DesignsRevision, int>(
+  DesignsRevision.new,
 );
+
+class DesignsRevision extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  /// A design has been kept or changed.
+  void changed() => state++;
+}
 
 final workspaceProvider = NotifierProvider<WorkspaceController, WorkspaceState>(
   WorkspaceController.new,

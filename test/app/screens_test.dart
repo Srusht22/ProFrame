@@ -27,7 +27,8 @@ void main() {
     );
     expect(find.text('DOOR'), findsOneWidget);
     expect(find.text('WINDOW'), findsOneWidget);
-    expect(find.text('MORE TYPES'), findsOneWidget);
+    expect(find.text('DOOR & WINDOW'), findsOneWidget);
+    expect(find.text('SLIDING'), findsOneWidget);
   });
 
   testWidgets('picking a window opens the workspace with the canvas dominant',
@@ -41,7 +42,8 @@ void main() {
 
     await chooseDesign(tester, 'WINDOW');
 
-    expect(find.text('Untitled window'), findsOneWidget);
+    // Known by who it is for.
+    expect(find.text('Test customer'), findsOneWidget);
     expect(find.text('Draw'), findsOneWidget);
     expect(find.text('CAD drawing'), findsOneWidget);
     expect(find.text('3D model'), findsOneWidget);

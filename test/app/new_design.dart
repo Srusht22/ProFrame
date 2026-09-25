@@ -4,24 +4,19 @@ import 'package:flutter_test/flutter_test.dart';
 /// From the designs screen the app opens on, through **New Design**, to the
 /// choice of door, window, both or sliding — the way a user begins a design.
 ///
-/// [customer] and [name] are typed into the new design's form where given;
-/// otherwise the form is left empty, as a user in a hurry leaves it.
+/// The form asks one thing, who the design is for, and needs it; [customer]
+/// is typed in, or a name that says it is a test's where none is given.
 Future<void> toTheCategories(
   WidgetTester tester, {
-  String? customer,
-  String? name,
+  String customer = 'Test customer',
 }) async {
   await tester.tap(find.text('New Design').first);
   await tester.pumpAndSettle();
-  if (customer != null) {
-    await tester.enterText(
-      find.byKey(const ValueKey('new-design-customer')),
-      customer,
-    );
-  }
-  if (name != null) {
-    await tester.enterText(find.byKey(const ValueKey('new-design-name')), name);
-  }
+  await tester.enterText(
+    find.byKey(const ValueKey('new-design-customer')),
+    customer,
+  );
+  await tester.pump();
   await tester.tap(find.text('Continue'));
   await tester.pumpAndSettle();
 }
