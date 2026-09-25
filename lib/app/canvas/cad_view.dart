@@ -17,7 +17,6 @@ import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'cad_layers.dart';
 import 'cad_painter.dart';
-import 'cad_style.dart';
 import 'dimension_handles.dart';
 import 'view_transform.dart';
 
@@ -215,6 +214,7 @@ class _CadViewState extends ConsumerState<CadView> {
                                 guide: ghost,
                                 guideWithin:
                                     _inside == InsideTool.select ? null : within,
+                                ink: context.palette.cad,
                               ),
                             ),
                           ),
@@ -793,9 +793,9 @@ class _InsideBar extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        border: Border(bottom: BorderSide(color: AppTheme.hairline)),
+      decoration: BoxDecoration(
+        color: context.palette.surface,
+        border: Border(bottom: BorderSide(color: context.palette.hairline)),
       ),
       // The strip flows onto another line rather than running off the edge.
       //
@@ -819,8 +819,8 @@ class _InsideBar extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.account_tree_outlined,
-                      size: 15, color: AppTheme.accent),
+                  Icon(Icons.account_tree_outlined,
+                      size: 15, color: context.palette.primary),
                   const SizedBox(width: 7),
                   Flexible(
                     child: Text(
@@ -830,11 +830,11 @@ class _InsideBar extends StatelessWidget {
                       '${Units.label(opening.heightMm)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: AppTheme.fontFamily,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.ink,
+                        color: context.palette.ink,
                       ),
                     ),
                   ),
@@ -882,12 +882,12 @@ class _InsideButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colour = !enabled
-        ? AppTheme.muted.withValues(alpha: 0.45)
+        ? context.palette.muted.withValues(alpha: 0.45)
         : on
-            ? AppTheme.primary
-            : AppTheme.ink;
+            ? context.palette.onNotice
+            : context.palette.ink;
     return Material(
-      color: on ? AppTheme.accent : Colors.transparent,
+      color: on ? context.palette.notice : Colors.transparent,
       borderRadius: BorderRadius.circular(7),
       child: InkWell(
         onTap: enabled ? onTap : null,
@@ -990,7 +990,7 @@ class _FigureEditorState extends State<_FigureEditor> {
       child: Material(
         elevation: 6,
         borderRadius: BorderRadius.circular(10),
-        color: AppTheme.surface,
+        color: context.palette.surface,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
           child: Column(
@@ -999,12 +999,12 @@ class _FigureEditorState extends State<_FigureEditor> {
             children: [
               Text(
                 widget.figure.label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: AppTheme.fontFamily,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.6,
-                  color: AppTheme.muted,
+                  color: context.palette.muted,
                 ),
               ),
               const SizedBox(height: 6),
@@ -1067,7 +1067,7 @@ class _LayerBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        color: AppTheme.surface,
+        color: context.palette.surface,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -1179,7 +1179,7 @@ class _Chip extends StatelessWidget {
         padding: const EdgeInsets.only(right: 6),
         child: Material(
           color: on
-              ? AppTheme.primary.withValues(alpha: 0.1)
+              ? context.palette.primary.withValues(alpha: 0.1)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           child: InkWell(
@@ -1193,7 +1193,7 @@ class _Chip extends StatelessWidget {
                   Icon(
                     icon,
                     size: 15,
-                    color: on ? AppTheme.primary : AppTheme.muted,
+                    color: on ? context.palette.primary : context.palette.muted,
                   ),
                   const SizedBox(width: 6),
                   Text(
@@ -1201,7 +1201,7 @@ class _Chip extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: on ? FontWeight.w600 : FontWeight.w500,
-                      color: on ? AppTheme.primary : AppTheme.muted,
+                      color: on ? context.palette.primary : context.palette.muted,
                     ),
                   ),
                 ],
@@ -1235,19 +1235,19 @@ class _StatusBar extends StatelessWidget {
     final rounded = _nearestDrawingScale(ratio.toDouble());
 
     return Container(
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        border: Border(top: BorderSide(color: Cad.border)),
+      decoration: BoxDecoration(
+        color: context.palette.surface,
+        border: Border(top: BorderSide(color: context.palette.cad.border)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       child: DefaultTextStyle(
         // The family has to be named. A DefaultTextStyle replaces the
         // inherited one rather than merging with it, so leaving it out drops
         // the theme's font and the text renders blank on the web.
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: AppTheme.fontFamily,
           fontSize: 12,
-          color: AppTheme.muted,
+          color: context.palette.muted,
           fontFeatures: [FontFeature.tabularFigures()],
         ),
         child: LayoutBuilder(
@@ -1313,7 +1313,7 @@ class _StatusBar extends StatelessWidget {
                           ? FontWeight.w500
                           : FontWeight.w600,
                       color:
-                          selected == null ? AppTheme.muted : AppTheme.ink,
+                          selected == null ? context.palette.muted : context.palette.ink,
                     ),
                   ),
                 ),
@@ -1349,7 +1349,7 @@ class _ZoomStack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: AppTheme.surface,
+        color: context.palette.surface,
         elevation: 1,
         borderRadius: BorderRadius.circular(10),
         child: Column(
@@ -1359,14 +1359,14 @@ class _ZoomStack extends StatelessWidget {
               onPressed: onIn,
               icon: const Icon(Icons.add),
               tooltip: 'Zoom in',
-              color: AppTheme.primary,
+              color: context.palette.primary,
               visualDensity: VisualDensity.compact,
             ),
             IconButton(
               onPressed: onOut,
               icon: const Icon(Icons.remove),
               tooltip: 'Zoom out',
-              color: AppTheme.primary,
+              color: context.palette.primary,
               visualDensity: VisualDensity.compact,
             ),
           ],

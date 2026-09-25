@@ -76,7 +76,9 @@ class _Swatch extends StatelessWidget {
             color: Color(colour),
             borderRadius: BorderRadius.circular(9),
             border: Border.all(
-              color: selected ? AppTheme.selection : AppTheme.hairline,
+              color: selected
+                  ? context.palette.selection
+                  : context.palette.edge,
               width: selected ? 2.6 : 1,
             ),
           ),

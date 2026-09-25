@@ -53,9 +53,9 @@ class QuestionsPanel extends ConsumerWidget {
     WorkspaceController controller,
   ) {
     return Container(
-      decoration: const BoxDecoration(
-        color: AppTheme.accent,
-        border: Border(top: BorderSide(color: AppTheme.hairline)),
+      decoration: BoxDecoration(
+        color: context.palette.notice,
+        border: Border(top: BorderSide(color: context.palette.hairline)),
       ),
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
       child: Column(
@@ -63,7 +63,7 @@ class QuestionsPanel extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.help_outline, size: 19, color: AppTheme.primary),
+              Icon(Icons.help_outline, size: 19, color: context.palette.onNotice),
               const SizedBox(width: 8),
               Text(
                 questions.length == 1
@@ -72,7 +72,7 @@ class QuestionsPanel extends ConsumerWidget {
                 style: Theme.of(context)
                     .textTheme
                     .titleMedium
-                    ?.copyWith(color: AppTheme.primary),
+                    ?.copyWith(color: context.palette.onNotice),
               ),
             ],
           ),
@@ -83,7 +83,7 @@ class QuestionsPanel extends ConsumerWidget {
             style: Theme.of(context)
                 .textTheme
                 .bodySmall
-                ?.copyWith(color: AppTheme.primary.withValues(alpha: 0.8)),
+                ?.copyWith(color: context.palette.onNotice.withValues(alpha: 0.8)),
           ),
           const SizedBox(height: 12),
           for (final question in questions)
@@ -123,9 +123,9 @@ class _QuestionCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         decoration: BoxDecoration(
-          color: AppTheme.surface,
+          color: context.palette.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.hairline),
+          border: Border.all(color: context.palette.hairline),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

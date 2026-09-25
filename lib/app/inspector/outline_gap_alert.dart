@@ -52,10 +52,10 @@ class _Card extends StatelessWidget {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 480),
       child: Material(
-        color: AppTheme.surface,
+        color: context.palette.surface,
         borderRadius: BorderRadius.circular(18),
         elevation: 14,
-        shadowColor: AppTheme.ink.withValues(alpha: 0.4),
+        shadowColor: context.palette.shadow.withValues(alpha: 0.4),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
           child: Column(
@@ -89,7 +89,7 @@ class _Card extends StatelessWidget {
                   child: Text(
                     question.detail!,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.muted,
+                      color: context.palette.muted,
                       height: 1.45,
                     ),
                   ),
@@ -130,12 +130,12 @@ class _Choice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fore = primary ? AppTheme.accent : AppTheme.primary;
+    final fore = primary ? context.palette.onBand : context.palette.primary;
     return AlertPressable(
-      color: primary ? AppTheme.primary : AppTheme.surface,
+      color: primary ? context.palette.band : context.palette.surface,
       side: primary
           ? BorderSide.none
-          : const BorderSide(color: AppTheme.hairline),
+          : BorderSide(color: context.palette.hairline),
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),

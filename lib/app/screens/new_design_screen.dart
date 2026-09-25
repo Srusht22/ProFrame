@@ -57,36 +57,39 @@ class _NewDesignScreenState extends State<NewDesignScreen> {
             child: Container(
               padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
               decoration: BoxDecoration(
-                color: AppTheme.surface,
+                color: context.palette.surface,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.hairline),
+                border: Border.all(color: context.palette.hairline),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     'New Design',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.ink,
+                      color: context.palette.ink,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Who is this design for?',
-                    style: TextStyle(fontSize: 14, color: AppTheme.muted),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: context.palette.muted,
+                    ),
                   ),
                   const SizedBox(height: 26),
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(bottom: 8),
                     child: Text(
                       'Person / Customer',
                       style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
-                        color: AppTheme.ink,
+                        color: context.palette.ink,
                       ),
                     ),
                   ),
@@ -99,13 +102,13 @@ class _NewDesignScreenState extends State<NewDesignScreen> {
                     onSubmitted: (_) => _continue(),
                     decoration: InputDecoration(
                       hintText: 'e.g. Ahmed',
-                      hintStyle: const TextStyle(color: AppTheme.muted),
-                      prefixIcon: const Icon(
+                      hintStyle: TextStyle(color: context.palette.muted),
+                      prefixIcon: Icon(
                         Icons.person_outline,
-                        color: AppTheme.muted,
+                        color: context.palette.muted,
                       ),
                       filled: true,
-                      fillColor: AppTheme.shell,
+                      fillColor: context.palette.shell,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 16,
@@ -116,8 +119,8 @@ class _NewDesignScreenState extends State<NewDesignScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: AppTheme.primary,
+                        borderSide: BorderSide(
+                          color: context.palette.primary,
                           width: 1.6,
                         ),
                       ),

@@ -893,9 +893,13 @@ screen comes up out of an empty field rather than cutting across the name.
 Nothing leaves before everything has arrived, and the test holds that
 order, each word in turn, and the whole name gone by the end.
 
-**`LaunchScreen.duration` is the one figure for its length** — four seconds
+**`LaunchScreen.duration` is the one figure for its length** — six seconds
 — and every part is a share of it in `LaunchTiming`, so changing it changes
-the pace of all of it together. It replaces itself with the designs
+the pace of all of it together. The user asked for it longer, text and
+emblem both: at four the whole name stood for barely a third of a second
+before it began to leave, so the shares were moved as well as the total —
+everything arrives a little sooner in proportion, and the name then stands
+whole for over a second before the first line lifts away. It replaces itself with the designs
 when it is done, so nothing navigates back to it and no rebuild starts it
 again. A device asking for less motion gets the finished mark and the name
 faded in and out over `reducedDuration`, with nothing moving or blurring,
@@ -904,6 +908,58 @@ and then the designs; its clock is
 squeezes the whole thing to a flicker. It is drawn in the app's own colours
 and nothing loops, so `pumpAndSettle` runs straight through it — which is
 why every app test that opens the app still passes unchanged.
+
+### Light and dark
+
+The application has a dark appearance beside the light one. It follows the
+device until the user says otherwise, with **Match device**, **Light** and
+**Dark** behind one button on the designs' header (`AppearanceButton`), and
+the choice is kept on the device (`appearanceProvider`,
+`proframe.appearance`).
+
+**The light appearance is exactly what it was.** Every colour a widget
+shows comes from `context.palette` — a `Palette`, the theme's own extension
+— and `Palette.light` is the `AppTheme` constants themselves. A painter is
+handed its palette and defaults to the light one, so every test that builds
+a painter without saying so still draws, and compares, what it always did.
+
+**Dark is chosen, not inverted.** Each colour is picked for what it is *for*
+and checked against what it sits on:
+
+- **The house green plays two parts in the light, and they are split in the
+  dark.** As a *ground* — a heading's band, a filled button, the chosen
+  tool's pill — it is `band`, still deep green, carrying cream. As a
+  *colour on a surface* — a chosen word, an icon, a focus ring — it is
+  `primary`, which in the dark is a clear mint, because deep green
+  lettering on a near-black surface would vanish. Every one of the house
+  green's uses was sorted into one or the other by hand; a new one has to
+  say which it is.
+- **A note across the work** (a question about the sheet, a drawing not yet
+  read) is `notice` and `onNotice`: cream in the light, a deep olive with
+  cream lettering in the dark, so it does not glare.
+- **A shadow is always `shadow`**, which is black in the dark. Shadows used
+  to be the ink at a low alpha, which in the dark would have been a glow.
+- **The technical drawing has its own set**, `Cad.night` beside
+  `Cad.paper` in `cad_style.dart`: the same weights and the same ranks —
+  the heaviest line still stands out most, annotation least — light on a
+  dark sheet. The 3D view's backdrop darkens; the design's own finishes do
+  not change, because they are the design.
+
+**The user's own colours are never changed, only shown so they can be
+seen.** A pen colour chosen on white — the house green, black — would all
+but disappear on a dark sheet, so `legibleOn` draws a colour too close to
+the sheet to read at the mirrored lightness in its own hue, softened: dark
+green ink shows as pale green. It applies only on a dark sheet, never to
+the finishes, and the design keeps the colour the user gave it; the pen's
+swatch shows what will be drawn, and the colour dialog says so in the dark.
+Ink shown faded under the design read from it lies over the design's light
+fills and the dark sheet at once — a mark drawn off the design lies only on
+the sheet — so there it is the ink's hue at a middle lightness, clear of
+both. And what is drawn *on* the design — a frame's edges, a bar's outline,
+an opening's triangle on the sheet — keeps the house green in both, because
+it sits on the user's finishes, which are usually light, not on the sheet.
+
+The launch has its own colours and is the same in both.
 
 ### The designs, before door or window
 

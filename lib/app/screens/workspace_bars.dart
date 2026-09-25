@@ -265,7 +265,7 @@ class ViewTabs extends StatelessWidget {
             height: height - 9,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.09),
+                color: context.palette.primary.withValues(alpha: 0.09),
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
@@ -278,9 +278,9 @@ class ViewTabs extends StatelessWidget {
             bottom: 0,
             width: underline,
             height: 3,
-            child: const DecoratedBox(
+            child: DecoratedBox(
               decoration: BoxDecoration(
-                color: AppTheme.primary,
+                color: context.palette.primary,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(3)),
               ),
             ),
@@ -331,10 +331,10 @@ class _TabState extends State<_Tab> {
   @override
   Widget build(BuildContext context) {
     final colour = widget.chosen
-        ? AppTheme.primary
+        ? context.palette.primary
         : widget.enabled
-            ? (_hover ? AppTheme.primary : AppTheme.muted)
-            : AppTheme.muted.withValues(alpha: 0.45);
+        ? (_hover ? context.palette.primary : context.palette.muted)
+        : context.palette.muted.withValues(alpha: 0.45);
     final change = BarMotion.of(context, BarMotion.change);
     return MouseRegion(
       cursor: widget.enabled && !widget.chosen

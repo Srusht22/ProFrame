@@ -104,6 +104,7 @@ class _ModelViewState extends ConsumerState<ModelView> {
                 groundPlane: state.groundPlane,
                 selectedId: state.selectedId,
                 highlighted: partsOfOpening(state.design, state.selectedId),
+                palette: context.palette,
               );
               _mmPerPixel = painter.millimetresPerPixel;
 
@@ -212,7 +213,7 @@ class _SolidBar extends StatelessWidget {
   /// its own share of a line instead of taking all of one.
   @override
   Widget build(BuildContext context) => Container(
-        color: AppTheme.surface,
+        color: context.palette.surface,
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(14, 7, 10, 7),
         child: Wrap(
@@ -247,12 +248,12 @@ class _SolidBar extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
+                    Text(
                       'Open',
                       style: TextStyle(
                         fontFamily: AppTheme.fontFamily,
                         fontSize: 12.5,
-                        color: AppTheme.muted,
+                        color: context.palette.muted,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -327,11 +328,11 @@ class _SolidNumberState extends State<_SolidNumber> {
         children: [
           Text(
             widget.label,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: AppTheme.fontFamily,
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
-              color: AppTheme.muted,
+              color: context.palette.muted,
             ),
           ),
           const SizedBox(width: 7),
@@ -393,7 +394,7 @@ class _ViewToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        color: AppTheme.surface,
+        color: context.palette.surface,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -474,7 +475,7 @@ class _Chip extends StatelessWidget {
       padding: const EdgeInsets.only(right: 6),
       child: Material(
         color:
-            on ? AppTheme.primary.withValues(alpha: 0.1) : Colors.transparent,
+            on ? context.palette.primary.withValues(alpha: 0.1) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
           onTap: onTap,
@@ -489,7 +490,7 @@ class _Chip extends StatelessWidget {
                 Icon(
                   icon,
                   size: 16,
-                  color: on ? AppTheme.primary : AppTheme.muted,
+                  color: on ? context.palette.primary : context.palette.muted,
                 ),
                 if (label != null) ...[
                   const SizedBox(width: 6),
@@ -499,7 +500,7 @@ class _Chip extends StatelessWidget {
                       fontFamily: AppTheme.fontFamily,
                       fontSize: 12.5,
                       fontWeight: on ? FontWeight.w600 : FontWeight.w500,
-                      color: on ? AppTheme.primary : AppTheme.muted,
+                      color: on ? context.palette.primary : context.palette.muted,
                     ),
                   ),
                 ],
@@ -526,7 +527,7 @@ class _Navigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: AppTheme.surface,
+        color: context.palette.surface,
         elevation: 1,
         borderRadius: BorderRadius.circular(10),
         child: Column(
@@ -536,21 +537,21 @@ class _Navigation extends StatelessWidget {
               onPressed: onIn,
               icon: const Icon(Icons.add),
               tooltip: 'Zoom in',
-              color: AppTheme.primary,
+              color: context.palette.primary,
               visualDensity: VisualDensity.compact,
             ),
             IconButton(
               onPressed: onOut,
               icon: const Icon(Icons.remove),
               tooltip: 'Zoom out',
-              color: AppTheme.primary,
+              color: context.palette.primary,
               visualDensity: VisualDensity.compact,
             ),
             IconButton(
               onPressed: onExtents,
               icon: const Icon(Icons.fit_screen_outlined),
               tooltip: 'Zoom extents',
-              color: AppTheme.primary,
+              color: context.palette.primary,
               visualDensity: VisualDensity.compact,
             ),
           ],
@@ -568,14 +569,14 @@ class _Readout extends StatelessWidget {
     final design = state.design;
     final camera = state.camera;
     return DefaultTextStyle(
-      style: const TextStyle(
+      style: TextStyle(
         fontFamily: AppTheme.fontFamily,
         fontSize: 11.5,
-        color: AppTheme.muted,
+        color: context.palette.muted,
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.surface.withValues(alpha: 0.86),
+          color: context.palette.surface.withValues(alpha: 0.86),
           borderRadius: BorderRadius.circular(8),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -610,8 +611,8 @@ class _NothingYet extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.view_in_ar_outlined,
-                  size: 44, color: AppTheme.muted),
+              Icon(Icons.view_in_ar_outlined,
+                  size: 44, color: context.palette.muted),
               const SizedBox(height: 14),
               Text(
                 'Nothing to show yet',
@@ -690,7 +691,7 @@ class _PlayOpeningState extends State<_PlayOpening>
           _clock.isAnimating
               ? Icons.hourglass_top_rounded
               : Icons.play_circle_outline_rounded,
-          color: AppTheme.primary,
+          color: context.palette.primary,
         ),
       );
 }

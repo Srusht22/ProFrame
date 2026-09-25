@@ -81,11 +81,11 @@ class ToolBar extends ConsumerWidget {
     const colourRoom = 60.0;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        border: const Border(top: BorderSide(color: AppTheme.hairline)),
+        color: context.palette.surface,
+        border: Border(top: BorderSide(color: context.palette.hairline)),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.ink.withValues(alpha: 0.06),
+            color: context.palette.shadow.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, -3),
           ),
@@ -123,11 +123,11 @@ class ToolBar extends ConsumerWidget {
                             height: pill.height,
                             child: DecoratedBox(
                               decoration: BoxDecoration(
-                                color: AppTheme.primary,
+                                color: context.palette.band,
                                 borderRadius: BorderRadius.circular(999),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.primary.withValues(
+                                    color: context.palette.band.withValues(
                                       alpha: 0.28,
                                     ),
                                     blurRadius: 8,
@@ -145,9 +145,9 @@ class ToolBar extends ConsumerWidget {
                             top: 0,
                             width: 28,
                             height: 3,
-                            child: const DecoratedBox(
+                            child: DecoratedBox(
                               decoration: BoxDecoration(
-                                color: AppTheme.primary,
+                                color: context.palette.primary,
                                 borderRadius: BorderRadius.vertical(
                                   bottom: Radius.circular(3),
                                 ),
@@ -217,12 +217,26 @@ class ToolBar extends ConsumerWidget {
         title: const Text('Pen colour'),
         content: SizedBox(
           width: 320,
-          child: ColourPicker(
-            colour: current,
-            onChanged: (colour) {
-              ref.read(workspaceProvider.notifier).setPenColour(colour);
-              Navigator.of(context).pop();
-            },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ColourPicker(
+                colour: current,
+                onChanged: (colour) {
+                  ref.read(workspaceProvider.notifier).setPenColour(colour);
+                  Navigator.of(context).pop();
+                },
+              ),
+              if (context.palette.isDark) ...[
+                const SizedBox(height: 14),
+                Text(
+                  'On the dark sheet a dark ink is shown light, so it can be '
+                  'seen. The drawing keeps the colour you choose.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -264,13 +278,13 @@ class _ToolButtonState extends State<_ToolButton> {
     final quick = BarMotion.of(context, BarMotion.hover);
     final change = BarMotion.of(context, BarMotion.change);
     final iconColour = active
-        ? AppTheme.accent
+        ? context.palette.onBand
         : dimmed
-        ? AppTheme.muted.withValues(alpha: 0.45)
-        : (_hover ? AppTheme.primary : AppTheme.ink);
+        ? context.palette.muted.withValues(alpha: 0.45)
+        : (_hover ? context.palette.primary : context.palette.ink);
     final labelColour = active
-        ? AppTheme.primary
-        : AppTheme.muted.withValues(alpha: dimmed ? 0.45 : 1);
+        ? context.palette.primary
+        : context.palette.muted.withValues(alpha: dimmed ? 0.45 : 1);
     // The active tool's pill is the bar's one moving indicator; a hover
     // only tints, so the two are never mistaken for each other.
     final tint = !active && _hover && !dimmed ? 0.08 : 0.0;
@@ -302,7 +316,7 @@ class _ToolButtonState extends State<_ToolButton> {
                   width: ToolBar.pill.width,
                   height: ToolBar.pill.height,
                   decoration: BoxDecoration(
-                    color: AppTheme.primary.withValues(alpha: tint),
+                    color: context.palette.primary.withValues(alpha: tint),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   alignment: Alignment.center,
@@ -369,9 +383,11 @@ class _PenColour extends StatelessWidget {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: Color(colour),
+            // The ink as it is drawn on this sheet — on a dark one, a dark
+            // ink is shown light, as it is on the drawing.
+            color: context.palette.legible(Color(colour)),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppTheme.hairline, width: 1.4),
+            border: Border.all(color: context.palette.edge, width: 1.4),
           ),
         ),
       ),

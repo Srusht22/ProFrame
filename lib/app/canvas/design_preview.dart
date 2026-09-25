@@ -32,18 +32,18 @@ class DesignPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!shows(design)) {
-      return const ColoredBox(
-        color: Cad.sheet,
+      return ColoredBox(
+        color: context.palette.cad.sheet,
         child: Center(
           child: Text(
             'Nothing drawn yet',
-            style: TextStyle(fontSize: 12, color: AppTheme.muted),
+            style: TextStyle(fontSize: 12, color: context.palette.muted),
           ),
         ),
       );
     }
     return CustomPaint(
-      painter: DesignPreviewPainter(design),
+      painter: DesignPreviewPainter(design, palette: context.palette),
       child: const SizedBox.expand(),
     );
   }
@@ -53,7 +53,10 @@ class DesignPreview extends StatelessWidget {
 class DesignPreviewPainter extends CustomPainter {
   final Design design;
 
-  const DesignPreviewPainter(this.design);
+  /// The colours of the appearance in effect.
+  final Palette palette;
+
+  const DesignPreviewPainter(this.design, {this.palette = Palette.light});
 
   /// The drawing's layers for a preview: the design itself, and nothing
   /// that is there to work on it with.
@@ -67,13 +70,14 @@ class DesignPreviewPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Cad.fill(Cad.sheet));
+    canvas.drawRect(Offset.zero & size, Cad.fill(palette.cad.sheet));
     if (design.frame != null) {
       final view = ViewTransform.fit(design.bounds, size, marginFraction: 0.12);
       CadPainter(
         design: design,
         view: view,
         layers: layers,
+        ink: palette.cad,
       ).paint(canvas, size);
       return;
     }
@@ -104,7 +108,7 @@ class DesignPreviewPainter extends CustomPainter {
       size,
       marginFraction: 0.12,
     );
-    final ink = Cad.stroke(AppTheme.drawnInk, 1.3, round: true);
+    final ink = Cad.stroke(palette.drawnInk, 1.3, round: true);
     for (final stroke in strokes) {
       final path = Path();
       final first = view.toScreen(stroke.start);
@@ -119,5 +123,7 @@ class DesignPreviewPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(DesignPreviewPainter old) =>
-      old.design.id != design.id || old.design.updatedAt != design.updatedAt;
+      old.design.id != design.id ||
+      old.design.updatedAt != design.updatedAt ||
+      old.palette != palette;
 }

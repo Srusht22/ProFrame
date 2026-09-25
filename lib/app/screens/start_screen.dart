@@ -239,16 +239,16 @@ class _Heading extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: AppTheme.primary.withValues(alpha: 0.07),
+            color: context.palette.primary.withValues(alpha: 0.07),
             borderRadius: BorderRadius.circular(999),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.person_outline,
                 size: 15,
-                color: AppTheme.primary,
+                color: context.palette.primary,
               ),
               const SizedBox(width: 6),
               Flexible(
@@ -256,10 +256,10 @@ class _Heading extends StatelessWidget {
                   forWhom,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.primary,
+                    color: context.palette.primary,
                   ),
                 ),
               ),
@@ -274,13 +274,13 @@ class _Heading extends StatelessWidget {
           fontSize: phone ? 26 : 32,
           fontWeight: FontWeight.w700,
           height: 1.15,
-          color: AppTheme.ink,
+          color: context.palette.ink,
         ),
       ),
       const SizedBox(height: 6),
-      const Text(
+      Text(
         'Select the type of product you want to create.',
-        style: TextStyle(fontSize: 15, color: AppTheme.muted),
+        style: TextStyle(fontSize: 15, color: context.palette.muted),
       ),
     ],
   );
@@ -291,17 +291,21 @@ class _StillMixed extends StatelessWidget {
   const _StillMixed();
 
   @override
-  Widget build(BuildContext context) => const Row(
+  Widget build(BuildContext context) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Icon(Icons.info_outline, size: 17, color: AppTheme.muted),
+      Icon(Icons.info_outline, size: 17, color: context.palette.muted),
       SizedBox(width: 8),
       Expanded(
         child: Text(
           'This is where the design starts, not a limit on it: any opening '
           'you mark can still be made a door or a window, and fixed areas '
           'sit beside them in the same frame.',
-          style: TextStyle(fontSize: 13, height: 1.45, color: AppTheme.muted),
+          style: TextStyle(
+            fontSize: 13,
+            height: 1.45,
+            color: context.palette.muted,
+          ),
         ),
       ),
     ],
@@ -344,16 +348,16 @@ class _StartBar extends StatelessWidget {
       style: TextStyle(
         fontSize: 14,
         fontWeight: chosen == null ? FontWeight.w500 : FontWeight.w700,
-        color: chosen == null ? AppTheme.muted : AppTheme.primary,
+        color: chosen == null ? context.palette.muted : context.palette.primary,
       ),
     );
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        border: const Border(top: BorderSide(color: AppTheme.hairline)),
+        color: context.palette.surface,
+        border: Border(top: BorderSide(color: context.palette.hairline)),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.ink.withValues(alpha: 0.05),
+            color: context.palette.shadow.withValues(alpha: 0.05),
             blurRadius: 12,
             offset: const Offset(0, -3),
           ),
@@ -477,11 +481,15 @@ class _ChoiceCardState extends State<_ChoiceCard>
     final drawing = ClipRRect(
       borderRadius: BorderRadius.circular(14),
       child: ColoredBox(
-        color: AppTheme.canvas,
+        color: context.palette.canvas,
         child: AnimatedBuilder(
           animation: _progress,
           builder: (context, _) => CustomPaint(
-            painter: _PenDrawing(kind: widget.kind, progress: _progress.value),
+            painter: _PenDrawing(
+              kind: widget.kind,
+              progress: _progress.value,
+              palette: context.palette,
+            ),
             child: const SizedBox.expand(),
           ),
         ),
@@ -493,12 +501,12 @@ class _ChoiceCardState extends State<_ChoiceCard>
         fontSize: 18,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.4,
-        color: AppTheme.primary,
+        color: context.palette.primary,
       ),
     );
     final blurb = Text(
       widget.blurb,
-      style: TextStyle(fontSize: 14, height: 1.4, color: AppTheme.muted),
+      style: TextStyle(fontSize: 14, height: 1.4, color: context.palette.muted),
     );
     final tick = _Tick(chosen: chosen, duration: quick);
 
@@ -545,25 +553,27 @@ class _ChoiceCardState extends State<_ChoiceCard>
           decoration: BoxDecoration(
             color: chosen
                 ? Color.alphaBlend(
-                    AppTheme.primary.withValues(alpha: 0.05),
-                    AppTheme.surface,
+                    context.palette.primary.withValues(alpha: 0.05),
+                    context.palette.surface,
                   )
-                : AppTheme.surface,
+                : context.palette.surface,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
               color: chosen
-                  ? AppTheme.primary
+                  ? context.palette.primary
                   : _hovering
-                  ? AppTheme.primary.withValues(alpha: 0.35)
-                  : AppTheme.hairline,
+                  ? context.palette.primary.withValues(alpha: 0.35)
+                  : context.palette.hairline,
               // One width chosen or not, so choosing moves nothing.
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
                 color: chosen
-                    ? AppTheme.primary.withValues(alpha: 0.18)
-                    : AppTheme.ink.withValues(alpha: _hovering ? 0.1 : 0.04),
+                    ? context.palette.primary.withValues(alpha: 0.18)
+                    : context.palette.shadow.withValues(
+                        alpha: _hovering ? 0.1 : 0.04,
+                      ),
                 blurRadius: chosen || _hovering ? 22 : 10,
                 offset: const Offset(0, 6),
               ),
@@ -599,9 +609,9 @@ class _Tick extends StatelessWidget {
     height: 26,
     decoration: BoxDecoration(
       shape: BoxShape.circle,
-      color: chosen ? AppTheme.primary : AppTheme.surface,
+      color: chosen ? context.palette.band : context.palette.surface,
       border: Border.all(
-        color: chosen ? AppTheme.primary : AppTheme.hairline,
+        color: chosen ? context.palette.primary : context.palette.hairline,
         width: 1.6,
       ),
     ),
@@ -609,7 +619,7 @@ class _Tick extends StatelessWidget {
       scale: chosen ? 1 : 0,
       duration: duration,
       curve: Curves.easeOutBack,
-      child: const Icon(Icons.check, size: 16, color: AppTheme.accent),
+      child: Icon(Icons.check, size: 16, color: context.palette.onBand),
     ),
   );
 }
@@ -620,8 +630,13 @@ class _Tick extends StatelessWidget {
 class _PenDrawing extends CustomPainter {
   final DesignKind kind;
   final double progress;
+  final Palette palette;
 
-  const _PenDrawing({required this.kind, required this.progress});
+  const _PenDrawing({
+    required this.kind,
+    required this.progress,
+    required this.palette,
+  });
 
   /// Each drawing as the lines a hand would draw it in, in order, in a unit
   /// square. The last one or two are opening marks.
@@ -723,13 +738,13 @@ class _PenDrawing extends CustomPainter {
     final total = lengths.fold<double>(0, (a, b) => a + b);
 
     final structure = Paint()
-      ..color = AppTheme.primary
+      ..color = palette.primary
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.6
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
     final mark = Paint()
-      ..color = AppTheme.selection
+      ..color = palette.selection
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round
@@ -754,12 +769,12 @@ class _PenDrawing extends CustomPainter {
 
     // The nib, while it is still drawing.
     if (nib != null && progress < 1) {
-      canvas.drawCircle(nib, 4.2, Paint()..color = AppTheme.selection);
+      canvas.drawCircle(nib, 4.2, Paint()..color = palette.selection);
       canvas.drawCircle(nib, 1.8, Paint()..color = AppTheme.accent);
     }
   }
 
   @override
   bool shouldRepaint(_PenDrawing old) =>
-      old.progress != progress || old.kind != kind;
+      old.progress != progress || old.kind != kind || old.palette != palette;
 }

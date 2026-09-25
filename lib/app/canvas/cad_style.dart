@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 /// The conventions a technical drawing is drawn to.
@@ -30,6 +32,51 @@ abstract final class Cad {
   static const Color selection = Color(0xFFB8860B);
   static const Color grip = Color(0xFF013E37);
   static const Color snap = Color(0xFF0E7C6B);
+
+  /// The colours above, together: the drawing on paper.
+  static const CadColours paper = CadColours(
+    sheet: sheet,
+    border: border,
+    heavy: heavy,
+    medium: medium,
+    light: light,
+    dimension: dimension,
+    hidden: hidden,
+    glass: glass,
+    glassLine: glassLine,
+    hatch: hatch,
+    grid: grid,
+    gridStrong: gridStrong,
+    selection: selection,
+    grip: grip,
+    snap: snap,
+  );
+
+  /// The same drawing on a dark sheet, for the dark appearance.
+  ///
+  /// Every colour keeps its meaning and its rank: the heaviest line is
+  /// still the one that stands out most and annotation still the one that
+  /// stands out least, now light on dark rather than dark on light. Each is
+  /// chosen to be read against [CadColours.sheet] rather than inverted, so
+  /// nothing that carried meaning on paper fades into the sheet here — the
+  /// faintest line on the drawing, the hatch, is still well clear of it.
+  static const CadColours night = CadColours(
+    sheet: Color(0xFF141C1A),
+    border: Color(0xFF34413D),
+    heavy: Color(0xFFE8EFEC),
+    medium: Color(0xFFC2CEC9),
+    light: Color(0xFF93A39E),
+    dimension: Color(0xFFE0B35A),
+    hidden: Color(0xFF7E8E89),
+    glass: Color(0xFF1D2C31),
+    glassLine: Color(0xFF6E97A4),
+    hatch: Color(0xFF6D7B77),
+    grid: Color(0xFF1C2523),
+    gridStrong: Color(0xFF26322F),
+    selection: Color(0xFFE8B84A),
+    grip: Color(0xFF7FD3C2),
+    snap: Color(0xFF4FD0B3),
+  );
 
   /// Line weights in pixels, at any zoom: a drawing's line weights do not
   /// change when you look closer at it.
@@ -67,18 +114,13 @@ abstract final class Cad {
         ..color = colour
         ..strokeCap = round ? StrokeCap.round : StrokeCap.butt;
 
-  static Paint fill(Color colour) =>
-      Paint()
-        ..style = PaintingStyle.fill
-        ..color = colour;
+  static Paint fill(Color colour) => Paint()
+    ..style = PaintingStyle.fill
+    ..color = colour;
 
   /// A dashed version of a path, for the lines a drawing shows as hidden:
   /// an opening's swing, a centre line, anything behind something else.
-  static Path dashed(
-    Path source, {
-    double dash = 7,
-    double gap = 4.5,
-  }) {
+  static Path dashed(Path source, {double dash = 7, double gap = 4.5}) {
     final out = Path();
     for (final metric in source.computeMetrics()) {
       var at = 0.0;
@@ -99,19 +141,104 @@ abstract final class Cad {
     Color colour = heavy,
     double size = textSize,
     FontWeight weight = FontWeight.w500,
-  }) =>
-      TextPainter(
-        text: TextSpan(
-          text: text,
-          style: TextStyle(
-            fontFamily: 'Noto Sans',
-            fontSize: size,
-            height: 1.1,
-            fontWeight: weight,
-            color: colour,
-            letterSpacing: 0.2,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
+  }) => TextPainter(
+    text: TextSpan(
+      text: text,
+      style: TextStyle(
+        fontFamily: 'Noto Sans',
+        fontSize: size,
+        height: 1.1,
+        fontWeight: weight,
+        color: colour,
+        letterSpacing: 0.2,
+      ),
+    ),
+    textDirection: TextDirection.ltr,
+  )..layout();
+}
+
+/// The colours a technical drawing is drawn in, as one set: [Cad.paper] on
+/// a light sheet and [Cad.night] on a dark one. A painter is handed one and
+/// draws everything in it, so the two appearances are the same drawing with
+/// the same weights and nothing else.
+@immutable
+class CadColours {
+  /// Paper.
+  final Color sheet;
+  final Color border;
+
+  /// The drawing itself.
+  final Color heavy;
+  final Color medium;
+  final Color light;
+
+  /// Annotation.
+  final Color dimension;
+  final Color hidden;
+
+  /// Materials, as a drawing shows them rather than as they look.
+  final Color glass;
+  final Color glassLine;
+  final Color hatch;
+
+  final Color grid;
+  final Color gridStrong;
+
+  final Color selection;
+  final Color grip;
+  final Color snap;
+
+  const CadColours({
+    required this.sheet,
+    required this.border,
+    required this.heavy,
+    required this.medium,
+    required this.light,
+    required this.dimension,
+    required this.hidden,
+    required this.glass,
+    required this.glassLine,
+    required this.hatch,
+    required this.grid,
+    required this.gridStrong,
+    required this.selection,
+    required this.grip,
+    required this.snap,
+  });
+
+  /// Whether this is a dark sheet.
+  bool get isDark => sheet.computeLuminance() < 0.2;
+
+  /// [colour] as it should be drawn on this sheet: exactly itself wherever
+  /// it can be read there, and otherwise the same hue at the opposite
+  /// lightness. See [legibleOn].
+  Color legible(Color colour) => legibleOn(sheet, colour);
+}
+
+/// [colour] as it has to be drawn on [ground] to be seen.
+///
+/// The user's own ink, notes and arrows keep the colour they were made in,
+/// and on paper that is always exactly what is drawn — the light appearance
+/// is untouched by this. On a dark sheet a pen colour chosen on white — the
+/// house green, black — would all but vanish, so where [colour] is too
+/// close to [ground] to read it is drawn at the mirrored lightness, keeping
+/// its hue: dark green ink shows as pale green, black as near white. Only
+/// how it is shown changes; the design keeps the colour it was given.
+Color legibleOn(Color ground, Color colour) {
+  if (ground.computeLuminance() >= 0.2) return colour;
+  if (_contrast(ground, colour) >= 3) return colour;
+  final hsl = HSLColor.fromColor(colour);
+  // Light enough to read, and softened, so a vivid ink does not glare.
+  return hsl
+      .withLightness((1 - hsl.lightness).clamp(0.7, 0.84))
+      .withSaturation(math.min(hsl.saturation, 0.6))
+      .toColor()
+      .withValues(alpha: colour.a);
+}
+
+double _contrast(Color a, Color b) {
+  final la = a.computeLuminance();
+  final lb = b.computeLuminance();
+  final (hi, lo) = la > lb ? (la, lb) : (lb, la);
+  return (hi + 0.05) / (lo + 0.05);
 }

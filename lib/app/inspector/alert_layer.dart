@@ -150,7 +150,7 @@ class _AlertLayerState extends State<AlertLayer> with TickerProviderStateMixin {
                   filter: ImageFilter.blur(sigmaX: 7 * t, sigmaY: 7 * t),
                   child: ModalBarrier(
                     dismissible: false,
-                    color: AppTheme.ink.withValues(alpha: 0.3 * t),
+                    color: context.palette.shadow.withValues(alpha: 0.3 * t),
                   ),
                 );
               },
@@ -265,7 +265,7 @@ class AlertBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(11),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.selection.withValues(alpha: 0.25),
+            color: context.palette.selection.withValues(alpha: 0.25),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -334,7 +334,9 @@ class _AlertPressableState extends State<AlertPressable> {
             borderRadius: widget.borderRadius,
             boxShadow: [
               BoxShadow(
-                color: AppTheme.ink.withValues(alpha: _hover ? 0.16 : 0.0),
+                color: context.palette.shadow.withValues(
+                  alpha: _hover ? 0.16 : 0.0,
+                ),
                 blurRadius: _hover ? 14 : 0,
                 offset: Offset(0, _hover ? 5 : 0),
               ),

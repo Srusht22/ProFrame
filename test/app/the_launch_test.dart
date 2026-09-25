@@ -193,29 +193,40 @@ void main() {
       tester,
     ) async {
       await openTheApp(tester, const Size(390, 844));
-      Duration at(double share) => LaunchScreen.duration * share;
+      // Moves the clock on to [share] of the way through the launch.
+      var now = 0.0;
+      Future<void> to(double share) async {
+        await tester.pump(LaunchScreen.duration * (share - now));
+        now = share;
+      }
+
       double shown(String part) => visibility(tester, find.text(part));
 
-      await tester.pump(at(0.5));
+      await to(LaunchTiming.rules.begin - 0.02);
       for (final part in nameParts) {
         expect(shown(part), 0, reason: '$part is not there yet');
       }
 
       // Between the two words' arrivals: the first read is there before
       // the second.
-      await tester.pump(at(0.2));
+      await to(
+        (LaunchTiming.mainWords[0].begin + LaunchTiming.mainWords[1].begin) /
+            2,
+      );
       expect(shown(brandMainWords[0]), greaterThan(shown(brandMainWords[1])));
 
-      await tester.pump(at(0.13));
+      await to(LaunchTiming.shimmer.end);
       for (final part in nameParts) {
         expect(shown(part), closeTo(1, 1e-6), reason: '$part is all there');
       }
 
       // Leaving: the top line goes first.
-      await tester.pump(at(0.09));
+      await to(LaunchTiming.leaveLines[2].begin + 0.005);
       expect(shown(brandLines[0]), lessThan(shown(brandLines[2])));
 
-      await tester.pump(at(0.08) - const Duration(milliseconds: 1));
+      await tester.pump(
+        LaunchScreen.duration * (1 - now) - const Duration(milliseconds: 1),
+      );
       for (final part in nameParts) {
         expect(shown(part), lessThan(0.05), reason: '$part has gone');
       }

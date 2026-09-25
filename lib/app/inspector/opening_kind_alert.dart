@@ -65,10 +65,10 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) => ConstrainedBox(
     constraints: const BoxConstraints(maxWidth: 460),
     child: Material(
-      color: AppTheme.surface,
+      color: context.palette.surface,
       borderRadius: BorderRadius.circular(18),
       elevation: 14,
-      shadowColor: AppTheme.ink.withValues(alpha: 0.4),
+      shadowColor: context.palette.shadow.withValues(alpha: 0.4),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
         child: Column(
@@ -92,7 +92,7 @@ class _Card extends StatelessWidget {
                   Text(
                     '1 of $remaining',
                     style: Theme.of(context).textTheme.bodySmall
-                        ?.copyWith(color: AppTheme.muted),
+                        ?.copyWith(color: context.palette.muted),
                   ),
               ],
             ),
@@ -112,7 +112,7 @@ class _Card extends StatelessWidget {
                 child: Text(
                   question.detail!,
                   style: Theme.of(context).textTheme.bodyMedium
-                      ?.copyWith(color: AppTheme.muted, height: 1.45),
+                      ?.copyWith(color: context.palette.muted, height: 1.45),
                 ),
               ),
             ],
@@ -124,7 +124,7 @@ class _Card extends StatelessWidget {
                   for (final option in question.options) ...[
                     Expanded(
                       child: AlertPressable(
-                        color: AppTheme.primary,
+                        color: context.palette.band,
                         onTap: () => onAnswer(option.key),
                         child: SizedBox(
                           height: 48,
@@ -132,7 +132,7 @@ class _Card extends StatelessWidget {
                             child: Text(
                               option.label,
                               style: AppTheme.buttonLabel.copyWith(
-                                color: AppTheme.accent,
+                                color: context.palette.onBand,
                               ),
                             ),
                           ),

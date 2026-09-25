@@ -7,6 +7,7 @@ import '../../infrastructure/design_store.dart';
 import '../canvas/design_preview.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
+import 'appearance_button.dart';
 import 'new_design_screen.dart';
 import 'workspace_screen.dart';
 
@@ -165,7 +166,7 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen> {
     ref.listen(designsRevisionProvider, (_, _) => _reload());
 
     return Scaffold(
-      backgroundColor: AppTheme.shell,
+      backgroundColor: context.palette.shell,
       body: LayoutBuilder(
         builder: (context, room) {
           final phone = room.maxWidth < 600;
@@ -292,16 +293,25 @@ class _Header extends StatelessWidget {
     final title = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'PROFRAME',
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 2.2,
-            color: AppTheme.accent.withValues(alpha: 0.6),
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'PROFRAME',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 2.2,
+                  color: AppTheme.accent.withValues(alpha: 0.6),
+                ),
+              ),
+            ),
+            // On a phone the button shares the top line; wider, it stands
+            // beside New Design.
+            if (phone) const AppearanceButton(colour: AppTheme.accent),
+          ],
         ),
-        const SizedBox(height: 6),
+        if (!phone) const SizedBox(height: 6),
         Text(
           'Designs',
           style: TextStyle(
@@ -327,20 +337,20 @@ class _Header extends StatelessWidget {
       controller: search,
       onChanged: onSearch,
       textInputAction: TextInputAction.search,
-      style: const TextStyle(fontSize: 15, color: AppTheme.ink),
+      style: TextStyle(fontSize: 15, color: context.palette.ink),
       decoration: InputDecoration(
         hintText: 'Search designs...',
-        hintStyle: const TextStyle(color: AppTheme.muted),
+        hintStyle: TextStyle(color: context.palette.muted),
         filled: true,
-        fillColor: AppTheme.surface,
-        prefixIcon: const Icon(Icons.search, color: AppTheme.muted),
+        fillColor: context.palette.surface,
+        prefixIcon: Icon(Icons.search, color: context.palette.muted),
         suffixIcon: ValueListenableBuilder<TextEditingValue>(
           valueListenable: search,
           builder: (context, value, _) => value.text.isEmpty
               ? const SizedBox.shrink()
               : IconButton(
                   tooltip: 'Clear search',
-                  icon: const Icon(Icons.close, color: AppTheme.muted),
+                  icon: Icon(Icons.close, color: context.palette.muted),
                   onPressed: () {
                     search.clear();
                     onSearch('');
@@ -360,7 +370,7 @@ class _Header extends StatelessWidget {
     );
 
     return ColoredBox(
-      color: AppTheme.primary,
+      color: context.palette.band,
       child: SafeArea(
         bottom: false,
         child: _Centred(
@@ -386,6 +396,11 @@ class _Header extends StatelessWidget {
                         children: [
                           Expanded(child: title),
                           const SizedBox(width: 16),
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 6),
+                            child: AppearanceButton(colour: AppTheme.accent),
+                          ),
+                          const SizedBox(width: 8),
                           newDesign,
                         ],
                       ),
@@ -411,25 +426,25 @@ class _SectionTitle extends StatelessWidget {
     children: [
       Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w700,
-          color: AppTheme.ink,
+          color: context.palette.ink,
         ),
       ),
       const SizedBox(width: 10),
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
-          color: AppTheme.primary.withValues(alpha: 0.08),
+          color: context.palette.primary.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           '$count',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w700,
-            color: AppTheme.primary,
+            color: context.palette.primary,
           ),
         ),
       ),
@@ -549,7 +564,7 @@ class _DesignCardState extends State<DesignCard> {
       borderRadius: BorderRadius.circular(12),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          border: Border.all(color: AppTheme.hairline),
+          border: Border.all(color: context.palette.hairline),
           borderRadius: BorderRadius.circular(12),
         ),
         child: RepaintBoundary(child: _Picture(summary: design)),
@@ -567,10 +582,10 @@ class _DesignCardState extends State<DesignCard> {
                 design.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.ink,
+                  color: context.palette.ink,
                 ),
               ),
             ),
@@ -578,10 +593,10 @@ class _DesignCardState extends State<DesignCard> {
             // The design's number, to read out and search for.
             Text(
               '#${design.number}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11.5,
                 letterSpacing: 0.4,
-                color: AppTheme.muted,
+                color: context.palette.muted,
               ),
             ),
           ],
@@ -612,13 +627,13 @@ class _DesignCardState extends State<DesignCard> {
             editedAgo(design.updatedAt, widget.now),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12, color: AppTheme.muted),
+            style: TextStyle(fontSize: 12, color: context.palette.muted),
           ),
         ),
         TextButton(
           onPressed: widget.onOpen,
           style: TextButton.styleFrom(
-            foregroundColor: AppTheme.primary,
+            foregroundColor: context.palette.primary,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             minimumSize: const Size(0, 40),
           ),
@@ -683,16 +698,18 @@ class _DesignCardState extends State<DesignCard> {
         curve: Curves.easeOutCubic,
         transform: Matrix4.translationValues(0, _hover ? -3 : 0, 0),
         decoration: BoxDecoration(
-          color: AppTheme.surface,
+          color: context.palette.surface,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: _hover
-                ? AppTheme.primary.withValues(alpha: 0.35)
-                : AppTheme.hairline,
+                ? context.palette.primary.withValues(alpha: 0.35)
+                : context.palette.hairline,
           ),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.ink.withValues(alpha: _hover ? 0.1 : 0.04),
+              color: context.palette.shadow.withValues(
+                alpha: _hover ? 0.1 : 0.04,
+              ),
               blurRadius: _hover ? 22 : 10,
               offset: const Offset(0, 6),
             ),
@@ -750,7 +767,7 @@ class _PictureState extends ConsumerState<_Picture> {
       final design? => DesignPreview(design: design),
       // Still being read, or not there: the sheet, and nothing on it
       // pretending to be the design.
-      null => const ColoredBox(color: AppTheme.canvas),
+      null => ColoredBox(color: context.palette.canvas),
     },
   );
 }
@@ -765,23 +782,23 @@ class _Chip extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
     decoration: BoxDecoration(
-      color: AppTheme.shell,
+      color: context.palette.shell,
       borderRadius: BorderRadius.circular(8),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: AppTheme.primary),
+        Icon(icon, size: 14, color: context.palette.primary),
         const SizedBox(width: 5),
         Flexible(
           child: Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: AppTheme.primary,
+              color: context.palette.primary,
             ),
           ),
         ),
@@ -807,30 +824,30 @@ class _NothingYet extends StatelessWidget {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.07),
+              color: context.palette.primary.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(22),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.architecture,
               size: 34,
-              color: AppTheme.primary,
+              color: context.palette.primary,
             ),
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'No recent designs yet',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 19,
               fontWeight: FontWeight.w700,
-              color: AppTheme.ink,
+              color: context.palette.ink,
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Create your first design to get started.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14.5, color: AppTheme.muted),
+            style: TextStyle(fontSize: 14.5, color: context.palette.muted),
           ),
           const SizedBox(height: 22),
           FilledButton.icon(
@@ -855,22 +872,22 @@ class _NoMatch extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 36),
     child: Column(
       children: [
-        const Icon(Icons.search_off, size: 36, color: AppTheme.muted),
+        Icon(Icons.search_off, size: 36, color: context.palette.muted),
         const SizedBox(height: 12),
         Text(
           'No designs match “$query”',
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: AppTheme.ink,
+            color: context.palette.ink,
           ),
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           'Search by customer or design number.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13.5, color: AppTheme.muted),
+          style: TextStyle(fontSize: 13.5, color: context.palette.muted),
         ),
       ],
     ),

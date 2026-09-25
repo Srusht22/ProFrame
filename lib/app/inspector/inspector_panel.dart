@@ -30,7 +30,7 @@ class InspectorPanel extends ConsumerWidget {
     final selected = state.selected;
 
     return Container(
-      color: AppTheme.surface,
+      color: context.palette.surface,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 32),
         children: [
@@ -1031,8 +1031,8 @@ class _DirectionPicker extends StatelessWidget {
                   message: '${option.glyph}  ${option.description}',
                   child: Material(
                     color: option == mechanism
-                        ? AppTheme.primary
-                        : AppTheme.surface,
+                        ? context.palette.band
+                        : context.palette.surface,
                     borderRadius: BorderRadius.circular(10),
                     child: InkWell(
                       onTap: () => onChanged(option),
@@ -1044,8 +1044,8 @@ class _DirectionPicker extends StatelessWidget {
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: option == mechanism
-                                ? AppTheme.primary
-                                : AppTheme.hairline,
+                                ? context.palette.primary
+                                : context.palette.hairline,
                             width: 1.4,
                           ),
                         ),
@@ -1056,8 +1056,8 @@ class _DirectionPicker extends StatelessWidget {
                             fontSize: 21,
                             fontWeight: FontWeight.w700,
                             color: option == mechanism
-                                ? AppTheme.accent
-                                : AppTheme.ink,
+                                ? context.palette.onBand
+                                : context.palette.ink,
                           ),
                         ),
                       ),
@@ -1128,18 +1128,18 @@ class _OpeningField extends StatelessWidget {
           Container(
             padding: const EdgeInsets.fromLTRB(11, 9, 11, 9),
             decoration: BoxDecoration(
-              color: AppTheme.accent.withValues(alpha: 0.5),
+              color: context.palette.notice.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(9),
             ),
             child: Row(
               children: [
                 Text(
                   opening!.markGlyph!,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: AppTheme.fontFamily,
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    color: AppTheme.primary,
+                    color: context.palette.onNotice,
                   ),
                 ),
                 const SizedBox(width: 11),
@@ -1148,7 +1148,7 @@ class _OpeningField extends StatelessWidget {
                     'You marked this section with a '
                     '${opening.markGlyph}. Nothing else opens.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.primary.withValues(alpha: 0.85),
+                          color: context.palette.onNotice.withValues(alpha: 0.85),
                         ),
                   ),
                 ),
@@ -1334,7 +1334,7 @@ class _NamedSwatch extends StatelessWidget {
                   color: Color(colour),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: selected ? AppTheme.primary : AppTheme.hairline,
+                    color: selected ? context.palette.primary : context.palette.hairline,
                     width: selected ? 2.4 : 1,
                   ),
                 ),

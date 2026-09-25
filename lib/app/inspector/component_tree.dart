@@ -229,7 +229,7 @@ class _Row extends StatelessWidget {
         onTap: onTap,
         child: Container(
           color: selected
-              ? AppTheme.selection.withValues(alpha: 0.12)
+              ? context.palette.selection.withValues(alpha: 0.12)
               : Colors.transparent,
           padding: EdgeInsets.fromLTRB(14 + indent * 16.0, 9, 14, 9),
           child: Row(
@@ -237,7 +237,7 @@ class _Row extends StatelessWidget {
               Icon(
                 icon,
                 size: 17,
-                color: selected ? AppTheme.selection : AppTheme.muted,
+                color: selected ? context.palette.selection : context.palette.muted,
               ),
               const SizedBox(width: 10),
               Expanded(

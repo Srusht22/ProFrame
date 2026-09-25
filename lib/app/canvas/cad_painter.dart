@@ -44,6 +44,10 @@ class CadPainter extends CustomPainter {
   final Segment? guide;
   final Polygon? guideWithin;
 
+  /// The colours the drawing is drawn in: paper, unless the appearance in
+  /// effect is dark.
+  final CadColours ink;
+
   const CadPainter({
     required this.design,
     required this.view,
@@ -54,11 +58,12 @@ class CadPainter extends CustomPainter {
     this.grips = const [],
     this.guide,
     this.guideWithin,
+    this.ink = Cad.paper,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Cad.fill(Cad.sheet));
+    canvas.drawRect(Offset.zero & size, Cad.fill(ink.sheet));
     if (layers.grid) _grid(canvas, size);
 
     if (design.frame == null) return;
@@ -102,7 +107,7 @@ class CadPainter extends CustomPainter {
     if (within != null && !within.isEmpty) {
       canvas.drawPath(
         view.pathOf(within),
-        Cad.stroke(Cad.selection, Cad.profile),
+        Cad.stroke(ink.selection, Cad.profile),
       );
     }
     final line = guide;
@@ -110,7 +115,7 @@ class CadPainter extends CustomPainter {
     canvas.drawLine(
       view.toScreen(line.a),
       view.toScreen(line.b),
-      Cad.stroke(Cad.selection, Cad.outline),
+      Cad.stroke(ink.selection, Cad.outline),
     );
   }
 
@@ -118,8 +123,8 @@ class CadPainter extends CustomPainter {
 
   void _grid(Canvas canvas, Size size) {
     for (final (step, colour) in [
-      (100.0, Cad.grid),
-      (1000.0, Cad.gridStrong),
+      (100.0, ink.grid),
+      (1000.0, ink.gridStrong),
     ]) {
       final spacing = view.lengthToScreen(step);
       if (spacing < 10) continue;
@@ -148,7 +153,7 @@ class CadPainter extends CustomPainter {
       }
       canvas.drawPath(
         path,
-        Cad.stroke(Cad.hidden.withValues(alpha: 0.4), 1.1, round: true),
+        Cad.stroke(ink.hidden.withValues(alpha: 0.4), 1.1, round: true),
       );
     }
   }
@@ -180,7 +185,7 @@ class CadPainter extends CustomPainter {
       final material = section.finish.material;
 
       if (material.isGlazing) {
-        canvas.drawPath(path, Cad.fill(Cad.glass));
+        canvas.drawPath(path, Cad.fill(ink.glass));
         if (layers.hatching) _glazingMark(canvas, outline);
       } else {
         canvas.drawPath(
@@ -190,7 +195,7 @@ class CadPainter extends CustomPainter {
         if (layers.hatching) _hatch(canvas, outline);
       }
 
-      canvas.drawPath(path, Cad.stroke(Cad.medium, Cad.detail));
+      canvas.drawPath(path, Cad.stroke(ink.medium, Cad.detail));
     }
   }
 
@@ -205,7 +210,7 @@ class CadPainter extends CustomPainter {
     final topRight = view.toScreen(Vec2(outline.right, outline.top));
     canvas.save();
     canvas.clipPath(view.pathOf(outline));
-    final paint = Cad.stroke(Cad.glassLine, Cad.hairline);
+    final paint = Cad.stroke(ink.glassLine, Cad.hairline);
     for (final inset in [0.0, 5.0]) {
       canvas.drawLine(
         topRight + Offset(-reach - inset, inset),
@@ -224,7 +229,7 @@ class CadPainter extends CustomPainter {
 
     canvas.save();
     canvas.clipPath(path);
-    final paint = Cad.stroke(Cad.hatch.withValues(alpha: 0.55), Cad.hairline);
+    final paint = Cad.stroke(ink.hatch.withValues(alpha: 0.55), Cad.hairline);
     const spacing = 9.0;
     final reach = bounds.width + bounds.height;
     for (var at = 0.0; at < reach; at += spacing) {
@@ -244,13 +249,13 @@ class CadPainter extends CustomPainter {
     // Side by side rather than as two closed outlines, because a side the
     // user left open has no member and so no line.
     final lines = frame.lines;
-    final heavy = Cad.stroke(Cad.heavy, Cad.outline);
+    final heavy = Cad.stroke(ink.heavy, Cad.outline);
     for (final edge in lines.outside) {
       canvas.drawLine(view.toScreen(edge.a), view.toScreen(edge.b), heavy);
     }
     final inner = frame.innerOutline;
     if (!inner.isEmpty) {
-      final medium = Cad.stroke(Cad.medium, Cad.profile);
+      final medium = Cad.stroke(ink.medium, Cad.profile);
       for (final edge in lines.daylight) {
         canvas.drawLine(view.toScreen(edge.a), view.toScreen(edge.b), medium);
       }
@@ -269,7 +274,7 @@ class CadPainter extends CustomPainter {
     final bounds = ring.getBounds();
     canvas.save();
     canvas.clipPath(ring);
-    final paint = Cad.stroke(Cad.hatch.withValues(alpha: 0.7), Cad.hairline);
+    final paint = Cad.stroke(ink.hatch.withValues(alpha: 0.7), Cad.hairline);
     const spacing = 6.0;
     final reach = bounds.width + bounds.height;
     for (var at = 0.0; at < reach; at += spacing) {
@@ -296,11 +301,11 @@ class CadPainter extends CustomPainter {
       if (divider == null) continue;
       final body = _barBody(divider);
       if (body.isEmpty) continue;
-      canvas.drawPath(view.pathOf(body), Cad.fill(Cad.sheet));
+      canvas.drawPath(view.pathOf(body), Cad.fill(ink.sheet));
       if (layers.hatching) _hatch(canvas, body);
       canvas.drawPath(
         view.pathOf(body),
-        Cad.stroke(inside ? Cad.medium : Cad.heavy,
+        Cad.stroke(inside ? ink.medium : ink.heavy,
             inside ? Cad.glazingBar : Cad.bar),
       );
 
@@ -311,7 +316,7 @@ class CadPainter extends CustomPainter {
           ..lineTo(view.toScreen(divider.b).dx, view.toScreen(divider.b).dy);
         canvas.drawPath(
           Cad.dashed(line, dash: 12, gap: 3),
-          Cad.stroke(Cad.light.withValues(alpha: 0.75), Cad.hairline),
+          Cad.stroke(ink.light.withValues(alpha: 0.75), Cad.hairline),
         );
       }
     }
@@ -345,7 +350,7 @@ class CadPainter extends CustomPainter {
       _leaf(canvas, section);
       final box = section.outline;
       final edge = opening.mechanism.hingeEdge;
-      final paint = Cad.stroke(Cad.medium, Cad.detail);
+      final paint = Cad.stroke(ink.medium, Cad.detail);
 
       if (edge == null) {
         final middle = view.toScreen(box.centroid);
@@ -401,7 +406,7 @@ class CadPainter extends CustomPainter {
       // Which way it opens, in words, because a triangle alone does not say.
       final tag = Cad.label(
         opening.direction == OpeningDirection.outward ? 'OUT' : 'IN',
-        colour: Cad.light,
+        colour: ink.light,
         size: Cad.smallTextSize,
         weight: FontWeight.w600,
       );
@@ -445,8 +450,8 @@ class CadPainter extends CustomPainter {
 
     final outer = OpeningLeaf.outerOf(section);
     if (layers.hatching) _profileHatch(canvas, outer, inner);
-    canvas.drawPath(view.pathOf(outer), Cad.stroke(Cad.medium, Cad.profile));
-    canvas.drawPath(view.pathOf(inner), Cad.stroke(Cad.medium, Cad.profile));
+    canvas.drawPath(view.pathOf(outer), Cad.stroke(ink.medium, Cad.profile));
+    canvas.drawPath(view.pathOf(inner), Cad.stroke(ink.medium, Cad.profile));
   }
 
   void _openingMark(Canvas canvas, OpeningElement opening) {
@@ -462,7 +467,7 @@ class CadPainter extends CustomPainter {
     final on = view.toScreen(at);
     final text = Cad.label(
       glyph,
-      colour: Cad.dimension,
+      colour: ink.dimension,
       size: 15,
       weight: FontWeight.w700,
     );
@@ -473,13 +478,13 @@ class CadPainter extends CustomPainter {
     );
     canvas.drawRRect(
       RRect.fromRectAndRadius(box, const Radius.circular(5)),
-      Cad.fill(Cad.sheet),
+      Cad.fill(ink.sheet),
     );
     canvas.drawRRect(
       RRect.fromRectAndRadius(box, const Radius.circular(5)),
       chosen
-          ? Cad.stroke(Cad.selection, 2.2)
-          : Cad.stroke(Cad.dimension.withValues(alpha: 0.6), Cad.annotation),
+          ? Cad.stroke(ink.selection, 2.2)
+          : Cad.stroke(ink.dimension.withValues(alpha: 0.6), Cad.annotation),
     );
     text.paint(
       canvas,
@@ -532,11 +537,11 @@ class CadPainter extends CustomPainter {
         if (concealed) {
           canvas.drawPath(
             Cad.dashed(path, dash: 6, gap: 4),
-            Cad.stroke(Cad.hidden, Cad.hairline),
+            Cad.stroke(ink.hidden, Cad.hairline),
           );
         } else {
-          canvas.drawPath(path, Cad.fill(Cad.sheet));
-          canvas.drawPath(path, Cad.stroke(Cad.medium, Cad.hairline));
+          canvas.drawPath(path, Cad.fill(ink.sheet));
+          canvas.drawPath(path, Cad.stroke(ink.medium, Cad.hairline));
         }
         continue;
       }
@@ -551,18 +556,18 @@ class CadPainter extends CustomPainter {
       if (concealed) {
         canvas.drawPath(
           Cad.dashed(Path()..addRRect(body), dash: 6, gap: 4),
-          Cad.stroke(Cad.hidden, Cad.hairline),
+          Cad.stroke(ink.hidden, Cad.hairline),
         );
       } else {
-        canvas.drawRRect(body, Cad.fill(Cad.sheet));
-        canvas.drawRRect(body, Cad.stroke(Cad.heavy, Cad.bar));
+        canvas.drawRRect(body, Cad.fill(ink.sheet));
+        canvas.drawRRect(body, Cad.stroke(ink.heavy, Cad.bar));
       }
       canvas.restore();
 
       // A cross at the exact point, because that is where it goes.
       final tick = view.lengthToScreen(math.max(scale * 0.006, 8));
       final paint = Cad.stroke(
-          concealed ? Cad.hidden : Cad.medium, Cad.hairline);
+          concealed ? ink.hidden : ink.medium, Cad.hairline);
       canvas.drawLine(at - Offset(tick, 0), at + Offset(tick, 0), paint);
       canvas.drawLine(at - Offset(0, tick), at + Offset(0, tick), paint);
     }
@@ -600,7 +605,7 @@ class CadPainter extends CustomPainter {
     if (chain.runs.isEmpty) return;
     final text = Cad.label(
       chain.runs.first.note.toUpperCase(),
-      colour: Cad.dimension.withValues(alpha: 0.75),
+      colour: ink.dimension.withValues(alpha: 0.75),
       size: Cad.smallTextSize,
       weight: FontWeight.w700,
     );
@@ -651,7 +656,7 @@ class CadPainter extends CustomPainter {
       final text = Cad.label(
         '${Units.format(section.widthMm)} × '
             '${Units.label(section.heightMm)}',
-        colour: Cad.light,
+        colour: ink.light,
         size: Cad.smallTextSize,
         weight: FontWeight.w600,
       );
@@ -660,7 +665,7 @@ class CadPainter extends CustomPainter {
         width: text.width + 9,
         height: text.height + 3,
       );
-      canvas.drawRect(box, Cad.fill(Cad.sheet.withValues(alpha: 0.9)));
+      canvas.drawRect(box, Cad.fill(ink.sheet.withValues(alpha: 0.9)));
       text.paint(
         canvas,
         Offset(at.dx - text.width / 2, at.dy - text.height / 2),
@@ -681,7 +686,7 @@ class CadPainter extends CustomPainter {
     final x1 = view.toScreen(Vec2(run.fromMm, 0)).dx;
     final x2 = view.toScreen(Vec2(run.toMm, 0)).dx;
 
-    final paint = Cad.stroke(Cad.dimension, Cad.annotation);
+    final paint = Cad.stroke(ink.dimension, Cad.annotation);
     // Witness lines, standing off the geometry so they never touch it.
     for (final x in [x1, x2]) {
       canvas.drawLine(
@@ -710,7 +715,7 @@ class CadPainter extends CustomPainter {
     final y1 = view.toScreen(Vec2(0, run.fromMm)).dy;
     final y2 = view.toScreen(Vec2(0, run.toMm)).dy;
 
-    final paint = Cad.stroke(Cad.dimension, Cad.annotation);
+    final paint = Cad.stroke(ink.dimension, Cad.annotation);
     for (final y in [y1, y2]) {
       canvas.drawLine(
         Offset(base - Cad.witnessGap, y),
@@ -744,7 +749,7 @@ class CadPainter extends CustomPainter {
   }) {
     final painter = Cad.label(
       text,
-      colour: Cad.dimension,
+      colour: ink.dimension,
       weight: FontWeight.w600,
     );
     canvas.save();
@@ -756,7 +761,7 @@ class CadPainter extends CustomPainter {
       width: painter.width + 8,
       height: painter.height + 1,
     );
-    canvas.drawRect(box, Cad.fill(Cad.sheet));
+    canvas.drawRect(box, Cad.fill(ink.sheet));
     painter.paint(
       canvas,
       Offset(-painter.width / 2, -painter.height / 2 - 1),
@@ -772,7 +777,7 @@ class CadPainter extends CustomPainter {
       final off = line.unit.perpendicular * dimension.offsetMm;
       final from = view.toScreen(dimension.a + off);
       final to = view.toScreen(dimension.b + off);
-      final paint = Cad.stroke(Cad.dimension, Cad.annotation);
+      final paint = Cad.stroke(ink.dimension, Cad.annotation);
 
       canvas.drawLine(view.toScreen(dimension.a), from, paint);
       canvas.drawLine(view.toScreen(dimension.b), to, paint);
@@ -799,7 +804,11 @@ class CadPainter extends CustomPainter {
       final size = view.letteringFor(note.sizeMm);
       if (size < 1) continue;
       final painter =
-          Cad.label(note.text, colour: Color(note.colour), size: size);
+          Cad.label(
+            note.text,
+            colour: ink.legible(Color(note.colour)),
+            size: size,
+          );
       final at = view.toScreen(note.at);
       canvas.drawRect(
         Rect.fromLTWH(
@@ -808,16 +817,19 @@ class CadPainter extends CustomPainter {
           painter.width + 6,
           painter.height + 4,
         ),
-        Cad.fill(Cad.sheet),
+        Cad.fill(ink.sheet),
       );
       painter.paint(canvas, Offset(at.dx, at.dy - painter.height / 2));
-      canvas.drawCircle(at, 2.2, Cad.fill(Cad.heavy));
+      canvas.drawCircle(at, 2.2, Cad.fill(ink.heavy));
     }
 
     for (final arrow in design.arrows) {
       final from = view.toScreen(arrow.from);
       final to = view.toScreen(arrow.to);
-      final paint = Cad.stroke(Color(arrow.colour), Cad.annotation);
+      final paint = Cad.stroke(
+        ink.legible(Color(arrow.colour)),
+        Cad.annotation,
+      );
       canvas.drawLine(from, to, paint);
       final delta = to - from;
       final length = delta.distance;
@@ -839,7 +851,7 @@ class CadPainter extends CustomPainter {
       if (element == null) continue;
       final chosen = id == selectedId;
       final paint = Cad.stroke(
-        Cad.selection.withValues(alpha: chosen ? 1 : 0.55),
+        ink.selection.withValues(alpha: chosen ? 1 : 0.55),
         chosen ? 2.2 : 1.6,
       );
 
@@ -857,7 +869,7 @@ class CadPainter extends CustomPainter {
                 3,
                 view.lengthToScreen(design.frame?.profileMm ?? 60),
               )
-              ..color = Cad.selection.withValues(alpha: 0.4),
+              ..color = ink.selection.withValues(alpha: 0.4),
           );
         case SectionElement():
           canvas.drawPath(view.pathOf(element.outline), paint);
@@ -893,8 +905,8 @@ class CadPainter extends CustomPainter {
     for (final grip in grips) {
       final at = view.toScreen(grip.at);
       final box = Rect.fromCenter(center: at, width: 9, height: 9);
-      canvas.drawRect(box, Cad.fill(Cad.sheet));
-      canvas.drawRect(box, Cad.stroke(Cad.grip, 1.6));
+      canvas.drawRect(box, Cad.fill(ink.sheet));
+      canvas.drawRect(box, Cad.stroke(ink.grip, 1.6));
     }
   }
 
@@ -902,7 +914,7 @@ class CadPainter extends CustomPainter {
     final at = snapAt;
     if (at == null) return;
     final on = view.toScreen(at);
-    final paint = Cad.stroke(Cad.snap, 1.6);
+    final paint = Cad.stroke(ink.snap, 1.6);
     canvas.drawCircle(on, 7, paint);
     canvas.drawLine(on - const Offset(11, 0), on + const Offset(11, 0), paint);
     canvas.drawLine(on - const Offset(0, 11), on + const Offset(0, 11), paint);
@@ -915,6 +927,7 @@ class CadPainter extends CustomPainter {
       old.view.origin != view.origin ||
       old.selectedId != selectedId ||
       old.layers != layers ||
+      old.ink != ink ||
       old.snapAt != snapAt ||
       old.grips.length != grips.length ||
       old.highlighted.length != highlighted.length;

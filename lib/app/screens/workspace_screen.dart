@@ -331,7 +331,7 @@ class _ViewBar extends StatelessWidget {
     // icon, named by its tooltip: there is no room for a word beside them.
     if (layout == WorkspaceLayout.phone) {
       return Container(
-        color: AppTheme.surface,
+        color: context.palette.surface,
         // Nothing under the tabs, so the active view's bar sits on the
         // edge of the bar of views.
         padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
@@ -363,7 +363,7 @@ class _ViewBar extends StatelessWidget {
     }
 
     return Container(
-      color: AppTheme.surface,
+      color: context.palette.surface,
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
       child: Row(
         children: [
@@ -424,11 +424,11 @@ class _PickedBar extends StatelessWidget {
     };
     return Container(
       width: double.infinity,
-      color: AppTheme.shell,
+      color: context.palette.shell,
       padding: const EdgeInsets.fromLTRB(14, 4, 4, 4),
       child: Row(
         children: [
-          const Icon(Icons.touch_app_outlined, size: 18, color: AppTheme.muted),
+          Icon(Icons.touch_app_outlined, size: 18, color: context.palette.muted),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -464,7 +464,7 @@ class _ReadBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
-    color: AppTheme.accent,
+    color: context.palette.notice,
     padding: EdgeInsets.fromLTRB(narrow ? 14 : 18, 10, narrow ? 10 : 18, 10),
     child: Row(
       children: [
@@ -474,7 +474,7 @@ class _ReadBar extends StatelessWidget {
                 ? 'Your drawing has changed.'
                 : 'Your drawing has changes that have not been read yet.',
             style: Theme.of(context).textTheme.bodyMedium
-                ?.copyWith(color: AppTheme.primary),
+                ?.copyWith(color: context.palette.onNotice),
           ),
         ),
         const SizedBox(width: 12),

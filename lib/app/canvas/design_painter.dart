@@ -15,6 +15,13 @@ import 'view_transform.dart';
 
 /// Draws the design, and the user's own ink underneath it.
 ///
+/// **What is drawn on the design is drawn in the design's colours; what is
+/// drawn on the sheet is drawn in the sheet's.** The frame's edges, the bars'
+/// outlines and an opening's triangle lie over the finishes the user chose
+/// — usually light — so they keep the house green in either appearance. A
+/// figure, a note, an arrow and ink with nothing built under it lie on the
+/// sheet, and follow the [palette].
+///
 /// The ink is never thrown away and never hidden without the user asking,
 /// so they can always see their drawing and what was made of it in the same
 /// place, and judge for themselves whether it matches.
@@ -32,6 +39,9 @@ class DesignPainter extends CustomPainter {
   /// Ids to draw attention to — what a question is asking about.
   final Set<String> highlighted;
 
+  /// The colours of the appearance in effect.
+  final Palette palette;
+
   const DesignPainter({
     required this.design,
     required this.view,
@@ -41,6 +51,7 @@ class DesignPainter extends CustomPainter {
     this.liveStroke = const [],
     this.liveColour = 0xFF013E37,
     this.highlighted = const {},
+    this.palette = Palette.light,
   });
 
   @override
@@ -323,6 +334,7 @@ class DesignPainter extends CustomPainter {
         path.lineTo(at.dx, at.dy);
       }
       final faded = showGeometry && design.frame != null;
+      final colour = Color(stroke.colour);
       canvas.drawPath(
         path,
         Paint()
@@ -331,10 +343,27 @@ class DesignPainter extends CustomPainter {
           ..strokeJoin = StrokeJoin.round
           ..strokeWidth =
               math.max(1.2, view.lengthToScreen(stroke.widthMm) * 0.9)
-          ..color = Color(stroke.colour)
-              .withValues(alpha: faded ? 0.32 : 0.92),
+          ..color = faded
+              ? _underDesign(colour)
+              : palette.legible(colour).withValues(alpha: 0.92),
       );
     }
+  }
+
+  /// Ink shown faded under the design read from it. It lies partly over
+  /// the design's own fills and partly on the sheet — a mark drawn off the
+  /// design is only on the sheet — so it has to be seen against both. On
+  /// paper both are light, and it is the ink's own colour, faint. On a dark
+  /// sheet the two are opposite, so it is the ink's hue at a middle
+  /// lightness, which stands clear of either.
+  Color _underDesign(Color colour) {
+    if (!palette.isDark) return colour.withValues(alpha: 0.32);
+    final hsl = HSLColor.fromColor(colour);
+    return hsl
+        .withLightness(0.55)
+        .withSaturation(math.min(hsl.saturation, 0.45))
+        .toColor()
+        .withValues(alpha: 0.6);
   }
 
   void _paintLive(Canvas canvas) {
@@ -353,7 +382,7 @@ class DesignPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
         ..strokeWidth = 3
-        ..color = Color(liveColour),
+        ..color = palette.legible(Color(liveColour)),
     );
   }
 
@@ -369,7 +398,7 @@ class DesignPainter extends CustomPainter {
 
       final paint = Paint()
         ..strokeWidth = 1.3
-        ..color = AppTheme.muted;
+        ..color = palette.muted;
       canvas.drawLine(from, to, paint);
 
       final tick = to - from;
@@ -399,7 +428,7 @@ class DesignPainter extends CustomPainter {
       final paint = Paint()
         ..strokeWidth = 1.8
         ..strokeCap = StrokeCap.round
-        ..color = Color(arrow.colour);
+        ..color = palette.legible(Color(arrow.colour));
       canvas.drawLine(from, to, paint);
 
       final delta = to - from;
@@ -423,7 +452,7 @@ class DesignPainter extends CustomPainter {
         canvas,
         text.text,
         view.toScreen(text.at),
-        colour: Color(text.colour),
+        colour: palette.legible(Color(text.colour)),
         size: size,
         emphasis: true,
       );
@@ -446,7 +475,7 @@ class DesignPainter extends CustomPainter {
           fontSize: size,
           height: 1.1,
           fontWeight: emphasis ? FontWeight.w600 : FontWeight.w500,
-          color: colour ?? AppTheme.ink,
+          color: colour ?? palette.ink,
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -459,7 +488,7 @@ class DesignPainter extends CustomPainter {
     );
     canvas.drawRRect(
       RRect.fromRectAndRadius(box, const Radius.circular(4)),
-      Paint()..color = AppTheme.canvas.withValues(alpha: 0.88),
+      Paint()..color = palette.canvas.withValues(alpha: 0.88),
     );
     painter.paint(canvas, box.center - Offset(painter.width, painter.height) / 2);
   }
@@ -474,7 +503,7 @@ class DesignPainter extends CustomPainter {
       final paint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = id == selectedId ? 2.6 : 1.8
-        ..color = AppTheme.selection
+        ..color = palette.selection
             .withValues(alpha: id == selectedId ? 1 : 0.6);
 
       switch (element) {
@@ -527,6 +556,7 @@ class DesignPainter extends CustomPainter {
       old.selectedId != selectedId ||
       old.showSketch != showSketch ||
       old.showGeometry != showGeometry ||
+      old.palette != palette ||
       old.liveStroke.length != liveStroke.length ||
       old.highlighted.length != highlighted.length;
 }

@@ -162,6 +162,7 @@ class _DrawingSurfaceState extends ConsumerState<DrawingSurface> {
                         liveStroke: [for (final s in _live) s.at, ..._polyline],
                         liveColour: state.penColour,
                         highlighted: widget.highlighted,
+                        palette: context.palette,
                       ),
                     ),
                   ),
@@ -459,17 +460,20 @@ class _Sheet extends StatelessWidget {
   const _Sheet({required this.view});
 
   @override
-  Widget build(BuildContext context) =>
-      CustomPaint(painter: _GridPainter(view), size: Size.infinite);
+  Widget build(BuildContext context) => CustomPaint(
+    painter: _GridPainter(view, context.palette),
+    size: Size.infinite,
+  );
 }
 
 class _GridPainter extends CustomPainter {
   final ViewTransform view;
-  const _GridPainter(this.view);
+  final Palette palette;
+  const _GridPainter(this.view, this.palette);
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = AppTheme.canvas);
+    canvas.drawRect(Offset.zero & size, Paint()..color = palette.canvas);
 
     // A grid line every 100 mm, and a stronger one every metre, as long as
     // they are far enough apart on screen to be worth drawing.
@@ -478,7 +482,7 @@ class _GridPainter extends CustomPainter {
       if (spacing < 9) continue;
       final paint = Paint()
         ..strokeWidth = 1
-        ..color = AppTheme.primary.withValues(alpha: alpha);
+        ..color = palette.primary.withValues(alpha: alpha);
 
       final firstX = view.origin.dx % spacing;
       for (var x = firstX; x < size.width; x += spacing) {
@@ -493,7 +497,9 @@ class _GridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GridPainter old) =>
-      old.view.scale != view.scale || old.view.origin != view.origin;
+      old.view.scale != view.scale ||
+      old.view.origin != view.origin ||
+      old.palette != palette;
 }
 
 class _ZoomButtons extends StatelessWidget {
@@ -509,7 +515,7 @@ class _ZoomButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: AppTheme.surface,
+    color: context.palette.surface,
     elevation: 1,
     borderRadius: BorderRadius.circular(12),
     child: Padding(
@@ -521,21 +527,21 @@ class _ZoomButtons extends StatelessWidget {
             onPressed: onIn,
             icon: const Icon(Icons.add),
             tooltip: 'Zoom in',
-            color: AppTheme.primary,
+            color: context.palette.primary,
             visualDensity: VisualDensity.compact,
           ),
           IconButton(
             onPressed: onOut,
             icon: const Icon(Icons.remove),
             tooltip: 'Zoom out',
-            color: AppTheme.primary,
+            color: context.palette.primary,
             visualDensity: VisualDensity.compact,
           ),
           IconButton(
             onPressed: onFit,
             icon: const Icon(Icons.fit_screen_outlined),
             tooltip: 'Fit',
-            color: AppTheme.primary,
+            color: context.palette.primary,
             visualDensity: VisualDensity.compact,
           ),
         ],

@@ -32,6 +32,9 @@ class ModelPainter extends CustomPainter {
   final DisplayStyle style;
   final bool groundPlane;
 
+  /// The colours of the appearance in effect.
+  final Palette palette;
+
   /// View units across the model. Fixed by the model, not by the zoom and
   /// not by what happens to be on screen.
   final double viewSpan;
@@ -44,6 +47,7 @@ class ModelPainter extends CustomPainter {
     this.groundPlane = true,
     this.selectedId,
     this.highlighted = const {},
+    this.palette = Palette.light,
   });
 
   /// Pixels per view unit.
@@ -87,7 +91,7 @@ class ModelPainter extends CustomPainter {
           Paint()
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2.2
-            ..color = AppTheme.selection,
+            ..color = palette.selection,
         );
       }
     }
@@ -97,11 +101,10 @@ class ModelPainter extends CustomPainter {
     canvas.drawRect(
       Offset.zero & size,
       Paint()
-        ..shader = ui.Gradient.linear(
-          Offset.zero,
-          Offset(0, size.height),
-          const [Color(0xFFF8FAF9), Color(0xFFE2E8E6)],
-        ),
+        ..shader = ui.Gradient.linear(Offset.zero, Offset(0, size.height), [
+          palette.skyTop,
+          palette.skyBottom,
+        ]),
     );
   }
 
@@ -130,7 +133,7 @@ class ModelPainter extends CustomPainter {
         height: math.max(10, width * 0.1),
       ),
       Paint()
-        ..color = Colors.black.withValues(alpha: 0.13)
+        ..color = Colors.black.withValues(alpha: palette.isDark ? 0.35 : 0.13)
         ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 16),
     );
 
@@ -139,7 +142,7 @@ class ModelPainter extends CustomPainter {
       Offset(base.dx + width * 0.85, base.dy + 1),
       Paint()
         ..strokeWidth = 1
-        ..color = AppTheme.ink.withValues(alpha: 0.13),
+        ..color = palette.groundLine.withValues(alpha: 0.13),
     );
   }
 
@@ -153,8 +156,9 @@ class ModelPainter extends CustomPainter {
       green: (base.g * face.light).clamp(0.0, 1.0),
       blue: (base.b * face.light).clamp(0.0, 1.0),
     );
-    final transparency =
-        style.usesFinishes ? face.source.transparency : face.source.transparency * 0.6;
+    final transparency = style.usesFinishes
+        ? face.source.transparency
+        : face.source.transparency * 0.6;
     final opacity = 1 - transparency;
 
     canvas.drawPath(
@@ -185,15 +189,14 @@ class ModelPainter extends CustomPainter {
       );
     }
 
-    if (style.usesFinishes &&
-        face.source.gloss > 0.4 &&
-        face.light > 0.72) {
+    if (style.usesFinishes && face.source.gloss > 0.4 && face.light > 0.72) {
       canvas.drawPath(
         path,
         Paint()
           ..style = PaintingStyle.fill
-          ..color =
-              Colors.white.withValues(alpha: (face.source.gloss - 0.4) * 0.3),
+          ..color = Colors.white.withValues(
+            alpha: (face.source.gloss - 0.4) * 0.3,
+          ),
       );
     }
   }
@@ -204,9 +207,11 @@ class ModelPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = style == DisplayStyle.wireframe ? 1.0 : 0.9
-        ..color = AppTheme.ink.withValues(
-          alpha: style == DisplayStyle.wireframe ? 0.5 : 0.62,
-        ),
+        // Edges between faces are dark in either appearance, because the
+        // faces are the design's own colours; a wireframe has no faces,
+        // and its edges are drawn to be read against the backdrop instead.
+        ..color = (style.drawsFaces ? palette.modelEdge : palette.ink)
+            .withValues(alpha: style == DisplayStyle.wireframe ? 0.5 : 0.62),
     );
   }
 
@@ -231,6 +236,7 @@ class ModelPainter extends CustomPainter {
       old.size != size ||
       old.style != style ||
       old.groundPlane != groundPlane ||
+      old.palette != palette ||
       old.viewSpan != viewSpan ||
       (faces.isNotEmpty &&
           old.faces.isNotEmpty &&

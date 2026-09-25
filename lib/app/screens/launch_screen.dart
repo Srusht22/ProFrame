@@ -60,11 +60,11 @@ class LaunchScreen extends StatefulWidget {
 
   /// How long the whole launch takes. Every part of it is a share of this,
   /// so changing it here changes the pace of all of it together.
-  static const duration = Duration(milliseconds: 4000);
+  static const duration = Duration(milliseconds: 6000);
 
   /// How long the gentle version takes, for a device asking for less
   /// motion.
-  static const reducedDuration = Duration(milliseconds: 900);
+  static const reducedDuration = Duration(milliseconds: 1400);
 
   /// How long the hand-over to the home screen takes.
   static const handOver = Duration(milliseconds: 450);
@@ -76,42 +76,44 @@ class LaunchScreen extends StatefulWidget {
 /// The parts of the launch, each as a share of [LaunchScreen.duration].
 abstract final class LaunchTiming {
   /// The background, calm, coming up.
-  static const background = Interval(0, 0.125, curve: Curves.easeOut);
+  static const background = Interval(0, 0.11, curve: Curves.easeOut);
 
   /// The frame drawing itself, and the three pieces coming into it.
-  static const frame = Interval(0.125, 0.29, curve: Curves.easeInOutCubic);
-  static const door = Interval(0.175, 0.33, curve: Curves.easeOutCubic);
-  static const window = Interval(0.2, 0.355, curve: Curves.easeOutCubic);
-  static const sliding = Interval(0.225, 0.375, curve: Curves.easeOutCubic);
+  static const frame = Interval(0.11, 0.255, curve: Curves.easeInOutCubic);
+  static const door = Interval(0.155, 0.29, curve: Curves.easeOutCubic);
+  static const window = Interval(0.175, 0.31, curve: Curves.easeOutCubic);
+  static const sliding = Interval(0.2, 0.33, curve: Curves.easeOutCubic);
 
   /// Each piece showing how it works.
-  static const working = Interval(0.375, 0.625);
+  static const working = Interval(0.33, 0.55);
 
   /// The name coming in under the mark: the first word dropping in between
   /// two fine rules that draw out from it, the master's name rising a word
   /// at a time from the right, the way it is read, and the last line
   /// settling under a flourish that draws out from the middle.
-  static const rules = Interval(0.6, 0.74, curve: Curves.easeOutCubic);
-  static const firstLine = Interval(0.6, 0.7, curve: Curves.easeOutCubic);
+  static const rules = Interval(0.53, 0.65, curve: Curves.easeOutCubic);
+  static const firstLine = Interval(0.53, 0.615, curve: Curves.easeOutCubic);
   static const mainWords = [
-    Interval(0.63, 0.75, curve: Curves.easeOutBack),
-    Interval(0.67, 0.79, curve: Curves.easeOutBack),
+    Interval(0.555, 0.66, curve: Curves.easeOutBack),
+    Interval(0.59, 0.695, curve: Curves.easeOutBack),
   ];
-  static const flourish = Interval(0.7, 0.82, curve: Curves.easeInOutCubic);
-  static const lastLine = Interval(0.72, 0.82, curve: Curves.easeOutCubic);
+  static const flourish = Interval(0.615, 0.72, curve: Curves.easeInOutCubic);
+  static const lastLine = Interval(0.635, 0.72, curve: Curves.easeOutCubic);
 
   /// One pass of light across the master's name, right to left, once it is
   /// all there.
-  static const shimmer = Interval(0.76, 0.9, curve: Curves.easeInOut);
+  static const shimmer = Interval(0.67, 0.8, curve: Curves.easeInOut);
 
   /// Leaving: the name lifts away a line at a time, top first, blurring as
   /// it goes, and the mark recedes behind it — so the home screen comes up
-  /// out of an empty field rather than cutting across the name.
-  static const leaveMark = Interval(0.87, 1, curve: Curves.easeInCubic);
+  /// out of an empty field rather than cutting across the name. Nothing
+  /// leaves until the name has stood whole for a while, long enough to be
+  /// read.
+  static const leaveMark = Interval(0.9, 1, curve: Curves.easeInCubic);
   static const leaveLines = [
-    Interval(0.87, 0.96, curve: Curves.easeInCubic),
-    Interval(0.89, 0.98, curve: Curves.easeInCubic),
-    Interval(0.91, 1, curve: Curves.easeInCubic),
+    Interval(0.9, 0.965, curve: Curves.easeInCubic),
+    Interval(0.915, 0.985, curve: Curves.easeInCubic),
+    Interval(0.93, 1, curve: Curves.easeInCubic),
   ];
 }
 
