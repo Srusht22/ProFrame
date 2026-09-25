@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
@@ -20,9 +21,18 @@ const brandName = 'کارگەی وەستا سۆران شارباژێڕی';
 /// out.
 const brandLines = ['کارگەی', 'وەستا سۆران', 'شارباژێڕی'];
 
-/// The typeface the name is set in: a geometric Kufi, bundled with the app
-/// in three weights, with every letter of Sorani Kurdish the name uses.
-const brandFontFamily = 'Noto Kufi Arabic';
+/// The master's name is written in this: a Ruqaa hand, the everyday
+/// calligraphy of the region, set the way a craftsman signs his work.
+const brandDisplayFamily = 'Aref Ruqaa';
+
+/// The lines either side of it are set in this: a clean modern sans, so the
+/// signature is the one flourish in the mark. Both typefaces are bundled
+/// with the app, with every letter of Sorani Kurdish the name uses.
+const brandFontFamily = 'Vazirmatn';
+
+/// The master's name, a word at a time, in the order it is read: each word
+/// of [brandLines]' middle line comes in on its own.
+final brandMainWords = brandLines[1].split(' ');
 
 /// The workshop's mark, played once as the app opens, and then the home
 /// screen.
@@ -33,7 +43,9 @@ const brandFontFamily = 'Noto Kufi Arabic';
 /// the door turns on its hinge, the sliding panel runs along its track, the
 /// window's sash tilts open at the top and shuts, then its glass catches
 /// the light — and then the name comes in under them, composed in three
-/// lines. It is all painted from lines, like everything else in the app.
+/// lines, a word at a time. Then all of it lifts away, a line at a time,
+/// and the home screen comes up out of the empty field. It is all painted
+/// from lines and set in text, like everything else in the app.
 ///
 /// **Once.** It is the first screen and replaces itself with the home
 /// screen when it is done, so nothing navigates back to it and a rebuild
@@ -75,13 +87,32 @@ abstract final class LaunchTiming {
   /// Each piece showing how it works.
   static const working = Interval(0.375, 0.625);
 
-  /// The name coming in under the mark, a line at a time: the fine rules
-  /// and the first word, the master's name wiping in from the right as it
-  /// is read, and the last line settling under it.
+  /// The name coming in under the mark: the first word dropping in between
+  /// two fine rules that draw out from it, the master's name rising a word
+  /// at a time from the right, the way it is read, and the last line
+  /// settling under a flourish that draws out from the middle.
   static const rules = Interval(0.6, 0.74, curve: Curves.easeOutCubic);
-  static const firstLine = Interval(0.61, 0.72, curve: Curves.easeOut);
-  static const mainLine = Interval(0.64, 0.8, curve: Curves.easeInOutCubic);
-  static const lastLine = Interval(0.7, 0.82, curve: Curves.easeOutCubic);
+  static const firstLine = Interval(0.6, 0.7, curve: Curves.easeOutCubic);
+  static const mainWords = [
+    Interval(0.63, 0.75, curve: Curves.easeOutBack),
+    Interval(0.67, 0.79, curve: Curves.easeOutBack),
+  ];
+  static const flourish = Interval(0.7, 0.82, curve: Curves.easeInOutCubic);
+  static const lastLine = Interval(0.72, 0.82, curve: Curves.easeOutCubic);
+
+  /// One pass of light across the master's name, right to left, once it is
+  /// all there.
+  static const shimmer = Interval(0.76, 0.9, curve: Curves.easeInOut);
+
+  /// Leaving: the name lifts away a line at a time, top first, blurring as
+  /// it goes, and the mark recedes behind it — so the home screen comes up
+  /// out of an empty field rather than cutting across the name.
+  static const leaveMark = Interval(0.87, 1, curve: Curves.easeInCubic);
+  static const leaveLines = [
+    Interval(0.87, 0.96, curve: Curves.easeInCubic),
+    Interval(0.89, 0.98, curve: Curves.easeInCubic),
+    Interval(0.91, 1, curve: Curves.easeInCubic),
+  ];
 }
 
 class _LaunchScreenState extends State<LaunchScreen>
@@ -136,16 +167,19 @@ class _LaunchScreenState extends State<LaunchScreen>
     body: AnimatedBuilder(
       animation: _clock,
       builder: (context, _) {
-        final t = _clock.value;
-        // The gentle version is the finished mark faded in: nothing
-        // moves, only the light comes up.
+        final t = _clock.value.clamp(0.0, 1.0);
+        // The gentle version is the finished mark faded in and, at the
+        // end, faded out again: nothing moves, only the light comes and
+        // goes.
         final gentle = _gentle;
-        double at(Interval part) =>
-            gentle ? t : part.transform(t.clamp(0.0, 1.0));
+        final gentleIn = (t / 0.35).clamp(0.0, 1.0);
+        final gentleOut = ((t - 0.75) / 0.25).clamp(0.0, 1.0);
+        double at(Interval part) => part.transform(t);
+        double into(Interval part) => gentle ? gentleIn : at(part);
+        double away(Interval part) => gentle ? gentleOut : at(part);
         final background = gentle ? 1.0 : at(LaunchTiming.background);
-        final working = gentle
-            ? 1.0
-            : LaunchTiming.working.transform(t.clamp(0.0, 1.0));
+        final working = gentle ? 1.0 : at(LaunchTiming.working);
+        final markAway = away(LaunchTiming.leaveMark);
 
         return LayoutBuilder(
           builder: (context, box) {
@@ -153,13 +187,16 @@ class _LaunchScreenState extends State<LaunchScreen>
             // Sized from the screen, so it sits well clear of the edges on
             // a narrow phone and does not sprawl on a wide one.
             final mark = math.min(shortest * 0.46, 240.0);
-            double part(Interval of) => gentle ? t : at(of);
             final name = _BrandName(
               size: (mark * 0.2).clamp(24.0, 46.0),
-              rules: part(LaunchTiming.rules),
-              first: part(LaunchTiming.firstLine),
-              main: part(LaunchTiming.mainLine),
-              last: part(LaunchTiming.lastLine),
+              moving: !gentle,
+              rules: into(LaunchTiming.rules),
+              first: into(LaunchTiming.firstLine),
+              words: [for (final w in LaunchTiming.mainWords) into(w)],
+              flourish: into(LaunchTiming.flourish),
+              last: into(LaunchTiming.lastLine),
+              shimmer: gentle ? 0 : at(LaunchTiming.shimmer),
+              leaving: [for (final l in LaunchTiming.leaveLines) away(l)],
             );
 
             return DecoratedBox(
@@ -179,8 +216,14 @@ class _LaunchScreenState extends State<LaunchScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Opacity(
-                          opacity: gentle ? t : 1,
+                        // The mark recedes as it goes: smaller, fainter,
+                        // softening, and drawing back a little way up.
+                        _Passing(
+                          shown: gentle ? gentleIn : 1,
+                          away: markAway,
+                          lift: gentle ? 0 : mark * 0.06,
+                          blur: gentle ? 0 : 6,
+                          shrink: gentle ? 0 : 0.1,
                           child: SizedBox.square(
                             dimension: mark,
                             child: CustomPaint(
@@ -214,102 +257,279 @@ class _LaunchScreenState extends State<LaunchScreen>
   static final _lift = Color.lerp(AppTheme.primary, AppTheme.accent, 0.08)!;
 }
 
+/// A part of the launch coming and going: [shown] of the way in, and [away]
+/// of the way out. Going, it fades, lifts by [lift], softens to a [blur]
+/// and shrinks by [shrink] of its size.
+class _Passing extends StatelessWidget {
+  final double shown;
+  final double away;
+  final double lift;
+  final double blur;
+  final double shrink;
+  final Widget child;
+
+  const _Passing({
+    required this.shown,
+    required this.away,
+    required this.child,
+    this.lift = 0,
+    this.blur = 0,
+    this.shrink = 0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sigma = blur * away;
+    var body = child;
+    if (sigma > 0.05) {
+      body = ImageFiltered(
+        imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+        child: body,
+      );
+    }
+    return Opacity(
+      opacity: (shown * (1 - away)).clamp(0.0, 1.0),
+      child: Transform.translate(
+        offset: Offset(0, -lift * away),
+        child: Transform.scale(scale: 1 - shrink * away, child: body),
+      ),
+    );
+  }
+}
+
+/// A part of the name arriving: [into] of the way in — rising from [rise]
+/// below and coming into focus from a [blur] — and then [away] of the way
+/// out through [_Passing]. [into] may overshoot 1 a little, which is the
+/// settle at the end of its rise.
+class _Arriving extends StatelessWidget {
+  final double into;
+  final double away;
+  final double rise;
+  final double blur;
+  final bool moving;
+  final Widget child;
+
+  const _Arriving({
+    required this.into,
+    required this.away,
+    required this.rise,
+    required this.moving,
+    required this.child,
+    this.blur = 5,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final coming = (1 - into.clamp(0.0, 1.0)).toDouble();
+    var body = child;
+    if (moving && coming > 0.01) {
+      body = ImageFiltered(
+        imageFilter: ImageFilter.blur(
+          sigmaX: blur * coming,
+          sigmaY: blur * coming,
+        ),
+        child: body,
+      );
+    }
+    return _Passing(
+      shown: into.clamp(0.0, 1.0),
+      away: away,
+      lift: moving ? rise * 1.2 : 0,
+      blur: moving ? 7 : 0,
+      child: Transform.translate(
+        offset: Offset(0, moving ? rise * (1 - into) : 0),
+        child: body,
+      ),
+    );
+  }
+}
+
 /// The workshop's name as a composed mark rather than a line of text.
 ///
 /// ```
 ///        ── کارگەی ──          small, gold, between two fine rules
-///        وەستا سۆران           large and heavy: the name people say
-///         شارباژێڕی            lighter, beneath it
+///        وەستا سۆران           large, in a Ruqaa hand: the signature
+///           ──◆──              a flourish drawing out from the middle
+///         شارباژێڕی            light, beneath it
 /// ```
 ///
-/// One family in three weights, so the lines belong together and the
-/// contrast between them is the only ornament. Every line is set right to
-/// left and shaped by the typeface; nothing is letter-spaced, because
-/// spacing the letters of a joined script pulls them apart.
+/// The master's name is the one calligraphic thing in it, and the lines
+/// either side are set plainly so that it reads as a signature. Every line
+/// is set right to left and shaped by its typeface; nothing is
+/// letter-spaced, because spacing the letters of a joined script pulls them
+/// apart, and nothing is split inside a word.
 class _BrandName extends StatelessWidget {
   /// How big the master's name is; the other lines are set from it.
   final double size;
 
+  /// False for a device asking for less motion: the parts fade, and do not
+  /// move or blur.
+  final bool moving;
+
   /// How far each part has come in, 0 to 1.
   final double rules;
   final double first;
-  final double main;
+  final List<double> words;
+  final double flourish;
   final double last;
+
+  /// Where the one pass of light across the master's name has got to.
+  final double shimmer;
+
+  /// How far each line has gone, top first.
+  final List<double> leaving;
 
   const _BrandName({
     required this.size,
+    required this.moving,
     required this.rules,
     required this.first,
-    required this.main,
+    required this.words,
+    required this.flourish,
     required this.last,
+    required this.shimmer,
+    required this.leaving,
   });
 
   static final _gold = Color.lerp(AppTheme.selection, AppTheme.accent, 0.35)!;
 
-  TextStyle _style(double fontSize, FontWeight weight, Color colour) =>
+  TextStyle _plain(double fontSize, FontWeight weight, Color colour) =>
       TextStyle(
         fontFamily: brandFontFamily,
         fontSize: fontSize,
         fontWeight: weight,
-        height: 1.35,
+        height: 1.4,
         color: colour,
       );
 
+  /// The master's name, lit by one band of light passing across it from the
+  /// right. Before and after, it is its own colour.
+  Widget _lit(Widget text) {
+    if (!moving || shimmer <= 0 || shimmer >= 1) return text;
+    final at = 1.25 - shimmer * 1.5;
+    return ShaderMask(
+      blendMode: BlendMode.srcIn,
+      shaderCallback: (bounds) => LinearGradient(
+        colors: [
+          AppTheme.accent,
+          AppTheme.accent,
+          Colors.white,
+          AppTheme.accent,
+          AppTheme.accent,
+        ],
+        stops: [
+          0,
+          (at - 0.18).clamp(0.0, 1.0),
+          at.clamp(0.0, 1.0),
+          (at + 0.18).clamp(0.0, 1.0),
+          1,
+        ],
+      ).createShader(bounds),
+      child: text,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final rule = size * 1.5;
+    final rule = size * 1.4;
+    final display = TextStyle(
+      fontFamily: brandDisplayFamily,
+      fontSize: size * 1.25,
+      fontWeight: FontWeight.w700,
+      height: 1.5,
+      color: AppTheme.accent,
+    );
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // The first word, between two fine rules that draw out from it.
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          textDirection: TextDirection.rtl,
-          children: [
-            _Rule(length: rule, shown: rules, towardsRight: true),
-            SizedBox(width: size * 0.35),
-            Opacity(
-              opacity: first,
-              child: Text(
-                brandLines[0],
-                textDirection: TextDirection.rtl,
-                style: _style(size * 0.46, FontWeight.w500, _gold),
-              ),
-            ),
-            SizedBox(width: size * 0.35),
-            _Rule(length: rule, shown: rules, towardsRight: false),
-          ],
-        ),
-        // The master's name, wiping in from the right, the way it is read.
-        ShaderMask(
-          blendMode: BlendMode.dstIn,
-          shaderCallback: (bounds) {
-            final edge = (1 - main) * 1.25 - 0.25;
-            return LinearGradient(
-              colors: const [Colors.transparent, Colors.white],
-              stops: [edge.clamp(0.0, 1.0), (edge + 0.25).clamp(0.0, 1.0)],
-            ).createShader(bounds);
-          },
-          child: Text(
-            brandLines[1],
+        // The first word, dropping in between two fine rules that draw out
+        // from it.
+        _Passing(
+          shown: 1,
+          away: leaving[0],
+          lift: moving ? size * 0.5 : 0,
+          blur: moving ? 7 : 0,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             textDirection: TextDirection.rtl,
-            style: _style(size, FontWeight.w800, AppTheme.accent),
+            children: [
+              _Rule(length: rule, shown: rules, towardsRight: true),
+              SizedBox(width: size * 0.4),
+              _Arriving(
+                into: first,
+                away: 0,
+                rise: -size * 0.4,
+                moving: moving,
+                child: Text(
+                  brandLines[0],
+                  textDirection: TextDirection.rtl,
+                  style: _plain(size * 0.5, FontWeight.w600, _gold),
+                ),
+              ),
+              SizedBox(width: size * 0.4),
+              _Rule(length: rule, shown: rules, towardsRight: false),
+            ],
           ),
         ),
-        // Where he is from, settling in beneath.
-        Opacity(
-          opacity: last,
-          child: Transform.translate(
-            offset: Offset(0, size * 0.25 * (1 - last)),
-            child: Text(
-              brandLines[2],
+        // The master's name, a word at a time from the right, each rising
+        // into focus and settling; then one pass of light across it.
+        _Passing(
+          shown: 1,
+          away: leaving[1],
+          lift: moving ? size * 0.5 : 0,
+          blur: moving ? 8 : 0,
+          child: _lit(
+            Row(
+              mainAxisSize: MainAxisSize.min,
               textDirection: TextDirection.rtl,
-              style: _style(
-                size * 0.6,
-                FontWeight.w300,
-                AppTheme.accent.withValues(alpha: 0.9),
-              ),
+              children: [
+                for (final (i, word) in brandMainWords.indexed) ...[
+                  if (i > 0) SizedBox(width: size * 0.32),
+                  _Arriving(
+                    into: words[math.min(i, words.length - 1)],
+                    away: 0,
+                    rise: size * 0.55,
+                    blur: 6,
+                    moving: moving,
+                    child: Text(
+                      word,
+                      textDirection: TextDirection.rtl,
+                      style: display,
+                    ),
+                  ),
+                ],
+              ],
             ),
+          ),
+        ),
+        // A flourish under it, drawing out from the middle, and where he
+        // is from, settling in beneath.
+        _Passing(
+          shown: 1,
+          away: leaving[2],
+          lift: moving ? size * 0.5 : 0,
+          blur: moving ? 7 : 0,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _Flourish(width: size * 3.2, shown: flourish),
+              SizedBox(height: size * 0.12),
+              _Arriving(
+                into: last,
+                away: 0,
+                rise: size * 0.3,
+                moving: moving,
+                child: Text(
+                  brandLines[2],
+                  textDirection: TextDirection.rtl,
+                  style: _plain(
+                    size * 0.62,
+                    FontWeight.w300,
+                    AppTheme.accent.withValues(alpha: 0.88),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -337,7 +557,7 @@ class _Rule extends StatelessWidget {
     child: Align(
       alignment: towardsRight ? Alignment.centerLeft : Alignment.centerRight,
       child: FractionallySizedBox(
-        widthFactor: shown,
+        widthFactor: shown.clamp(0.0, 1.0),
         child: DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -353,6 +573,58 @@ class _Rule extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// The flourish under the master's name: a small gold diamond, and a fine
+/// line drawing out either side of it, fading at its ends.
+class _Flourish extends StatelessWidget {
+  final double width;
+  final double shown;
+
+  const _Flourish({required this.width, required this.shown});
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: width,
+    height: 8,
+    child: CustomPaint(painter: _FlourishPainter(shown.clamp(0.0, 1.0))),
+  );
+}
+
+class _FlourishPainter extends CustomPainter {
+  final double shown;
+  const _FlourishPainter(this.shown);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (shown <= 0) return;
+    final middle = size.center(Offset.zero);
+    final reach = size.width / 2 * shown;
+    final gold = _BrandName._gold;
+    final line = Paint()
+      ..shader = RadialGradient(
+        colors: [gold, gold.withValues(alpha: 0)],
+      ).createShader(Rect.fromCircle(center: middle, radius: size.width / 2))
+      ..strokeWidth = 1.2;
+    canvas.drawLine(
+      middle.translate(-reach, 0),
+      middle.translate(reach, 0),
+      line,
+    );
+    final d = size.height / 2 * Curves.easeOutBack.transform(shown);
+    canvas.drawPath(
+      Path()
+        ..moveTo(middle.dx, middle.dy - d)
+        ..lineTo(middle.dx + d, middle.dy)
+        ..lineTo(middle.dx, middle.dy + d)
+        ..lineTo(middle.dx - d, middle.dy)
+        ..close(),
+      Paint()..color = gold,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_FlourishPainter old) => old.shown != shown;
 }
 
 /// Where the moving parts of the emblem are, as the parts of the launch

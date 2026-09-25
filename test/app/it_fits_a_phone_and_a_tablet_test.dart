@@ -5,7 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/app.dart';
 import 'package:proframe/app/inspector/component_tree.dart';
 import 'package:proframe/app/inspector/inspector_panel.dart';
-import 'package:proframe/app/screens/tool_rail.dart';
+import 'package:proframe/app/screens/tool_bar.dart';
+import 'package:proframe/app/screens/workspace_bars.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/app/state/tools.dart';
 import 'package:proframe/app/state/workspace.dart';
@@ -15,10 +16,10 @@ import 'pause_and_take_it_back_test.dart' as sheet;
 
 // The user's screenshot: the workspace on a phone, with a striped overflow
 // across the bar of views and most of the controls off the edge of the
-// screen. The workspace is laid out by the room it is given — the tools
-// along the bottom of a phone, down the left of a tablet with their names,
-// and what is picked in a drawer on both — and nothing overflows at any of
-// the sizes people hold.
+// screen. The workspace is laid out by the room it is given — the tools the
+// navigation bar along the bottom and the views the one across the top on
+// every screen, and what is picked in a drawer on a phone and a tablet —
+// and nothing overflows at any of the sizes people hold.
 
 const phones = [Size(360, 740), Size(390, 844), Size(440, 956)];
 const tablets = [Size(768, 1024), Size(820, 1180), Size(1024, 768)];
@@ -102,29 +103,28 @@ void main() {
     );
   }
 
-  group('on a phone', () {
-    testWidgets('the tools are along the bottom, every one of them', (
-      tester,
-    ) async {
-      const size = Size(390, 844);
+  for (final size in const [Size(390, 844), Size(820, 1180), Size(1280, 820)]) {
+    testWidgets('the tools are the navigation bar along the bottom at '
+        '${size.width.toInt()} wide', (tester) async {
       await twoLeavesAt(tester, size);
-      final rail = find.byWidgetPredicate((w) => w is ToolRail && w.horizontal);
-      expect(rail, findsOneWidget);
-      expect(
-        find.byWidgetPredicate((w) => w is ToolRail && !w.horizontal),
-        findsNothing,
-      );
-      expect(tester.getRect(rail).bottom, closeTo(size.height, 1));
-      expect(tester.getRect(rail).width, closeTo(size.width, 1));
+      final bar = find.byType(ToolBar);
+      expect(bar, findsOneWidget);
+      expect(tester.getRect(bar).bottom, closeTo(size.height, 1));
+      expect(tester.getRect(bar).width, closeTo(size.width, 1));
       // Every tool is on it, reached by scrolling it if need be.
       for (final tool in Tool.values) {
         expect(
-          find.descendant(of: rail, matching: find.text(tool.label)),
+          find.descendant(of: bar, matching: find.text(tool.label)),
           findsOneWidget,
         );
       }
+      // And the views are the navigation across the top.
+      final views = find.byType(ViewTabs);
+      expect(tester.getRect(views).top, lessThan(size.height / 4));
     });
+  }
 
+  group('on a phone', () {
     testWidgets('the three views share the width, and each is named', (
       tester,
     ) async {
@@ -178,20 +178,13 @@ void main() {
     });
   });
 
-  testWidgets('on a tablet the tools are down the left, with their names', (
-    tester,
-  ) async {
+  testWidgets('on a tablet what is picked is in a drawer', (tester) async {
     await twoLeavesAt(tester, const Size(820, 1180));
-    final rail = find.byType(ToolRail);
-    expect(rail, findsOneWidget);
-    expect(tester.widget<ToolRail>(rail).horizontal, isFalse);
-    expect(tester.getRect(rail).left, 0);
-    expect(
-      find.descendant(of: rail, matching: find.text(Tool.dimension.label)),
-      findsOneWidget,
-    );
-    // What is picked is in a drawer, not in a panel narrowing the drawing.
+    // Not in a panel narrowing the drawing.
     expect(find.byType(InspectorPanel), findsNothing);
+    await tester.tap(find.byTooltip('Details'));
+    await tester.pumpAndSettle();
+    expect(find.byType(InspectorPanel), findsOneWidget);
   });
 
   test('the layout follows the room, not the device', () {

@@ -194,8 +194,14 @@ class _SaveIconState extends State<SaveIcon>
   }
 }
 
-/// Draw | CAD drawing | 3D model, with the highlight gliding to the view
-/// chosen rather than jumping, so the eye follows the change.
+/// Draw | CAD drawing | 3D model: the navigation across the top of the
+/// workspace.
+///
+/// **The active view is marked by one indicator that moves** — a soft pill
+/// behind it and a bar along its foot — gliding to the view chosen and
+/// settling with a slight overshoot, rather than one tab switching off and
+/// another on. The same arrangement as the tools along the bottom, so the
+/// two navigation bars read as one design.
 class ViewTabs extends StatelessWidget {
   final WorkspaceView selected;
   final bool Function(WorkspaceView view) enabled;
@@ -215,70 +221,84 @@ class ViewTabs extends StatelessWidget {
     this.fill = false,
   });
 
+  /// How tall the bar of views is.
+  static const height = 44.0;
+
+  static const _icons = {
+    WorkspaceView.draw: Icons.gesture,
+    WorkspaceView.plan: Icons.architecture,
+    WorkspaceView.model: Icons.view_in_ar_outlined,
+  };
+
+  /// The icon a [view] is shown by.
+  static IconData iconOf(WorkspaceView view) => _icons[view]!;
+
   @override
   Widget build(BuildContext context) {
     if (fill) {
       return LayoutBuilder(
-        builder: (context, box) => _tabs(context, (box.maxWidth - 8) / 3),
+        builder: (context, box) =>
+            _tabs(context, box.maxWidth / WorkspaceView.values.length),
       );
     }
-    return _tabs(context, compact ? 98.0 : 114.0);
+    return _tabs(context, compact ? 128.0 : 144.0);
   }
 
   Widget _tabs(BuildContext context, double width) {
     final views = WorkspaceView.values;
-    const height = 36.0;
     final index = views.indexOf(selected);
     final change = BarMotion.of(context, BarMotion.change);
+    final underline = math.min(width * 0.6, 64.0);
 
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: AppTheme.shell,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppTheme.hairline),
-      ),
-      child: SizedBox(
-        width: width * views.length,
-        height: height,
-        child: Stack(
-          children: [
-            // The highlight, behind whichever view is chosen.
-            AnimatedPositioned(
-              duration: change,
-              curve: Curves.easeOutBack,
-              left: width * index,
-              top: 0,
-              width: width,
-              height: height,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: AppTheme.primary,
-                  borderRadius: BorderRadius.circular(999),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.primary.withValues(alpha: 0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
+    return SizedBox(
+      width: width * views.length,
+      height: height,
+      child: Stack(
+        children: [
+          // The pill, behind whichever view is chosen.
+          AnimatedPositioned(
+            duration: change,
+            curve: Curves.easeOutBack,
+            left: width * index + 3,
+            top: 3,
+            width: width - 6,
+            height: height - 9,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.09),
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-            Row(
-              children: [
-                for (final view in views)
-                  _Tab(
-                    label: fill ? view.shortLabel : view.label,
-                    width: width,
-                    chosen: view == selected,
-                    enabled: enabled(view),
-                    onTap: () => onSelected(view),
-                  ),
-              ],
+          ),
+          // And the bar along its foot.
+          AnimatedPositioned(
+            duration: change,
+            curve: Curves.easeOutBack,
+            left: width * index + (width - underline) / 2,
+            bottom: 0,
+            width: underline,
+            height: 3,
+            child: const DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppTheme.primary,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(3)),
+              ),
             ),
-          ],
-        ),
+          ),
+          Row(
+            children: [
+              for (final view in views)
+                _Tab(
+                  label: fill ? view.shortLabel : view.label,
+                  icon: iconOf(view),
+                  width: width,
+                  chosen: view == selected,
+                  enabled: enabled(view),
+                  onTap: () => onSelected(view),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -286,6 +306,7 @@ class ViewTabs extends StatelessWidget {
 
 class _Tab extends StatefulWidget {
   final String label;
+  final IconData icon;
   final double width;
   final bool chosen;
   final bool enabled;
@@ -293,6 +314,7 @@ class _Tab extends StatefulWidget {
 
   const _Tab({
     required this.label,
+    required this.icon,
     required this.width,
     required this.chosen,
     required this.enabled,
@@ -309,10 +331,11 @@ class _TabState extends State<_Tab> {
   @override
   Widget build(BuildContext context) {
     final colour = widget.chosen
-        ? AppTheme.accent
+        ? AppTheme.primary
         : widget.enabled
-            ? (_hover ? AppTheme.primary : AppTheme.ink)
-            : AppTheme.muted.withValues(alpha: 0.5);
+            ? (_hover ? AppTheme.primary : AppTheme.muted)
+            : AppTheme.muted.withValues(alpha: 0.45);
+    final change = BarMotion.of(context, BarMotion.change);
     return MouseRegion(
       cursor: widget.enabled && !widget.chosen
           ? SystemMouseCursors.click
@@ -327,28 +350,43 @@ class _TabState extends State<_Tab> {
         // the others off the end of the bar for a moment.
         child: SizedBox(
           width: widget.width,
-          child: AnimatedContainer(
-          duration: BarMotion.of(context, BarMotion.hover),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
-            color: AppTheme.primary.withValues(
-              alpha: _hover && widget.enabled && !widget.chosen ? 0.07 : 0,
-            ),
+          height: ViewTabs.height - 3,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ChosenBounce(
+                chosen: widget.chosen,
+                child: TweenAnimationBuilder<Color?>(
+                  tween: ColorTween(end: colour),
+                  duration: change,
+                  builder: (context, c, _) =>
+                      Icon(widget.icon, size: 18, color: c),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: AnimatedDefaultTextStyle(
+                  duration: change,
+                  curve: Curves.easeOutCubic,
+                  style: TextStyle(
+                    fontFamily: AppTheme.fontFamily,
+                    fontSize: 13,
+                    fontWeight: widget.chosen
+                        ? FontWeight.w700
+                        : FontWeight.w600,
+                    letterSpacing: 0.2,
+                    color: colour,
+                  ),
+                  child: Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                    softWrap: false,
+                  ),
+                ),
+              ),
+            ],
           ),
-          child: AnimatedDefaultTextStyle(
-            duration: BarMotion.of(context, BarMotion.change),
-            curve: Curves.easeOutCubic,
-            style: TextStyle(
-              fontFamily: AppTheme.fontFamily,
-              fontSize: 13,
-              fontWeight: widget.chosen ? FontWeight.w700 : FontWeight.w600,
-              letterSpacing: 0.3,
-              color: colour,
-            ),
-            child: Text(widget.label, maxLines: 1),
-          ),
-        ),
         ),
       ),
     );

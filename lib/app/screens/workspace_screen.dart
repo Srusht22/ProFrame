@@ -13,18 +13,22 @@ import '../state/tools.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import '../viewer/model_view.dart';
-import 'tool_rail.dart';
+import 'tool_bar.dart';
 import 'workspace_bars.dart';
 
 /// How much room the workspace has, and so how it is laid out.
 ///
 /// The drawing always gets the room. What moves is everything around it:
 ///
-/// | | Tools | What is picked, and the parts |
-/// | --- | --- | --- |
-/// | [phone] | along the bottom, where a thumb reaches | a drawer, from buttons in the bar of views |
-/// | [tablet] | down the left, with their names | a drawer, from the same buttons |
-/// | [desktop] | down the left | panels beside the drawing |
+/// The tools are the navigation bar along the bottom and the views the one
+/// across the top, on every screen. What changes with the room is where
+/// what is picked goes:
+///
+/// | | What is picked, and the parts |
+/// | --- | --- |
+/// | [phone] | a drawer, from icons beside the views |
+/// | [tablet] | a drawer, from the same buttons |
+/// | [desktop] | panels beside the drawing |
 enum WorkspaceLayout {
   phone,
   tablet,
@@ -38,9 +42,9 @@ enum WorkspaceLayout {
           : desktop;
 }
 
-/// Where the work happens: tools on the left, the drawing in the middle,
-/// what is selected on the right — or, where the screen is narrower, the
-/// tools along the bottom and what is selected in a drawer.
+/// Where the work happens: the views across the top, the tools along the
+/// bottom, the drawing between them, and what is selected on the right —
+/// or, where the screen is narrower, in a drawer.
 ///
 /// The canvas gets the room. Everything else is as narrow as it can be and
 /// still be usable with a finger.
@@ -167,10 +171,6 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                 Expanded(
                   child: Row(
                     children: [
-                      if (!phone) ...[
-                        ToolRail(compact: false),
-                        const VerticalDivider(width: 1),
-                      ],
                       Expanded(
                         child: Column(
                           children: [
@@ -219,10 +219,10 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                     ],
                   ),
                 ),
-                if (phone) ...[
-                  const Divider(height: 1),
-                  const ToolRail(horizontal: true),
-                ],
+                // The tools, as the navigation bar along the bottom, on
+                // every screen: where a thumb reaches them on a phone, and
+                // leaving the drawing the whole width everywhere.
+                const ToolBar(),
               ],
             ),
           ),
@@ -286,7 +286,9 @@ class _ViewBar extends StatelessWidget {
     if (layout == WorkspaceLayout.phone) {
       return Container(
         color: AppTheme.surface,
-        padding: const EdgeInsets.fromLTRB(8, 6, 4, 6),
+        // Nothing under the tabs, so the active view's bar sits on the
+        // edge of the bar of views.
+        padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
         child: Row(
           children: [
             Expanded(child: BarArrival(order: 1, child: tabs)),
@@ -316,7 +318,7 @@ class _ViewBar extends StatelessWidget {
 
     return Container(
       color: AppTheme.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
       child: Row(
         children: [
           BarArrival(order: 1, child: tabs),

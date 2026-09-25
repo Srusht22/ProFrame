@@ -808,10 +808,22 @@ not `MediaQuery`, so a phone-sized browser window on a laptop is a phone:
 
 | | Under 600 | 600 – 900 | Wider |
 | --- | --- | --- | --- |
-| Tools | along the bottom, scrolling, `ToolRail(horizontal)` | down the left, named | down the left |
+| Tools | the navigation bar along the bottom, scrolling | the same, spread out | the same, spread out |
 | Views | Draw / CAD / 3D sharing the width | full names | full names |
 | Read again, Parts, Details | icons | a word and icons | words |
 | What is picked | `_PickedBar` under the drawing, **Edit** opens a drawer | the same | the panel beside it |
+
+**Two navigation bars, one design.** The user asked for a bottom
+navigation bar with an active tab indicator for the tools, and a top one
+for Draw, CAD and 3D. `ToolBar` (`tool_bar.dart`) is the bottom one on
+every screen — each tool a thumb's width at least and at most
+`ToolBar.widest`, so it scrolls on a narrow phone and spreads on a laptop
+— and `ViewTabs` is the top one. Each marks what is active with **one
+indicator that moves**: a pill behind it and a short bar on the edge of
+the navigation bar beside it (the top edge of the tools, the foot of the
+views), both gliding there with a slight overshoot. Off the drawing the
+tools' indicator stands on **Select**, because picking parts is what a
+tap does on the technical drawing and the model.
 
 The drawing always gets the room; everything else moves round it. A tab's
 width is set outright rather than animated, because an animated width
@@ -851,27 +863,43 @@ line, it looks very simple*:
 
 ```
         ── کارگەی ──          small, gold, between two fine rules
-        وەستا سۆران           large and heavy: the name people say
-         شارباژێڕی            lighter, beneath it
+        وەستا سۆران           large, in a Ruqaa hand: the signature
+           ──◆──              a flourish drawing out from the middle
+         شارباژێڕی            light, beneath it
 ```
 
 `brandLines` breaks it only where it already breaks — whole words, in their
 own order, so joined with spaces the lines are `brandName` exactly — and a
-test says so. It is one family, **Noto Kufi Arabic**, a geometric Kufi, in
-three weights (300, 500, 800), so the contrast between the lines is the only
-ornament. Nothing is letter-spaced, because spacing the letters of a joined
-script pulls them apart. The master's name wipes in from the right, the way
-it is read. The typeface came from Google's own Arabic subset, converted to
-TTF, and `test/app/the_launch_test.dart` reads its character map and
-requires a glyph for every letter of the name in every weight, so a font
-change cannot quietly turn ێ or ڕ into boxes.
+test says so. The user did not like it set in one geometric Kufi, so the
+master's name is now written in **Aref Ruqaa** (`brandDisplayFamily`) — the
+everyday calligraphic hand of the region, the way a craftsman signs — and
+the lines either side are set plainly in **Vazirmatn** (`brandFontFamily`),
+so the signature is the one flourish. Nothing is letter-spaced, because
+spacing the letters of a joined script pulls them apart, and nothing is
+split inside a word. Both came from Google's own Arabic subsets, converted
+to TTF, and were chosen from a score of candidates on one test — most
+Arabic faces lack ە, ۆ, ێ or ڕ — which `test/app/the_launch_test.dart`
+keeps: it reads each file's character map and requires a glyph for every
+letter of the name, so a font change cannot quietly turn them into boxes.
+
+**It moves in, and it goes.** The first word drops in as its rules draw out;
+the master's name rises into focus a word at a time, right word first as it
+is read (`brandMainWords`, `LaunchTiming.mainWords`), and settles; a
+flourish draws out under it and the last line comes up beneath; one band
+of light passes across the name. Then it disappears — the user's ask — a
+line at a time from the top, each lifting and blurring away, while the mark
+recedes behind it (`LaunchTiming.leaveLines`, `leaveMark`), so the start
+screen comes up out of an empty field rather than cutting across the name.
+Nothing leaves before everything has arrived, and the test holds that
+order, each word in turn, and the whole name gone by the end.
 
 **`LaunchScreen.duration` is the one figure for its length** — four seconds
 — and every part is a share of it in `LaunchTiming`, so changing it changes
 the pace of all of it together. It replaces itself with the start screen
 when it is done, so nothing navigates back to it and no rebuild starts it
 again. A device asking for less motion gets the finished mark and the name
-faded in over `reducedDuration` and then the start screen; its clock is
+faded in and out over `reducedDuration`, with nothing moving or blurring,
+and then the start screen; its clock is
 `AnimationBehavior.preserve`, because left to the controller that request
 squeezes the whole thing to a flicker. It is drawn in the app's own colours
 and nothing loops, so `pumpAndSettle` runs straight through it — which is
@@ -1044,14 +1072,14 @@ question, then the choices. Leaving (`AlertLayer.leaving`) is quicker, and
 the card on its way out takes no second answer. The next of several
 questions plays its arrival again, so three read as three. The buttons on
 them (`AlertPressable`) lift under the pointer and give when pressed; the
-tools down the left fill their highlight in and bounce once when chosen;
+tools along the bottom bounce once when chosen;
 the panel of questions under the drawing opens up from its foot.
 
 The bars move the same way, by `BarMotion` in `workspace_bars.dart`. The
-tools down the left and the views across the top (`ViewTabs`) each have
-**one** highlight that glides to what is chosen, settling with a slight
-overshoot, rather than nine that switch on and off — so every tool takes
-the same room. When the workspace opens, the title, the top icons and the
+tools along the bottom (`ToolBar`) and the views across the top
+(`ViewTabs`) each have **one** active indicator that glides to what is
+chosen, settling with a slight overshoot, rather than nine that switch on
+and off — so every tool takes the same room. When the workspace opens, the title, the top icons and the
 tools arrive one after another (`BarArrival`). The top icons (`BarIcon`)
 take a halo under the pointer, squeeze when pressed, fade when there is
 nothing to undo, and turn as their icon changes; save becomes a tick for a

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -10,8 +11,24 @@ import 'package:proframe/app/screens/start_screen.dart';
 
 // The workshop's mark plays once as the app opens, and hands over to the
 // home screen. Its name is the workshop's own, in Sorani Kurdish, set right
-// to left in a typeface that has every letter of it; the door in the mark
-// turns on its hinge and the sliding panel only runs along its track.
+// to left in typefaces that have every letter of it; it comes in a word at
+// a time and lifts away before the home screen comes up. The door in the
+// mark turns on its hinge and the sliding panel only runs along its track.
+
+/// Every piece of text the name is set in, top to bottom and, within the
+/// master's name, in the order it is read.
+List<String> get nameParts => [brandLines[0], ...brandMainWords, brandLines[2]];
+
+/// How visible [finder] is: every fade it sits inside, multiplied together.
+double visibility(WidgetTester tester, Finder finder) {
+  var shown = 1.0;
+  for (final fade in tester.widgetList<Opacity>(
+    find.ancestor(of: finder, matching: find.byType(Opacity)),
+  )) {
+    shown *= fade.opacity;
+  }
+  return shown;
+}
 
 Future<void> openTheApp(WidgetTester tester, Size size) async {
   await tester.binding.setSurfaceSize(size);
@@ -90,11 +107,16 @@ void main() {
       }
     });
 
-    test('its typeface has every letter of it, in every weight used', () {
+    test('the master\'s name is its middle line, word for word', () {
+      expect(brandMainWords.join(' '), brandLines[1]);
+      expect(brandMainWords, hasLength(LaunchTiming.mainWords.length));
+    });
+
+    test('its typefaces have every letter of it, in every weight used', () {
       for (final file in [
-        'assets/fonts/NotoKufiArabic-300.ttf',
-        'assets/fonts/NotoKufiArabic-500.ttf',
-        'assets/fonts/NotoKufiArabic-800.ttf',
+        'assets/fonts/ArefRuqaa-700.ttf',
+        'assets/fonts/Vazirmatn-300.ttf',
+        'assets/fonts/Vazirmatn-600.ttf',
       ]) {
         final glyphs = glyphsIn(File(file).readAsBytesSync());
         for (final c in brandName.runes) {
@@ -108,26 +130,94 @@ void main() {
       }
     });
 
-    testWidgets('is set in it, right to left, as text', (tester) async {
+    testWidgets('is set in them, right to left, as text', (tester) async {
       await openTheApp(tester, const Size(390, 844));
-      await tester.pump(LaunchScreen.duration);
-      for (final line in brandLines) {
-        final text = tester.widget<Text>(find.text(line));
-        expect(text.textDirection, TextDirection.rtl);
-        expect(text.style?.fontFamily, brandFontFamily);
+      await tester.pump(LaunchScreen.duration * 0.84);
+      Text text(String part) => tester.widget<Text>(find.text(part));
+      for (final part in nameParts) {
+        expect(text(part).textDirection, TextDirection.rtl);
       }
-      // Read top to bottom, as the name is read.
-      final tops = [
-        for (final line in brandLines) tester.getRect(find.text(line)).top,
-      ];
-      expect(tops[0], lessThan(tops[1]));
-      expect(tops[1], lessThan(tops[2]));
+      // The master's name is the signature, in the Ruqaa hand; the lines
+      // either side of it are set plainly.
+      for (final word in brandMainWords) {
+        expect(text(word).style?.fontFamily, brandDisplayFamily);
+      }
+      for (final line in [brandLines[0], brandLines[2]]) {
+        expect(text(line).style?.fontFamily, brandFontFamily);
+      }
+      // Read top to bottom, as the name is read, and the master's name
+      // right to left.
+      double top(String part) => tester.getRect(find.text(part)).top;
+      expect(top(brandLines[0]), lessThan(top(brandMainWords.first)));
+      expect(top(brandMainWords.first), lessThan(top(brandLines[2])));
+      double right(String part) => tester.getRect(find.text(part)).right;
+      expect(right(brandMainWords[0]), greaterThan(right(brandMainWords[1])));
       // The master's name is the largest of the three.
-      double size(String line) =>
-          tester.widget<Text>(find.text(line)).style!.fontSize!;
-      expect(size(brandLines[1]), greaterThan(size(brandLines[0])));
-      expect(size(brandLines[1]), greaterThan(size(brandLines[2])));
+      double size(String part) => text(part).style!.fontSize!;
+      expect(size(brandMainWords[0]), greaterThan(size(brandLines[0])));
+      expect(size(brandMainWords[0]), greaterThan(size(brandLines[2])));
       await tester.pumpAndSettle();
+    });
+  });
+
+  group('the name comes in, and goes', () {
+    test('a word at a time in the order it is read, and then away', () {
+      final words = LaunchTiming.mainWords;
+      expect(words[0].begin, lessThan(words[1].begin), reason: 'right first');
+      expect(LaunchTiming.firstLine.begin, lessThan(words[0].begin));
+      expect(words.last.begin, lessThan(LaunchTiming.lastLine.begin));
+      // Everything has arrived, and been lit, before anything leaves.
+      final arrived = [
+        LaunchTiming.firstLine.end,
+        for (final w in words) w.end,
+        LaunchTiming.lastLine.end,
+      ].reduce(math.max);
+      expect(arrived, lessThanOrEqualTo(LaunchTiming.shimmer.begin + 0.06));
+      for (final leaving in [
+        LaunchTiming.leaveMark,
+        ...LaunchTiming.leaveLines,
+      ]) {
+        expect(leaving.begin, greaterThan(arrived));
+        expect(leaving.end, lessThanOrEqualTo(1));
+      }
+      // Top line first.
+      final lines = LaunchTiming.leaveLines;
+      expect(lines[0].begin, lessThan(lines[1].begin));
+      expect(lines[1].begin, lessThan(lines[2].begin));
+    });
+
+    testWidgets('each word appears in turn, and all of it disappears', (
+      tester,
+    ) async {
+      await openTheApp(tester, const Size(390, 844));
+      Duration at(double share) => LaunchScreen.duration * share;
+      double shown(String part) => visibility(tester, find.text(part));
+
+      await tester.pump(at(0.5));
+      for (final part in nameParts) {
+        expect(shown(part), 0, reason: '$part is not there yet');
+      }
+
+      // Between the two words' arrivals: the first read is there before
+      // the second.
+      await tester.pump(at(0.2));
+      expect(shown(brandMainWords[0]), greaterThan(shown(brandMainWords[1])));
+
+      await tester.pump(at(0.13));
+      for (final part in nameParts) {
+        expect(shown(part), closeTo(1, 1e-6), reason: '$part is all there');
+      }
+
+      // Leaving: the top line goes first.
+      await tester.pump(at(0.09));
+      expect(shown(brandLines[0]), lessThan(shown(brandLines[2])));
+
+      await tester.pump(at(0.08) - const Duration(milliseconds: 1));
+      for (final part in nameParts) {
+        expect(shown(part), lessThan(0.05), reason: '$part has gone');
+      }
+      await tester.pumpAndSettle();
+      expect(find.byType(StartScreen), findsOneWidget);
     });
   });
 
@@ -252,8 +342,17 @@ void main() {
 
       await openTheApp(tester, const Size(390, 844));
       await tester.pump(LaunchScreen.reducedDuration ~/ 2);
-      for (final line in brandLines) {
-        expect(find.text(line), findsOneWidget);
+      for (final part in nameParts) {
+        expect(find.text(part), findsOneWidget);
+        expect(visibility(tester, find.text(part)), closeTo(1, 1e-6));
+        // Nothing moves or blurs: the words are where they will rest.
+        expect(
+          find.ancestor(
+            of: find.text(part),
+            matching: find.byType(ImageFiltered),
+          ),
+          findsNothing,
+        );
       }
       await tester.pump(LaunchScreen.reducedDuration);
       await tester.pump();
@@ -274,11 +373,11 @@ void main() {
         tester,
       ) async {
         await openTheApp(tester, size);
-        await tester.pump(LaunchScreen.duration * 0.9);
+        await tester.pump(LaunchScreen.duration * 0.84);
         expect(tester.takeException(), isNull, reason: 'nothing overflows');
 
         final screen = Offset.zero & size;
-        final name = brandLines
+        final name = nameParts
             .map((line) => tester.getRect(find.text(line)))
             .reduce((a, b) => a.expandToInclude(b));
         final mark = tester.getRect(
