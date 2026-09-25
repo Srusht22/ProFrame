@@ -259,8 +259,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
       await toTheCategories(tester);
-      await tester.tap(find.text('DOOR & WINDOW'));
-      await tester.pumpAndSettle();
+      await chooseDesign(tester, 'DOOR & WINDOW');
 
       final controller = container.read(workspaceProvider.notifier);
       controller.state = controller.state.copyWith(
@@ -288,8 +287,7 @@ void main() {
       expect(find.text('WINDOW'), findsOneWidget);
       expect(find.text('DOOR & WINDOW'), findsOneWidget);
 
-      await tester.tap(find.text('DOOR & WINDOW'));
-      await tester.pumpAndSettle();
+      await chooseDesign(tester, 'DOOR & WINDOW');
       expect(container.read(workspaceProvider).design.kind, DesignKind.both);
     });
 
@@ -307,8 +305,7 @@ void main() {
       await toTheCategories(tester);
 
       expect(find.text('SLIDING'), findsOneWidget);
-      await tester.tap(find.text('SLIDING'));
-      await tester.pumpAndSettle();
+      await chooseDesign(tester, 'SLIDING');
       expect(
         container.read(workspaceProvider).design.kind,
         DesignKind.sliding,

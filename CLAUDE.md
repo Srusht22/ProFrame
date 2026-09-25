@@ -915,7 +915,7 @@ user's words: create a new design, or open an existing one.
 ```
 Designs  →  New Design  →  who it is for, what it is called  →  Continue
                                                                     ↓
-          ←───────── back ─────────  the workspace  ←  door / window / both / sliding
+          ←───────── back ─────────  the workspace  ←  Choose your design
 ```
 
 - **A card is the design itself, drawn.** `DesignPreview` draws a read
@@ -933,8 +933,7 @@ Designs  →  New Design  →  who it is for, what it is called  →  Continue
   design saved before it still loads. `designMatches` finds a design by
   customer, name, id or number.
 - **New Design asks two things and nothing else**, both optional, then
-  goes into the choice of door, window, both or sliding exactly as it was
-  (`StartScreen`, now given the two answers). Choosing keeps the design at
+  goes into **Choose your design** (`StartScreen`, given the two answers). Choosing keeps the design at
   once, so it is in the list from the moment it exists, and goes into the
   workspace with the designs underneath it — back is to the list, not
   through the steps that began it.
@@ -955,17 +954,39 @@ words; anything wider a grid, every picture the same height.
 `test/app/new_design.dart` is how every other app test now gets from the
 designs to the choice of door or window.
 
-### The start screen
+### Choose your design
 
-Each of the four cards — door, window, door & window, sliding — is drawn by
-a pen as it arrives: the outline, the bars, then the mark in gold. The
-sliding card is the user's first reference: the left panel, its pull on its
-left stile, overlapping the fixed right one, and a gold arrow to the right. It is painted
-from lines, like everything else, never a picture. Every movement finishes:
-the cards arrive once, in turn, and a card draws itself again only when the
-pointer comes onto it. Nothing loops, so the screen is still while it is
-read, `pumpAndSettle` settles, and a device asking for less motion sees it
-already drawn.
+After the new design's form, one question: what the product is.
+`StartScreen` puts **Door** and **Window** as the two large main choices —
+side by side where there is room, one above the other on a phone, each
+most of the width and a thumb's target — and **Door & window** and
+**Sliding** as smaller cards under *More types*. The user was asked whether
+to drop those two, since the brief named only door and window, and said
+*I want all of them*: a sliding design cannot be begun any other way,
+because a design's kind is fixed once it is started.
+
+A card is chosen by tapping it and stays plainly chosen — the brand's green
+edge, a tint, a tick, and *Door selected* in the bar at the foot — and a
+second tap on another moves the choice rather than adding to it. **Start
+drawing**, in that bar and so always in reach, is off until something is
+chosen; it begins the design with the kind, the customer and the name,
+keeps it, and goes into the existing drawing with the designs underneath.
+Nothing else is asked.
+
+**The kind is where the design starts, not a fence round it**, and the
+screen says so: every opening can still be said to be a door or a window
+of its own (`OpeningElement.kind`), beside fixed areas in the same frame.
+Opening a saved design never comes here — `the designs screen` goes
+straight to `openDesign`.
+
+Each card is drawn by a pen as it arrives — the outline, the bars, then
+the mark in gold — and again when it is chosen or the pointer comes onto
+it; `_PenDrawing` is the one set of drawings, and the sliding one is the
+user's first reference. Painted from lines, never a picture. Every movement
+finishes, so `pumpAndSettle` settles and a device asking for less motion
+sees it drawn. `test/app/choose_your_design_test.dart` holds all of it, and
+`chooseDesign` in `test/app/new_design.dart` is how every other app test
+gets from the choice into the drawing.
 
 ### A sliding design
 
@@ -1576,7 +1597,7 @@ leaves follow the design as they always did, because `leafDefault` gives
 them something the user did choose.
 
 `test/app/a_design_of_both_kinds_test.dart` holds it: the third category on
-the start screen, a door and a window in one frame, a leaf nobody has named
+*Choose your design*, a door and a window in one frame, a leaf nobody has named
 carrying hinges and no handle, the handle appearing when they say, the two
 older kinds still following their design, the reading of the sheet
 unchanged by any of it, and a save and a reload.

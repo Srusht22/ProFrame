@@ -329,8 +329,7 @@ void main() {
       await openTheApp(tester, const Size(1280, 820));
       await tester.pumpAndSettle();
       await toTheCategories(tester);
-      await tester.tap(find.text('DOOR'));
-      await tester.pumpAndSettle();
+      await chooseDesign(tester, 'DOOR');
       expect(find.byType(WorkspaceScreen), findsOneWidget);
       await tester.tap(find.byIcon(Icons.arrow_back));
       await tester.pumpAndSettle();

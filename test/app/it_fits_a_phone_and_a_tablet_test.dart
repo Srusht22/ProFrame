@@ -43,8 +43,7 @@ Future<(ProviderContainer, WorkspaceController)> twoLeavesAt(
     100,
     scrollable: find.byType(Scrollable).first,
   );
-  await tester.tap(find.text('DOOR & WINDOW'));
-  await tester.pumpAndSettle();
+  await chooseDesign(tester, 'DOOR & WINDOW');
 
   final controller = await sheet.twoLeaves(container);
   final order = container.read(workspaceProvider).design.openingsInOrder;

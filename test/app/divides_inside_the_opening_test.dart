@@ -48,8 +48,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
     await toTheCategories(tester);
-    await tester.tap(find.text('WINDOW'));
-    await tester.pumpAndSettle();
+    await chooseDesign(tester, 'WINDOW');
 
     controller
       ..openDesign(design)

@@ -33,8 +33,7 @@ Future<ProviderContainer> openTheApp(WidgetTester tester, String card) async {
   );
   await tester.pumpAndSettle();
   await toTheCategories(tester);
-  await tester.tap(find.text(card));
-  await tester.pumpAndSettle();
+  await chooseDesign(tester, card);
   return container;
 }
 

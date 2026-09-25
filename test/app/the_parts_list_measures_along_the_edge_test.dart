@@ -27,8 +27,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
     await toTheCategories(tester);
-    await tester.tap(find.text('WINDOW'));
-    await tester.pumpAndSettle();
+    await chooseDesign(tester, 'WINDOW');
 
     final controller = await sheet.twoLeaves(container);
     final order = container.read(workspaceProvider).design.openingsInOrder;

@@ -25,3 +25,15 @@ Future<void> toTheCategories(
   await tester.tap(find.text('Continue'));
   await tester.pumpAndSettle();
 }
+
+/// On **Choose your design**, picks the card called [card] — `DOOR`,
+/// `WINDOW`, `DOOR & WINDOW` or `SLIDING` — and starts drawing: the way a
+/// user goes from the choice into the drawing.
+Future<void> chooseDesign(WidgetTester tester, String card) async {
+  await tester.ensureVisible(find.text(card));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(card));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Start drawing'));
+  await tester.pumpAndSettle();
+}

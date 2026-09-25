@@ -449,8 +449,7 @@ void main() {
       for (final card in ['DOOR', 'WINDOW', 'DOOR & WINDOW', 'SLIDING']) {
         expect(find.text(card), findsOneWidget);
       }
-      await tester.tap(find.text('WINDOW'));
-      await tester.pumpAndSettle();
+      await chooseDesign(tester, 'WINDOW');
 
       expect(find.byType(WorkspaceScreen), findsOneWidget);
       final design = c.read(workspaceProvider).design;
@@ -472,8 +471,7 @@ void main() {
       await keepThree();
       await openTheApp(tester);
       await toTheCategories(tester, customer: 'Dilan', name: 'Balcony');
-      await tester.tap(find.text('DOOR'));
-      await tester.pumpAndSettle();
+      await chooseDesign(tester, 'DOOR');
       await tester.tap(find.byIcon(Icons.arrow_back));
       await tester.pumpAndSettle();
       expect(shownInOrder(tester, ['Dilan', 'Ahmed', 'Karwan', 'Sara']), [
@@ -487,8 +485,7 @@ void main() {
     testWidgets('left empty, it is named as it always was', (tester) async {
       final c = await openTheApp(tester);
       await toTheCategories(tester);
-      await tester.tap(find.text('DOOR'));
-      await tester.pumpAndSettle();
+      await chooseDesign(tester, 'DOOR');
       final design = c.read(workspaceProvider).design;
       expect(design.name, 'Untitled door');
       expect(design.customer, isNull);

@@ -11,7 +11,7 @@ import 'package:proframe/domain/sketch/stroke.dart';
 import 'new_design.dart';
 
 void main() {
-  testWidgets('the start screen offers a door and a window, and nothing else',
+  testWidgets('choose your design: a door and a window, and the rest',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(1400, 950));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -20,14 +20,14 @@ void main() {
     await tester.pumpAndSettle();
     await toTheCategories(tester);
 
-    expect(find.text('ProFrame'), findsOneWidget);
-    expect(find.text('CREATE DESIGN'), findsOneWidget);
-    expect(find.text('DOOR'), findsOneWidget);
-    expect(find.text('WINDOW'), findsOneWidget);
+    expect(find.text('Choose your design'), findsOneWidget);
     expect(
-      find.textContaining('No templates, no stock pictures'),
+      find.text('Select the type of product you want to create.'),
       findsOneWidget,
     );
+    expect(find.text('DOOR'), findsOneWidget);
+    expect(find.text('WINDOW'), findsOneWidget);
+    expect(find.text('MORE TYPES'), findsOneWidget);
   });
 
   testWidgets('picking a window opens the workspace with the canvas dominant',
@@ -39,8 +39,7 @@ void main() {
     await tester.pumpAndSettle();
     await toTheCategories(tester);
 
-    await tester.tap(find.text('WINDOW'));
-    await tester.pumpAndSettle();
+    await chooseDesign(tester, 'WINDOW');
 
     expect(find.text('Untitled window'), findsOneWidget);
     expect(find.text('Draw'), findsOneWidget);
@@ -71,8 +70,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: ProFrameApp()));
     await tester.pumpAndSettle();
     await toTheCategories(tester);
-    await tester.tap(find.text('WINDOW'));
-    await tester.pumpAndSettle();
+    await chooseDesign(tester, 'WINDOW');
 
     final rail = tester.getSize(find.byType(Scaffold).last);
     expect(rail.width, 1400);
@@ -95,8 +93,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
     await toTheCategories(tester);
-    await tester.tap(find.text('WINDOW'));
-    await tester.pumpAndSettle();
+    await chooseDesign(tester, 'WINDOW');
 
     captured.read(workspaceProvider.notifier).addStroke(
       const [

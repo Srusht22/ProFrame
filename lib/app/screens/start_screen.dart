@@ -9,22 +9,30 @@ import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'workspace_screen.dart';
 
-/// Where a new design begins: say what you are drawing — a door, a window,
-/// a frame holding both, or a sliding set — and draw.
+/// **Choose your design**: the one step between naming a new design and
+/// drawing it — what kind of product it is.
 ///
-/// It is reached from **New Design** on the designs screen, which has
-/// already asked who the design is for and what it is called; [customer]
-/// and [name] are those answers, and the design is begun with them.
+/// A door and a window are the two main choices, large, side by side where
+/// there is room and one above the other on a phone. A frame holding both
+/// and a sliding set are there too, smaller, under **More types**: the user
+/// asked for all of them. A card is chosen by tapping it and stays visibly
+/// chosen; **Start drawing** then begins the design and goes into the
+/// drawing, exactly as it always has.
+///
+/// **The choice is where the design starts, not a fence round it.** It is
+/// `Design.kind`, kept with the design, and every opening in it can still be
+/// said to be a door or a window of its own — a door design can hold a
+/// window leaf, and a window design a door.
+///
+/// It is reached from the new design's form, which has already asked who
+/// the design is for and what it is called; [customer] and [name] are those
+/// answers. Opening a saved design never comes here: it goes straight into
+/// the design as it was kept.
 ///
 /// **Each card shows the application doing what it does**, not a picture of
 /// a door: a pen draws the outline, then the bars, then the mark that says a
-/// leaf opens. It is painted from lines like everything else on the screen,
-/// because nothing here is ever a picture (`no_stock_content_test.dart`).
-///
-/// Every movement on this screen finishes. The cards arrive once, in turn,
-/// and a card draws itself again only when the pointer comes onto it; nothing
-/// loops, so the screen is still while the user is reading it — and a test,
-/// or anybody who has asked their device for less motion, sees it settled.
+/// leaf opens, from lines like everything else on the screen
+/// (`no_stock_content_test.dart`). Every movement finishes; nothing loops.
 class StartScreen extends ConsumerStatefulWidget {
   /// Who the new design is for, where the user said.
   final String? customer;
@@ -34,16 +42,34 @@ class StartScreen extends ConsumerStatefulWidget {
 
   const StartScreen({super.key, this.customer, this.name});
 
+  /// The two main choices, and what each card says.
+  static const mainChoices = [
+    (DesignKind.door, 'Create a custom door design'),
+    (DesignKind.window, 'Create a custom window design'),
+  ];
+
+  /// The other two, under **More types**.
+  static const moreChoices = [
+    (DesignKind.both, 'Doors and windows in one frame'),
+    (DesignKind.sliding, 'Panels that slide past each other'),
+  ];
+
+  /// What the button that begins the design says.
+  static const startLabel = 'Start drawing';
+
   @override
   ConsumerState<StartScreen> createState() => _StartScreenState();
 }
 
 class _StartScreenState extends ConsumerState<StartScreen>
     with SingleTickerProviderStateMixin {
+  /// The kind chosen so far, or null while nothing is.
+  DesignKind? _chosen;
+
   /// The arrival of the whole screen: the heading, then each card in turn.
   late final AnimationController _arrival = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 900),
+    duration: const Duration(milliseconds: 800),
   );
 
   @override
@@ -70,7 +96,7 @@ class _StartScreenState extends ConsumerState<StartScreen>
       parent: _arrival,
       curve: Interval(
         from,
-        math.min(1, from + 0.45),
+        math.min(1, from + 0.5),
         curve: Curves.easeOutCubic,
       ),
     );
@@ -86,7 +112,9 @@ class _StartScreenState extends ConsumerState<StartScreen>
     );
   }
 
-  void _begin(DesignKind kind) {
+  void _begin() {
+    final kind = _chosen;
+    if (kind == null) return;
     final controller = ref.read(workspaceProvider.notifier)
       ..startDesign(kind, name: widget.name, customer: widget.customer);
     // Kept straight away, so it is among the recent designs from the moment
@@ -101,261 +129,317 @@ class _StartScreenState extends ConsumerState<StartScreen>
     );
   }
 
+  Widget _cards(
+    List<(DesignKind, String)> choices, {
+    required bool large,
+    required bool stacked,
+    required double from,
+    required int delayFrom,
+  }) {
+    final cards = [
+      for (final (i, (kind, blurb)) in choices.indexed)
+        _arriving(
+          from + i * 0.08,
+          _ChoiceCard(
+            kind: kind,
+            blurb: blurb,
+            large: large,
+            chosen: _chosen == kind,
+            // Each pen starts as its card arrives.
+            delay: Duration(milliseconds: 200 + (delayFrom + i) * 140),
+            onTap: () => setState(() => _chosen = kind),
+          ),
+        ),
+    ];
+    if (stacked) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final card in cards) ...[
+            card,
+            if (card != cards.last) SizedBox(height: large ? 14 : 10),
+          ],
+        ],
+      );
+    }
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final card in cards) ...[
+            Expanded(child: card),
+            if (card != cards.last) const SizedBox(width: 18),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    const kinds = [
-      (
-        DesignKind.door,
-        'Any shape, any number of panels, hinged wherever you draw it.',
-      ),
-      (
-        DesignKind.window,
-        'Any outline, any arrangement of bars, opening wherever you mark it.',
-      ),
-      (
-        DesignKind.both,
-        'One frame holding leaves of each kind. You say which every '
-            'opening is.',
-      ),
-      (
-        DesignKind.sliding,
-        'Panels that slide past each other. Mark each one that slides with '
-            'the way it goes.',
-      ),
-    ];
+    final forWhom = [?widget.customer, ?widget.name].join('  ·  ');
 
     return Scaffold(
-      backgroundColor: AppTheme.primary,
-      body: Stack(
-        children: [
-          // Drafting paper, faintly, behind everything: this is a place
-          // where things are drawn.
-          const Positioned.fill(child: CustomPaint(painter: _Paper())),
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 28,
-                  vertical: 40,
-                ),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 980),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _arriving(0, _Heading(theme: theme)),
-                      const SizedBox(height: 36),
-                      _arriving(
-                        0.1,
-                        Text(
-                          'CREATE DESIGN',
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: AppTheme.accent.withValues(alpha: 0.7),
-                            letterSpacing: 1.4,
+      appBar: AppBar(title: const Text('New Design')),
+      body: LayoutBuilder(
+        builder: (context, room) {
+          final phone = room.maxWidth < 600;
+          final gutter = phone ? 16.0 : 32.0;
+          return Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(gutter, 28, gutter, 28),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 880),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _arriving(
+                            0,
+                            _Heading(forWhom: forWhom, phone: phone),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final narrow = constraints.maxWidth < 720;
-                          // Four across where there is room for four, and
-                          // two by two where there is not.
-                          final twoByTwo = constraints.maxWidth < 900;
-                          final cards = [
-                            for (var i = 0; i < kinds.length; i++)
-                              _arriving(
-                                0.18 + i * 0.12,
-                                _KindCard(
-                                  kind: kinds[i].$1,
-                                  blurb: kinds[i].$2,
-                                  // Each pen starts as its card arrives.
-                                  delay: Duration(milliseconds: 250 + i * 140),
-                                  onTap: () => _begin(kinds[i].$1),
-                                ),
+                          SizedBox(height: phone ? 20 : 28),
+                          _cards(
+                            StartScreen.mainChoices,
+                            large: true,
+                            stacked: phone,
+                            from: 0.1,
+                            delayFrom: 0,
+                          ),
+                          const SizedBox(height: 28),
+                          _arriving(
+                            0.3,
+                            const Text(
+                              'MORE TYPES',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.6,
+                                color: AppTheme.muted,
                               ),
-                          ];
-                          if (narrow) {
-                            return Column(
-                              children: [
-                                for (final card in cards) ...[
-                                  card,
-                                  if (card != cards.last)
-                                    const SizedBox(height: 14),
-                                ],
-                              ],
-                            );
-                          }
-                          Widget row(List<Widget> cards) => IntrinsicHeight(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                for (final card in cards) ...[
-                                  Expanded(child: card),
-                                  if (card != cards.last)
-                                    const SizedBox(width: 16),
-                                ],
-                              ],
                             ),
-                          );
-                          if (twoByTwo) {
-                            return Column(
-                              children: [
-                                row(cards.sublist(0, 2)),
-                                const SizedBox(height: 16),
-                                row(cards.sublist(2)),
-                              ],
-                            );
-                          }
-                          return row(cards);
-                        },
-                      ),
-                      const SizedBox(height: 32),
-                      _arriving(
-                        0.55,
-                        Text(
-                          'Nothing is designed for you. No templates, no '
-                          'stock pictures, no assumptions about what a door '
-                          'usually looks like. Where your drawing is unclear '
-                          'you will be asked.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: AppTheme.accent.withValues(alpha: 0.62),
                           ),
-                        ),
+                          const SizedBox(height: 10),
+                          _cards(
+                            StartScreen.moreChoices,
+                            large: false,
+                            stacked: phone,
+                            from: 0.34,
+                            delayFrom: 2,
+                          ),
+                          const SizedBox(height: 22),
+                          _arriving(0.45, const _StillMixed()),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-          // The way back to the form that brought the user here.
-          if (Navigator.of(context).canPop())
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: IconButton(
-                  tooltip: 'Back',
-                  onPressed: () => Navigator.of(context).maybePop(),
-                  icon: const Icon(Icons.arrow_back, color: AppTheme.accent),
-                ),
+              _StartBar(
+                chosen: _chosen,
+                phone: phone,
+                gutter: gutter,
+                onStart: _begin,
               ),
-            ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-/// The name, the promise, and the three steps it keeps.
+/// The title, what it asks, and who the design is for.
 class _Heading extends StatelessWidget {
-  final ThemeData theme;
-  const _Heading({required this.theme});
+  final String forWhom;
+  final bool phone;
+
+  const _Heading({required this.forWhom, required this.phone});
 
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(
-        'ProFrame',
-        style: theme.textTheme.displaySmall?.copyWith(
-          color: AppTheme.accent,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.5,
-        ),
-      ),
-      const SizedBox(height: 12),
-      ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 640),
-        child: Text(
-          'Draw your door or window by hand. What you draw becomes the '
-          'design — the exact shape, the exact divisions, the exact '
-          'proportions — and the design becomes the model.',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: AppTheme.accent.withValues(alpha: 0.86),
-            fontSize: 16,
-            height: 1.5,
+      if (forWhom.isNotEmpty) ...[
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: AppTheme.primary.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.person_outline,
+                size: 15,
+                color: AppTheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  forWhom,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primary,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
+        const SizedBox(height: 14),
+      ],
+      Text(
+        'Choose your design',
+        style: TextStyle(
+          fontSize: phone ? 26 : 32,
+          fontWeight: FontWeight.w700,
+          height: 1.15,
+          color: AppTheme.ink,
+        ),
       ),
-      const SizedBox(height: 18),
-      Wrap(
-        spacing: 10,
-        runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          for (final (i, step) in const [
-            (Icons.gesture, 'Draw it'),
-            (Icons.chevron_right, 'Mark what opens'),
-            (Icons.view_in_ar_outlined, 'See it built'),
-          ].indexed) ...[
-            if (i > 0)
-              Icon(
-                Icons.arrow_forward,
-                size: 14,
-                color: AppTheme.accent.withValues(alpha: 0.45),
-              ),
-            _Step(icon: step.$1, label: step.$2),
-          ],
-        ],
+      const SizedBox(height: 6),
+      const Text(
+        'Select the type of product you want to create.',
+        style: TextStyle(fontSize: 15, color: AppTheme.muted),
       ),
     ],
   );
 }
 
-class _Step extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _Step({required this.icon, required this.label});
+/// That the choice is where the design starts, not all it can be.
+class _StillMixed extends StatelessWidget {
+  const _StillMixed();
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    decoration: BoxDecoration(
-      color: AppTheme.accent.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(999),
-      border: Border.all(color: AppTheme.accent.withValues(alpha: 0.18)),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 15, color: AppTheme.accent),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(
-            fontFamily: AppTheme.fontFamily,
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.accent,
-          ),
+  Widget build(BuildContext context) => const Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(Icons.info_outline, size: 17, color: AppTheme.muted),
+      SizedBox(width: 8),
+      Expanded(
+        child: Text(
+          'This is where the design starts, not a limit on it: any opening '
+          'you mark can still be made a door or a window, and fixed areas '
+          'sit beside them in the same frame.',
+          style: TextStyle(fontSize: 13, height: 1.45, color: AppTheme.muted),
         ),
-      ],
-    ),
+      ),
+    ],
   );
 }
 
-/// One thing to start from, drawn by a pen as it arrives.
-class _KindCard extends StatefulWidget {
+/// The foot of the screen: what is chosen, and the way into the drawing.
+/// It stays put while the cards scroll, so the button is always in reach.
+class _StartBar extends StatelessWidget {
+  final DesignKind? chosen;
+  final bool phone;
+  final double gutter;
+  final VoidCallback onStart;
+
+  const _StartBar({
+    required this.chosen,
+    required this.phone,
+    required this.gutter,
+    required this.onStart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final button = FilledButton.icon(
+      onPressed: chosen == null ? null : onStart,
+      icon: const Icon(Icons.arrow_forward, size: 20),
+      iconAlignment: IconAlignment.end,
+      label: const Text(StartScreen.startLabel),
+    );
+    final said = Text(
+      chosen == null
+          ? 'Choose a type to continue'
+          : '${chosen!.label} selected',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: 14,
+        fontWeight: chosen == null ? FontWeight.w500 : FontWeight.w700,
+        color: chosen == null ? AppTheme.muted : AppTheme.primary,
+      ),
+    );
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        border: const Border(top: BorderSide(color: AppTheme.hairline)),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.ink.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(gutter, 12, gutter, 12),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 880),
+              child: phone
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Center(child: said),
+                        const SizedBox(height: 10),
+                        button,
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(child: said),
+                        const SizedBox(width: 16),
+                        button,
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One thing to start from: its drawing, drawn by a pen as it arrives, its
+/// name and what it is for. [large] for the two main choices, and a compact
+/// row for the others. Chosen, it takes the brand's green edge, a tint and
+/// a tick, so which one is chosen is plain from across the room.
+class _ChoiceCard extends StatefulWidget {
   final DesignKind kind;
   final String blurb;
+  final bool large;
+  final bool chosen;
   final Duration delay;
   final VoidCallback onTap;
 
-  const _KindCard({
+  const _ChoiceCard({
     required this.kind,
     required this.blurb,
+    required this.large,
+    required this.chosen,
     required this.delay,
     required this.onTap,
   });
 
   @override
-  State<_KindCard> createState() => _KindCardState();
+  State<_ChoiceCard> createState() => _ChoiceCardState();
 }
 
-class _KindCardState extends State<_KindCard>
+class _ChoiceCardState extends State<_ChoiceCard>
     with SingleTickerProviderStateMixin {
   static const _drawing = Duration(milliseconds: 1300);
 
@@ -376,14 +460,26 @@ class _KindCardState extends State<_KindCard>
 
   bool _hovering = false;
 
+  bool get _still => MediaQuery.of(context).disableAnimations;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_pen.isAnimating || _pen.isCompleted) return;
-    if (MediaQuery.of(context).disableAnimations) {
+    if (_still) {
       _pen.value = 1;
     } else {
       _pen.forward();
+    }
+  }
+
+  @override
+  void didUpdateWidget(_ChoiceCard old) {
+    super.didUpdateWidget(old);
+    // Chosen, it draws itself once more: the choice answered in the card's
+    // own terms.
+    if (widget.chosen && !old.chosen && !_still) {
+      _pen.forward(from: _waitFraction);
     }
   }
 
@@ -396,132 +492,173 @@ class _KindCardState extends State<_KindCard>
   void _hover(bool on) {
     setState(() => _hovering = on);
     // Coming onto a card draws it again, straight away.
-    if (on && !MediaQuery.of(context).disableAnimations) {
-      _pen.forward(from: _waitFraction);
-    }
+    if (on && !widget.chosen && !_still) _pen.forward(from: _waitFraction);
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return MouseRegion(
-      onEnter: (_) => _hover(true),
-      onExit: (_) => _hover(false),
-      child: AnimatedSlide(
-        offset: Offset(0, _hovering ? -0.015 : 0),
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
+    final chosen = widget.chosen;
+    final quick = _still ? Duration.zero : const Duration(milliseconds: 220);
+    final drawing = ClipRRect(
+      borderRadius: BorderRadius.circular(widget.large ? 14 : 10),
+      child: ColoredBox(
+        color: AppTheme.canvas,
+        child: AnimatedBuilder(
+          animation: _progress,
+          builder: (context, _) => CustomPaint(
+            painter: _PenDrawing(kind: widget.kind, progress: _progress.value),
+            child: const SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+    final title = Text(
+      widget.kind.label.toUpperCase(),
+      style: TextStyle(
+        fontSize: widget.large ? 18 : 14.5,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.4,
+        color: AppTheme.primary,
+      ),
+    );
+    final blurb = Text(
+      widget.blurb,
+      style: TextStyle(
+        fontSize: widget.large ? 14 : 13,
+        height: 1.4,
+        color: AppTheme.muted,
+      ),
+    );
+    final tick = _Tick(chosen: chosen, duration: quick);
+
+    final body = widget.large
+        ? Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Stack(
+                  children: [
+                    SizedBox(height: 168, child: drawing),
+                    Positioned(top: 10, right: 10, child: tick),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: title,
+                ),
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: blurb,
+                ),
+              ],
+            ),
+          )
+        : Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                SizedBox(width: 76, height: 64, child: drawing),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [title, const SizedBox(height: 2), blurb],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                tick,
+              ],
+            ),
+          );
+
+    return Semantics(
+      button: true,
+      selected: chosen,
+      label: widget.kind.label,
+      child: MouseRegion(
+        onEnter: (_) => _hover(true),
+        onExit: (_) => _hover(false),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
+          duration: quick,
           curve: Curves.easeOutCubic,
+          transform: Matrix4.translationValues(
+            0,
+            _hovering && !chosen ? -3 : 0,
+            0,
+          ),
           decoration: BoxDecoration(
-            color: AppTheme.accent,
-            borderRadius: BorderRadius.circular(22),
+            color: chosen
+                ? Color.alphaBlend(
+                    AppTheme.primary.withValues(alpha: 0.05),
+                    AppTheme.surface,
+                  )
+                : AppTheme.surface,
+            borderRadius: BorderRadius.circular(widget.large ? 22 : 16),
             border: Border.all(
-              color: _hovering ? AppTheme.selection : Colors.transparent,
-              width: 1.5,
+              color: chosen
+                  ? AppTheme.primary
+                  : _hovering
+                  ? AppTheme.primary.withValues(alpha: 0.35)
+                  : AppTheme.hairline,
+              width: chosen ? 2 : 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: _hovering ? 0.32 : 0.18),
-                blurRadius: _hovering ? 30 : 16,
-                offset: Offset(0, _hovering ? 14 : 8),
+                color: chosen
+                    ? AppTheme.primary.withValues(alpha: 0.18)
+                    : AppTheme.ink.withValues(alpha: _hovering ? 0.1 : 0.04),
+                blurRadius: chosen || _hovering ? 22 : 10,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
           child: Material(
             type: MaterialType.transparency,
             child: InkWell(
+              borderRadius: BorderRadius.circular(widget.large ? 22 : 16),
               onTap: widget.onTap,
-              borderRadius: BorderRadius.circular(22),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-                // Spaced rather than given a Spacer: side by side the cards
-                // are one height and the call to action sits at the foot of
-                // each; stacked, the height is unbounded and each card is
-                // just as tall as it needs.
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // The drawing, on its own bit of drafting paper.
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Container(
-                            height: 150,
-                            width: double.infinity,
-                            color: AppTheme.canvas,
-                            child: AnimatedBuilder(
-                              animation: _progress,
-                              builder: (context, _) => CustomPaint(
-                                painter: _PenDrawing(
-                                  kind: widget.kind,
-                                  progress: _progress.value,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          widget.kind.label.toUpperCase(),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: AppTheme.primary,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          widget.blurb,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: AppTheme.primary.withValues(alpha: 0.78),
-                            height: 1.45,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 14),
-                      child: Row(
-                        children: [
-                          // Four cards share the width, so the words give
-                          // way to the arrow rather than run past the card.
-                          Flexible(
-                            child: Text(
-                              'Start drawing',
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                color: AppTheme.primary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          AnimatedPadding(
-                            duration: const Duration(milliseconds: 220),
-                            curve: Curves.easeOutCubic,
-                            padding: EdgeInsets.only(left: _hovering ? 10 : 6),
-                            child: const Icon(
-                              Icons.arrow_forward,
-                              size: 17,
-                              color: AppTheme.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              child: body,
             ),
           ),
         ),
       ),
     );
   }
+}
+
+/// The tick on a card: an empty ring until it is chosen, then the brand's
+/// green with the accent's tick in it, popping in as it is.
+class _Tick extends StatelessWidget {
+  final bool chosen;
+  final Duration duration;
+
+  const _Tick({required this.chosen, required this.duration});
+
+  @override
+  Widget build(BuildContext context) => AnimatedContainer(
+    duration: duration,
+    curve: Curves.easeOutBack,
+    width: 26,
+    height: 26,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: chosen ? AppTheme.primary : AppTheme.surface,
+      border: Border.all(
+        color: chosen ? AppTheme.primary : AppTheme.hairline,
+        width: 1.6,
+      ),
+    ),
+    child: AnimatedScale(
+      scale: chosen ? 1 : 0,
+      duration: duration,
+      curve: Curves.easeOutBack,
+      child: const Icon(Icons.check, size: 16, color: AppTheme.accent),
+    ),
+  );
 }
 
 /// A door, a window, a frame holding both, or a sliding set, drawn by a pen
@@ -672,39 +809,4 @@ class _PenDrawing extends CustomPainter {
   @override
   bool shouldRepaint(_PenDrawing old) =>
       old.progress != progress || old.kind != kind;
-}
-
-/// Faint drafting paper behind the start screen.
-class _Paper extends CustomPainter {
-  const _Paper();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const step = 28.0;
-    final fine = Paint()
-      ..color = AppTheme.accent.withValues(alpha: 0.035)
-      ..strokeWidth = 1;
-    final bold = Paint()
-      ..color = AppTheme.accent.withValues(alpha: 0.07)
-      ..strokeWidth = 1;
-    var i = 0;
-    for (var x = 0.0; x <= size.width; x += step, i++) {
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height),
-        i % 5 == 0 ? bold : fine,
-      );
-    }
-    i = 0;
-    for (var y = 0.0; y <= size.height; y += step, i++) {
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        i % 5 == 0 ? bold : fine,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_Paper old) => false;
 }
