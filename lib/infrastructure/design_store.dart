@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../domain/dimensions/measurements.dart';
 import '../domain/model/design.dart';
 
 /// A short number for the design with [id] that a person can read out and
@@ -60,8 +61,16 @@ class DesignSummary {
     customer: design.customer,
     name: design.name,
     kind: design.kind,
-    widthMm: design.frame == null ? null : design.widthMm,
-    heightMm: design.frame == null ? null : design.heightMm,
+    // Only a size the user has given: one read off the sketch is a guess,
+    // and the list does not write guesses down.
+    widthMm: design.frame == null ||
+            !Measurements.knowsOverall(design, MeasureAxis.across)
+        ? null
+        : design.widthMm,
+    heightMm: design.frame == null ||
+            !Measurements.knowsOverall(design, MeasureAxis.down)
+        ? null
+        : design.heightMm,
     createdAt: design.createdAt,
     updatedAt: design.updatedAt,
   );

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../domain/dimensions/dimension_chain.dart';
+import '../../domain/dimensions/measurements.dart';
 import '../../domain/dimensions/units.dart';
 import '../../domain/geometry/polygon.dart';
 import '../../domain/geometry/segment.dart';
@@ -577,18 +578,22 @@ class CadPainter extends CustomPainter {
 
   void _chains(Canvas canvas, DesignTree tree) {
     final frame = design.frame!;
+    final sizes = Measurements.of(design);
     for (final chain in DimensionChains.of(design)) {
       final out = CadDimensions.outFor(chain);
       for (final run in chain.runs) {
+        // A figure nobody has given is written `?`: the sketch has no
+        // scale, and a number read off it would be a guess.
+        final known = CadDimensions.knows(design, chain.axis, run, sizes);
         if (chain.axis == DimensionAxis.horizontal) {
-          _horizontalRun(canvas, run, frame.outline.bottom, out);
+          _horizontalRun(canvas, run, frame.outline.bottom, out, known);
         } else {
-          _verticalRun(canvas, run, frame.outline.left, out);
+          _verticalRun(canvas, run, frame.outline.left, out, known);
         }
       }
       _chainName(canvas, chain, frame.outline, out);
     }
-    _sectionSizes(canvas, tree.sections);
+    _sectionSizes(canvas, tree.sections, sizes);
   }
 
   /// What a row of dimensions is measuring, at the end of it.
@@ -637,10 +642,14 @@ class CadPainter extends CustomPainter {
   /// panes, not by a figure of its own written across them. Asking the tree
   /// is asking the design; working it out here would be a second opinion
   /// about the same thing.
-  void _sectionSizes(Canvas canvas, List<TreeSection> branches) {
+  void _sectionSizes(
+    Canvas canvas,
+    List<TreeSection> branches,
+    List<Measure> sizes,
+  ) {
     for (final branch in branches) {
       if (!branch.isLeaf) {
-        _sectionSizes(canvas, branch.panes);
+        _sectionSizes(canvas, branch.panes, sizes);
         continue;
       }
       final section = design.sectionById(branch.sectionId);
@@ -654,8 +663,7 @@ class CadPainter extends CustomPainter {
       if (at == null) continue;
 
       final text = Cad.label(
-        '${Units.format(section.widthMm)} × '
-            '${Units.label(section.heightMm)}',
+        Measurements.sizeOf(design, section, sizes),
         colour: ink.light,
         size: Cad.smallTextSize,
         weight: FontWeight.w600,
@@ -678,6 +686,7 @@ class CadPainter extends CustomPainter {
     ChainRun run,
     double fromMm,
     double outPixels,
+    bool known,
   ) {
     final at = CadDimensions.horizontalRunAt(view, run, fromMm, outPixels);
     if (at == null) return;
@@ -699,7 +708,12 @@ class CadPainter extends CustomPainter {
     _tick(canvas, Offset(x1, y), paint);
     _tick(canvas, Offset(x2, y), paint);
 
-    _dimensionLabel(canvas, Units.label(run.valueMm), at, horizontal: true);
+    _dimensionLabel(
+      canvas,
+      Measurements.figure(run.valueMm, known: known),
+      at,
+      horizontal: true,
+    );
   }
 
   void _verticalRun(
@@ -707,6 +721,7 @@ class CadPainter extends CustomPainter {
     ChainRun run,
     double fromMm,
     double outPixels,
+    bool known,
   ) {
     final at = CadDimensions.verticalRunAt(view, run, fromMm, outPixels);
     if (at == null) return;
@@ -727,7 +742,12 @@ class CadPainter extends CustomPainter {
     _tick(canvas, Offset(x, y1), paint);
     _tick(canvas, Offset(x, y2), paint);
 
-    _dimensionLabel(canvas, Units.label(run.valueMm), at, horizontal: false);
+    _dimensionLabel(
+      canvas,
+      Measurements.figure(run.valueMm, known: known),
+      at,
+      horizontal: false,
+    );
   }
 
   /// The forty-five degree slash that building drawings use instead of an
@@ -785,9 +805,13 @@ class CadPainter extends CustomPainter {
       _tick(canvas, from, paint);
       _tick(canvas, to, paint);
 
+      // A dimension the user drew measures the sketch, which has a scale
+      // only once the design's sizes are given; one they typed is theirs.
       final text = dimension.isStated
           ? Units.label(dimension.valueMm)
-          : '${Units.label(dimension.valueMm)} ~';
+          : Measurements.complete(design)
+              ? '${Units.label(dimension.valueMm)} ~'
+              : '? ${Units.symbol}';
       _dimensionLabel(
         canvas,
         text,

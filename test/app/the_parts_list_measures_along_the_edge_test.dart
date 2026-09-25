@@ -36,6 +36,7 @@ void main() {
       ..setOpeningKind(order[1].id, DesignKind.window)
       ..setOpeningMechanism(order[0].id, OpeningMechanism.bottomHung);
     await tester.pumpAndSettle();
+    await notNowToSizes(tester);
     await tester.tap(find.text('Parts'));
     await tester.pumpAndSettle();
 

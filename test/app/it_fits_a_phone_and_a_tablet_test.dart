@@ -51,6 +51,7 @@ Future<(ProviderContainer, WorkspaceController)> twoLeavesAt(
     ..setOpeningKind(order[0].id, DesignKind.window)
     ..setOpeningKind(order[1].id, DesignKind.door);
   await tester.pumpAndSettle();
+  await notNowToSizes(tester);
   return (container, controller);
 }
 

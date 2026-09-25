@@ -437,12 +437,12 @@ abstract final class DesignEdits {
     if (growth.abs() < Tol.sameLengthMm) return design;
 
     final right =
-        _dividerAlong(design, x: section.outline.right, within: section.parentId);
+        dividerAlong(design, x: section.outline.right, within: section.parentId);
     if (right != null) {
       return moveDivider(design, right.id, Vec2(growth, 0));
     }
     final left =
-        _dividerAlong(design, x: section.outline.left, within: section.parentId);
+        dividerAlong(design, x: section.outline.left, within: section.parentId);
     if (left != null) {
       return moveDivider(design, left.id, Vec2(-growth, 0));
     }
@@ -482,12 +482,12 @@ abstract final class DesignEdits {
     if (growth.abs() < Tol.sameLengthMm) return design;
 
     final below =
-        _dividerAlong(design, y: section.outline.bottom, within: section.parentId);
+        dividerAlong(design, y: section.outline.bottom, within: section.parentId);
     if (below != null) {
       return moveDivider(design, below.id, Vec2(0, growth));
     }
     final above =
-        _dividerAlong(design, y: section.outline.top, within: section.parentId);
+        dividerAlong(design, y: section.outline.top, within: section.parentId);
     if (above != null) {
       return moveDivider(design, above.id, Vec2(0, -growth));
     }
@@ -1346,7 +1346,7 @@ abstract final class DesignEdits {
   /// of an opening are made by the bars drawn inside that opening, and a
   /// transom on the design outside it cannot be what one of them ends at,
   /// even where the two happen to lie along the same line.
-  static DividerElement? _dividerAlong(
+  static DividerElement? dividerAlong(
     Design design, {
     double? x,
     double? y,

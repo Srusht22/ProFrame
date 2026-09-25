@@ -8,8 +8,14 @@ import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 
 // A mark says a section opens. It does not say whether the leaf is a door
-// or a window, and the two are not made the same — so the user is asked,
-// once, about the opening that has just been made.
+// or a window, and the two are not made the same — so in a design begun as
+// holding both, the user is asked, once, about the opening that has just
+// been made.
+//
+// **Only there.** The user's words: *for the door and the window category
+// there is no need to ask whether it is a door or a window.* A door
+// design's leaves are doors and a window design's are windows; the user
+// said so when they chose what to draw.
 //
 //   User marks  >  in a section
 //        ↓
@@ -64,10 +70,11 @@ ProviderContainer makeContainer() {
   return container;
 }
 
-/// A workspace with that sheet read.
-WorkspaceController read() {
+/// A workspace with that sheet read, begun as [kind] — holding both,
+/// unless a test says otherwise, because that is the design that asks.
+WorkspaceController read({DesignKind kind = DesignKind.both}) {
   final controller = makeContainer().read(workspaceProvider.notifier)
-    ..startDesign(DesignKind.window);
+    ..startDesign(kind);
   controller.state = controller.state.copyWith(
     design: controller.state.design.copyWith(sketch: sheet()),
   );
@@ -79,6 +86,26 @@ Set<String> asked(WorkspaceController c) =>
     {for (final q in c.state.allQuestions) q.id};
 
 void main() {
+  group('a door or a window design is not asked', () {
+    for (final kind in [
+      DesignKind.door,
+      DesignKind.window,
+      DesignKind.sliding,
+    ]) {
+      test('a ${kind.label.toLowerCase()} design', () {
+        final c = read(kind: kind);
+        expect(c.state.design.openings, hasLength(3));
+        expect(asked(c).where((id) => id.startsWith('kind-')), isEmpty);
+        expect(c.state.openingKindQuestions, isEmpty);
+        // Every leaf is what the design is, without being asked.
+        for (final opening in c.state.design.openings) {
+          expect(opening.kind, isNull, reason: 'nothing written for them');
+          expect(c.state.design.kindOf(opening), kind.leafDefault);
+        }
+      });
+    }
+  });
+
   group('the question is put once the opening exists', () {
     test('one question for each opening, and none for a fixed light', () {
       final c = read();
@@ -147,8 +174,8 @@ void main() {
         if (other.id == opening.id) continue;
         expect(other.kind, isNull, reason: 'nobody has said about that one');
       }
-      // And the design itself is not made a door: it may hold both.
-      expect(after.kind, DesignKind.window);
+      // And the design itself is not made a door: it holds both.
+      expect(after.kind, DesignKind.both);
     });
 
     test('no geometry moves', () {
@@ -164,7 +191,9 @@ void main() {
     });
 
     test('the leaf’s ironmongery is worked out again', () {
-      final c = read();
+      // A window design, whose leaves carry a window's handle until one is
+      // said to be a door on its own panel.
+      final c = read(kind: DesignKind.window);
       final opening = c.state.design.openingsInOrder[0];
 
       Set<HardwareKind> piecesOn(Design design, String openingId) {
@@ -185,7 +214,7 @@ void main() {
 
       final asWindow = piecesOn(c.state.design, opening.id);
       final wasAt = handleUp(c.state.design, opening.id);
-      c.answer('kind-${opening.id}', 'door');
+      c.setOpeningKind(opening.id, DesignKind.door);
       final asDoor = piecesOn(c.state.design, opening.id);
 
       // The answer rebuilds what the leaf carries: a window's espagnolette
@@ -272,9 +301,12 @@ void main() {
       expect(asked(c), isNot(contains('kind-${opening.id}')));
       expect(c.state.design.openingById(opening.id)!.kind, isNull,
           reason: 'waving a question away is not an answer to it');
-      // It still follows the design, which is a kind the user did choose.
-      expect(c.state.design.kindOf(c.state.design.openingById(opening.id)!),
-          c.state.design.kind);
+      // A design of both says nothing about any one leaf, so nothing is
+      // assumed for this one.
+      expect(
+        c.state.design.kindOf(c.state.design.openingById(opening.id)!),
+        isNull,
+      );
     });
   });
 

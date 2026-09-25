@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/dimensions/measurements.dart';
 import '../../domain/dimensions/units.dart';
 import '../../domain/hardware/opening_hardware.dart';
 import '../../domain/model/design.dart';
@@ -49,8 +50,7 @@ class ComponentTree extends ConsumerWidget {
       children: [
         _Row(
           element: design.frame!,
-          detail: '${Units.format(design.widthMm)} × '
-              '${Units.label(design.heightMm)}',
+          detail: Measurements.overallOf(design),
           icon: Icons.crop_square,
           selected: state.selectedId == design.frame!.id,
           onTap: () => controller.select(design.frame!.id),
@@ -58,7 +58,7 @@ class ComponentTree extends ConsumerWidget {
         for (final member in design.frameMembers)
           _Row(
             element: member,
-            detail: Units.label(member.lengthMm),
+            detail: _length(design, member.lengthMm),
             icon: member.run.isVerticalish
                 ? Icons.vertical_align_center
                 : Icons.horizontal_rule,
@@ -72,7 +72,7 @@ class ComponentTree extends ConsumerWidget {
         ])
           _Row(
             element: divider,
-            detail: '${Units.label(divider.lengthMm)} · '
+            detail: '${_length(design, divider.lengthMm)} · '
                 '${divider.segment.headingDegrees.toStringAsFixed(0)}°',
             icon: divider.isVertical
                 ? Icons.vertical_align_center
@@ -88,8 +88,9 @@ class ComponentTree extends ConsumerWidget {
         for (final piece in placedByHand)
           _Row(
             element: piece,
-            detail: '${Units.format(piece.at.x)}, '
-                '${Units.label(piece.at.y)}',
+            detail: Measurements.complete(design)
+                ? '${Units.format(piece.at.x)}, ${Units.label(piece.at.y)}'
+                : '?, ? ${Units.symbol}',
             icon: Icons.radio_button_checked,
             indent: 1,
             selected: state.selectedId == piece.id,
@@ -147,10 +148,9 @@ List<Widget> _sectionRows(
     _Row(
       element: section,
       detail: holds
-          ? '${Units.format(section.widthMm)} × '
-              '${Units.label(section.heightMm)} · holds ${branch.panes.length}'
-          : '${Units.format(section.widthMm)} × '
-              '${Units.label(section.heightMm)} · '
+          ? '${Measurements.sizeOf(design, section)} · '
+              'holds ${branch.panes.length}'
+          : '${Measurements.sizeOf(design, section)} · '
               '${section.finish.material.label}',
       icon: holds
           ? Icons.account_tree_outlined
@@ -175,7 +175,7 @@ List<Widget> _sectionRows(
       if (design.sectionHolding(piece.parentId) == section.id)
         _Row(
           element: piece,
-          detail: _placeOn(piece, section, opening),
+          detail: _placeOn(design, piece, section, opening),
           icon: piece.kind == HardwareKind.hinge
               ? Icons.blur_linear
               : Icons.radio_button_checked,
@@ -186,7 +186,7 @@ List<Widget> _sectionRows(
     for (final bar in bars)
       _Row(
         element: bar,
-        detail: '${Units.label(bar.lengthMm)} · inside',
+        detail: '${_length(design, bar.lengthMm)} · inside',
         icon: bar.isVertical
             ? Icons.vertical_align_center
             : Icons.horizontal_rule,
@@ -291,6 +291,7 @@ class _GroupLabel extends StatelessWidget {
 /// Measuring *up* there gave both hinges of a bottom hung sash as "0 cm up",
 /// which is true and says nothing about either of them.
 String _placeOn(
+  Design design,
   HardwareElement piece,
   SectionElement section,
   OpeningElement? opening,
@@ -298,7 +299,12 @@ String _placeOn(
   final edge = opening?.mechanism.hingeEdge ?? opening?.mechanism.slideEdge;
   final alongARail = edge == OpeningEdge.top || edge == OpeningEdge.bottom;
   final figure = alongARail
-      ? '${Units.label(piece.at.x - section.outline.left)} from the left'
-      : '${Units.label(section.outline.bottom - piece.at.y)} up';
+      ? '${_length(design, piece.at.x - section.outline.left)} from the left'
+      : '${_length(design, section.outline.bottom - piece.at.y)} up';
   return piece.kind == HardwareKind.hinge ? figure : '$figure · on the opening';
 }
+
+/// A length read off the design: written once every size is given, and
+/// `?` until then, because before that it is the sketch's guess.
+String _length(Design design, double mm) =>
+    Measurements.figure(mm, known: Measurements.complete(design));

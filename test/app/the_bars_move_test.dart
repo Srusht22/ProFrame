@@ -5,6 +5,7 @@ import 'package:proframe/app/screens/workspace_bars.dart';
 import 'package:proframe/app/state/tools.dart';
 import 'package:proframe/app/state/workspace.dart';
 
+import 'new_design.dart';
 import 'pause_and_take_it_back_test.dart' as sheet;
 
 // The tools along the bottom and the views across the top are two
@@ -61,6 +62,7 @@ void main() {
     final c = await sheet.openTheApp(tester, 'WINDOW');
     await sheet.twoLeaves(c);
     await tester.pumpAndSettle();
+    await notNowToSizes(tester);
     // Answer the kind questions so nothing covers the bar.
     for (final opening in c.read(workspaceProvider).design.openings) {
       c

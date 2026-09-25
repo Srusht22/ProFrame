@@ -213,6 +213,7 @@ void main() {
         ..setOpeningKind(order[1].id, DesignKind.window)
         ..select(null);
       await tester.pumpAndSettle();
+      await notNowToSizes(tester);
 
       expect(find.text('OPENING TYPES'), findsOneWidget);
 

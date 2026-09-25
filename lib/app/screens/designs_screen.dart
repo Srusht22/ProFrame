@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../domain/dimensions/units.dart';
+import '../../domain/dimensions/measurements.dart';
 import '../../domain/model/design.dart';
 import '../../infrastructure/design_store.dart';
 import '../canvas/design_preview.dart';
@@ -608,12 +608,15 @@ class _DesignCardState extends State<DesignCard> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             _Chip(icon: _kindIcon, label: design.kind.label),
-            if (design.widthMm case final width?)
+            if (design.widthMm != null || design.heightMm != null)
               _Chip(
                 icon: Icons.straighten,
-                label:
-                    '${Units.format(width)} × '
-                    '${Units.label(design.heightMm ?? 0)}',
+                label: Measurements.size(
+                  design.widthMm ?? 0,
+                  design.heightMm ?? 0,
+                  knowsWidth: design.widthMm != null,
+                  knowsHeight: design.heightMm != null,
+                ),
               ),
           ],
         ),

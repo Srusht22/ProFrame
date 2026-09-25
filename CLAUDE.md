@@ -130,7 +130,7 @@ Where each one lives:
 | 14 | `OpeningHardware`; `the_openings_hardware_test.dart` |
 | 15 | `DesignTree`; `the_solid_is_the_cad_hierarchy_test.dart`, `one_design_two_views_test.dart` |
 | 16 | `Units`, and a repository scan in `internal_sections_test.dart` |
-| 17, 18 | The two questions listed under **Build it, do not ask about it** |
+| 17, 18 | The questions listed under **Build it, do not ask about it** |
 | 19, 20 | `LocalSpace`, `OpeningLeaf`, `Polygon.sameIn` — and the history in this file |
 
 **Rule 9 holds in three ways, and the limit left is narrow.** A line drawn
@@ -278,7 +278,7 @@ makes it real. Everything above is building.
 ### The only questions left
 
 A question is for a drawing that says *nothing*, not for one that says
-something inconvenient. There are exactly three, and each is asked because
+something inconvenient. There are exactly four, and each is asked because
 the drawing does not hold the answer:
 
 - **The outline does not close.** There is no shape, so there is no frame,
@@ -288,15 +288,23 @@ the drawing does not hold the answer:
 - **No face of the design holds any part of the mark.** Drawn right off the
   design, or entirely on top of the bars, it is in no closed region, so
   there is nothing to open.
-- **What a new opening is — a door or a window.** A `<` or a `>` says the
-  section opens. It does not say which of the two it is, and no amount of
-  looking at the sheet will: a leaf is a door or a window because of what
-  the user is building, not because of its proportions. It was read off the
-  height before, which is the application deciding from a shape, and it put
-  a door's lever on a tall window sash. See *An opening's hinges and
-  handle*.
+- **What a new opening is — a door or a window — in a design begun as
+  holding both.** A `<` or a `>` says the section opens. It does not say
+  which of the two it is, and no amount of looking at the sheet will: a
+  leaf is a door or a window because of what the user is building, not
+  because of its proportions. It was read off the height before, which is
+  the application deciding from a shape, and it put a door's lever on a
+  tall window sash. See *An opening's hinges and handle*. **Only a Door &
+  window design is asked.** The user's words: *for the door and the window
+  category there is no need to ask whether it is a door or a window.* A
+  door design's leaves are doors and a window design's windows — they said
+  so when they chose what to draw — and a sliding design's leaves follow a
+  door; each leaf can still be made the other kind on its own panel.
+- **The real size of every part.** A sketch has proportions and no scale,
+  so a size read off it is a guess — and the user said never to write a
+  guess as a number. See *Sizes are asked for, never guessed*.
 
-The third one is the only one that is asked about something the application
+The third and fourth are the only ones asked about something the application
 *has* built, and it is still not a questionnaire between the drawing and the
 design: the opening is made first, exactly as the mark says, and the design
 stands whether the question is answered or waved away. It has an editing
@@ -482,7 +490,8 @@ Design
 └── Opening 3  >   a window   its own design: four panes
 ```
 
-Five lights and three marks, all strokes on the sheet; the reading asks
+Five lights and three marks, all strokes on the sheet, in a design begun
+as holding both — the one kind of design that is asked; the reading asks
 what each new leaf is; the answers are given; and only then is the inside
 of each one drawn. Two of the claims are about that order and nothing else
 — the question is asked when the opening is made, and never again — so the
@@ -1941,7 +1950,7 @@ stays one pane, however tall, and `_addFixedInfill` fills it. Two lines make
 three panes; a horizontal and a vertical make four. The count is the user's.
 
 A section's edge can only be made by a bar at its own level, which is why
-`_dividerAlong` takes the level to look at: the panes of an opening are made
+`dividerAlong` takes the level to look at: the panes of an opening are made
 by the bars drawn inside that opening, and a transom on the design outside it
 is not what one of them ends at, even where the two lie along the same line.
 A pane with no bar beside it *is* the opening, so the question passes outward
@@ -2204,7 +2213,8 @@ What each one does when typed over:
 
 | Figure | What moves |
 | --- | --- |
-| Overall width or height | The frame, scaled in proportion |
+| Overall width | The width alone: the sheet stretched across, the height untouched |
+| Overall height | The height alone, the same way down |
 | A daylight or section width | The bar beside the pane, or the jamb when there is no bar |
 | A daylight or section height | The bar above or below it, or the sill |
 | A measurement the user drew | The whole design, scaled to make it true |
@@ -2236,6 +2246,68 @@ each figure on each panel requires the geometry to move, not the label: a
 pane's height moves the bar beside it, a pane's material changes what the
 solid builds for it, and an opening's direction rebuilds its hinges on the
 other stile.
+
+### Sizes are asked for, never guessed
+
+The user's words: *never write any number for width and height as a guess
+— when it runs, ask the width and height of everything: the border, the
+opening part, the glass, a line in the opening.* A hand drawing has
+proportions and no scale, so every figure a reading works out is the
+drawing's size at whatever size the hand happened to draw it. That is not
+a measurement, so it is not written as one.
+
+**`Design.measured` is what the user has given**, a set of keys —
+`profile` (the frame's border), `bars` (their thickness), `width`,
+`height`, and `x:<bar>` / `y:<bar>` for the bar a light's width or height
+moves. Null is a design kept before sizes were asked for, whose figures
+are all shown as they always were. A new design starts with the empty
+set, so until a size is given it is written **`?`** — on the technical
+drawing's chains and panes, in every panel, in the parts list, the 3D
+view's box and the design's card — and a size field opens empty rather
+than offering the guess.
+
+**`Measurements` (`lib/domain/dimensions/measurements.dart`) says what is
+asked.** The frame's border, the bars, the overall width and height, then
+each main division in reading order with the panes drawn inside each
+opening after it. **A size is asked only where the user's answer can be
+built exactly without undoing another**: a row of three lights has two
+free widths, and the third is what is left, so it *follows* and the form
+shows it worked out — arithmetic, not a guess. Each asked size owns the
+one bar it moves (the far one where there is one), and no two sizes own
+the same bar, which is what lets every answer be exact at once.
+
+**`MeasureForm` asks**, the moment a reading has something to measure and
+nothing else is waiting on the user — after the outline gap and the
+door-or-window alerts — and again whenever a reading makes a new size to
+give: a line drawn inside a sash asks only for the pane it made, with the
+cursor already in that field. *Not now* puts it away; the **Sizes** icon on
+the bar at the top (with a dot while anything is missing) and **Enter the
+sizes** on the design's panel open it again.
+
+**A size moves the ink as well as the design**, and that was the bug the
+user reported as *when we change the numbers and apply it, it doesn't
+change to the new one*. It was two faults. The overall width and height
+scaled the whole design in proportion, so typing the height undid the
+width just typed. And a typed size moved a bar or the frame but not the
+ink it was read from, so the next reading — **Read again**, or reading
+after drawing anything at all — rebuilt the design from the ink and every
+typed size was quietly lost. Now every size goes through
+`Measurements.stretch`: the axis is remapped piece by piece, every other
+bar and the frame's sides staying put, and a band round each line moving
+whole, so the ink a line was read from moves exactly as the line does. A
+re-reading finds every line where the size put it, and
+`Measurements.keepAfterReading` takes out the last of a hand's wobble by
+keeping each given bar, and a frame given its size, exactly where it was.
+A frame drawn afresh is a new frame, and its size is asked again.
+
+Every size typed anywhere comes through here — the form, a panel's field,
+a figure tapped on the drawing — so there is one way a size is put into a
+design. `test/domain/sizes_are_asked_not_guessed_test.dart` holds it:
+nothing known after a reading, every size asked, the answers exact, the
+width and the height independent, the last of a row worked out, a size
+that cannot fit refused with a reason, a re-reading — even one that keeps
+nothing — building the same sizes, and a line drawn afterwards asking for
+its one new size and nothing else.
 
 ### Centimetres out, millimetres in
 

@@ -32,3 +32,18 @@ Future<void> chooseDesign(WidgetTester tester, String card) async {
   await tester.tap(find.text('Start drawing'));
   await tester.pumpAndSettle();
 }
+
+/// Puts the sizes away the way a user does who will give them later:
+/// **Not now**. A reading asks for the real size of every part as soon as
+/// there is something to measure; a test about something else answers it
+/// as a user in a hurry would, and goes on.
+Future<void> notNowToSizes(WidgetTester tester) async {
+  await tester.pumpAndSettle();
+  final notNow = find.descendant(
+    of: find.byType(Dialog),
+    matching: find.text('Not now'),
+  );
+  if (notNow.evaluate().isEmpty) return;
+  await tester.tap(notNow.first);
+  await tester.pumpAndSettle();
+}

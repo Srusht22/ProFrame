@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/dimensions/measurements.dart';
 import '../../domain/dimensions/units.dart';
 import '../../domain/editing/design_edits.dart';
 import '../../domain/geometry/polygon.dart';
@@ -826,8 +827,7 @@ class _InsideBar extends StatelessWidget {
                     child: Text(
                       'Inside '
                       '${mechanism?.mechanism.label.toLowerCase() ?? 'this opening'}'
-                      ' — ${Units.format(opening.widthMm)} × '
-                      '${Units.label(opening.heightMm)}',
+                      ' — ${Measurements.sizeOf(design, opening)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -944,12 +944,13 @@ class _FigureEditorState extends State<_FigureEditor> {
   static const double _width = 212;
   static const double _height = 128;
 
-  late final TextEditingController _field =
-      TextEditingController(text: Units.format(widget.figure.valueMm))
-        ..selection = TextSelection(
-          baseOffset: 0,
-          extentOffset: Units.format(widget.figure.valueMm).length,
-        );
+  // A figure the user has not given opens empty: the sketch's reading of
+  // it is a guess, and offering it would be writing the guess down.
+  late final String _shown =
+      widget.figure.known ? Units.format(widget.figure.valueMm) : '';
+  late final TextEditingController _field = TextEditingController(
+    text: _shown,
+  )..selection = TextSelection(baseOffset: 0, extentOffset: _shown.length);
   final FocusNode _focus = FocusNode();
 
   @override

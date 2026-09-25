@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/dimensions/measurements.dart';
 import '../../domain/dimensions/units.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
@@ -230,6 +231,10 @@ class _SolidBar extends StatelessWidget {
               _SolidNumber(
                 label: 'Profile',
                 valueMm: frame.profileMm,
+                known: Measurements.knowsKey(
+                  design,
+                  Measurements.profileKey,
+                ),
                 onSet: controller.setProfile,
               ),
             ConstrainedBox(
@@ -279,10 +284,15 @@ class _SolidNumber extends StatefulWidget {
   final double valueMm;
   final ValueChanged<double> onSet;
 
+  /// False for a size nobody has given: shown empty, as `?`, rather than as
+  /// the sketch's guess.
+  final bool known;
+
   const _SolidNumber({
     required this.label,
     required this.valueMm,
     required this.onSet,
+    this.known = true,
   });
 
   @override
@@ -290,8 +300,10 @@ class _SolidNumber extends StatefulWidget {
 }
 
 class _SolidNumberState extends State<_SolidNumber> {
+  String get _shown => widget.known ? Units.format(widget.valueMm) : '';
+
   late final TextEditingController _field =
-      TextEditingController(text: Units.format(widget.valueMm));
+      TextEditingController(text: _shown);
   late final FocusNode _focus = FocusNode()
     ..addListener(() {
       if (!_focus.hasFocus) _commit();
@@ -300,8 +312,10 @@ class _SolidNumberState extends State<_SolidNumber> {
   @override
   void didUpdateWidget(_SolidNumber old) {
     super.didUpdateWidget(old);
-    if (!_focus.hasFocus && (widget.valueMm - old.valueMm).abs() > 0.05) {
-      _field.text = Units.format(widget.valueMm);
+    if (!_focus.hasFocus &&
+        ((widget.valueMm - old.valueMm).abs() > 0.05 ||
+            widget.known != old.known)) {
+      _field.text = _shown;
     }
   }
 
@@ -315,10 +329,10 @@ class _SolidNumberState extends State<_SolidNumber> {
   void _commit() {
     final value = Units.parse(_field.text);
     if (value == null) {
-      _field.text = Units.format(widget.valueMm);
+      _field.text = _shown;
       return;
     }
-    if ((value - widget.valueMm).abs() < 0.05) return;
+    if (widget.known && (value - widget.valueMm).abs() < 0.05) return;
     widget.onSet(value);
   }
 
@@ -351,6 +365,7 @@ class _SolidNumberState extends State<_SolidNumber> {
                 fontSize: 13.5,
               ),
               decoration: const InputDecoration(
+                hintText: '?',
                 suffixText: Units.symbol,
                 isDense: true,
                 contentPadding:
@@ -584,8 +599,8 @@ class _Readout extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('${Units.format(design.widthMm)} × '
-                '${Units.format(design.heightMm)} × '
+            Text('${_given(design, design.widthMm, MeasureAxis.across)} × '
+                '${_given(design, design.heightMm, MeasureAxis.down)} × '
                 '${Units.label(design.depthMm)}'),
             const SizedBox(height: 2),
             Text('${design.sections.length} sections · '
@@ -695,3 +710,7 @@ class _PlayOpeningState extends State<_PlayOpening>
         ),
       );
 }
+
+/// [mm] as a bare figure where the user has given it, and `?` where not.
+String _given(Design design, double mm, MeasureAxis axis) =>
+    Measurements.knowsOverall(design, axis) ? Units.format(mm) : '?';

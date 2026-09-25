@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/dimensions/dimension_chain.dart';
+import '../../domain/dimensions/measurements.dart';
 import '../../domain/geometry/polygon.dart';
 import '../../domain/geometry/segment.dart';
 import '../../domain/geometry/vec2.dart';
@@ -48,12 +49,18 @@ class DimensionHandle {
   /// What to call it in the editor.
   final String label;
 
+  /// Whether the user has given this size, directly or through the sizes
+  /// it follows from. One they have not is written `?`, and its editor
+  /// opens empty rather than offering the sketch's guess.
+  final bool known;
+
   const DimensionHandle({
     required this.rect,
     required this.of,
     required this.valueMm,
     required this.label,
     this.elementId,
+    this.known = true,
   });
 }
 
@@ -63,6 +70,24 @@ class DimensionHandle {
 /// be tapped are the same thing by construction rather than by two pieces of
 /// arithmetic agreeing with each other.
 abstract final class CadDimensions {
+  /// Whether the figure for [run], in a chain along [axis], is one the
+  /// user has given.
+  static bool knows(
+    Design design,
+    DimensionAxis axis,
+    ChainRun run,
+    List<Measure> sizes,
+  ) {
+    final along = axis == DimensionAxis.horizontal
+        ? MeasureAxis.across
+        : MeasureAxis.down;
+    final section = run.sectionId;
+    if (run.of == ChainRunOf.overall || section == null) {
+      return Measurements.knowsOverall(design, along);
+    }
+    return Measurements.knowsSection(design, section, along, sizes);
+  }
+
   /// How far a tappable figure reaches either side of where it is written.
   static const Size labelReach = Size(78, 20);
 
@@ -160,6 +185,7 @@ abstract final class CadDimensions {
     if (frame == null || !layers.dimensions) return const [];
 
     final handles = <DimensionHandle>[];
+    final sizes = Measurements.of(design);
 
     for (final chain in DimensionChains.of(design)) {
       final out = outFor(chain);
@@ -189,6 +215,7 @@ abstract final class CadDimensions {
           label: overall
               ? (across ? 'Overall width' : 'Overall height')
               : (across ? 'Daylight width' : 'Daylight height'),
+          known: knows(design, chain.axis, run, sizes),
         ));
       }
     }
@@ -210,6 +237,12 @@ abstract final class CadDimensions {
         elementId: section.id,
         valueMm: section.widthMm,
         label: 'Section width',
+        known: Measurements.knowsSection(
+          design,
+          section.id,
+          MeasureAxis.across,
+          sizes,
+        ),
       ));
       handles.add(DimensionHandle(
         rect: Rect.fromLTWH(
@@ -222,6 +255,12 @@ abstract final class CadDimensions {
         elementId: section.id,
         valueMm: section.heightMm,
         label: 'Section height',
+        known: Measurements.knowsSection(
+          design,
+          section.id,
+          MeasureAxis.down,
+          sizes,
+        ),
       ));
     }
 
@@ -238,6 +277,7 @@ abstract final class CadDimensions {
         elementId: dimension.id,
         valueMm: dimension.valueMm,
         label: 'Real size',
+        known: dimension.isStated || Measurements.complete(design),
       ));
     }
 

@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/dimensions/measurements.dart';
 import '../../domain/model/elements.dart';
 import '../canvas/cad_view.dart';
 import '../canvas/drawing_surface.dart';
 import '../inspector/component_tree.dart';
 import '../inspector/inspector_panel.dart';
+import '../inspector/measure_form.dart';
 import '../inspector/opening_kind_alert.dart';
 import '../inspector/outline_gap_alert.dart';
 import '../inspector/questions_panel.dart';
@@ -71,10 +73,33 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
   Timer? _keeping;
   bool _unkept = false;
 
+  /// The sizes the form was last opened for, so the same list is not put
+  /// again the moment the user closes it; and whether it is open now.
+  String _askedFor = '';
+  bool _asking = false;
+
   @override
   void initState() {
     super.initState();
     _controller = ref.read(workspaceProvider.notifier);
+    // A design opened with sizes still to give is asked for them, as one
+    // just read is.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _sizesOutstanding(ref.read(workspaceProvider).sizesToAsk),
+    );
+  }
+
+  /// Asks for the sizes once a reading has made something to measure and
+  /// nothing else is waiting on the user.
+  void _sizesOutstanding(String keys) {
+    if (keys.isEmpty || keys == _askedFor || _asking || !mounted) return;
+    _askedFor = keys;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _asking) return;
+      _asking = true;
+      await MeasureForm.show(context);
+      _asking = false;
+    });
   }
 
   /// The design has changed: keep it once it has stood still for
@@ -114,6 +139,10 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
     ref.listen(workspaceProvider.select((s) => s.design), (before, after) {
       if (!identical(before, after)) _changed();
     });
+    ref.listen(
+      workspaceProvider.select((s) => s.sizesToAsk),
+      (_, keys) => _sizesOutstanding(keys),
+    );
     final state = ref.watch(workspaceProvider);
     final controller = ref.read(workspaceProvider.notifier);
     // Decided by the room the screen is actually given, not by the device:
@@ -153,6 +182,22 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
           ),
         ),
         actions: [
+          if (state.design.frame != null)
+            BarArrival(
+              order: 1,
+              child: Badge(
+                // A dot while sizes are still to give.
+                isLabelVisible: !Measurements.complete(state.design),
+                smallSize: 8,
+                backgroundColor: AppTheme.accent,
+                offset: const Offset(-6, 6),
+                child: BarIcon(
+                  tooltip: 'Sizes',
+                  icon: Icons.straighten,
+                  onPressed: () => MeasureForm.show(context),
+                ),
+              ),
+            ),
           BarArrival(
             order: 1,
             child: BarIcon(

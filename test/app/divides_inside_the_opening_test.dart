@@ -55,13 +55,9 @@ void main() {
       ..showView(WorkspaceView.plan);
     await tester.pumpAndSettle();
 
-    // The leaf has never been said to be a door or a window, so the alert
-    // asking is over the workspace. It is an alert and not a gate: **Not
-    // now** puts it away, the leaf keeps no kind, and the design is exactly
-    // as it was. Everything below is the user editing after that.
-    expect(find.text('Opening type'), findsOneWidget);
-    await tester.tap(find.text('Not now'));
-    await tester.pumpAndSettle();
+    // A window design's leaves are windows: nobody is asked what they are,
+    // so nothing is over the workspace. Everything below is the user
+    // editing.
     expect(find.text('Opening type'), findsNothing);
 
     controller.select('hand-line');

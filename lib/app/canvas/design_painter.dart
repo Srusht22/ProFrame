@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../../domain/dimensions/measurements.dart';
 import '../../domain/dimensions/units.dart';
 import '../../domain/geometry/polygon.dart';
 import '../../domain/geometry/segment.dart';
@@ -414,7 +415,12 @@ class DesignPainter extends CustomPainter {
         canvas,
         // Centimetres, like every other figure the user sees. The geometry
         // is millimetres and this is a figure, so it goes through Units.
-        Units.label(dimension.valueMm),
+        dimension.isStated
+            ? Units.label(dimension.valueMm)
+            : Measurements.figure(
+                dimension.valueMm,
+                known: Measurements.complete(design),
+              ),
         Offset((from.dx + to.dx) / 2, (from.dy + to.dy) / 2),
         emphasis: dimension.isStated,
       );

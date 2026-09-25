@@ -169,7 +169,7 @@ void main() {
     await toTheCategories(tester, customer: 'Karwan');
     await chooseDesign(tester, 'DOOR');
     await sheet.twoLeaves(c);
-    await tester.pumpAndSettle();
+    await notNowToSizes(tester);
     final made = c.read(workspaceProvider).design;
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();

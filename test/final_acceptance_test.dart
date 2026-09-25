@@ -60,9 +60,13 @@ const _panel = Finish(colour: 0xFF7B4A2B, material: MaterialKind.panel);
 ///
 /// Drawn on the sheet and read, exactly as the user does it. Nothing is
 /// answered yet: that is what tests 3 and 4 are about.
+///
+/// Begun as a design holding both, because that is the design the question
+/// is put in: a door design's leaves are doors and a window design's are
+/// windows without anyone being asked.
 WorkspaceController drawn() {
   final controller = container().read(workspaceProvider.notifier)
-    ..startDesign(DesignKind.window);
+    ..startDesign(DesignKind.both);
 
   controller.addStroke(
     inked(const [
@@ -201,9 +205,10 @@ void main() {
     expect(order[2].kind, DesignKind.window);
 
     // Written on the opening, not on the design: one design holds both.
-    expect(design.kind, DesignKind.window);
+    expect(design.kind, DesignKind.both);
     expect(design.kindOf(order[1]), DesignKind.door,
-        reason: 'a door leaf in a window assembly stays a door');
+        reason: 'each leaf is what it was said to be');
+    expect(design.kindOf(order[0]), DesignKind.window);
   });
 
   test('3 — the question is asked only when the opening is created', () {

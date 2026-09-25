@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/dimensions/measurements.dart';
 import '../../domain/dimensions/units.dart';
 import '../../domain/editing/design_edits.dart';
 import '../../domain/geometry/local_space.dart';
@@ -14,6 +15,7 @@ import '../../domain/sections/section_bands.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'colour_picker.dart';
+import 'measure_form.dart';
 
 /// The panel on the right: what is selected, and everything about it that
 /// can be changed.
@@ -67,16 +69,25 @@ class InspectorPanel extends ConsumerWidget {
             _NumberField(
               label: 'Width',
               valueMm: element.widthMm,
+              known: Measurements.knowsOverall(
+                state.design,
+                MeasureAxis.across,
+              ),
               onSet: (v) => controller.resizeFrame(widthMm: v),
             ),
             _NumberField(
               label: 'Height',
               valueMm: element.heightMm,
+              known: Measurements.knowsOverall(state.design, MeasureAxis.down),
               onSet: (v) => controller.resizeFrame(heightMm: v),
             ),
             _NumberField(
               label: 'Frame profile',
               valueMm: element.profileMm,
+              known: Measurements.knowsKey(
+                state.design,
+                Measurements.profileKey,
+              ),
               onSet: controller.setProfile,
             ),
             _NumberField(
@@ -92,21 +103,29 @@ class InspectorPanel extends ConsumerWidget {
             ),
           ],
         FrameMemberElement() => [
-            _Readout('Length', Units.label(element.lengthMm)),
+            _Readout(
+              'Length',
+              Measurements.figure(
+                element.lengthMm,
+                known: Measurements.complete(state.design),
+              ),
+            ),
             _Readout(
               'Angle',
               '${element.run.headingDegrees.toStringAsFixed(1)}°',
             ),
-            _Readout(
-              'From',
-              '${Units.format(element.run.a.x)}, '
-                  '${Units.label(element.run.a.y)}',
-            ),
-            _Readout(
-              'To',
-              '${Units.format(element.run.b.x)}, '
-                  '${Units.label(element.run.b.y)}',
-            ),
+            if (Measurements.complete(state.design)) ...[
+              _Readout(
+                'From',
+                '${Units.format(element.run.a.x)}, '
+                    '${Units.label(element.run.a.y)}',
+              ),
+              _Readout(
+                'To',
+                '${Units.format(element.run.b.x)}, '
+                    '${Units.label(element.run.b.y)}',
+              ),
+            ],
             const SizedBox(height: 6),
             Text(
               'Drag its handle to move this side of the frame square to '
@@ -118,6 +137,10 @@ class InspectorPanel extends ConsumerWidget {
               _NumberField(
                 label: 'Frame profile',
                 valueMm: frame.profileMm,
+                known: Measurements.knowsKey(
+                  state.design,
+                  Measurements.profileKey,
+                ),
                 help: 'One figure for the whole frame, as it is cut from one '
                     'section of material.',
                 onSet: controller.setProfile,
@@ -136,6 +159,7 @@ class InspectorPanel extends ConsumerWidget {
             _NumberField(
               label: 'Length',
               valueMm: element.lengthMm,
+              known: Measurements.complete(state.design),
               onSet: (v) => controller.setDividerLength(element.id, v),
             ),
             _NumberField(
@@ -148,6 +172,10 @@ class InspectorPanel extends ConsumerWidget {
             _NumberField(
               label: 'Bar width',
               valueMm: element.widthMm,
+              known: Measurements.knowsKey(
+                state.design,
+                Measurements.barsKey,
+              ),
               onSet: (v) => controller.setBarWidth(element.id, v),
             ),
             const SizedBox(height: 8),
@@ -178,11 +206,21 @@ class InspectorPanel extends ConsumerWidget {
             _NumberField(
               label: 'Width',
               valueMm: element.widthMm,
+              known: Measurements.knowsSection(
+                state.design,
+                element.id,
+                MeasureAxis.across,
+              ),
               onSet: (v) => controller.setSectionWidth(element.id, v),
             ),
             _NumberField(
               label: 'Height',
               valueMm: element.heightMm,
+              known: Measurements.knowsSection(
+                state.design,
+                element.id,
+                MeasureAxis.down,
+              ),
               onSet: (v) => controller.setSectionHeight(element.id, v),
             ),
             const SizedBox(height: 8),
@@ -306,14 +344,28 @@ class _DesignFields extends StatelessWidget {
         _NumberField(
           label: 'Overall width',
           valueMm: design.widthMm,
-          help: 'Setting this scales the whole design in proportion.',
+          known: Measurements.knowsOverall(design, MeasureAxis.across),
+          help: 'The width alone: the height stays as it is.',
           onSet: controller.setRealWidth,
         ),
         _NumberField(
           label: 'Overall height',
           valueMm: design.heightMm,
+          known: Measurements.knowsOverall(design, MeasureAxis.down),
           onSet: controller.setRealHeight,
         ),
+        // Every size in one place: the frame, each light and each pane.
+        OutlinedButton.icon(
+          onPressed: () => MeasureForm.show(context),
+          icon: const Icon(Icons.straighten, size: 19),
+          label: Text(
+            Measurements.complete(design)
+                ? 'All sizes'
+                : 'Enter the sizes',
+          ),
+          style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
+        ),
+        const SizedBox(height: 8),
         const SizedBox(height: 10),
         _Readout('Sections', '${design.sections.length}'),
         _Readout('Bars', '${design.dividers.length}'),
@@ -463,6 +515,7 @@ class _OpeningHardwareFields extends StatelessWidget {
         if (piece.kind == HardwareKind.hinge) ...[
           _NumberField(
             label: sideHung ? 'First hinge from the top' : 'From the left',
+            known: Measurements.complete(design),
             valueMm: opening.hingeFromStartMm ??
                 OpeningHardware.defaultEndInsetMm,
             onSet: (v) => controller.setOpeningHardware(
@@ -472,6 +525,7 @@ class _OpeningHardwareFields extends StatelessWidget {
           ),
           _NumberField(
             label: sideHung ? 'Last hinge from the bottom' : 'From the right',
+            known: Measurements.complete(design),
             valueMm:
                 opening.hingeFromEndMm ?? OpeningHardware.defaultEndInsetMm,
             onSet: (v) => controller.setOpeningHardware(
@@ -539,6 +593,7 @@ class _OpeningHardwareFields extends StatelessWidget {
           const SizedBox(height: 14),
           _NumberField(
             label: sideHung ? 'Height from the bottom' : 'From the left',
+            known: Measurements.complete(design),
             valueMm: sideHung
                 ? outline.bottom - piece.at.y
                 : piece.at.x - outline.left,
@@ -664,6 +719,7 @@ class _WithinOpening extends StatelessWidget {
                   ? 'From the left of the opening'
                   : 'Into the opening, square to this bar',
           valueMm: along,
+          known: Measurements.complete(state.design),
           help: opening == null
               ? 'Measured inside the section this bar divides.'
               : 'Measured inside the opening, so it stays where you put it '
@@ -672,8 +728,7 @@ class _WithinOpening extends StatelessWidget {
         ),
         _Readout(
           'The opening is',
-          '${Units.format(within.widthMm)} × '
-              '${Units.label(within.heightMm)}',
+          Measurements.sizeOf(state.design, within),
         ),
         const SizedBox(height: 10),
       ],
@@ -943,11 +998,21 @@ class _OpeningFields extends StatelessWidget {
           _NumberField(
             label: 'Width',
             valueMm: section.widthMm,
+            known: Measurements.knowsSection(
+              state.design,
+              section.id,
+              MeasureAxis.across,
+            ),
             onSet: (v) => controller.setSectionWidth(section.id, v),
           ),
           _NumberField(
             label: 'Height',
             valueMm: section.heightMm,
+            known: Measurements.knowsSection(
+              state.design,
+              section.id,
+              MeasureAxis.down,
+            ),
             onSet: (v) => controller.setSectionHeight(section.id, v),
           ),
         ],
@@ -1443,6 +1508,10 @@ class _NumberField extends StatefulWidget {
   final bool isLength;
   final ValueChanged<double> onSet;
 
+  /// False for a size nobody has given. It is shown empty, as `?`, rather
+  /// than as the sketch's guess, and whatever is typed into it is a size.
+  final bool known;
+
   const _NumberField({
     required this.label,
     required this.valueMm,
@@ -1450,11 +1519,15 @@ class _NumberField extends StatefulWidget {
     this.unit = Units.symbol,
     this.isLength = true,
     this.help,
+    this.known = true,
   });
 
   /// What the field shows for the value it holds.
-  String get shown =>
-      isLength ? Units.format(valueMm) : _trim(valueMm);
+  String get shown => !known
+      ? ''
+      : isLength
+          ? Units.format(valueMm)
+          : _trim(valueMm);
 
   /// What a typed figure means in the units the geometry is held in.
   double? read(String text) =>
@@ -1485,7 +1558,8 @@ class _NumberFieldState extends State<_NumberField> {
   void didUpdateWidget(_NumberField old) {
     super.didUpdateWidget(old);
     if (!_focus.hasFocus &&
-        (widget.valueMm - old.valueMm).abs() > 0.05) {
+        ((widget.valueMm - old.valueMm).abs() > 0.05 ||
+            widget.known != old.known)) {
       _field.text = widget.shown;
     }
   }
@@ -1503,7 +1577,7 @@ class _NumberFieldState extends State<_NumberField> {
       _field.text = widget.shown;
       return;
     }
-    if ((value - widget.valueMm).abs() < 0.05) return;
+    if (widget.known && (value - widget.valueMm).abs() < 0.05) return;
     widget.onSet(value);
   }
 
@@ -1524,7 +1598,10 @@ class _NumberFieldState extends State<_NumberField> {
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
               ],
               onSubmitted: (_) => _commit(),
-              decoration: InputDecoration(suffixText: widget.unit),
+              decoration: InputDecoration(
+                hintText: widget.known ? null : '?',
+                suffixText: widget.unit,
+              ),
             ),
             if (widget.help != null) ...[
               const SizedBox(height: 5),

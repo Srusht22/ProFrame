@@ -63,6 +63,20 @@ class Design {
   /// null while nobody has said. See [OutlineGap].
   final OutlineGap? outlineGap;
 
+  /// The sizes the user has given, by key — or null for a design kept
+  /// before the application asked for them, whose figures are all shown.
+  ///
+  /// **A size read off a sketch is a guess, and a guess is not written as a
+  /// number.** The user's words: *never write any number for width and
+  /// height as a guess; ask the width and height of everything.* A hand
+  /// drawing has no scale, so every figure the reading works out — how
+  /// wide the door is, how tall the glass — is only the drawing's
+  /// proportion at whatever size the hand happened to draw it. Until the
+  /// user has said what a figure really is, it is shown as `?` and the
+  /// measurements are asked for. See `Measurements` for the keys and for
+  /// what each one lets be known.
+  final Set<String>? measured;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -84,6 +98,7 @@ class Design {
     this.arrows = const [],
     this.depthMm = 70,
     this.outlineGap,
+    this.measured,
   });
 
   factory Design.empty({
@@ -92,6 +107,7 @@ class Design {
     String? name,
     String? customer,
     DateTime? now,
+    Set<String>? measured,
   }) {
     final at = now ?? DateTime.now();
     return Design(
@@ -101,6 +117,7 @@ class Design {
       customer: customer,
       createdAt: at,
       updatedAt: at,
+      measured: measured,
     );
   }
 
@@ -438,6 +455,7 @@ class Design {
     List<ArrowElement>? arrows,
     double? depthMm,
     OutlineGap? outlineGap,
+    Set<String>? measured,
     DateTime? updatedAt,
   }) {
     // Every edit passes through here, so this is where the two things that
@@ -479,6 +497,7 @@ class Design {
       arrows: arrows ?? this.arrows,
       depthMm: depthMm ?? this.depthMm,
       outlineGap: outlineGap ?? this.outlineGap,
+      measured: measured ?? this.measured,
     );
   }
 
@@ -537,6 +556,7 @@ class Design {
         'updatedAt': updatedAt.toIso8601String(),
         'depthMm': depthMm,
         if (outlineGap != null) 'outlineGap': outlineGap!.name,
+        if (measured != null) 'measured': [...measured!]..sort(),
         'sketch': sketch.toJson(),
         if (frame != null) 'frame': frame!.toJson(),
         'dividers': [for (final d in dividers) d.toJson()],
@@ -590,6 +610,10 @@ class Design {
       outlineGap: OutlineGap.values
           .where((g) => g.name == map['outlineGap'])
           .firstOrNull,
+      measured: switch (map['measured']) {
+        final List<Object?> keys => {for (final k in keys) k! as String},
+        _ => null,
+      },
       sketch: Sketch.fromJson(map['sketch']),
       frame: map['frame'] == null
           ? null

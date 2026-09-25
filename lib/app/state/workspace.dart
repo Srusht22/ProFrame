@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/dimensions/measurements.dart';
 import '../../domain/dimensions/scale.dart';
 import '../../domain/editing/design_edits.dart';
 import '../../domain/geometry/tolerances.dart';
@@ -51,10 +52,20 @@ class WorkspaceState {
   /// raise it, and nothing can raise it twice: not a re-reading, not
   /// switching between the drawing and the model, not a line drawn inside
   /// it, and not opening the design again tomorrow.
+  ///
+  /// **Only a design begun as holding both is asked.** The user's words:
+  /// *for the door and the window category there is no need to ask whether
+  /// it is a door or a window.* A door design's leaves are doors and a
+  /// window design's are windows — the user said so when they chose what to
+  /// draw — and a sliding design's leaves follow a door. Only a Door &
+  /// window assembly says nothing about any one leaf, so only there is the
+  /// question put. Every leaf can still be made the other kind on its own
+  /// panel.
   List<DesignQuestion> get allQuestions => [
     ...questions,
     for (final opening in design.openingsInOrder)
       if (opening.kind == null &&
+          design.kind.leafDefault == null &&
           !settledQuestions.contains(openingKindQuestion(opening.id)))
         DesignQuestion(
           id: openingKindQuestion(opening.id),
@@ -112,6 +123,26 @@ class WorkspaceState {
   DesignQuestion? get outlineGapQuestion => allQuestions
       .where((q) => q.id == SketchInterpreter.outlineGapQuestion)
       .firstOrNull;
+
+  /// The sizes still to be given, once the design is ready to be asked for
+  /// them — its outline read, the sheet read, and nothing else waiting on
+  /// the user — as their keys joined into one string; or empty.
+  ///
+  /// A string, so that watching it says both whether to ask and whether
+  /// what is outstanding has changed since the user was last asked: a line
+  /// drawn and read makes a new size, and that is worth asking about, where
+  /// the same list again is not.
+  String get sizesToAsk {
+    final said = design.measured;
+    if (said == null || design.frame == null || needsReading) return '';
+    if (outlineGapQuestion != null || openingKindQuestions.isNotEmpty) {
+      return '';
+    }
+    return [
+      for (final m in Measurements.of(design))
+        if (m.asked && !said.contains(m.key)) m.key,
+    ].join(',');
+  }
 
   /// The id of the question that asks what one opening is.
   static String openingKindQuestion(String openingId) => 'kind-$openingId';
@@ -232,6 +263,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         kind: kind,
         name: name,
         customer: customer,
+        // Nothing measured yet: every size is asked for once the drawing
+        // is read, and shown as `?` until it is given.
+        measured: const {},
       ),
     );
   }
@@ -489,7 +523,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       notSymbols: state.notSymbols,
     );
     state = state.copyWith(
-      design: result.design,
+      // The sizes the user gave outlast the reading, as everything else
+      // they said does.
+      design: Measurements.keepAfterReading(state.design, result.design),
       questions: [
         for (final question in result.questions)
           if (!state.settledQuestions.contains(question.id)) question,
@@ -578,7 +614,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         notSymbols: notSymbols,
       );
       state = state.copyWith(
-        design: result.design,
+        design: Measurements.keepAfterReading(state.design, result.design),
         notSymbols: notSymbols,
         questions: result.questions,
       );
@@ -882,40 +918,47 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     state = state.copyWith(design: state.design.withElement(updated));
   }
 
-  void setSectionWidth(String sectionId, double widthMm) {
+  /// Puts the sizes the user gave into the design — millimetres, by
+  /// `Measure.key` — and says which could not be made true, and why.
+  ///
+  /// Every size typed anywhere comes through here or through [_setSize],
+  /// so a size moves the ink with the line it measures and outlasts the
+  /// next reading of the sheet, and the overall width and height are two
+  /// separate figures: giving one never changes the other.
+  Map<String, String> measure(Map<String, double> values) {
+    if (values.isEmpty) return const {};
+    final outcome = Measurements.apply(state.design, values);
     _remember();
-    state = state.copyWith(
-      design: DesignEdits.setSectionWidth(state.design, sectionId, widthMm),
-    );
+    state = state.copyWith(design: outcome.design);
+    return outcome.problems;
   }
 
-  void setSectionHeight(String sectionId, double heightMm) {
-    _remember();
-    state = state.copyWith(
-      design: DesignEdits.setSectionHeight(state.design, sectionId, heightMm),
+  void _setSize(String sectionId, MeasureAxis axis, double valueMm) {
+    final outcome = Measurements.setSize(
+      state.design,
+      sectionId,
+      axis,
+      valueMm,
     );
+    if (identical(outcome.design, state.design)) return;
+    _remember();
+    state = state.copyWith(design: outcome.design);
   }
 
-  void resizeFrame({double? widthMm, double? heightMm}) {
-    _remember();
-    state = state.copyWith(
-      design: DesignEdits.resizeFrame(
-        state.design,
-        widthMm: widthMm,
-        heightMm: heightMm,
-      ),
-    );
-  }
+  void setSectionWidth(String sectionId, double widthMm) =>
+      _setSize(sectionId, MeasureAxis.across, widthMm);
+
+  void setSectionHeight(String sectionId, double heightMm) =>
+      _setSize(sectionId, MeasureAxis.down, heightMm);
+
+  void resizeFrame({double? widthMm, double? heightMm}) => measure({
+        Measurements.widthKey: ?widthMm,
+        Measurements.heightKey: ?heightMm,
+      });
 
   void setProfile(double profileMm) {
-    final frame = state.design.frame;
-    if (frame == null || profileMm <= 0) return;
-    _remember(coalesce: 'profile');
-    state = state.copyWith(
-      design: SectionBuilder.rebuild(
-        state.design.withElement(frame.copyWith(profileMm: profileMm)),
-      ),
-    );
+    if (state.design.frame == null || profileMm <= 0) return;
+    measure({Measurements.profileKey: profileMm});
   }
 
   /// Makes a bar a given length, about its own middle.
@@ -1143,18 +1186,19 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   }
 
   /// Puts the whole design into real millimetres from one overall width.
+  /// The overall width, and only the width. It used to scale the whole
+  /// design in proportion, so typing the height afterwards changed the
+  /// width the user had just typed — two answers that could never both be
+  /// true.
   void setRealWidth(double widthMm) {
     if (widthMm <= 0) return;
-    _remember();
-    state = state.copyWith(design: DesignScale.toWidth(state.design, widthMm));
+    measure({Measurements.widthKey: widthMm});
   }
 
+  /// The overall height, and only the height.
   void setRealHeight(double heightMm) {
     if (heightMm <= 0) return;
-    _remember();
-    state = state.copyWith(
-      design: DesignScale.toHeight(state.design, heightMm),
-    );
+    measure({Measurements.heightKey: heightMm});
   }
 
   void rename(String name) =>

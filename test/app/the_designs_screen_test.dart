@@ -12,6 +12,7 @@ import 'package:proframe/app/screens/start_screen.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/app/state/tools.dart';
 import 'package:proframe/app/state/workspace.dart';
+import 'package:proframe/domain/dimensions/measurements.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
@@ -58,7 +59,14 @@ Design drawn({
     ),
   );
   controller.readDrawing();
-  final design = controller.state.design.copyWith(updatedAt: edited);
+  // Kept with every size given, as a design is once the user has measured
+  // it: these are about the list, not about being asked for sizes.
+  final read = controller.state.design;
+  final measured = Measurements.apply(read, {
+    for (final m in Measurements.of(read))
+      if (m.asked) m.key: m.currentMm(read),
+  }).design;
+  final design = measured.copyWith(updatedAt: edited);
   expect(design.frame, isNotNull, reason: 'the drawing was read');
   return design;
 }
