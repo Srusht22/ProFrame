@@ -8,6 +8,7 @@ import 'package:proframe/domain/editing/design_edits.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 
 import '../final_visual_and_3d_test.dart' as fin;
+import 'new_design.dart';
 
 // Choosing **Divides → inside the opening** on a bar's own panel.
 //
@@ -46,6 +47,7 @@ void main() {
       child: const ProFrameApp(),
     ));
     await tester.pumpAndSettle();
+    await toTheCategories(tester);
     await tester.tap(find.text('WINDOW'));
     await tester.pumpAndSettle();
 

@@ -840,7 +840,7 @@ it was noise and is not to come back.
 
 ### The launch
 
-The app opens on the workshop's mark, once, and then the start screen —
+The app opens on the workshop's mark, once, and then the designs —
 `lib/app/screens/launch_screen.dart`. One emblem, three things the workshop
 makes and fits in one frame: a hinged door down the left, a four-pane window
 above on the right and a sliding panel below it. The frame draws itself in,
@@ -895,15 +895,65 @@ order, each word in turn, and the whole name gone by the end.
 
 **`LaunchScreen.duration` is the one figure for its length** — four seconds
 — and every part is a share of it in `LaunchTiming`, so changing it changes
-the pace of all of it together. It replaces itself with the start screen
+the pace of all of it together. It replaces itself with the designs
 when it is done, so nothing navigates back to it and no rebuild starts it
 again. A device asking for less motion gets the finished mark and the name
 faded in and out over `reducedDuration`, with nothing moving or blurring,
-and then the start screen; its clock is
+and then the designs; its clock is
 `AnimationBehavior.preserve`, because left to the controller that request
 squeezes the whole thing to a flicker. It is drawn in the app's own colours
 and nothing loops, so `pumpAndSettle` runs straight through it — which is
 why every app test that opens the app still passes unchanged.
+
+### The designs, before door or window
+
+A workshop draws for hundreds of people, so the app does not open on *door
+or window*. It opens on **Designs** (`designs_screen.dart`): every design
+kept, the most recently edited first, a search, and **New Design**. The
+user's words: create a new design, or open an existing one.
+
+```
+Designs  →  New Design  →  who it is for, what it is called  →  Continue
+                                                                    ↓
+          ←───────── back ─────────  the workspace  ←  door / window / both / sliding
+```
+
+- **A card is the design itself, drawn.** `DesignPreview` draws a read
+  design with the same `CadPainter` as the technical drawing — figures,
+  grid and handles left off — and a design not read yet as its own strokes.
+  Nothing on the screen is a picture of doors in general
+  (`no_stock_content_test.dart` still holds), and a design with nothing
+  drawn says *Nothing drawn yet*. Each card carries who it is for, its name,
+  its kind, its size where it has a frame, when it was last edited and its
+  number (`shortIdOf`: the moment it was made, to the millisecond, in eight
+  letters and figures — the web's clock stops at the millisecond, so the
+  last six digits of an id are always `000` there).
+- **Who a design is for is `Design.customer`.** Metadata, nothing to do
+  with the geometry, written to the file only when there is one, so every
+  design saved before it still loads. `designMatches` finds a design by
+  customer, name, id or number.
+- **New Design asks two things and nothing else**, both optional, then
+  goes into the choice of door, window, both or sliding exactly as it was
+  (`StartScreen`, now given the two answers). Choosing keeps the design at
+  once, so it is in the list from the moment it exists, and goes into the
+  workspace with the designs underneath it — back is to the list, not
+  through the steps that began it.
+- **Opening a design is `openDesign` on exactly what was saved** — nothing
+  read again, nothing rebuilt — and the test compares the two as JSON.
+- **An edit brings a design to the top, by being kept.** The workspace
+  keeps the design without being asked once it has stood still for
+  `WorkspaceScreen.keepAfter`, and again when it is left, through
+  `WorkspaceController.keep`, which swallows a failure to store: keeping is
+  never a reason for the work to stop. Only a change to the design counts —
+  looking at one, picking a part or swinging a leaf leaves it where it is
+  in the list. `Design.copyWith` stamps `updatedAt` on every edit, and the
+  store sorts by it.
+
+A phone gets a list of cards a thumb works down, the picture beside the
+words; anything wider a grid, every picture the same height.
+`test/app/the_designs_screen_test.dart` holds all of it, and
+`test/app/new_design.dart` is how every other app test now gets from the
+designs to the choice of door or window.
 
 ### The start screen
 

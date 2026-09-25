@@ -6,6 +6,7 @@ import 'package:proframe/app/state/tools.dart';
 import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/model/design.dart';
 
+import 'new_design.dart';
 import 'pause_and_take_it_back_test.dart' as sheet;
 
 // A striped "OVERFLOWED BY 121 PIXELS" over the 3D model, on the user's own
@@ -37,6 +38,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await toTheCategories(tester);
       await tester.tap(find.text('DOOR & WINDOW'));
       await tester.pumpAndSettle();
 

@@ -6,8 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/app.dart';
+import 'package:proframe/app/screens/designs_screen.dart';
 import 'package:proframe/app/screens/launch_screen.dart';
-import 'package:proframe/app/screens/start_screen.dart';
+import 'package:proframe/app/screens/workspace_screen.dart';
+
+import 'new_design.dart';
 
 // The workshop's mark plays once as the app opens, and hands over to the
 // home screen. Its name is the workshop's own, in Sorani Kurdish, set right
@@ -217,7 +220,7 @@ void main() {
         expect(shown(part), lessThan(0.05), reason: '$part has gone');
       }
       await tester.pumpAndSettle();
-      expect(find.byType(StartScreen), findsOneWidget);
+      expect(find.byType(DesignsScreen), findsOneWidget);
     });
   });
 
@@ -299,7 +302,7 @@ void main() {
     ) async {
       await openTheApp(tester, const Size(390, 844));
       expect(find.byType(LaunchScreen), findsOneWidget);
-      expect(find.byType(StartScreen), findsNothing);
+      expect(find.byType(DesignsScreen), findsNothing);
 
       await tester.pump(LaunchScreen.duration * 0.5);
       expect(find.byType(LaunchScreen), findsOneWidget);
@@ -310,12 +313,12 @@ void main() {
         await tester.pump(LaunchScreen.handOver ~/ 5);
         expect(
           find.byType(LaunchScreen).evaluate().isNotEmpty ||
-              find.byType(StartScreen).evaluate().isNotEmpty,
+              find.byType(DesignsScreen).evaluate().isNotEmpty,
           isTrue,
         );
       }
       await tester.pumpAndSettle();
-      expect(find.byType(StartScreen), findsOneWidget);
+      expect(find.byType(DesignsScreen), findsOneWidget);
       expect(find.byType(LaunchScreen), findsNothing);
       expect(tester.hasRunningAnimations, isFalse);
     });
@@ -325,11 +328,13 @@ void main() {
     ) async {
       await openTheApp(tester, const Size(1280, 820));
       await tester.pumpAndSettle();
+      await toTheCategories(tester);
       await tester.tap(find.text('DOOR'));
       await tester.pumpAndSettle();
+      expect(find.byType(WorkspaceScreen), findsOneWidget);
       await tester.tap(find.byIcon(Icons.arrow_back));
       await tester.pumpAndSettle();
-      expect(find.byType(StartScreen), findsOneWidget);
+      expect(find.byType(DesignsScreen), findsOneWidget);
       expect(find.byType(LaunchScreen), findsNothing);
     });
 
@@ -356,7 +361,7 @@ void main() {
       }
       await tester.pump(LaunchScreen.reducedDuration);
       await tester.pump();
-      expect(find.byType(StartScreen), findsOneWidget);
+      expect(find.byType(DesignsScreen), findsOneWidget);
     });
   });
 

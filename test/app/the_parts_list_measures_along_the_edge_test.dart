@@ -6,6 +6,7 @@ import 'package:proframe/app/inspector/component_tree.dart';
 import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/model/elements.dart';
 
+import 'new_design.dart';
 import 'pause_and_take_it_back_test.dart' as sheet;
 
 // A bottom hung sash's hinges run along its bottom rail, so both are at the
@@ -25,6 +26,7 @@ void main() {
       child: const ProFrameApp(),
     ));
     await tester.pumpAndSettle();
+    await toTheCategories(tester);
     await tester.tap(find.text('WINDOW'));
     await tester.pumpAndSettle();
 

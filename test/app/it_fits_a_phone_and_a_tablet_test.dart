@@ -12,6 +12,7 @@ import 'package:proframe/app/state/tools.dart';
 import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/model/design.dart';
 
+import 'new_design.dart';
 import 'pause_and_take_it_back_test.dart' as sheet;
 
 // The user's screenshot: the workspace on a phone, with a striped overflow
@@ -36,6 +37,7 @@ Future<(ProviderContainer, WorkspaceController)> twoLeavesAt(
     UncontrolledProviderScope(container: container, child: const ProFrameApp()),
   );
   await tester.pumpAndSettle();
+  await toTheCategories(tester);
   await tester.scrollUntilVisible(
     find.text('DOOR & WINDOW'),
     100,

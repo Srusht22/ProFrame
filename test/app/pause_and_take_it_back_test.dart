@@ -11,6 +11,8 @@ import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 
+import 'new_design.dart';
+
 // Two things the user asked for, held on the real app.
 //
 // **Pause to straighten.** Draw with the pen, rest it — still down — for a
@@ -30,6 +32,7 @@ Future<ProviderContainer> openTheApp(WidgetTester tester, String card) async {
     UncontrolledProviderScope(container: container, child: const ProFrameApp()),
   );
   await tester.pumpAndSettle();
+  await toTheCategories(tester);
   await tester.tap(find.text(card));
   await tester.pumpAndSettle();
   return container;

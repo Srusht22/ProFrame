@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -51,6 +53,11 @@ enum WorkspaceLayout {
 class WorkspaceScreen extends ConsumerStatefulWidget {
   const WorkspaceScreen({super.key});
 
+  /// How long the design has to stand still before it is kept without
+  /// being asked: long enough that a drag is kept once, not a hundred times.
+  /// Leaving the design keeps it at once, whatever is still waiting.
+  static const keepAfter = Duration(milliseconds: 1200);
+
   @override
   ConsumerState<WorkspaceScreen> createState() => _WorkspaceScreenState();
 }
@@ -60,6 +67,40 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
   Set<String> _highlighted = const {};
   bool _showTree = false;
 
+  late final WorkspaceController _controller;
+  Timer? _keeping;
+  bool _unkept = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ref.read(workspaceProvider.notifier);
+  }
+
+  /// The design has changed: keep it once it has stood still for
+  /// [WorkspaceScreen.keepAfter], so the list of designs has it as last edited, at the top.
+  void _changed() {
+    _unkept = true;
+    _keeping?.cancel();
+    _keeping = Timer(WorkspaceScreen.keepAfter, _keep);
+  }
+
+  void _keep() {
+    _keeping?.cancel();
+    _keeping = null;
+    if (!_unkept) return;
+    _unkept = false;
+    unawaited(_controller.keep());
+  }
+
+  @override
+  void dispose() {
+    // Leaving the design keeps whatever has not been kept yet, so going back
+    // to the list of designs finds it as it was left.
+    _keep();
+    super.dispose();
+  }
+
   /// Opens the drawer on what is picked, or on the list of parts.
   void _openDrawer({required bool parts}) {
     setState(() => _showTree = parts);
@@ -68,6 +109,11 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Only an edit to the design counts: picking a part, changing the view
+    // or opening a leaf in the model changes nothing that is kept.
+    ref.listen(workspaceProvider.select((s) => s.design), (before, after) {
+      if (!identical(before, after)) _changed();
+    });
     final state = ref.watch(workspaceProvider);
     final controller = ref.read(workspaceProvider.notifier);
     // Decided by the room the screen is actually given, not by the device:

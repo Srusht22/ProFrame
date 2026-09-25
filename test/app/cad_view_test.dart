@@ -13,6 +13,8 @@ import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/sections/section_builder.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 
+import 'new_design.dart';
+
 ProviderContainer makeContainer() {
   final container = ProviderContainer();
   addTearDown(container.dispose);
@@ -369,6 +371,7 @@ void main() {
       }),
     ));
     await tester.pumpAndSettle();
+    await toTheCategories(tester);
     await tester.tap(find.text('WINDOW'));
     await tester.pumpAndSettle();
 

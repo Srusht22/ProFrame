@@ -1,16 +1,20 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../domain/dimensions/units.dart';
 import '../../domain/model/design.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'workspace_screen.dart';
 
-/// Where it begins: say what you are drawing — a door, a window, or a frame
-/// holding both — and draw.
+/// Where a new design begins: say what you are drawing — a door, a window,
+/// a frame holding both, or a sliding set — and draw.
+///
+/// It is reached from **New Design** on the designs screen, which has
+/// already asked who the design is for and what it is called; [customer]
+/// and [name] are those answers, and the design is begun with them.
 ///
 /// **Each card shows the application doing what it does**, not a picture of
 /// a door: a pen draws the outline, then the bars, then the mark that says a
@@ -22,7 +26,13 @@ import 'workspace_screen.dart';
 /// loops, so the screen is still while the user is reading it — and a test,
 /// or anybody who has asked their device for less motion, sees it settled.
 class StartScreen extends ConsumerStatefulWidget {
-  const StartScreen({super.key});
+  /// Who the new design is for, where the user said.
+  final String? customer;
+
+  /// What the new design is called, where the user said.
+  final String? name;
+
+  const StartScreen({super.key, this.customer, this.name});
 
   @override
   ConsumerState<StartScreen> createState() => _StartScreenState();
@@ -77,9 +87,18 @@ class _StartScreenState extends ConsumerState<StartScreen>
   }
 
   void _begin(DesignKind kind) {
-    ref.read(workspaceProvider.notifier).startDesign(kind);
-    Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: (_) => const WorkspaceScreen()));
+    final controller = ref.read(workspaceProvider.notifier)
+      ..startDesign(kind, name: widget.name, customer: widget.customer);
+    // Kept straight away, so it is among the recent designs from the moment
+    // it exists, not only once something has been drawn.
+    unawaited(controller.keep());
+    // Into the design with the designs screen underneath it, so the way back
+    // is to the list the design is now in — not through the steps that
+    // began it.
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const WorkspaceScreen()),
+      (route) => route.isFirst,
+    );
   }
 
   @override
@@ -194,8 +213,6 @@ class _StartScreenState extends ConsumerState<StartScreen>
                         },
                       ),
                       const SizedBox(height: 32),
-                      _arriving(0.5, const _SavedDesigns()),
-                      const SizedBox(height: 24),
                       _arriving(
                         0.55,
                         Text(
@@ -214,6 +231,18 @@ class _StartScreenState extends ConsumerState<StartScreen>
               ),
             ),
           ),
+          // The way back to the form that brought the user here.
+          if (Navigator.of(context).canPop())
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: IconButton(
+                  tooltip: 'Back',
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(Icons.arrow_back, color: AppTheme.accent),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -678,101 +707,4 @@ class _Paper extends CustomPainter {
 
   @override
   bool shouldRepaint(_Paper old) => false;
-}
-
-/// Designs the user has kept, most recent first.
-class _SavedDesigns extends ConsumerWidget {
-  const _SavedDesigns();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final saved = ref.watch(savedDesignsProvider);
-    return saved.maybeWhen(
-      data: (designs) {
-        if (designs.isEmpty) return const SizedBox.shrink();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'YOUR DESIGNS',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: AppTheme.accent.withValues(alpha: 0.7),
-                letterSpacing: 1.4,
-              ),
-            ),
-            const SizedBox(height: 10),
-            for (final design in designs.take(6))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Material(
-                  color: AppTheme.accent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () {
-                      ref.read(workspaceProvider.notifier).openDesign(design);
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const WorkspaceScreen(),
-                        ),
-                      );
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 13,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            switch (design.kind) {
-                              DesignKind.door => Icons.door_front_door_outlined,
-                              DesignKind.window => Icons.window_outlined,
-                              DesignKind.both => Icons.splitscreen_outlined,
-                              DesignKind.sliding =>
-                                Icons.door_sliding_outlined,
-                            },
-                            size: 19,
-                            color: AppTheme.accent.withValues(alpha: 0.8),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              design.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: AppTheme.accent,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            design.frame == null
-                                ? 'drawing'
-                                : '${Units.format(design.widthMm)} × '
-                                      '${Units.label(design.heightMm)}',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              color: AppTheme.accent.withValues(alpha: 0.62),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.chevron_right,
-                            size: 18,
-                            color: AppTheme.accent.withValues(alpha: 0.5),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
-      orElse: () => const SizedBox.shrink(),
-    );
-  }
 }

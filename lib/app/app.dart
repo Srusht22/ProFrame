@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'screens/designs_screen.dart';
 import 'screens/launch_screen.dart';
-import 'screens/start_screen.dart';
 import 'theme/app_theme.dart';
 
 /// The application.
@@ -14,7 +14,7 @@ class ProFrameApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.build(),
         // The workshop's mark plays once as the app opens, and then hands
-        // over to the start screen.
-        home: LaunchScreen(next: (_) => const StartScreen()),
+        // over to the designs: carry on with one, or begin another.
+        home: LaunchScreen(next: (_) => const DesignsScreen()),
       );
 }

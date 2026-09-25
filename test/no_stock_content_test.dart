@@ -11,6 +11,8 @@ import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 import 'package:proframe/domain/solid/mesh_builder.dart';
 
+import 'app/new_design.dart';
+
 // ---------------------------------------------------------------------------
 // Nothing in the output is a picture of somebody else's door.
 //
@@ -201,6 +203,7 @@ void main() {
       }),
     ));
     await tester.pumpAndSettle();
+    await toTheCategories(tester);
     await tester.tap(find.text('WINDOW'));
     await tester.pumpAndSettle();
 

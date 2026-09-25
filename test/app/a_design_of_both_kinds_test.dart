@@ -12,6 +12,8 @@ import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 
+import 'new_design.dart';
+
 // A third thing to start from, beside a door and a window: an assembly that
 // holds leaves of each kind.
 //
@@ -256,6 +258,7 @@ void main() {
         child: const ProFrameApp(),
       ));
       await tester.pumpAndSettle();
+      await toTheCategories(tester);
       await tester.tap(find.text('DOOR & WINDOW'));
       await tester.pumpAndSettle();
 
@@ -279,6 +282,7 @@ void main() {
         child: const ProFrameApp(),
       ));
       await tester.pumpAndSettle();
+      await toTheCategories(tester);
 
       expect(find.text('DOOR'), findsOneWidget);
       expect(find.text('WINDOW'), findsOneWidget);
@@ -300,6 +304,7 @@ void main() {
         child: const ProFrameApp(),
       ));
       await tester.pumpAndSettle();
+      await toTheCategories(tester);
 
       expect(find.text('SLIDING'), findsOneWidget);
       await tester.tap(find.text('SLIDING'));

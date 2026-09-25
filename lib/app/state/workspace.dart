@@ -221,11 +221,18 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   bool get canUndo => _undo.isNotEmpty;
   bool get canRedo => _redo.isNotEmpty;
 
-  void startDesign(DesignKind kind) {
+  /// Begins a new design of [kind] — for [customer], called [name], when
+  /// the user said who it is for and what it is called.
+  void startDesign(DesignKind kind, {String? name, String? customer}) {
     _undo.clear();
     _redo.clear();
     state = WorkspaceState(
-      design: Design.empty(id: _newId('design'), kind: kind),
+      design: Design.empty(
+        id: _newId('design'),
+        kind: kind,
+        name: name,
+        customer: customer,
+      ),
     );
   }
 
@@ -1157,6 +1164,18 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   Future<void> save() async {
     await ref.read(designStoreProvider).save(state.design);
     ref.invalidate(savedDesignsProvider);
+  }
+
+  /// Keeps the design without being asked, so the list of designs has it as
+  /// it was last edited, at the top. Where there is nowhere to keep it, the
+  /// design goes on being edited exactly as before: keeping is never a
+  /// reason for the work in front of the user to stop.
+  Future<void> keep() async {
+    try {
+      await save();
+    } on Object {
+      return;
+    }
   }
 }
 

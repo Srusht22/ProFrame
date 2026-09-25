@@ -37,6 +37,11 @@ class Design {
   final String name;
   final DesignKind kind;
 
+  /// Who the design is for — the person or customer the workshop is
+  /// drawing it for — or null where nobody has said. It is how a design is
+  /// found again among hundreds, and it says nothing about the geometry.
+  final String? customer;
+
   /// The user's own marks. Kept for the life of the design.
   final Sketch sketch;
 
@@ -67,6 +72,7 @@ class Design {
     required this.kind,
     required this.createdAt,
     required this.updatedAt,
+    this.customer,
     this.sketch = const Sketch(),
     this.frame,
     this.dividers = const [],
@@ -84,6 +90,7 @@ class Design {
     required String id,
     required DesignKind kind,
     String? name,
+    String? customer,
     DateTime? now,
   }) {
     final at = now ?? DateTime.now();
@@ -91,6 +98,7 @@ class Design {
       id: id,
       name: name ?? 'Untitled ${kind.label.toLowerCase()}',
       kind: kind,
+      customer: customer,
       createdAt: at,
       updatedAt: at,
     );
@@ -416,6 +424,7 @@ class Design {
 
   Design copyWith({
     String? name,
+    String? customer,
     DesignKind? kind,
     Sketch? sketch,
     FrameElement? frame,
@@ -456,6 +465,7 @@ class Design {
       id: id,
       name: name ?? this.name,
       kind: kind ?? this.kind,
+      customer: customer ?? this.customer,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
       sketch: sketch ?? this.sketch,
@@ -522,6 +532,7 @@ class Design {
         'id': id,
         'name': name,
         'kind': kind.name,
+        if (customer != null) 'customer': customer,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
         'depthMm': depthMm,
@@ -572,6 +583,7 @@ class Design {
         (k) => k.name == map['kind'],
         orElse: () => DesignKind.window,
       ),
+      customer: map['customer'] as String?,
       createdAt: DateTime.parse(map['createdAt']! as String),
       updatedAt: DateTime.parse(map['updatedAt']! as String),
       depthMm: (map['depthMm'] as num?)?.toDouble() ?? 70,

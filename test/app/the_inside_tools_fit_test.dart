@@ -7,6 +7,7 @@ import 'package:proframe/app/state/tools.dart';
 import 'package:proframe/app/state/workspace.dart';
 
 import '../final_visual_and_3d_test.dart' as fin;
+import 'new_design.dart';
 
 // The strip of tools that appears when any part of an opening is picked.
 //
@@ -45,6 +46,7 @@ void main() {
       child: const ProFrameApp(),
     ));
     await tester.pumpAndSettle();
+    await toTheCategories(tester);
     await tester.tap(find.text('WINDOW'));
     await tester.pumpAndSettle();
 

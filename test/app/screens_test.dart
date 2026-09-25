@@ -8,6 +8,8 @@ import 'package:proframe/app/theme/app_theme.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 
+import 'new_design.dart';
+
 void main() {
   testWidgets('the start screen offers a door and a window, and nothing else',
       (tester) async {
@@ -16,6 +18,7 @@ void main() {
 
     await tester.pumpWidget(const ProviderScope(child: ProFrameApp()));
     await tester.pumpAndSettle();
+    await toTheCategories(tester);
 
     expect(find.text('ProFrame'), findsOneWidget);
     expect(find.text('CREATE DESIGN'), findsOneWidget);
@@ -34,6 +37,7 @@ void main() {
 
     await tester.pumpWidget(const ProviderScope(child: ProFrameApp()));
     await tester.pumpAndSettle();
+    await toTheCategories(tester);
 
     await tester.tap(find.text('WINDOW'));
     await tester.pumpAndSettle();
@@ -66,6 +70,7 @@ void main() {
 
     await tester.pumpWidget(const ProviderScope(child: ProFrameApp()));
     await tester.pumpAndSettle();
+    await toTheCategories(tester);
     await tester.tap(find.text('WINDOW'));
     await tester.pumpAndSettle();
 
@@ -89,6 +94,7 @@ void main() {
       }),
     ));
     await tester.pumpAndSettle();
+    await toTheCategories(tester);
     await tester.tap(find.text('WINDOW'));
     await tester.pumpAndSettle();
 
