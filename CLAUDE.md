@@ -804,6 +804,40 @@ the answer is visible on the drawing and under **Opening types** in the
 design's own panel, which is where it is changed. The notice that repeated
 it was noise and is not to come back.
 
+### The launch
+
+The app opens on the workshop's mark, once, and then the start screen —
+`lib/app/screens/launch_screen.dart`. One emblem, three things the workshop
+makes and fits in one frame: a hinged door down the left, a framed window
+above on the right and a sliding panel below it. The frame draws itself in,
+the three come into it, then each shows how it works — the door turns on its
+hinge (`LaunchMotion.doorLeaf`: the hinge edge never moves, the free edge
+comes round in perspective), the sliding panel runs along its track and only
+along it, the window's glass takes one pass of light — and the name comes in
+under it:
+
+```
+کارگەی وەستا سۆران شارباژێڕی
+```
+
+**The name is the workshop's own and is never altered.** It is `brandName`,
+exactly as given, set as text — right to left, in the bundled Noto Sans
+Arabic — and never drawn as a picture. `test/app/the_launch_test.dart`
+reads that typeface's own character map and requires a glyph for every
+letter of the name in both weights, so a font change cannot quietly turn it
+into boxes.
+
+**`LaunchScreen.duration` is the one figure for its length** — four seconds
+— and every part is a share of it in `LaunchTiming`, so changing it changes
+the pace of all of it together. It replaces itself with the start screen
+when it is done, so nothing navigates back to it and no rebuild starts it
+again. A device asking for less motion gets the finished mark and the name
+faded in over `reducedDuration` and then the start screen; its clock is
+`AnimationBehavior.preserve`, because left to the controller that request
+squeezes the whole thing to a flicker. It is drawn in the app's own colours
+and nothing loops, so `pumpAndSettle` runs straight through it — which is
+why every app test that opens the app still passes unchanged.
+
 ### The start screen
 
 Each of the four cards — door, window, door & window, sliding — is drawn by
