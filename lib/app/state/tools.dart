@@ -35,15 +35,18 @@ enum Tool {
 /// What the workspace is showing.
 enum WorkspaceView {
   /// The drawing, with the geometry read from it over the top.
-  draw('Draw'),
+  draw('Draw', 'Draw'),
 
   /// The technical drawing: the same geometry, drawn to drafting
   /// conventions and editable by taking hold of it.
-  plan('CAD drawing'),
+  plan('CAD drawing', 'CAD'),
 
   /// The model.
-  model('3D model');
+  model('3D model', '3D');
 
-  const WorkspaceView(this.label);
+  const WorkspaceView(this.label, this.shortLabel);
   final String label;
+
+  /// What it is called where a phone leaves room for a word, not two.
+  final String shortLabel;
 }

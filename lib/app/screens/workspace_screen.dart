@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/model/elements.dart';
 import '../canvas/cad_view.dart';
 import '../canvas/drawing_surface.dart';
 import '../inspector/component_tree.dart';
@@ -15,8 +16,31 @@ import '../viewer/model_view.dart';
 import 'tool_rail.dart';
 import 'workspace_bars.dart';
 
+/// How much room the workspace has, and so how it is laid out.
+///
+/// The drawing always gets the room. What moves is everything around it:
+///
+/// | | Tools | What is picked, and the parts |
+/// | --- | --- | --- |
+/// | [phone] | along the bottom, where a thumb reaches | a drawer, from buttons in the bar of views |
+/// | [tablet] | down the left, with their names | a drawer, from the same buttons |
+/// | [desktop] | down the left | panels beside the drawing |
+enum WorkspaceLayout {
+  phone,
+  tablet,
+  desktop;
+
+  /// The layout for a workspace [width] wide.
+  static WorkspaceLayout of(double width) => width < 600
+      ? phone
+      : width < 900
+          ? tablet
+          : desktop;
+}
+
 /// Where the work happens: tools on the left, the drawing in the middle,
-/// what is selected on the right.
+/// what is selected on the right — or, where the screen is narrower, the
+/// tools along the bottom and what is selected in a drawer.
 ///
 /// The canvas gets the room. Everything else is as narrow as it can be and
 /// still be usable with a finger.
@@ -28,19 +52,44 @@ class WorkspaceScreen extends ConsumerStatefulWidget {
 }
 
 class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
+  final _scaffold = GlobalKey<ScaffoldState>();
   Set<String> _highlighted = const {};
   bool _showTree = false;
+
+  /// Opens the drawer on what is picked, or on the list of parts.
+  void _openDrawer({required bool parts}) {
+    setState(() => _showTree = parts);
+    _scaffold.currentState?.openEndDrawer();
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(workspaceProvider);
     final controller = ref.read(workspaceProvider.notifier);
+    // Decided by the room the screen is actually given, not by the device:
+    // a phone-sized browser window on a laptop is laid out as a phone.
+    return LayoutBuilder(
+      builder: (context, room) => _build(context, state, controller, room),
+    );
+  }
+
+  Widget _build(
+    BuildContext context,
+    WorkspaceState state,
+    WorkspaceController controller,
+    BoxConstraints room,
+  ) {
+    final width = room.maxWidth;
+    final layout = WorkspaceLayout.of(width);
+    final phone = layout == WorkspaceLayout.phone;
 
     return Scaffold(
+      key: _scaffold,
       // The bar across the top arrives with the workspace — the name, then
       // each icon in turn — and every icon answers to the pointer. How it
       // all moves is `BarMotion`'s, in one place.
       appBar: AppBar(
+        titleSpacing: phone ? 0 : null,
         title: BarArrival(
           order: 0,
           from: const Offset(-14, 0),
@@ -49,6 +98,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
             child: Text(
               state.design.name,
               key: ValueKey(state.design.name),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ),
@@ -90,7 +140,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
               onPressed: controller.toggleSketch,
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: phone ? 2 : 8),
         ],
       ),
       // The workspace, and over it the one question that is raised as an
@@ -99,85 +149,97 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
       // it is blurred, not replaced, and nothing about it is waiting.
       body: Stack(
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final wide = constraints.maxWidth >= 900;
-              return Column(
-                children: [
-                  _ViewBar(
-                    state: state,
-                    controller: controller,
-                    onTree: () => setState(() => _showTree = !_showTree),
-                    treeOpen: _showTree,
-                    compact: !wide,
-                  ),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: Row(
-                      children: [
-                        ToolRail(compact: !wide),
+          SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                _ViewBar(
+                  state: state,
+                  controller: controller,
+                  layout: layout,
+                  treeOpen: _showTree,
+                  onTree: () => layout == WorkspaceLayout.desktop
+                      ? setState(() => _showTree = !_showTree)
+                      : _openDrawer(parts: true),
+                  onDetails: () => _openDrawer(parts: false),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: Row(
+                    children: [
+                      if (!phone) ...[
+                        ToolRail(compact: false),
                         const VerticalDivider(width: 1),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Expanded(child: _mainView(state)),
-                              if (state.needsReading &&
-                                  state.view == WorkspaceView.draw)
-                                _ReadBar(onRead: controller.readDrawing),
-                              QuestionsPanel(
-                                onHighlight: (ids) =>
-                                    setState(() => _highlighted = ids),
+                      ],
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Expanded(child: _mainView(state)),
+                            if (state.needsReading &&
+                                state.view == WorkspaceView.draw)
+                              _ReadBar(
+                                onRead: controller.readDrawing,
+                                narrow: phone,
                               ),
+                            QuestionsPanel(
+                              onHighlight: (ids) =>
+                                  setState(() => _highlighted = ids),
+                            ),
+                            // Where the panel beside the drawing is not
+                            // shown, what is picked still says so, and one
+                            // tap opens it.
+                            if (layout != WorkspaceLayout.desktop &&
+                                state.selected != null)
+                              _PickedBar(
+                                state: state,
+                                onEdit: () => _openDrawer(parts: false),
+                                onClear: () => controller.select(null),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (layout == WorkspaceLayout.desktop) ...[
+                        const VerticalDivider(width: 1),
+                        SizedBox(
+                          width: _showTree ? 560 : 320,
+                          child: Row(
+                            children: [
+                              if (_showTree) ...[
+                                const SizedBox(
+                                  width: 239,
+                                  child: ComponentTree(),
+                                ),
+                                const VerticalDivider(width: 1),
+                              ],
+                              const Expanded(child: InspectorPanel()),
                             ],
                           ),
                         ),
-                        if (wide) ...[
-                          const VerticalDivider(width: 1),
-                          SizedBox(
-                            width: _showTree ? 560 : 320,
-                            child: Row(
-                              children: [
-                                if (_showTree) ...[
-                                  const SizedBox(
-                                    width: 239,
-                                    child: ComponentTree(),
-                                  ),
-                                  const VerticalDivider(width: 1),
-                                ],
-                                const Expanded(child: InspectorPanel()),
-                              ],
-                            ),
-                          ),
-                        ],
                       ],
-                    ),
+                    ],
                   ),
+                ),
+                if (phone) ...[
+                  const Divider(height: 1),
+                  const ToolRail(horizontal: true),
                 ],
-              );
-            },
+              ],
+            ),
           ),
           const OpeningKindAlert(),
           const OutlineGapAlert(),
         ],
       ),
-      endDrawer: MediaQuery.of(context).size.width >= 900
+      endDrawer: layout == WorkspaceLayout.desktop
           ? null
           : Drawer(
-              width: 340,
+              // Never wider than most of the screen, so the drawing it is
+              // about still shows beside it.
+              width: (width * 0.88).clamp(0.0, 360.0),
               child: SafeArea(
                 child: _showTree
                     ? const ComponentTree()
                     : const InspectorPanel(),
-              ),
-            ),
-      floatingActionButton: MediaQuery.of(context).size.width >= 900
-          ? null
-          : Builder(
-              builder: (context) => FloatingActionButton(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: AppTheme.accent,
-                onPressed: Scaffold.of(context).openEndDrawer,
-                child: const Icon(Icons.tune),
               ),
             ),
     );
@@ -193,76 +255,185 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
 class _ViewBar extends StatelessWidget {
   final WorkspaceState state;
   final WorkspaceController controller;
+  final WorkspaceLayout layout;
   final VoidCallback onTree;
+  final VoidCallback onDetails;
   final bool treeOpen;
-  final bool compact;
 
   const _ViewBar({
     required this.state,
     required this.controller,
+    required this.layout,
     required this.onTree,
+    required this.onDetails,
     required this.treeOpen,
-    required this.compact,
   });
 
   @override
-  Widget build(BuildContext context) => Container(
-    color: AppTheme.surface,
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-    child: Row(
-      children: [
-        BarArrival(
-          order: 1,
-          child: ViewTabs(
-            selected: state.view,
-            compact: compact,
-            enabled: (view) =>
-                view == WorkspaceView.draw || state.design.frame != null,
-            onSelected: controller.showView,
-          ),
-        ),
-        const Spacer(),
-        if (state.design.frame != null)
-          TextButton.icon(
-            onPressed: controller.readDrawing,
-            icon: const Icon(Icons.auto_fix_high_outlined, size: 18),
-            label: const Text('Read again'),
-          ),
-        if (!compact)
-          TextButton.icon(
-            onPressed: onTree,
-            icon: Icon(
-              treeOpen ? Icons.list_alt : Icons.list_alt_outlined,
-              size: 18,
+  Widget build(BuildContext context) {
+    final tabs = ViewTabs(
+      selected: state.view,
+      compact: layout != WorkspaceLayout.desktop,
+      fill: layout == WorkspaceLayout.phone,
+      enabled: (view) =>
+          view == WorkspaceView.draw || state.design.frame != null,
+      onSelected: controller.showView,
+    );
+    final canRead = state.design.frame != null;
+
+    // On a phone the three views share the width and everything else is an
+    // icon, named by its tooltip: there is no room for a word beside them.
+    if (layout == WorkspaceLayout.phone) {
+      return Container(
+        color: AppTheme.surface,
+        padding: const EdgeInsets.fromLTRB(8, 6, 4, 6),
+        child: Row(
+          children: [
+            Expanded(child: BarArrival(order: 1, child: tabs)),
+            if (canRead)
+              IconButton(
+                tooltip: 'Read again',
+                visualDensity: VisualDensity.compact,
+                onPressed: controller.readDrawing,
+                icon: const Icon(Icons.auto_fix_high_outlined, size: 20),
+              ),
+            IconButton(
+              tooltip: 'Parts',
+              visualDensity: VisualDensity.compact,
+              onPressed: onTree,
+              icon: const Icon(Icons.list_alt_outlined, size: 20),
             ),
-            label: const Text('Parts'),
+            IconButton(
+              tooltip: 'Details',
+              visualDensity: VisualDensity.compact,
+              onPressed: onDetails,
+              icon: const Icon(Icons.tune, size: 20),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      color: AppTheme.surface,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          BarArrival(order: 1, child: tabs),
+          const Spacer(),
+          if (canRead)
+            TextButton.icon(
+              onPressed: controller.readDrawing,
+              icon: const Icon(Icons.auto_fix_high_outlined, size: 18),
+              label: const Text('Read again'),
+            ),
+          if (layout == WorkspaceLayout.desktop)
+            TextButton.icon(
+              onPressed: onTree,
+              icon: Icon(
+                treeOpen ? Icons.list_alt : Icons.list_alt_outlined,
+                size: 18,
+              ),
+              label: const Text('Parts'),
+            )
+          else ...[
+            IconButton(
+              tooltip: 'Parts',
+              onPressed: onTree,
+              icon: const Icon(Icons.list_alt_outlined, size: 20),
+            ),
+            IconButton(
+              tooltip: 'Details',
+              onPressed: onDetails,
+              icon: const Icon(Icons.tune, size: 20),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// What is picked, where the panel beside the drawing is not shown: its
+/// name, and one tap to open it or to let it go.
+class _PickedBar extends StatelessWidget {
+  final WorkspaceState state;
+  final VoidCallback onEdit;
+  final VoidCallback onClear;
+
+  const _PickedBar({
+    required this.state,
+    required this.onEdit,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = state.selected!;
+    final name = switch (selected) {
+      final OpeningElement opening => state.design.nameOf(opening),
+      _ => selected.label,
+    };
+    return Container(
+      width: double.infinity,
+      color: AppTheme.shell,
+      padding: const EdgeInsets.fromLTRB(14, 4, 4, 4),
+      child: Row(
+        children: [
+          const Icon(Icons.touch_app_outlined, size: 18, color: AppTheme.muted),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
           ),
-      ],
-    ),
-  );
+          TextButton.icon(
+            onPressed: onEdit,
+            icon: const Icon(Icons.tune, size: 18),
+            label: const Text('Edit'),
+          ),
+          IconButton(
+            tooltip: 'Let it go',
+            visualDensity: VisualDensity.compact,
+            onPressed: onClear,
+            icon: const Icon(Icons.close, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// The one call to action: turn what has been drawn into geometry.
 class _ReadBar extends StatelessWidget {
   final VoidCallback onRead;
-  const _ReadBar({required this.onRead});
+  final bool narrow;
+  const _ReadBar({required this.onRead, this.narrow = false});
 
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
     color: AppTheme.accent,
-    padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+    padding: EdgeInsets.fromLTRB(narrow ? 14 : 18, 10, narrow ? 10 : 18, 10),
     child: Row(
       children: [
         Expanded(
           child: Text(
-            'Your drawing has changes that have not been read yet.',
+            narrow
+                ? 'Your drawing has changed.'
+                : 'Your drawing has changes that have not been read yet.',
             style: Theme.of(context).textTheme.bodyMedium
                 ?.copyWith(color: AppTheme.primary),
           ),
         ),
         const SizedBox(width: 12),
-        FilledButton(onPressed: onRead, child: const Text('Read my drawing')),
+        FilledButton(
+          onPressed: onRead,
+          child: Text(narrow ? 'Read it' : 'Read my drawing'),
+        ),
       ],
     ),
   );

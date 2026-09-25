@@ -202,18 +202,31 @@ class ViewTabs extends StatelessWidget {
   final ValueChanged<WorkspaceView> onSelected;
   final bool compact;
 
+  /// On a phone: the tabs share whatever width they are given between them,
+  /// and each is called by its one-word name.
+  final bool fill;
+
   const ViewTabs({
     super.key,
     required this.selected,
     required this.enabled,
     required this.onSelected,
     this.compact = false,
+    this.fill = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (fill) {
+      return LayoutBuilder(
+        builder: (context, box) => _tabs(context, (box.maxWidth - 8) / 3),
+      );
+    }
+    return _tabs(context, compact ? 98.0 : 114.0);
+  }
+
+  Widget _tabs(BuildContext context, double width) {
     final views = WorkspaceView.values;
-    final width = compact ? 98.0 : 114.0;
     const height = 36.0;
     final index = views.indexOf(selected);
     final change = BarMotion.of(context, BarMotion.change);
@@ -256,7 +269,7 @@ class ViewTabs extends StatelessWidget {
               children: [
                 for (final view in views)
                   _Tab(
-                    label: view.label,
+                    label: fill ? view.shortLabel : view.label,
                     width: width,
                     chosen: view == selected,
                     enabled: enabled(view),
@@ -309,9 +322,13 @@ class _TabState extends State<_Tab> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.enabled ? widget.onTap : null,
-        child: AnimatedContainer(
-          duration: BarMotion.of(context, BarMotion.hover),
+        // The width is the room there is, set outright: animated, a tab
+        // would pass through its old width as the screen changed and push
+        // the others off the end of the bar for a moment.
+        child: SizedBox(
           width: widget.width,
+          child: AnimatedContainer(
+          duration: BarMotion.of(context, BarMotion.hover),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
@@ -331,6 +348,7 @@ class _TabState extends State<_Tab> {
             ),
             child: Text(widget.label, maxLines: 1),
           ),
+        ),
         ),
       ),
     );

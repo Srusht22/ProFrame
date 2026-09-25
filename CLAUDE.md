@@ -799,6 +799,28 @@ now, as the CAD status bar does. `test/app/nothing_overflows_test.dart`
 opens every view at laptop widths with the parts list open and an opening
 picked, and fails on any overflow at all.
 
+### The workspace fits the screen it is on
+
+The user's screenshot at 440 × 956: the bar of views striped with an
+overflow and most of the controls off the edge. The workspace is laid out
+by `WorkspaceLayout.of` the width it is actually given — a `LayoutBuilder`,
+not `MediaQuery`, so a phone-sized browser window on a laptop is a phone:
+
+| | Under 600 | 600 – 900 | Wider |
+| --- | --- | --- | --- |
+| Tools | along the bottom, scrolling, `ToolRail(horizontal)` | down the left, named | down the left |
+| Views | Draw / CAD / 3D sharing the width | full names | full names |
+| Read again, Parts, Details | icons | a word and icons | words |
+| What is picked | `_PickedBar` under the drawing, **Edit** opens a drawer | the same | the panel beside it |
+
+The drawing always gets the room; everything else moves round it. A tab's
+width is set outright rather than animated, because an animated width
+passes through its old value as the screen changes and pushes the other
+tabs off the bar for a moment.
+`test/app/it_fits_a_phone_and_a_tablet_test.dart` walks every view, picked
+and with the drawer open, at three phone and three tablet sizes, and fails
+on any flex that is overflowing — all of them, not only the first error.
+
 Answering what an opening is leaves nothing at the bottom of the screen:
 the answer is visible on the drawing and under **Opening types** in the
 design's own panel, which is where it is changed. The notice that repeated

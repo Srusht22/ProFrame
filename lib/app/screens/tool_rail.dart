@@ -12,10 +12,19 @@ import 'workspace_bars.dart';
 /// Each one makes real geometry rather than a picture of something, and each
 /// says plainly what it does, because a tool that is guessed at is a drawing
 /// that comes out wrong.
+///
+/// **On a phone they run along the bottom instead**, [horizontal], where a
+/// thumb reaches them and the drawing keeps the whole width of the screen.
+/// The row scrolls when there are more tools than room, and the highlight
+/// glides along it exactly as it glides down the rail.
 class ToolRail extends ConsumerWidget {
   final bool compact;
+  final bool horizontal;
 
-  const ToolRail({super.key, this.compact = false});
+  const ToolRail({super.key, this.compact = false, this.horizontal = false});
+
+  /// How tall the row is when the tools run along the bottom.
+  static const rowHeight = 60.0;
 
   static const _icons = {
     Tool.select: Icons.near_me_outlined,
@@ -46,6 +55,86 @@ class ToolRail extends ConsumerWidget {
     final extent = compact ? 50.0 : 62.0;
     final chosen = Tool.values.indexOf(state.tool);
     final change = BarMotion.of(context, BarMotion.change);
+
+    void use(Tool tool) {
+      if (!drawing && tool != Tool.select) {
+        controller.showView(WorkspaceView.draw);
+      }
+      controller.useTool(tool);
+    }
+
+    if (horizontal) {
+      const across = 66.0;
+      return Container(
+        height: rowHeight,
+        color: AppTheme.surface,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Row(
+            children: [
+              SizedBox(
+                width: across * Tool.values.length,
+                height: rowHeight,
+                child: Stack(
+                  children: [
+                    AnimatedPositioned(
+                      duration: change,
+                      curve: Curves.easeOutBack,
+                      left: across * chosen + 4,
+                      top: 5,
+                      width: across - 8,
+                      height: rowHeight - 10,
+                      child: AnimatedOpacity(
+                        opacity: drawing ? 1 : 0,
+                        duration: change,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        for (final (i, tool) in Tool.values.indexed)
+                          BarArrival(
+                            order: i,
+                            from: const Offset(0, 14),
+                            child: SizedBox(
+                              width: across,
+                              height: rowHeight,
+                              child: _ToolButton(
+                                tool: tool,
+                                icon: _icons[tool]!,
+                                selected: drawing && state.tool == tool,
+                                dimmed: !drawing && tool != Tool.select,
+                                compact: false,
+                                gutter: 2,
+                                onTap: () => use(tool),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              SizedBox(
+                width: 48,
+                height: rowHeight,
+                child: _PenColour(
+                  colour: state.penColour,
+                  onTap: () => _pickColour(context, ref, state.penColour),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Container(
       width: width,
@@ -100,12 +189,7 @@ class ToolRail extends ConsumerWidget {
                             selected: drawing && state.tool == tool,
                             dimmed: !drawing && tool != Tool.select,
                             compact: compact,
-                            onTap: () {
-                              if (!drawing && tool != Tool.select) {
-                                controller.showView(WorkspaceView.draw);
-                              }
-                              controller.useTool(tool);
-                            },
+                            onTap: () => use(tool),
                           ),
                         ),
                       ),
@@ -164,6 +248,11 @@ class _ToolButton extends StatefulWidget {
   final bool compact;
   final VoidCallback onTap;
 
+  /// The room either side of the button. Along the bottom of a phone the
+  /// buttons stand side by side, so the label has the width a word needs
+  /// rather than being broken in the middle of one.
+  final double gutter;
+
   const _ToolButton({
     required this.tool,
     required this.icon,
@@ -171,6 +260,7 @@ class _ToolButton extends StatefulWidget {
     required this.compact,
     required this.onTap,
     this.dimmed = false,
+    this.gutter = 8,
   });
 
   @override
@@ -204,7 +294,7 @@ class _ToolButtonState extends State<_ToolButton> {
           ? '${widget.tool.label}\nTap to go back to the drawing and use it.'
           : '${widget.tool.label}\n${widget.tool.hint}',
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: EdgeInsets.symmetric(horizontal: widget.gutter, vertical: 3),
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
           onEnter: (_) => setState(() => _hover = true),
@@ -262,6 +352,7 @@ class _ToolButtonState extends State<_ToolButton> {
                             widget.tool.label,
                             textAlign: TextAlign.center,
                             maxLines: 2,
+                            overflow: TextOverflow.fade,
                           ),
                         ),
                       ],
