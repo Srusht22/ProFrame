@@ -39,3 +39,13 @@ flutter:
         - asset: assets/fonts/NotoSansArabic-Regular.ttf
         - asset: assets/fonts/NotoSansArabic-Bold.ttf
           weight: 700
+    # The workshop's name on the launch: a geometric Kufi, with every letter
+    # of Sorani Kurdish the name uses. See assets/fonts/OFL-NotoKufiArabic.txt.
+    - family: Noto Kufi Arabic
+      fonts:
+        - asset: assets/fonts/NotoKufiArabic-300.ttf
+          weight: 300
+        - asset: assets/fonts/NotoKufiArabic-500.ttf
+          weight: 500
+        - asset: assets/fonts/NotoKufiArabic-800.ttf
+          weight: 800

@@ -83,10 +83,18 @@ void main() {
       expect(brandName, 'کارگەی وەستا سۆران شارباژێڕی');
     });
 
-    test('its typeface has every letter of it, in both weights', () {
+    test('is set on three lines, whole words, in their own order', () {
+      expect(brandLines.join(' '), brandName);
+      for (final line in brandLines) {
+        expect(line.trim(), line, reason: 'no line starts or ends a word');
+      }
+    });
+
+    test('its typeface has every letter of it, in every weight used', () {
       for (final file in [
-        'assets/fonts/NotoSansArabic-Regular.ttf',
-        'assets/fonts/NotoSansArabic-Bold.ttf',
+        'assets/fonts/NotoKufiArabic-300.ttf',
+        'assets/fonts/NotoKufiArabic-500.ttf',
+        'assets/fonts/NotoKufiArabic-800.ttf',
       ]) {
         final glyphs = glyphsIn(File(file).readAsBytesSync());
         for (final c in brandName.runes) {
@@ -103,9 +111,22 @@ void main() {
     testWidgets('is set in it, right to left, as text', (tester) async {
       await openTheApp(tester, const Size(390, 844));
       await tester.pump(LaunchScreen.duration);
-      final name = tester.widget<Text>(find.text(brandName));
-      expect(name.textDirection, TextDirection.rtl);
-      expect(name.style?.fontFamily, brandFontFamily);
+      for (final line in brandLines) {
+        final text = tester.widget<Text>(find.text(line));
+        expect(text.textDirection, TextDirection.rtl);
+        expect(text.style?.fontFamily, brandFontFamily);
+      }
+      // Read top to bottom, as the name is read.
+      final tops = [
+        for (final line in brandLines) tester.getRect(find.text(line)).top,
+      ];
+      expect(tops[0], lessThan(tops[1]));
+      expect(tops[1], lessThan(tops[2]));
+      // The master's name is the largest of the three.
+      double size(String line) =>
+          tester.widget<Text>(find.text(line)).style!.fontSize!;
+      expect(size(brandLines[1]), greaterThan(size(brandLines[0])));
+      expect(size(brandLines[1]), greaterThan(size(brandLines[2])));
       await tester.pumpAndSettle();
     });
   });
@@ -134,6 +155,27 @@ void main() {
       )[1].dx;
       expect(freeEdge(0), 80, reason: 'shut, the leaf fills its bay');
       expect(freeEdge(0.4), lessThan(freeEdge(0.2)));
+    });
+
+    test('the window tilts about its bottom edge, and shuts again', () {
+      const sash = Rect.fromLTRB(95, 27, 173, 85);
+      for (final angle in [0.0, 0.1, LaunchMotion.windowWidest]) {
+        final corners = LaunchMotion.windowSash(sash, angle, 260);
+        expect(corners[2], sash.bottomRight);
+        expect(corners[3], sash.bottomLeft);
+      }
+      final shut = LaunchMotion.windowSash(sash, 0, 260);
+      expect(shut[0], sash.topLeft);
+      expect(shut[1], sash.topRight);
+      final tipped = LaunchMotion.windowSash(sash, 0.2, 260);
+      expect(tipped[0].dy, greaterThan(sash.top), reason: 'the top drops');
+      expect(tipped[1].dx - tipped[0].dx, lessThan(sash.width));
+      expect(LaunchMotion.windowTilt(0), 0);
+      expect(
+        LaunchMotion.windowTilt(0.4),
+        closeTo(LaunchMotion.windowWidest, 1e-9),
+      );
+      expect(LaunchMotion.windowTilt(1), 0, reason: 'it shuts again');
     });
 
     test('it opens, and comes to rest partly open', () {
@@ -210,7 +252,9 @@ void main() {
 
       await openTheApp(tester, const Size(390, 844));
       await tester.pump(LaunchScreen.reducedDuration ~/ 2);
-      expect(find.text(brandName), findsOneWidget);
+      for (final line in brandLines) {
+        expect(find.text(line), findsOneWidget);
+      }
       await tester.pump(LaunchScreen.reducedDuration);
       await tester.pump();
       expect(find.byType(StartScreen), findsOneWidget);
@@ -234,7 +278,9 @@ void main() {
         expect(tester.takeException(), isNull, reason: 'nothing overflows');
 
         final screen = Offset.zero & size;
-        final name = tester.getRect(find.text(brandName));
+        final name = brandLines
+            .map((line) => tester.getRect(find.text(line)))
+            .reduce((a, b) => a.expandToInclude(b));
         final mark = tester.getRect(
           find.byWidgetPredicate(
             (w) => w is CustomPaint && w.painter is LaunchEmblemPainter,

@@ -808,24 +808,41 @@ it was noise and is not to come back.
 
 The app opens on the workshop's mark, once, and then the start screen —
 `lib/app/screens/launch_screen.dart`. One emblem, three things the workshop
-makes and fits in one frame: a hinged door down the left, a framed window
+makes and fits in one frame: a hinged door down the left, a four-pane window
 above on the right and a sliding panel below it. The frame draws itself in,
 the three come into it, then each shows how it works — the door turns on its
 hinge (`LaunchMotion.doorLeaf`: the hinge edge never moves, the free edge
-comes round in perspective), the sliding panel runs along its track and only
-along it, the window's glass takes one pass of light — and the name comes in
-under it:
+comes round in perspective), the window's sash tilts in at the top about its
+bottom edge and shuts again before its glass takes one pass of light
+(`LaunchMotion.windowSash`), and the sliding panel runs along its track and
+only along it.
+
+**The name is the workshop's own and is never altered**:
 
 ```
 کارگەی وەستا سۆران شارباژێڕی
 ```
 
-**The name is the workshop's own and is never altered.** It is `brandName`,
-exactly as given, set as text — right to left, in the bundled Noto Sans
-Arabic — and never drawn as a picture. `test/app/the_launch_test.dart`
-reads that typeface's own character map and requires a glyph for every
-letter of the name in both weights, so a font change cannot quietly turn it
-into boxes.
+It is `brandName`, exactly as given, and it is set as a composed mark rather
+than one flat line — the user's own ask, *I don't want it in a straight
+line, it looks very simple*:
+
+```
+        ── کارگەی ──          small, gold, between two fine rules
+        وەستا سۆران           large and heavy: the name people say
+         شارباژێڕی            lighter, beneath it
+```
+
+`brandLines` breaks it only where it already breaks — whole words, in their
+own order, so joined with spaces the lines are `brandName` exactly — and a
+test says so. It is one family, **Noto Kufi Arabic**, a geometric Kufi, in
+three weights (300, 500, 800), so the contrast between the lines is the only
+ornament. Nothing is letter-spaced, because spacing the letters of a joined
+script pulls them apart. The master's name wipes in from the right, the way
+it is read. The typeface came from Google's own Arabic subset, converted to
+TTF, and `test/app/the_launch_test.dart` reads its character map and
+requires a glyph for every letter of the name in every weight, so a font
+change cannot quietly turn ێ or ڕ into boxes.
 
 **`LaunchScreen.duration` is the one figure for its length** — four seconds
 — and every part is a share of it in `LaunchTiming`, so changing it changes
