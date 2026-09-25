@@ -50,3 +50,6 @@ app.*.map.json
 # Golden-test failure artifacts. Written by `flutter test` when a golden
 # does not match, useful locally and never worth committing.
 **/test/**/failures/
+
+# The Flutter SDK vercel-build.sh fetches
+/.flutter-sdk/
