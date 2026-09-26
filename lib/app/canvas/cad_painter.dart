@@ -1,0 +1,1055 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+
+import '../../domain/dimensions/dimension_chain.dart';
+import '../../domain/dimensions/measurements.dart';
+import '../../domain/dimensions/units.dart';
+import '../../domain/geometry/polygon.dart';
+import '../../domain/geometry/segment.dart';
+import '../../domain/geometry/vec2.dart';
+import '../../domain/hardware/opening_hardware.dart';
+import '../../domain/model/design.dart';
+import '../../domain/model/design_tree.dart';
+import '../../domain/model/elements.dart';
+import '../../domain/model/materials.dart';
+import '../../domain/model/opening_leaf.dart';
+import 'cad_layers.dart';
+import 'cad_style.dart';
+import 'dimension_handles.dart';
+import 'view_transform.dart';
+
+/// Draws the design as a technical drawing.
+///
+/// It draws the geometry that is there and nothing else. There is no second
+/// version of the design for this view to show: the same frame, the same
+/// bars at the same angles, the same sections, straight out of the document.
+/// What this painter adds is the language of a drawing — line weights that
+/// mean something, hatching that says what a thing is made of, dimensions
+/// that measure what is in front of them.
+class CadPainter extends CustomPainter {
+  final Design design;
+  final ViewTransform view;
+  final CadLayers layers;
+  final String? selectedId;
+  final Set<String> highlighted;
+
+  /// Where the pointer is, in millimetres, for the snap marker.
+  final Vec2? snapAt;
+
+  /// The grips of the selected object, in millimetres.
+  final List<Grip> grips;
+
+  /// Where a line tool would put a line if the user clicked now, and the
+  /// opening it would go in. Shown as a ghost, so the user places the line
+  /// having seen exactly where it lands.
+  final Segment? guide;
+  final Polygon? guideWithin;
+
+  /// The colours the drawing is drawn in: paper, unless the appearance in
+  /// effect is dark.
+  final CadColours ink;
+
+  const CadPainter({
+    required this.design,
+    required this.view,
+    required this.layers,
+    this.selectedId,
+    this.highlighted = const {},
+    this.snapAt,
+    this.grips = const [],
+    this.guide,
+    this.guideWithin,
+    this.ink = Cad.paper,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Cad.fill(ink.sheet));
+    if (layers.grid) _grid(canvas, size);
+
+    if (design.frame == null) return;
+
+    // The drawing is built up the way the design is put together, not by
+    // sweeping flat lists: the frame, the bars that divide the design, its
+    // main divisions, and inside each of those whatever the user drew there.
+    // The tree is the model's own hierarchy read once — the solid walks the
+    // same one — so the elevation cannot decide that something is inside
+    // something else by a route the model does not have.
+    final tree = DesignTree.of(design);
+
+    if (layers.sketch) _sketch(canvas);
+    _infill(canvas, tree.sections);
+    _frame(canvas);
+    _bars(canvas, tree.barIds, inside: false);
+    for (final section in tree.everySection) {
+      _bars(canvas, section.barIds, inside: true);
+    }
+    if (layers.openings) _openings(canvas, tree);
+    if (layers.annotations) _materialNames(canvas, tree.sections);
+    _hardware(canvas);
+    if (layers.dimensions) {
+      _chains(canvas, tree);
+      _userDimensions(canvas);
+    }
+    if (layers.annotations) _annotations(canvas);
+    _selection(canvas);
+    if (layers.grips) _grips(canvas);
+    _guide(canvas);
+    _snap(canvas);
+  }
+
+  /// The opening being drawn inside, and where the line would land.
+  ///
+  /// The opening is outlined so it is plain what the line will belong to,
+  /// because a line drawn inside an opening is that opening's and nothing
+  /// about the drawing afterwards would say so more clearly than this does
+  /// beforehand.
+  void _guide(Canvas canvas) {
+    final within = guideWithin;
+    if (within != null && !within.isEmpty) {
+      canvas.drawPath(
+        view.pathOf(within),
+        Cad.stroke(ink.selection, Cad.profile),
+      );
+    }
+    final line = guide;
+    if (line == null) return;
+    canvas.drawLine(
+      view.toScreen(line.a),
+      view.toScreen(line.b),
+      Cad.stroke(ink.selection, Cad.outline),
+    );
+  }
+
+  // ------------------------------------------------------------------ paper
+
+  void _grid(Canvas canvas, Size size) {
+    for (final (step, colour) in [
+      (100.0, ink.grid),
+      (1000.0, ink.gridStrong),
+    ]) {
+      final spacing = view.lengthToScreen(step);
+      if (spacing < 10) continue;
+      final paint = Cad.stroke(colour, Cad.hairline);
+      for (var x = view.origin.dx % spacing; x < size.width; x += spacing) {
+        canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+      }
+      for (var y = view.origin.dy % spacing; y < size.height; y += spacing) {
+        canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+      }
+    }
+  }
+
+  /// The user's own marks, as an underlay — the drafting equivalent of the
+  /// pencil under the ink. Faint, so the drawing reads, and there so the
+  /// user can check the drawing against what they actually drew.
+  void _sketch(Canvas canvas) {
+    for (final stroke in design.sketch.strokes) {
+      if (stroke.isEmpty) continue;
+      final path = Path();
+      final first = view.toScreen(stroke.samples.first.at);
+      path.moveTo(first.dx, first.dy);
+      for (final sample in stroke.samples.skip(1)) {
+        final at = view.toScreen(sample.at);
+        path.lineTo(at.dx, at.dy);
+      }
+      canvas.drawPath(
+        path,
+        Cad.stroke(ink.hidden.withValues(alpha: 0.4), 1.1, round: true),
+      );
+    }
+  }
+
+  // --------------------------------------------------------------- geometry
+
+  /// What fills each section, drawn the way a drawing shows a material
+  /// rather than the way a photograph shows it.
+  ///
+  /// Down the tree: a section the user drew lines in is filled by the panes
+  /// those lines make, not by a pane of its own painted over them, and each
+  /// of those panes may have been divided again.
+  void _infill(Canvas canvas, List<TreeSection> branches) {
+    for (final branch in branches) {
+      if (!branch.isLeaf) {
+        _infill(canvas, branch.panes);
+        continue;
+      }
+      final section = design.sectionById(branch.sectionId);
+      if (section == null) continue;
+
+      // A section that opens — and every pane the user divided it into — is
+      // filled to the daylight of its own leaf, not to the edge of the
+      // region: the sash is real material and the glass stops at it, as it
+      // does in the model and as it will on the bench.
+      final outline = OpeningLeaf.fillOf(design, section);
+      if (outline.isEmpty) continue;
+      final path = view.pathOf(outline);
+      final material = section.finish.material;
+
+      if (material.isGlazing) {
+        canvas.drawPath(path, Cad.fill(ink.glass));
+        if (layers.hatching) _glazingMark(canvas, outline);
+      } else {
+        canvas.drawPath(
+          path,
+          Cad.fill(Color(section.finish.colour).withValues(alpha: 0.32)),
+        );
+        if (layers.hatching) _hatch(canvas, outline);
+      }
+
+      canvas.drawPath(path, Cad.stroke(ink.medium, Cad.detail));
+    }
+  }
+
+  /// What fills each part, written on it — GLASS, PANEL — as a joiner's
+  /// elevation says it, so the drawing carries what the user chose and not
+  /// only the hatching that stands for it.
+  ///
+  /// Written above where the part's size goes, and only where the part is
+  /// big enough on the screen to hold both; the part itself is drawn from
+  /// the design's outline, so nothing here can move a line.
+  void _materialNames(Canvas canvas, List<TreeSection> branches) {
+    for (final branch in branches) {
+      if (!branch.isLeaf) {
+        _materialNames(canvas, branch.panes);
+        continue;
+      }
+      final section = design.sectionById(branch.sectionId);
+      if (section == null) continue;
+      if (view.lengthToScreen(section.widthMm) < 62) continue;
+      if (view.lengthToScreen(section.heightMm) < 44) continue;
+
+      final finish = section.finish;
+      final look = GlassLook.of(finish);
+      final word = finish.material.isGlazing
+          ? (look == null || look == GlassLook.clear
+                ? 'GLASS'
+                : '${look.label.toUpperCase()} GLASS')
+          : finish.material.label.toUpperCase().replaceFirst('SOLID ', '');
+      final text = Cad.label(
+        word,
+        colour: ink.medium,
+        size: Cad.smallTextSize,
+        weight: FontWeight.w700,
+      );
+      final marked = design.openingOf(section.id)?.markAt != null;
+      final at =
+          view.toScreen(section.outline.centroid) +
+          Offset(0, marked ? -35 : -16);
+      final box = Rect.fromCenter(
+        center: at,
+        width: text.width + 9,
+        height: text.height + 3,
+      );
+      canvas.drawRect(box, Cad.fill(ink.sheet.withValues(alpha: 0.9)));
+      text.paint(
+        canvas,
+        Offset(at.dx - text.width / 2, at.dy - text.height / 2),
+      );
+    }
+  }
+
+  /// The two parallel strokes across a corner that mean glass on an
+  /// elevation.
+  void _glazingMark(Canvas canvas, Polygon outline) {
+    final across = view.lengthToScreen(outline.width);
+    final down = view.lengthToScreen(outline.height);
+    final reach = math.min(across, down) * 0.3;
+    if (reach < 9) return;
+
+    final topRight = view.toScreen(Vec2(outline.right, outline.top));
+    canvas.save();
+    canvas.clipPath(view.pathOf(outline));
+    final paint = Cad.stroke(ink.glassLine, Cad.hairline);
+    for (final inset in [0.0, 5.0]) {
+      canvas.drawLine(
+        topRight + Offset(-reach - inset, inset),
+        topRight + Offset(-inset, reach + inset),
+        paint,
+      );
+    }
+    canvas.restore();
+  }
+
+  /// Forty-five degree hatching, for anything solid.
+  void _hatch(Canvas canvas, Polygon outline) {
+    final path = view.pathOf(outline);
+    final bounds = path.getBounds();
+    if (bounds.width < 6 || bounds.height < 6) return;
+
+    canvas.save();
+    canvas.clipPath(path);
+    final paint = Cad.stroke(ink.hatch.withValues(alpha: 0.55), Cad.hairline);
+    const spacing = 9.0;
+    final reach = bounds.width + bounds.height;
+    for (var at = 0.0; at < reach; at += spacing) {
+      canvas.drawLine(
+        Offset(bounds.left + at, bounds.top),
+        Offset(bounds.left + at - bounds.height, bounds.bottom),
+        paint,
+      );
+    }
+    canvas.restore();
+  }
+
+  /// The frame, drawn as a profile: the outside heavy, the daylight edge
+  /// lighter, exactly on the outline the user drew.
+  void _frame(Canvas canvas) {
+    final frame = design.frame!;
+    // Side by side rather than as two closed outlines, because a side the
+    // user left open has no member and so no line.
+    final lines = frame.lines;
+    final heavy = Cad.stroke(ink.heavy, Cad.outline);
+    for (final edge in lines.outside) {
+      canvas.drawLine(view.toScreen(edge.a), view.toScreen(edge.b), heavy);
+    }
+    final inner = frame.innerOutline;
+    if (!inner.isEmpty) {
+      final medium = Cad.stroke(ink.medium, Cad.profile);
+      for (final edge in lines.daylight) {
+        canvas.drawLine(view.toScreen(edge.a), view.toScreen(edge.b), medium);
+      }
+      if (layers.hatching) _profileHatch(canvas, frame.outline, inner);
+    }
+  }
+
+  /// Hatching in the frame ring, which is what says it is a section through
+  /// material rather than an empty border.
+  void _profileHatch(Canvas canvas, Polygon outer, Polygon inner) {
+    final ring = Path.combine(
+      PathOperation.difference,
+      view.pathOf(outer),
+      view.pathOf(inner),
+    );
+    final bounds = ring.getBounds();
+    canvas.save();
+    canvas.clipPath(ring);
+    final paint = Cad.stroke(ink.hatch.withValues(alpha: 0.7), Cad.hairline);
+    const spacing = 6.0;
+    final reach = bounds.width + bounds.height;
+    for (var at = 0.0; at < reach; at += spacing) {
+      canvas.drawLine(
+        Offset(bounds.left + at, bounds.top),
+        Offset(bounds.left + at - bounds.height, bounds.bottom),
+        paint,
+      );
+    }
+    canvas.restore();
+  }
+
+  /// Each bar as its two faces, at the angle it was drawn at.
+  ///
+  /// [inside] says which level of the tree these are: a bar that divides the
+  /// design is a mullion or a transom and carries a mullion's weight, while a
+  /// bar drawn inside a section is a glazing bar within it and is drawn
+  /// lighter. That is what a drawing does with a smaller member, and it is
+  /// what lets somebody reading the elevation see which bars belong to a
+  /// sash without being told.
+  void _bars(Canvas canvas, List<String> barIds, {required bool inside}) {
+    for (final id in barIds) {
+      final divider = design.dividerById(id);
+      if (divider == null) continue;
+      final body = _barBody(divider);
+      if (body.isEmpty) continue;
+      canvas.drawPath(view.pathOf(body), Cad.fill(ink.sheet));
+      if (layers.hatching) _hatch(canvas, body);
+      canvas.drawPath(
+        view.pathOf(body),
+        Cad.stroke(inside ? ink.medium : ink.heavy,
+            inside ? Cad.glazingBar : Cad.bar),
+      );
+
+      // The centre line, as a drawing shows the axis of a member.
+      if (layers.centreLines) {
+        final line = Path()
+          ..moveTo(view.toScreen(divider.a).dx, view.toScreen(divider.a).dy)
+          ..lineTo(view.toScreen(divider.b).dx, view.toScreen(divider.b).dy);
+        canvas.drawPath(
+          Cad.dashed(line, dash: 12, gap: 3),
+          Cad.stroke(ink.light.withValues(alpha: 0.75), Cad.hairline),
+        );
+      }
+    }
+  }
+
+  /// The rectangle a bar occupies, stopped at the sash when it is a bar
+  /// inside an opening — a glazing bar runs between the faces of the sash it
+  /// is in, not over the top of them. The same trim the solid makes, so the
+  /// two show one bar.
+  Polygon _barBody(DividerElement divider) {
+    final side = divider.segment.unit.perpendicular * (divider.widthMm / 2);
+    final body = Polygon([
+      divider.a + side,
+      divider.b + side,
+      divider.b - side,
+      divider.a - side,
+    ]);
+
+    final daylight = OpeningLeaf.daylightAround(design, divider.parentId);
+    if (daylight == null || daylight.isEmpty) return body;
+    return body.clippedTo(daylight);
+  }
+
+  /// The swing lines: the standard elevation symbol, dashed, pointing at the
+  /// hinge.
+  void _openings(Canvas canvas, DesignTree tree) {
+    for (final branch in tree.openings) {
+      final opening = design.openingById(branch.openingId!);
+      final section = design.sectionById(branch.sectionId);
+      if (opening == null || section == null) continue;
+      _leaf(canvas, section);
+      final box = section.outline;
+      final edge = opening.mechanism.hingeEdge;
+      final paint = Cad.stroke(ink.medium, Cad.detail);
+
+      if (edge == null) {
+        final middle = view.toScreen(box.centroid);
+        final reach = view.lengthToScreen(box.width * 0.28);
+        final towards =
+            opening.mechanism == OpeningMechanism.slidingLeft ? -1.0 : 1.0;
+        final shaft = Path()
+          ..moveTo(middle.dx - reach * towards, middle.dy)
+          ..lineTo(middle.dx + reach * towards, middle.dy);
+        canvas.drawPath(shaft, paint);
+        canvas.drawLine(
+          middle + Offset(reach * towards, 0),
+          middle + Offset(reach * towards * 0.76, -reach * 0.18),
+          paint,
+        );
+        canvas.drawLine(
+          middle + Offset(reach * towards, 0),
+          middle + Offset(reach * towards * 0.76, reach * 0.18),
+          paint,
+        );
+        continue;
+      }
+
+      final (Vec2 hingeA, Vec2 hingeB, Vec2 apex) = switch (edge) {
+        OpeningEdge.left => (
+            Vec2(box.left, box.top),
+            Vec2(box.left, box.bottom),
+            Vec2(box.right, (box.top + box.bottom) / 2),
+          ),
+        OpeningEdge.right => (
+            Vec2(box.right, box.top),
+            Vec2(box.right, box.bottom),
+            Vec2(box.left, (box.top + box.bottom) / 2),
+          ),
+        OpeningEdge.top => (
+            Vec2(box.left, box.top),
+            Vec2(box.right, box.top),
+            Vec2((box.left + box.right) / 2, box.bottom),
+          ),
+        OpeningEdge.bottom => (
+            Vec2(box.left, box.bottom),
+            Vec2(box.right, box.bottom),
+            Vec2((box.left + box.right) / 2, box.top),
+          ),
+      };
+
+      final swing = Path()
+        ..moveTo(view.toScreen(hingeA).dx, view.toScreen(hingeA).dy)
+        ..lineTo(view.toScreen(apex).dx, view.toScreen(apex).dy)
+        ..lineTo(view.toScreen(hingeB).dx, view.toScreen(hingeB).dy);
+      canvas.drawPath(Cad.dashed(swing), paint);
+
+      // Which way it opens, in words, because a triangle alone does not say.
+      final tag = Cad.label(
+        opening.direction == OpeningDirection.outward ? 'OUT' : 'IN',
+        colour: ink.light,
+        size: Cad.smallTextSize,
+        weight: FontWeight.w600,
+      );
+      // Inside the section, not hanging off the apex — the apex sits on the
+      // section's own edge, so anything placed outside it lands on the frame
+      // or off the drawing altogether.
+      // The apex sits on the edge opposite the hinge, so the tag steps back
+      // towards the middle of the section: away from the apex, not past it.
+      final inward = switch (edge) {
+        OpeningEdge.left => Offset(-tag.width - 8, -tag.height / 2),
+        OpeningEdge.right => Offset(8, -tag.height / 2),
+        OpeningEdge.top => Offset(-tag.width / 2, -tag.height - tagGap),
+        OpeningEdge.bottom => Offset(-tag.width / 2, tagGap),
+      };
+      tag.paint(canvas, view.toScreen(apex) + inward);
+
+      _openingMark(canvas, opening);
+    }
+  }
+
+  /// The `<` or `>` the user drew, shown where they drew it.
+  ///
+  /// Not decoration: it is the record of who decided this section opens. The
+  /// mark stays at the point it was made, so the drawing can be checked
+  /// against the instruction it came from.
+  /// How far above a bottom-hinged apex the direction tag sits.
+  static const double tagGap = 18;
+
+  /// The boundary of the leaf: its own frame, inside the region that opens.
+  ///
+  /// An opening is a specific region of the design and the leaf filling it is
+  /// a thing of its own, with an edge of its own. Drawing that edge is what
+  /// makes the elevation say where the opening stops — and it stops at the
+  /// section, never at the window. It is the same leaf the solid builds, from
+  /// the same description, so the two cannot disagree about where it is.
+  void _leaf(Canvas canvas, SectionElement section) {
+    final frame = design.frame;
+    if (frame == null) return;
+    final inner = OpeningLeaf.innerOf(section, frame);
+    if (inner == null) return;
+
+    final outer = OpeningLeaf.outerOf(section);
+    if (layers.hatching) _profileHatch(canvas, outer, inner);
+    canvas.drawPath(view.pathOf(outer), Cad.stroke(ink.medium, Cad.profile));
+    canvas.drawPath(view.pathOf(inner), Cad.stroke(ink.medium, Cad.profile));
+  }
+
+  void _openingMark(Canvas canvas, OpeningElement opening) {
+    final at = opening.markAt;
+    // The glyph of what the opening does now. Where the user has changed it
+    // since drawing the mark, the drawing shows what is built rather than
+    // what was first asked for — the inspector keeps the record of both.
+    final glyph = opening.mechanism.glyph ?? opening.markGlyph;
+    if (at == null || glyph == null) return;
+
+    final chosen = opening.id == selectedId;
+
+    final on = view.toScreen(at);
+    final text = Cad.label(
+      glyph,
+      colour: ink.dimension,
+      size: 15,
+      weight: FontWeight.w700,
+    );
+    final box = Rect.fromCenter(
+      center: on,
+      width: text.width + 13,
+      height: text.height + 7,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(box, const Radius.circular(5)),
+      Cad.fill(ink.sheet),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(box, const Radius.circular(5)),
+      chosen
+          ? Cad.stroke(ink.selection, 2.2)
+          : Cad.stroke(ink.dimension.withValues(alpha: 0.6), Cad.annotation),
+    );
+    text.paint(
+      canvas,
+      Offset(on.dx - text.width / 2, on.dy - text.height / 2),
+    );
+  }
+
+  void _hardware(Canvas canvas) {
+    for (final piece in design.hardware) {
+      final at = view.toScreen(piece.at);
+      final scale = math.max(design.widthMm, design.heightMm);
+      final length = view.lengthToScreen(
+        (switch (piece.kind) {
+          HardwareKind.lever => scale * 0.07,
+          HardwareKind.handle => scale * 0.09,
+          HardwareKind.letterplate => scale * 0.22,
+          HardwareKind.pull => OpeningHardware.pullLengthOf(design, piece),
+          _ => scale * 0.035,
+        })
+            .clamp(24.0, 420.0),
+      );
+      // A pull is a slender bar, not a plate: its width is a small part of
+      // its length, where a lever's backplate is a good part of it.
+      final width = math.max(
+        3.0,
+        length * (piece.kind == HardwareKind.pull ? 0.06 : 0.26),
+      );
+
+      // **A piece on the face this drawing is not of is hidden detail.** A
+      // door is drawn from outside, so its hinges are round the back and
+      // cannot be seen standing where this elevation is drawn from — so by
+      // default they are not drawn, as they are not seen in the solid. The
+      // **Hidden** layer puts them back dashed, as a joiner's hidden
+      // detail, because somebody still has to fit them. A window is drawn
+      // from inside, where its hinges are, so they are solid.
+      // `Design.isConcealed` is the one answer, read here and by the solid
+      // alike.
+      final concealed = design.isConcealed(piece);
+      if (concealed && !layers.hiddenDetail) continue;
+
+      // A screen's cassette and a sensor are fixed to the frame, and drawn
+      // as the shapes they are — from the same footprint the solid builds.
+      final footprint = OpeningHardware.footprintOf(design, piece);
+      if (footprint != null) {
+        final path = Path()
+          ..addPolygon(
+            [for (final c in footprint.corners) view.toScreen(c)],
+            true,
+          );
+        if (concealed) {
+          canvas.drawPath(
+            Cad.dashed(path, dash: 6, gap: 4),
+            Cad.stroke(ink.hidden, Cad.hairline),
+          );
+        } else {
+          canvas.drawPath(path, Cad.fill(ink.sheet));
+          canvas.drawPath(path, Cad.stroke(ink.medium, Cad.hairline));
+        }
+        continue;
+      }
+
+      canvas.save();
+      canvas.translate(at.dx, at.dy);
+      canvas.rotate(piece.rotation * math.pi / 180);
+      final body = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset.zero, width: length, height: width),
+        Radius.circular(width / 2),
+      );
+      if (concealed) {
+        canvas.drawPath(
+          Cad.dashed(Path()..addRRect(body), dash: 6, gap: 4),
+          Cad.stroke(ink.hidden, Cad.hairline),
+        );
+      } else {
+        canvas.drawRRect(body, Cad.fill(ink.sheet));
+        canvas.drawRRect(body, Cad.stroke(ink.heavy, Cad.bar));
+      }
+      canvas.restore();
+
+      // A cross at the exact point, because that is where it goes.
+      final tick = view.lengthToScreen(math.max(scale * 0.006, 8));
+      final paint = Cad.stroke(
+          concealed ? ink.hidden : ink.medium, Cad.hairline);
+      canvas.drawLine(at - Offset(tick, 0), at + Offset(tick, 0), paint);
+      canvas.drawLine(at - Offset(0, tick), at + Offset(0, tick), paint);
+    }
+  }
+
+  // ------------------------------------------------------------- dimensions
+
+  void _chains(Canvas canvas, DesignTree tree) {
+    final frame = design.frame!;
+    final sizes = Measurements.of(design);
+    for (final chain in DimensionChains.of(design)) {
+      final out = CadDimensions.outFor(chain);
+      for (final run in chain.runs) {
+        // A figure nobody has given is written `?`: the sketch has no
+        // scale, and a number read off it would be a guess.
+        final known = CadDimensions.knows(design, chain.axis, run, sizes);
+        if (chain.axis == DimensionAxis.horizontal) {
+          _horizontalRun(canvas, run, frame.outline.bottom, out, known);
+        } else {
+          _verticalRun(canvas, run, frame.outline.left, out, known);
+        }
+      }
+      _chainName(canvas, chain, frame.outline, out);
+    }
+    _sectionSizes(canvas, tree.sections, sizes);
+  }
+
+  /// What a row of dimensions is measuring, at the end of it.
+  ///
+  /// A chain of daylight openings does not add up to the overall size — the
+  /// frame and the bars are the difference — so each row says which it is
+  /// rather than leaving the reader to work out why the numbers disagree.
+  void _chainName(
+    Canvas canvas,
+    DimensionChain chain,
+    Polygon outline,
+    double outPixels,
+  ) {
+    if (chain.runs.isEmpty) return;
+    final text = Cad.label(
+      chain.runs.first.note.toUpperCase(),
+      colour: ink.dimension.withValues(alpha: 0.75),
+      size: Cad.smallTextSize,
+      weight: FontWeight.w700,
+    );
+
+    if (chain.axis == DimensionAxis.horizontal) {
+      final y = view.toScreen(Vec2(0, outline.bottom)).dy + outPixels;
+      final x = view.toScreen(Vec2(outline.right, 0)).dx + 14;
+      text.paint(canvas, Offset(x, y - text.height / 2));
+    } else {
+      // Below the chain and turned to read up it, so two rows of vertical
+      // dimensions never print their names on top of each other.
+      final x = view.toScreen(Vec2(outline.left, 0)).dx - outPixels;
+      final y = view.toScreen(Vec2(0, outline.bottom)).dy + 14;
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(-math.pi / 2);
+      text.paint(canvas, Offset(-text.width, -text.height / 2));
+      canvas.restore();
+    }
+  }
+
+  /// Every section's own size, written in it.
+  ///
+  /// The chains give the story along each edge; this gives the figure for
+  /// each pane, including the ones no chain can reach — a section in a
+  /// column of its own, or one bounded by a bar that stops part way.
+  ///
+  /// Down the tree, like every other pass: a branch is labelled by its
+  /// panes, not by a figure of its own written across them. Asking the tree
+  /// is asking the design; working it out here would be a second opinion
+  /// about the same thing.
+  void _sectionSizes(
+    Canvas canvas,
+    List<TreeSection> branches,
+    List<Measure> sizes,
+  ) {
+    for (final branch in branches) {
+      if (!branch.isLeaf) {
+        _sectionSizes(canvas, branch.panes, sizes);
+        continue;
+      }
+      final section = design.sectionById(branch.sectionId);
+      if (section == null) continue;
+
+      // A width and a height describe a rectangle. On a triangle they would
+      // be the box around it, which is not the pane and not what anybody
+      // would cut — so a section that is not a rectangle is left to the
+      // dimensions and the inspector rather than being labelled wrongly.
+      final at = CadDimensions.sectionSizeAt(design, view, section);
+      if (at == null) continue;
+
+      final text = Cad.label(
+        Measurements.sizeOf(design, section, sizes),
+        colour: ink.light,
+        size: Cad.smallTextSize,
+        weight: FontWeight.w600,
+      );
+      final box = Rect.fromCenter(
+        center: at,
+        width: text.width + 9,
+        height: text.height + 3,
+      );
+      canvas.drawRect(box, Cad.fill(ink.sheet.withValues(alpha: 0.9)));
+      text.paint(
+        canvas,
+        Offset(at.dx - text.width / 2, at.dy - text.height / 2),
+      );
+    }
+  }
+
+  void _horizontalRun(
+    Canvas canvas,
+    ChainRun run,
+    double fromMm,
+    double outPixels,
+    bool known,
+  ) {
+    final at = CadDimensions.horizontalRunAt(view, run, fromMm, outPixels);
+    if (at == null) return;
+    final base = view.toScreen(Vec2(0, fromMm)).dy;
+    final y = at.dy;
+    final x1 = view.toScreen(Vec2(run.fromMm, 0)).dx;
+    final x2 = view.toScreen(Vec2(run.toMm, 0)).dx;
+
+    final paint = Cad.stroke(ink.dimension, Cad.annotation);
+    // Witness lines, standing off the geometry so they never touch it.
+    for (final x in [x1, x2]) {
+      canvas.drawLine(
+        Offset(x, base + Cad.witnessGap),
+        Offset(x, y + Cad.witnessOvershoot),
+        paint,
+      );
+    }
+    canvas.drawLine(Offset(x1, y), Offset(x2, y), paint);
+    _tick(canvas, Offset(x1, y), paint);
+    _tick(canvas, Offset(x2, y), paint);
+
+    _dimensionLabel(
+      canvas,
+      Measurements.figure(run.valueMm, known: known),
+      at,
+      horizontal: true,
+    );
+  }
+
+  void _verticalRun(
+    Canvas canvas,
+    ChainRun run,
+    double fromMm,
+    double outPixels,
+    bool known,
+  ) {
+    final at = CadDimensions.verticalRunAt(view, run, fromMm, outPixels);
+    if (at == null) return;
+    final base = view.toScreen(Vec2(fromMm, 0)).dx;
+    final x = at.dx;
+    final y1 = view.toScreen(Vec2(0, run.fromMm)).dy;
+    final y2 = view.toScreen(Vec2(0, run.toMm)).dy;
+
+    final paint = Cad.stroke(ink.dimension, Cad.annotation);
+    for (final y in [y1, y2]) {
+      canvas.drawLine(
+        Offset(base - Cad.witnessGap, y),
+        Offset(x - Cad.witnessOvershoot, y),
+        paint,
+      );
+    }
+    canvas.drawLine(Offset(x, y1), Offset(x, y2), paint);
+    _tick(canvas, Offset(x, y1), paint);
+    _tick(canvas, Offset(x, y2), paint);
+
+    _dimensionLabel(
+      canvas,
+      Measurements.figure(run.valueMm, known: known),
+      at,
+      horizontal: false,
+    );
+  }
+
+  /// The forty-five degree slash that building drawings use instead of an
+  /// arrowhead.
+  void _tick(Canvas canvas, Offset at, Paint paint) {
+    const reach = 4.0;
+    canvas.drawLine(
+      at + const Offset(-reach, reach),
+      at + const Offset(reach, -reach),
+      paint,
+    );
+  }
+
+  void _dimensionLabel(
+    Canvas canvas,
+    String text,
+    Offset at, {
+    required bool horizontal,
+  }) {
+    final painter = Cad.label(
+      text,
+      colour: ink.dimension,
+      weight: FontWeight.w600,
+    );
+    canvas.save();
+    canvas.translate(at.dx, at.dy);
+    if (!horizontal) canvas.rotate(-math.pi / 2);
+
+    final box = Rect.fromCenter(
+      center: Offset.zero,
+      width: painter.width + 8,
+      height: painter.height + 1,
+    );
+    canvas.drawRect(box, Cad.fill(ink.sheet));
+    painter.paint(
+      canvas,
+      Offset(-painter.width / 2, -painter.height / 2 - 1),
+    );
+    canvas.restore();
+  }
+
+  /// The dimensions the user drew themselves, where they put them.
+  void _userDimensions(Canvas canvas) {
+    for (final dimension in design.dimensions) {
+      final line = Segment(dimension.a, dimension.b);
+      if (line.length < 1e-6) continue;
+      final off = line.unit.perpendicular * dimension.offsetMm;
+      final from = view.toScreen(dimension.a + off);
+      final to = view.toScreen(dimension.b + off);
+      final paint = Cad.stroke(ink.dimension, Cad.annotation);
+
+      canvas.drawLine(view.toScreen(dimension.a), from, paint);
+      canvas.drawLine(view.toScreen(dimension.b), to, paint);
+      canvas.drawLine(from, to, paint);
+      _tick(canvas, from, paint);
+      _tick(canvas, to, paint);
+
+      // A dimension the user drew measures the sketch, which has a scale
+      // only once the design's sizes are given; one they typed is theirs.
+      final text = dimension.isStated
+          ? Units.label(dimension.valueMm)
+          : Measurements.complete(design)
+              ? '${Units.label(dimension.valueMm)} ~'
+              : '? ${Units.symbol}';
+      _dimensionLabel(
+        canvas,
+        text,
+        Offset((from.dx + to.dx) / 2, (from.dy + to.dy) / 2),
+        horizontal: (to.dy - from.dy).abs() < (to.dx - from.dx).abs(),
+      );
+    }
+  }
+
+  void _annotations(Canvas canvas) {
+    for (final note in design.texts) {
+      // The same size on the sheet as the drawing gives it, so the two views
+      // agree about how big the note is and it shrinks with the zoom.
+      final size = view.letteringFor(note.sizeMm);
+      if (size < 1) continue;
+      final painter =
+          Cad.label(
+            note.text,
+            colour: ink.legible(Color(note.colour)),
+            size: size,
+          );
+      final at = view.toScreen(note.at);
+      canvas.drawRect(
+        Rect.fromLTWH(
+          at.dx - 3,
+          at.dy - painter.height / 2 - 2,
+          painter.width + 6,
+          painter.height + 4,
+        ),
+        Cad.fill(ink.sheet),
+      );
+      painter.paint(canvas, Offset(at.dx, at.dy - painter.height / 2));
+      canvas.drawCircle(at, 2.2, Cad.fill(ink.heavy));
+    }
+
+    for (final arrow in design.arrows) {
+      final from = view.toScreen(arrow.from);
+      final to = view.toScreen(arrow.to);
+      final paint = Cad.stroke(
+        ink.legible(Color(arrow.colour)),
+        Cad.annotation,
+      );
+      canvas.drawLine(from, to, paint);
+      final delta = to - from;
+      final length = delta.distance;
+      if (length < 1) continue;
+      final unit = delta / length;
+      final across = Offset(-unit.dy, unit.dx);
+      final head = math.min(11.0, length * 0.3);
+      canvas.drawLine(to, to - unit * head + across * head * 0.38, paint);
+      canvas.drawLine(to, to - unit * head - across * head * 0.38, paint);
+    }
+  }
+
+  // -------------------------------------------------------------- selection
+
+  void _selection(Canvas canvas) {
+    final ids = {...highlighted, ?selectedId};
+    for (final id in ids) {
+      final element = design.elementById(id);
+      if (element == null) continue;
+      final chosen = id == selectedId;
+      final paint = Cad.stroke(
+        ink.selection.withValues(alpha: chosen ? 1 : 0.55),
+        chosen ? 2.2 : 1.6,
+      );
+
+      switch (element) {
+        case FrameElement():
+          canvas.drawPath(view.pathOf(element.outline), paint);
+        case FrameMemberElement():
+          // The one side, drawn as thick as the profile it is, so picking a
+          // jamb shows the jamb rather than a line through the middle of it.
+          canvas.drawLine(
+            view.toScreen(element.run.a),
+            view.toScreen(element.run.b),
+            paint
+              ..strokeWidth = math.max(
+                3,
+                view.lengthToScreen(design.frame?.profileMm ?? 60),
+              )
+              ..color = ink.selection.withValues(alpha: 0.4),
+          );
+        case SectionElement():
+          canvas.drawPath(view.pathOf(element.outline), paint);
+        case DividerElement():
+          canvas.drawPath(view.pathOf(_barBody(element)), paint);
+        case HardwareElement():
+          canvas.drawCircle(view.toScreen(element.at), 14, paint);
+        case DimensionElement():
+          canvas.drawLine(
+            view.toScreen(element.a),
+            view.toScreen(element.b),
+            paint,
+          );
+        case ArrowElement():
+          canvas.drawLine(
+            view.toScreen(element.from),
+            view.toScreen(element.to),
+            paint,
+          );
+        case TextElement():
+          canvas.drawCircle(view.toScreen(element.at), 13, paint);
+        case OpeningElement():
+          final section = design.sectionById(element.sectionId);
+          if (section != null) {
+            canvas.drawPath(view.pathOf(section.outline), paint);
+          }
+      }
+    }
+  }
+
+  /// The little squares you take hold of to change a boundary.
+  void _grips(Canvas canvas) {
+    for (final grip in grips) {
+      final at = view.toScreen(grip.at);
+      final box = Rect.fromCenter(center: at, width: 9, height: 9);
+      canvas.drawRect(box, Cad.fill(ink.sheet));
+      canvas.drawRect(box, Cad.stroke(ink.grip, 1.6));
+    }
+  }
+
+  void _snap(Canvas canvas) {
+    final at = snapAt;
+    if (at == null) return;
+    final on = view.toScreen(at);
+    final paint = Cad.stroke(ink.snap, 1.6);
+    canvas.drawCircle(on, 7, paint);
+    canvas.drawLine(on - const Offset(11, 0), on + const Offset(11, 0), paint);
+    canvas.drawLine(on - const Offset(0, 11), on + const Offset(0, 11), paint);
+  }
+
+  @override
+  bool shouldRepaint(CadPainter old) =>
+      old.design != design ||
+      old.view.scale != view.scale ||
+      old.view.origin != view.origin ||
+      old.selectedId != selectedId ||
+      old.layers != layers ||
+      old.ink != ink ||
+      old.snapAt != snapAt ||
+      old.grips.length != grips.length ||
+      old.highlighted.length != highlighted.length;
+}
+
+/// A point you can take hold of to change the geometry.
+///
+/// A grip says what it moves, not what it belongs to: taking hold of the
+/// edge of a pane moves the bar that makes that edge, because the pane is
+/// the space between the bars and has no edges of its own to move.
+class Grip {
+  final Vec2 at;
+
+  /// The element the grip is shown on.
+  final String elementId;
+
+  final GripKind kind;
+
+  /// The bar this grip actually moves, where it moves one.
+  final String? dividerId;
+
+  /// The frame edge this grip actually moves, where it moves one.
+  final int? memberIndex;
+
+  const Grip({
+    required this.at,
+    required this.elementId,
+    required this.kind,
+    this.dividerId,
+    this.memberIndex,
+  });
+
+  /// True where the grip moves something square to itself rather than to a
+  /// point — a boundary, which has one direction that means anything.
+  bool get isBoundary => kind == GripKind.boundary;
+}
+
+enum GripKind {
+  /// Moves the whole thing.
+  move,
+
+  /// Moves one end of a bar, or one end of a dimension.
+  endStart,
+  endFinish,
+
+  /// Moves a boundary square to itself: a bar, or one side of the frame.
+  boundary,
+
+  /// Slides a dimension line away from what it measures.
+  offset,
+}
