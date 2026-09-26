@@ -37,6 +37,7 @@ void main() {
       ..setOpeningMechanism(order[0].id, OpeningMechanism.bottomHung);
     await tester.pumpAndSettle();
     await notNowToSizes(tester);
+    await showEverything(tester);
     await tester.tap(find.text('Parts'));
     await tester.pumpAndSettle();
 

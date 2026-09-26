@@ -48,6 +48,8 @@ void main() {
     await tester.pumpAndSettle();
     await toTheCategories(tester);
     await chooseDesign(tester, 'WINDOW');
+    // The strip inside an opening is under **More**.
+    await showEverything(tester);
 
     controller
       ..openDesign(design)

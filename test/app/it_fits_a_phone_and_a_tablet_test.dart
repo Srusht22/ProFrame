@@ -52,6 +52,9 @@ Future<(ProviderContainer, WorkspaceController)> twoLeavesAt(
     ..setOpeningKind(order[1].id, DesignKind.door);
   await tester.pumpAndSettle();
   await notNowToSizes(tester);
+  // Every control on the screen, which is the most there is to fit: the
+  // simple workspace is held by `simple_until_more_test.dart`.
+  await showEverything(tester);
   return (container, controller);
 }
 

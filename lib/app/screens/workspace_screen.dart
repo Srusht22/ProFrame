@@ -13,6 +13,7 @@ import '../inspector/measure_form.dart';
 import '../inspector/opening_kind_alert.dart';
 import '../inspector/outline_gap_alert.dart';
 import '../inspector/questions_panel.dart';
+import '../state/everything_shown.dart';
 import '../state/tools.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -165,6 +166,8 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
     final width = room.maxWidth;
     final layout = WorkspaceLayout.of(width);
     final phone = layout == WorkspaceLayout.phone;
+    // Simple unless the user asked for everything: see `EverythingShown`.
+    final everything = ref.watch(everythingShownProvider);
 
     return Scaffold(
       key: _scaffold,
@@ -210,14 +213,15 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
               onPressed: controller.canUndo ? controller.undo : null,
             ),
           ),
-          BarArrival(
-            order: 2,
-            child: BarIcon(
-              tooltip: 'Redo',
-              icon: Icons.redo,
-              onPressed: controller.canRedo ? controller.redo : null,
+          if (everything)
+            BarArrival(
+              order: 2,
+              child: BarIcon(
+                tooltip: 'Redo',
+                icon: Icons.redo,
+                onPressed: controller.canRedo ? controller.redo : null,
+              ),
             ),
-          ),
           BarArrival(
             order: 3,
             child: SaveIcon(
@@ -230,15 +234,17 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
               },
             ),
           ),
-          BarArrival(
-            order: 4,
-            child: BarIcon(
-              tooltip: state.showSketch ? 'Hide my drawing' : 'Show my drawing',
-              icon: state.showSketch ? Icons.gesture : Icons.gesture_outlined,
-              dim: !state.showSketch,
-              onPressed: controller.toggleSketch,
+          if (everything)
+            BarArrival(
+              order: 4,
+              child: BarIcon(
+                tooltip:
+                    state.showSketch ? 'Hide my drawing' : 'Show my drawing',
+                icon: state.showSketch ? Icons.gesture : Icons.gesture_outlined,
+                dim: !state.showSketch,
+                onPressed: controller.toggleSketch,
+              ),
             ),
-          ),
           SizedBox(width: phone ? 2 : 8),
         ],
       ),
@@ -256,6 +262,8 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                   state: state,
                   controller: controller,
                   layout: layout,
+                  everything: everything,
+                  onMore: ref.read(everythingShownProvider.notifier).toggle,
                   treeOpen: _showTree,
                   onTree: () => layout == WorkspaceLayout.desktop
                       ? setState(() => _showTree = !_showTree)
@@ -355,6 +363,10 @@ class _ViewBar extends StatelessWidget {
   final VoidCallback onDetails;
   final bool treeOpen;
 
+  /// Whether every control is shown, and the button that says so.
+  final bool everything;
+  final VoidCallback onMore;
+
   const _ViewBar({
     required this.state,
     required this.controller,
@@ -362,6 +374,8 @@ class _ViewBar extends StatelessWidget {
     required this.onTree,
     required this.onDetails,
     required this.treeOpen,
+    required this.everything,
+    required this.onMore,
   });
 
   @override
@@ -374,7 +388,12 @@ class _ViewBar extends StatelessWidget {
           view == WorkspaceView.draw || state.design.frame != null,
       onSelected: controller.showView,
     );
-    final canRead = state.design.frame != null;
+    final canRead = state.design.frame != null && everything;
+    final more = MoreButton(
+      shown: everything,
+      compact: layout == WorkspaceLayout.phone,
+      onPressed: onMore,
+    );
 
     // On a phone the three views share the width and everything else is an
     // icon, named by its tooltip: there is no room for a word beside them.
@@ -387,6 +406,7 @@ class _ViewBar extends StatelessWidget {
         child: Row(
           children: [
             Expanded(child: BarArrival(order: 1, child: tabs)),
+            more,
             if (canRead)
               IconButton(
                 tooltip: 'Read again',
@@ -394,18 +414,20 @@ class _ViewBar extends StatelessWidget {
                 onPressed: controller.readDrawing,
                 icon: const Icon(Icons.auto_fix_high_outlined, size: 20),
               ),
-            IconButton(
-              tooltip: 'Parts',
-              visualDensity: VisualDensity.compact,
-              onPressed: onTree,
-              icon: const Icon(Icons.list_alt_outlined, size: 20),
-            ),
-            IconButton(
-              tooltip: 'Details',
-              visualDensity: VisualDensity.compact,
-              onPressed: onDetails,
-              icon: const Icon(Icons.tune, size: 20),
-            ),
+            if (everything) ...[
+              IconButton(
+                tooltip: 'Parts',
+                visualDensity: VisualDensity.compact,
+                onPressed: onTree,
+                icon: const Icon(Icons.list_alt_outlined, size: 20),
+              ),
+              IconButton(
+                tooltip: 'Details',
+                visualDensity: VisualDensity.compact,
+                onPressed: onDetails,
+                icon: const Icon(Icons.tune, size: 20),
+              ),
+            ],
           ],
         ),
       );
@@ -417,14 +439,26 @@ class _ViewBar extends StatelessWidget {
       child: Row(
         children: [
           BarArrival(order: 1, child: tabs),
+          const SizedBox(width: 8),
+          more,
           const Spacer(),
-          if (canRead)
+          // A word where there is room for one; beside **More** on a
+          // tablet there is not, and it is an icon like the two after it.
+          if (canRead && layout == WorkspaceLayout.desktop)
             TextButton.icon(
               onPressed: controller.readDrawing,
               icon: const Icon(Icons.auto_fix_high_outlined, size: 18),
               label: const Text('Read again'),
+            )
+          else if (canRead)
+            IconButton(
+              tooltip: 'Read again',
+              onPressed: controller.readDrawing,
+              icon: const Icon(Icons.auto_fix_high_outlined, size: 20),
             ),
-          if (layout == WorkspaceLayout.desktop)
+          if (!everything)
+            const SizedBox.shrink()
+          else if (layout == WorkspaceLayout.desktop)
             TextButton.icon(
               onPressed: onTree,
               icon: Icon(

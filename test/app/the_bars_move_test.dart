@@ -116,6 +116,7 @@ void main() {
     tester,
   ) async {
     await sheet.openTheApp(tester, 'WINDOW');
+    await showEverything(tester);
     await tester.tap(find.text('Polyline'));
     await tester.pumpAndSettle();
     final marks = find.descendant(

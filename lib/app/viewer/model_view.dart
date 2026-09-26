@@ -9,6 +9,7 @@ import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import '../../domain/solid/camera.dart';
 import '../../domain/solid/mesh_builder.dart';
+import '../state/everything_shown.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'display_style.dart';
@@ -68,8 +69,14 @@ class _ModelViewState extends ConsumerState<ModelView> {
     );
     final faces = state.camera.project(mesh);
 
+    // Simple unless the user asked for everything: the model and how far
+    // its leaves are open; the camera's views, the display styles and the
+    // solid's own figures under **More**.
+    final everything = ref.watch(everythingShownProvider);
+
     return Column(
       children: [
+        if (everything) ...[
         _ViewToolbar(
           camera: state.camera,
           style: state.displayStyle,
@@ -87,12 +94,16 @@ class _ModelViewState extends ConsumerState<ModelView> {
           },
         ),
         const Divider(height: 1),
-        _SolidBar(
-          design: state.design,
-          openFraction: state.openFraction,
-          controller: controller,
-        ),
-        const Divider(height: 1),
+        ],
+        if (everything || state.design.openings.isNotEmpty) ...[
+          _SolidBar(
+            design: state.design,
+            openFraction: state.openFraction,
+            controller: controller,
+            everything: everything,
+          ),
+          const Divider(height: 1),
+        ],
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -171,11 +182,12 @@ class _ModelViewState extends ConsumerState<ModelView> {
                               controller.zoomToFit(state.camera.zoomToFit(mesh)),
                         ),
                       ),
-                      Positioned(
-                        left: 14,
-                        bottom: 12,
-                        child: _Readout(state: state),
-                      ),
+                      if (everything)
+                        Positioned(
+                          left: 14,
+                          bottom: 12,
+                          child: _Readout(state: state),
+                        ),
                     ],
                   ),
                 ),
@@ -200,10 +212,14 @@ class _SolidBar extends StatelessWidget {
   final double openFraction;
   final WorkspaceController controller;
 
+  /// False while the workspace is simple: then only the opening's slider.
+  final bool everything;
+
   const _SolidBar({
     required this.design,
     required this.openFraction,
     required this.controller,
+    this.everything = true,
   });
 
   /// **The bar flows onto a second line rather than running off the edge.**
@@ -222,6 +238,7 @@ class _SolidBar extends StatelessWidget {
           runSpacing: 6,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
+            if (everything) ...[
             _SolidNumber(
               label: 'Depth',
               valueMm: design.depthMm,
@@ -246,6 +263,7 @@ class _SolidBar extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
+            ],
             if (design.openings.isNotEmpty)
               Tooltip(
                 message: 'How far the leaves are swung. A way of looking at '

@@ -373,6 +373,8 @@ void main() {
     await tester.pumpAndSettle();
     await toTheCategories(tester);
     await chooseDesign(tester, 'WINDOW');
+    // The layers and the status bar are under **More**.
+    await showEverything(tester);
 
     lopsided(ProviderContainer());
     captured.read(workspaceProvider.notifier)

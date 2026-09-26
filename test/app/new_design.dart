@@ -47,3 +47,17 @@ Future<void> notNowToSizes(WidgetTester tester) async {
   await tester.tap(notNow.first);
   await tester.pumpAndSettle();
 }
+
+/// Shows every control, the way a user does who wants more than the simple
+/// workspace: **More**, beside the views. The workspace opens simple — see
+/// `EverythingShown` — and a test about a control under More gets to it the
+/// way the user does.
+Future<void> showEverything(WidgetTester tester) async {
+  await tester.pumpAndSettle();
+  final more = find.byKey(const ValueKey('more-tools'));
+  if (more.evaluate().isEmpty) return;
+  final simple = find.descendant(of: more, matching: find.text('More'));
+  if (simple.evaluate().isEmpty) return;
+  await tester.tap(more);
+  await tester.pumpAndSettle();
+}

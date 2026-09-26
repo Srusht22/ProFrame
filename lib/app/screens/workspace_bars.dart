@@ -417,3 +417,53 @@ class ChosenBounce extends StatelessWidget {
     child: child,
   );
 }
+
+/// **More** — the one button that shows every control, and **Less**, which
+/// puts them away again. See `EverythingShown`.
+///
+/// Always a word as well as an icon, even on a phone: it is the button a
+/// person who does not know the application has to find, and an icon on
+/// its own would be one more thing to guess at.
+class MoreButton extends StatelessWidget {
+  /// Whether everything is shown now.
+  final bool shown;
+
+  /// Tighter, for a phone's bar.
+  final bool compact;
+  final VoidCallback onPressed;
+
+  const MoreButton({
+    super.key,
+    required this.shown,
+    required this.onPressed,
+    this.compact = false,
+  });
+
+  static const buttonKey = ValueKey('more-tools');
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Tooltip(
+      message: shown ? 'Show fewer tools' : 'Show every tool',
+      child: TextButton.icon(
+        key: buttonKey,
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          foregroundColor: p.primary,
+          backgroundColor: shown
+              ? p.primary.withValues(alpha: 0.1)
+              : Colors.transparent,
+          visualDensity: compact ? VisualDensity.compact : null,
+          padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: p.hairline),
+          ),
+        ),
+        icon: Icon(shown ? Icons.expand_less : Icons.more_horiz, size: 18),
+        label: Text(shown ? 'Less' : 'More'),
+      ),
+    );
+  }
+}

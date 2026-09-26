@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../inspector/colour_picker.dart';
+import '../state/everything_shown.dart';
 import '../state/tools.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -59,6 +60,16 @@ class ToolBar extends ConsumerWidget {
     Tool.eraser: Icons.cleaning_services_outlined,
   };
 
+  /// The tools shown while the workspace is simple: what a door or a window
+  /// is drawn with, and the eraser. **More** shows the rest.
+  static const simple = [
+    Tool.select,
+    Tool.pen,
+    Tool.line,
+    Tool.rectangle,
+    Tool.eraser,
+  ];
+
   /// The icon a [tool] is shown by.
   static IconData iconOf(Tool tool) => _icons[tool]!;
 
@@ -68,7 +79,13 @@ class ToolBar extends ConsumerWidget {
     final controller = ref.read(workspaceProvider.notifier);
     final drawing = state.view == WorkspaceView.draw;
     final active = drawing ? state.tool : Tool.select;
-    final chosen = Tool.values.indexOf(active);
+    final everything = ref.watch(everythingShownProvider);
+    // A tool chosen while everything was shown stays on the bar, so what
+    // is in the user's hand is never hidden from them.
+    final tools = everything
+        ? Tool.values
+        : [...simple, if (!simple.contains(active)) active];
+    final chosen = tools.indexOf(active);
     final change = BarMotion.of(context, BarMotion.change);
 
     void use(Tool tool) {
@@ -78,7 +95,7 @@ class ToolBar extends ConsumerWidget {
       controller.useTool(tool);
     }
 
-    const colourRoom = 60.0;
+    final colourRoom = everything ? 60.0 : 0.0;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: context.palette.surface,
@@ -96,7 +113,7 @@ class ToolBar extends ConsumerWidget {
           final room = box.maxWidth - colourRoom - 12;
           final across = math.max(
             narrowest,
-            math.min(widest, room / Tool.values.length),
+            math.min(widest, room / tools.length),
           );
           return SizedBox(
             height: height,
@@ -109,7 +126,7 @@ class ToolBar extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     SizedBox(
-                      width: across * Tool.values.length,
+                      width: across * tools.length,
                       height: height,
                       child: Stack(
                         children: [
@@ -156,7 +173,7 @@ class ToolBar extends ConsumerWidget {
                           ),
                           Row(
                             children: [
-                              for (final (i, tool) in Tool.values.indexed)
+                              for (final (i, tool) in tools.indexed)
                                 BarArrival(
                                   // Along the bar one after another, rising
                                   // from the edge they sit on.
@@ -179,23 +196,25 @@ class ToolBar extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(
-                      height: 32,
-                      child: VerticalDivider(width: 12),
-                    ),
-                    BarArrival(
-                      order: Tool.values.length,
-                      from: const Offset(0, 14),
-                      child: SizedBox(
-                        width: colourRoom - 12,
-                        height: height,
-                        child: _PenColour(
-                          colour: state.penColour,
-                          onTap: () =>
-                              _pickColour(context, ref, state.penColour),
+                    if (everything) ...[
+                      const SizedBox(
+                        height: 32,
+                        child: VerticalDivider(width: 12),
+                      ),
+                      BarArrival(
+                        order: tools.length,
+                        from: const Offset(0, 14),
+                        child: SizedBox(
+                          width: colourRoom - 12,
+                          height: height,
+                          child: _PenColour(
+                            colour: state.penColour,
+                            onTap: () =>
+                                _pickColour(context, ref, state.penColour),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),

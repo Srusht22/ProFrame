@@ -14,6 +14,7 @@ import '../../domain/geometry/tolerances.dart';
 import '../../domain/geometry/vec2.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
+import '../state/everything_shown.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'cad_layers.dart';
@@ -96,18 +97,25 @@ class _CadViewState extends ConsumerState<CadView> {
     final insideSection =
         insideId == null ? null : state.design.sectionById(insideId);
 
+    // Simple unless the user asked for everything: the drawing and its
+    // zoom, and the layers, the tools inside an opening and the status
+    // line one tap away under **More**.
+    final everything = ref.watch(everythingShownProvider);
+
     return Column(
       children: [
-        _LayerBar(
-          layers: layers,
-          onChanged: controller.setLayers,
-          onFit: () => setState(() {
-            _fittedTo = state.design.bounds;
-            _view = _fitted(state.design.bounds, _size);
-          }),
-        ),
-        const Divider(height: 1),
-        if (insideSection != null)
+        if (everything) ...[
+          _LayerBar(
+            layers: layers,
+            onChanged: controller.setLayers,
+            onFit: () => setState(() {
+              _fittedTo = state.design.bounds;
+              _view = _fitted(state.design.bounds, _size);
+            }),
+          ),
+          const Divider(height: 1),
+        ],
+        if (insideSection != null && everything)
           _InsideBar(
             design: state.design,
             opening: insideSection,
@@ -227,11 +235,12 @@ class _CadViewState extends ConsumerState<CadView> {
                               ),
                             ),
                           ),
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            child: _StatusBar(
+                          if (everything)
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              child: _StatusBar(
                               state: state,
                               pointer: _pointer,
                               scale: view.scale,

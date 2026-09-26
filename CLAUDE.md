@@ -819,7 +819,7 @@ not `MediaQuery`, so a phone-sized browser window on a laptop is a phone:
 | --- | --- | --- | --- |
 | Tools | the navigation bar along the bottom, scrolling | the same, spread out | the same, spread out |
 | Views | Draw / CAD / 3D sharing the width | full names | full names |
-| Read again, Parts, Details | icons | a word and icons | words |
+| Read again, Parts, Details — under **More** | icons | icons | words |
 | What is picked | `_PickedBar` under the drawing, **Edit** opens a drawer | the same | the panel beside it |
 
 **Two navigation bars, one design.** The user asked for a bottom
@@ -846,6 +846,34 @@ Answering what an opening is leaves nothing at the bottom of the screen:
 the answer is visible on the drawing and under **Opening types** in the
 design's own panel, which is where it is changed. The notice that repeated
 it was noise and is not to come back.
+
+### Simple until More
+
+The user's words, over a phone screenshot of the technical drawing: *it is
+so overwhelming, there are a ton of things. I know they are necessary, but
+the app is used by people who do not know much about technology; they want
+it clear and simple. Use a button to show all those icons.*
+
+So the workspace opens simple, and **More** beside the views
+(`MoreButton`, `everythingShownProvider` in `everything_shown.dart`) shows
+the rest; it reads **Less** while they are shown.
+
+| Always | Under More |
+| --- | --- |
+| Back, the design's name, **Sizes**, Undo, Save | Redo, Show my drawing, Read again, Parts, Details |
+| Draw / CAD / 3D | The technical drawing's layers, the strip of tools inside an opening, the status bar |
+| Select, Freehand, Straight line, Rectangle, Eraser (`ToolBar.simple`) | Polyline, Dimension, Arrow, Note, the pen's colour |
+| The model, and **Open** and Play where there is a leaf | The camera's views and display styles, Depth, Profile, the readout |
+
+**Nothing is taken away.** Every control is one tap off; the drawing still
+reads itself, a line drawn inside an opening still joins it, and a
+picked part's panel still opens from the bar under the drawing. A tool
+chosen under More stays on the bar under Less, so what is active is never
+hidden. The choice is kept on the device (`proframe.everything-shown`), so
+someone who wants everything has it next time too.
+`test/app/simple_until_more_test.dart` holds it, and `showEverything` in
+`test/app/new_design.dart` is how a test about a control under More gets
+to it.
 
 ### The launch
 

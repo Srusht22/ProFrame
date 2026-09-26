@@ -40,6 +40,8 @@ void main() {
       await tester.pumpAndSettle();
       await toTheCategories(tester);
       await chooseDesign(tester, 'DOOR & WINDOW');
+      // Every control, which is the most there is to fit.
+      await showEverything(tester);
 
       final controller = await sheet.twoLeaves(container);
       final order = container.read(workspaceProvider).design.openingsInOrder;

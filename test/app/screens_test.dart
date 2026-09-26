@@ -48,7 +48,8 @@ void main() {
     expect(find.text('CAD drawing'), findsOneWidget);
     expect(find.text('3D model'), findsOneWidget);
 
-    // Every tool is reachable.
+    // Every tool is reachable — the rest of them under **More**.
+    await showEverything(tester);
     for (final label in [
       'Select',
       'Freehand',
