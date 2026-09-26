@@ -794,10 +794,9 @@ the marked section opens*).
 is completed against the surrounding design** — the user's words: *complete
 it to the boundary of that surrounding design area; do not extend it through
 the opening, and do not use the opening's boundary for it.* Which lines are
-an opening's is settled before any line is completed, by the same pairing
-and the same `_openingAlreadyHolding` the reading then uses, and a line of
-the design is completed only against the outline, the design's own lines and
-the bars made in the design — never a line of an opening's. It is never run
+an opening's is settled before any line is completed (next paragraph), and a
+line of the design is completed only against the outline, the design's own
+lines and the bars made in the design — never a line of an opening's. It is never run
 through an opening either: a line heading for one stops at its edge, which
 is where the surrounding design ends in that direction, and an end the hand
 carried *into* a region the design already opens is left where it was
@@ -805,7 +804,38 @@ drawn rather than run on across it.
 `test/domain/a_line_outside_the_opening_is_completed_to_the_design_test.dart`
 holds the user's own test — one line inside the opening completed inside
 it, one outside completed frame to frame — and the line heading for the
-opening, the line level with it, and the end carried into it. The ink is not touched: completing is the reading of the line,
+opening, the line level with it, and the end carried into it.
+
+**Where the line was started decides whose it is, and that is decided
+first.** The user's words: *before completing any line, determine where the
+user started it — inside Opening #1 it is Opening #1's, inside the main
+design and outside every opening it is the main design's; not by the nearest
+line, not by the largest rectangle, not by the drawing's bounds.* So the
+reading does it in that order: every new line is given its scope by
+`SketchInterpreter._scopeOf`, then each is completed inside its own scope
+against its own scope's lines — an opening's by `_completedWithin`, which
+trims what the hand drew past the opening's edge and completes the rest
+inside it, and the design's by `_completed`. `_scopeOf` asks of the **start**:
+
+1. Inside an opening, by the line's own thickness — that opening's, whatever
+   the line does afterwards; the smallest where openings nest.
+2. Inside a part of the main design — the design's. A part with an opening
+   lying loose inside it is kept as the whole of its ground, because a part
+   has no holes, so it does not claim a start that is on that opening's edge.
+3. On an edge — the frame or a bar, the edge of two areas at once, which says
+   nothing by itself — an opening's only when the line lies within that
+   opening, give or take the member it was started from, and runs well inside
+   it somewhere: the rail drawn from a sash's jamb. A line from the frame
+   right across the window, or along a sash's jamb, is the design's.
+
+A line re-read from a bar the last reading made keeps that bar's scope, and
+on a first reading there are no openings, so every line is the design's.
+`test/domain/the_start_point_decides_the_line_s_scope_test.dart` holds the
+user's test — a main design and two openings, one line started in each — and
+a line started in Opening #1 and run across the mullion staying Opening #1's
+and inside it, one started in the design and run into Opening #2 staying the
+design's, one started right beside a shared mullion, lines drawn backwards,
+starts on the frame, a first reading and a second. The ink is not touched: completing is the reading of the line,
 and nothing moves but its free end. No part is made that the completed line
 does not cut off, no opening is made or moved, and nothing is asked.
 `test/domain/a_line_stopped_short_is_completed_test.dart` holds both
@@ -1570,8 +1600,9 @@ drawn line divides the design, and
 `only_the_marked_section_opens_test.dart` reads its five stroke orders
 exactly as before. Only a line with its own thickness clear of the sash all
 round counts, because a line along a jamb is bounding that region rather
-than dividing what is inside it; `_openingAlreadyHolding` is the test, on
-the section's outline inset by the bar's own width. The line is then laid
+than dividing what is inside it; `_scopeOf` is the test, on the section's
+outline inset by the bar's own width (see *A line stopped short is
+completed*). The line is then laid
 right across the sash by the same `spanAcross` the **Divides** control and
 the line tools use, because a hand-drawn line stops short of a stile and
 inside a sash that is the difference between two panes and one pane with a
@@ -1586,12 +1617,12 @@ opening's boundary; do not expand, move or resize the opening.* A hand draws
 a rail from the sash's jamb and lifts before the far one, so the line touches
 the sash at one end and is not clear of it all round; read as a line of the
 design, the completion in *A line stopped short is completed* then carried
-it across the whole design and cut the opening in two. So
-`_openingAlreadyHolding` also takes a line with an end well inside the
-opening — by the line's own thickness — that lies within the opening all
-the way, give or take the frame's profile for the member it was started
-from. It is laid across the opening's own outline by `spanAcross`, and so
-reaches the opening's boundary and no further. A line along a jamb has no
+it across the whole design and cut the opening in two. So `_scopeOf` also
+gives the opening a line started on its edge that runs well inside it — by
+the line's own thickness — and lies within it all the way, give or take the
+frame's profile for the member it was started from. `_completedWithin` then
+completes it inside the opening's own outline, so it reaches the opening's
+boundary and no further. A line along a jamb has no
 end well inside and a line across the window leaves the opening, so neither
 joins, as before. `test/domain/a_line_started_in_the_opening_is_completed_to_it_test.dart`
 holds it from either jamb, stopped short at both ends, upright, in a door

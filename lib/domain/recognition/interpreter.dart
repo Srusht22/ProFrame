@@ -259,60 +259,66 @@ abstract final class SketchInterpreter {
     // What a line of the design the user stopped short can be finished to:
     // the design's own lines and nothing of an opening's. See `_completed`.
     //
-    // **A line started outside an opening belongs to the surrounding
-    // design, so it is completed against the surrounding design** — the
-    // outline, the lines that divide the design, and the bars made in the
-    // design with its own tools — and never against a line that is an
-    // opening's. Which lines are an opening's is settled here, before any
-    // is completed, by the same pairing and the same test the loop below
-    // uses: a line re-read from a bar that was already the opening's, or a
-    // line drawn inside an opening that is already there.
+    // **Where the user started a line decides whose it is, and that is
+    // decided first** — the user's words: *before completing any line,
+    // determine where the user started it. Inside Opening #1, it is
+    // Opening #1's; inside the main design and outside every opening, it is
+    // the main design's. Not the nearest line, not the largest rectangle,
+    // not the drawing's bounds: the starting point.* So every new line is
+    // given its scope here, by `_scopeOf`, before any line is completed,
+    // and each is then completed inside its own scope and against its own
+    // scope's lines only — an opening's line against the opening's edge and
+    // the opening's other lines, a line of the design against the outline
+    // and the design's other lines, never through an opening.
+    //
+    // A line re-read from a bar the last reading made keeps the scope that
+    // bar has: a reading re-reads the drawing, it does not overturn what was
+    // settled about it. On a first reading there are no openings, so every
+    // line is the design's, exactly as before.
     final width = frame.profileMm * 0.8;
     final memberMm = frame.profileMm + weld;
+    final regionOf = <String, Polygon>{
+      for (final opening in design.openings)
+        if (design.sectionById(opening.sectionId) case final section?)
+          opening.id: section.outline,
+    };
     final pairing = {
       for (final entry in madeBefore.entries) entry.key: [...entry.value],
     };
-    final ofTheDesign = <Segment>[];
+    final scoped = <({_Run run, DividerElement? before, String? scope})>[];
     for (final run in welded) {
       if (_liesOn(run.segment, outline, weld)) continue;
       final made = pairing[run.strokeId];
       final before = (made == null || made.isEmpty) ? null : made.removeAt(0);
-      final opening = before != null
-          ? before.parentId != null
-          : _openingAlreadyHolding(
-                  design,
-                  run.segment,
-                  width,
-                  memberMm: memberMm,
-                ) !=
-                null;
-      if (!opening) ofTheDesign.add(run.segment);
+      scoped.add((
+        run: run,
+        before: before,
+        scope: before != null
+            ? design.openingHolding(before.parentId)?.id
+            : _scopeOf(design, run.segment, width, memberMm),
+      ));
     }
-    final boundaries = [
-      ...outline.edges,
-      ...ofTheDesign,
+
+    // Each scope's own lines: what a line in it can be completed to.
+    List<Segment> linesOf(String? scope) => [
+      for (final p in scoped)
+        if (p.scope == scope)
+          p.before != null && p.before!.parentId != null
+              ? Segment(p.before!.a, p.before!.b)
+              : p.run.segment,
       for (final d in dividers)
-        if (d.parentId == null) Segment(d.a, d.b),
+        if (design.openingHolding(d.parentId)?.id == scope) Segment(d.a, d.b),
     ];
+    final designBoundaries = [...outline.edges, ...linesOf(null)];
+    final openingBoundaries = {
+      for (final entry in regionOf.entries)
+        entry.key: [...entry.value.edges, ...linesOf(entry.key)],
+    };
     // The regions the design already opens: a line of the design is never
     // completed through one of them.
-    final opened = [
-      for (final opening in design.openings)
-        ?design.sectionById(opening.sectionId)?.outline,
-    ];
+    final opened = regionOf.values.toList();
 
-    for (final run in welded) {
-      if (_liesOn(run.segment, outline, weld)) continue;
-      final completed = _completed(
-        run.segment,
-        boundaries,
-        outline,
-        weld,
-        opened: opened,
-      );
-
-      final made = madeBefore[run.strokeId];
-      final before = (made == null || made.isEmpty) ? null : made.removeAt(0);
+    for (final (:run, :before, :scope) in scoped) {
       if (before != null) {
         // A bar that divides the design is a faithful copy of its stroke, so
         // it is read from the stroke again — the line is wherever the user's
@@ -325,70 +331,81 @@ abstract final class SketchInterpreter {
         // undivided pane with a line lying on it — moving a line the user
         // never moved. Its ends are the design's now; only the stroke's
         // going takes it away.
-        dividers.add(before.parentId == null
-            ? before.copyWith(a: completed.a, b: completed.b)
-            : before);
+        if (before.parentId != null) {
+          dividers.add(before);
+        } else {
+          final completed = _completed(
+            run.segment,
+            designBoundaries,
+            outline,
+            weld,
+            opened: opened,
+          );
+          dividers.add(before.copyWith(a: completed.a, b: completed.b));
+        }
         continue;
       }
 
-      // A line drawn inside a region the design **already** opens is that
-      // opening's, and only such a line.
-      //
-      // This is not the inference this file refuses twice over, and the
-      // difference is what makes it safe. Deciding *within one reading*
-      // which lines an opening contains is circular — a mullion below a `>`
-      // and a rail below a `>` are the same picture turned on its side, and
-      // each lies wholly within the region the mark is in once you take it
-      // away — and deciding it by stroke order is worse, which
-      // `only_the_marked_section_opens_test.dart` shows in five orders. Both
-      // ask a reading to work out a region that depends on the answer.
-      //
-      // This asks nothing of the kind. The opening is already there: the
-      // user marked it, saw it drawn, and then drew inside it. The region
-      // is the one they were looking at, from the design as it stands
-      // before this reading, and it exists whether or not this line joins
-      // it. On a first reading there are no openings yet, so nothing is
-      // decided, and every drawn line divides the design exactly as before.
-      //
-      // Only a line with room to spare counts — its own thickness clear of
-      // the sash all round. A line along a jamb is bounding that region, not
-      // dividing it, and belongs to whatever it separates.
-      //
-      // And it is the user's either way: **Divides** moves a bar in or out
-      // by hand, and that now outlasts every later reading.
-      final joined = _openingAlreadyHolding(
-        design,
+      if (scope != null) {
+        // A line started in a region the design **already** opens is that
+        // opening's, and only such a line.
+        //
+        // This is not the inference this file refuses twice over, and the
+        // difference is what makes it safe. Deciding *within one reading*
+        // which lines an opening contains is circular — a mullion below a
+        // `>` and a rail below a `>` are the same picture turned on its
+        // side, and each lies wholly within the region the mark is in once
+        // you take it away — and deciding it by stroke order is worse, which
+        // `only_the_marked_section_opens_test.dart` shows in five orders.
+        // Both ask a reading to work out a region that depends on the
+        // answer. This asks nothing of the kind: the opening is already
+        // there, the user saw it drawn and then drew in it, and the region
+        // is the one they were looking at, from the design as it stands
+        // before this reading.
+        //
+        // It is completed within the opening, to the opening's edge or the
+        // first of the opening's own lines it meets, and no further: the
+        // opening is not expanded, moved or resized. And it is the user's
+        // either way: **Divides** moves a bar in or out by hand, and that
+        // outlasts every later reading.
+        final region = regionOf[scope]!;
+        final within = _completedWithin(
+          run.segment,
+          region,
+          openingBoundaries[scope]!,
+          weld,
+        );
+        dividers.add(
+          DividerElement(
+            id: nextDividerId(),
+            a: within.a,
+            b: within.b,
+            widthMm: width,
+            finish: frame.finish,
+            parentId: scope,
+            fromStrokeId: run.strokeId,
+          ),
+        );
+        continue;
+      }
+
+      final completed = _completed(
         run.segment,
-        width,
-        memberMm: memberMm,
+        designBoundaries,
+        outline,
+        weld,
+        opened: opened,
       );
-      if (joined != null) {
-        // Laid right across the region it has joined, as **Divides** and the
-        // line tools both do: a hand-drawn line stops a few millimetres
-        // short of a stile, and inside a sash that is the difference between
-        // two panes and one pane with a line lying on it.
-        final across =
-            DesignEdits.spanAcross(joined.outline, run.segment) ?? run.segment;
-        dividers.add(DividerElement(
+      dividers.add(
+        DividerElement(
           id: nextDividerId(),
-          a: across.a,
-          b: across.b,
+          a: completed.a,
+          b: completed.b,
           widthMm: width,
           finish: frame.finish,
-          parentId: joined.openingId,
           fromStrokeId: run.strokeId,
-        ));
-        continue;
-      }
-
-      dividers.add(DividerElement(
-        id: nextDividerId(),
-        a: completed.a,
-        b: completed.b,
-        widthMm: width,
-        finish: frame.finish,
-        fromStrokeId: run.strokeId,
-      ));
+        ),
+      );
     }
 
     var read = design.copyWith(frame: frame, dividers: dividers);
@@ -1119,46 +1136,127 @@ abstract final class SketchInterpreter {
   /// length are otherwise untouched. Without this, a box drawn as four
   /// separate strokes never closes, because a hand does not land twice on
   /// the same pixel.
-  /// The opening [design] already has whose region holds [line] with room
-  /// to spare, or null when the line is in none of them.
+  /// Which opening a new [line] is started in — its id — or null for the
+  /// main design.
   ///
-  /// Read from the design as it stands, *before* this reading rebuilds it,
-  /// so the region is the one the user was looking at when they drew. The
-  /// margin is the bar's own thickness: a line closer than that to an edge
-  /// is running along it rather than dividing what is inside.
+  /// **The starting point decides.** The user's words: *determine which area
+  /// contains the start point, and assign the line to that area; not by the
+  /// nearest line, not by the largest rectangle, not by the drawing's
+  /// bounds.* The regions are the design's as it stands *before* this
+  /// reading rebuilds it, so they are the ones the user was looking at when
+  /// they drew.
   ///
-  /// **A line started inside the opening and stopped early is the
-  /// opening's too** — the user's words: *if I start a line inside an
-  /// opening, complete it to the opening's boundary; do not expand, move
-  /// or resize the opening.* A hand draws a rail across a sash from its
-  /// jamb and lifts before the far one, so the line touches the sash at one
-  /// end and is not clear of it all round. Read as a line of the design, it
-  /// was then completed across the whole design and cut the opening in two.
-  /// So a line with an end well inside the opening — inside it by the line's
-  /// own thickness — that lies within the opening all the way, give or take
-  /// [memberMm] for the frame or the bar it was started from, joins it; and
-  /// the caller lays it across the opening's own outline and no further. A
-  /// line along a jamb has no end well inside; a line across the window
-  /// leaves the opening; neither joins, as before.
-  static ({String openingId, Polygon outline})? _openingAlreadyHolding(
+  /// 1. **A start inside an opening** — inside it by the line's own
+  ///    thickness, [widthMm] — makes it that opening's, whatever the line
+  ///    does after. Where openings are one inside another, the smallest
+  ///    holding the start is the one: it is the region the start is in.
+  /// 2. **A start inside a part of the main design** — a light that does not
+  ///    open, by the same margin — makes it the main design's.
+  /// 3. **A start on an edge** — on the frame or a bar, which is the edge of
+  ///    two areas at once and so says nothing by itself — makes it an
+  ///    opening's only when the line lies within that opening, give or take
+  ///    [memberMm] for the member it was started from, and runs well inside
+  ///    it somewhere: the rail drawn from a sash's jamb that stops before the
+  ///    far one. A line started on the frame and run across the window
+  ///    leaves the opening, and a line along a sash's own jamb never runs
+  ///    well inside it, so both are the main design's.
+  static String? _scopeOf(
     Design design,
     Segment line,
-    double widthMm, {
-    double memberMm = 0,
-  }) {
-    for (final opening in design.openings) {
-      final section = design.sectionById(opening.sectionId);
-      if (section == null || section.outline.isEmpty) continue;
-      final room = section.outline.inset(math.max(widthMm, Tol.minLineMm));
-      if (room.isEmpty || room.area <= 0) continue;
-      final clear = room.holds(line);
-      final startedInside =
-          (room.contains(line.a) || room.contains(line.b)) &&
-          section.outline.holds(line, reach: memberMm);
-      if (!clear && !startedInside) continue;
-      return (openingId: opening.id, outline: section.outline);
+    double widthMm,
+    double memberMm,
+  ) {
+    final margin = math.max(widthMm, Tol.minLineMm);
+    final start = line.a;
+    String? smallest;
+    var least = double.infinity;
+    void consider(String id, Polygon region) {
+      if (region.area < least) {
+        least = region.area;
+        smallest = id;
+      }
     }
-    return null;
+
+    // 1. Started inside an opening.
+    for (final opening in design.openings) {
+      final region = design.sectionById(opening.sectionId)?.outline;
+      if (region == null || region.isEmpty) continue;
+      final room = region.inset(margin);
+      if (room.isEmpty || room.area <= 0) continue;
+      if (room.contains(start)) consider(opening.id, region);
+    }
+    if (smallest != null) return smallest;
+
+    // 2. Started inside a part of the main design. A part with an opening
+    // lying inside it — the ground round a box drawn loose in the frame,
+    // which is kept as the whole of the frame's daylight because a part is
+    // not stored with a hole in it — holds the start only where the opening
+    // does not, and that is settled by the edge test below.
+    final openedRegions = [
+      for (final opening in design.openings)
+        ?design.sectionById(opening.sectionId),
+    ];
+    for (final section in design.sections) {
+      if (openedRegions.any((o) => o.id == section.id)) continue;
+      if (openedRegions.any(
+        (o) => section.outline.contains(o.outline.centroid),
+      )) {
+        continue;
+      }
+      final room = section.outline.inset(margin);
+      if (room.isEmpty || room.area <= 0) continue;
+      if (room.contains(start)) return null;
+    }
+
+    // 3. Started on an edge.
+    for (final opening in design.openings) {
+      final region = design.sectionById(opening.sectionId)?.outline;
+      if (region == null || region.isEmpty) continue;
+      final room = region.inset(margin);
+      if (room.isEmpty || room.area <= 0) continue;
+      final onItsEdge =
+          region.contains(start) || region.awayFrom(start) <= memberMm;
+      final runsWellInside = [
+        for (var i = 0; i <= 12; i++) line.pointAt(i / 12),
+      ].any(room.contains);
+      if (onItsEdge && runsWellInside && region.holds(line, reach: memberMm)) {
+        consider(opening.id, region);
+      }
+    }
+    return smallest;
+  }
+
+  /// [line], an opening's, completed inside the opening's [region] and
+  /// nowhere else.
+  ///
+  /// What the hand drew past the opening's edge is not the opening's, so it
+  /// is trimmed back to the edge — trimming a line drawn past its corner is
+  /// cleaning. A level or upright line is then completed as
+  /// `_completed` completes one, against the opening's edge and the
+  /// opening's own lines ([boundaries]): an end touching nothing is carried
+  /// to the first of them, and an end already on one stays where it is. A
+  /// line at a slope is laid across the opening, as **Divides** and the line
+  /// tools lay one. The opening itself is not touched.
+  static Segment _completedWithin(
+    Segment line,
+    Polygon region,
+    List<Segment> boundaries,
+    double weld,
+  ) {
+    final chord = DesignEdits.spanAcross(region, line);
+    if (chord == null) return line;
+    if (!line.isHorizontalish && !line.isVerticalish) return chord;
+    final from = chord.parameterOf(line.a).clamp(0.0, 1.0);
+    final to = chord.parameterOf(line.b).clamp(0.0, 1.0);
+    if ((to - from).abs() * chord.length < Tol.minLineMm) return chord;
+    return _completed(
+      Segment(chord.pointAt(from), chord.pointAt(to)),
+      boundaries,
+      region,
+      weld,
+      drawn: line,
+      weldEnds: true,
+    );
   }
 
   /// Each end of a run that the user drew **onto** another line, carried
@@ -1359,19 +1457,31 @@ abstract final class SketchInterpreter {
     Polygon outline,
     double weld, {
     List<Polygon> opened = const [],
+    Segment? drawn,
+    bool weldEnds = false,
   }) {
     if (line.length == 0) return line;
     if (!line.isHorizontalish && !line.isVerticalish) return line;
     if (line.offAxisDegrees > Tol.axisSnapDegrees) return line;
+    // Not the line itself, nor the stroke it was cut from when it has been
+    // trimmed to an opening: an end always touches its own line.
     final others = [
       for (final b in boundaries)
-        if (b != line) b,
+        if (b != line && b != drawn) b,
     ];
     final reach = math.max(outline.width, outline.height) * 2;
 
     Vec2 finish(Vec2 end, Vec2 outward) {
       for (final b in others) {
-        if (b.distanceTo(end) <= weld) return end;
+        if (b.distanceTo(end) > weld) continue;
+        if (!weldEnds) return end;
+        // Welded onto what it all but touches, along its own line: a few
+        // millimetres short of a sash's stile is a hand's, and inside a sash
+        // it is the difference between two panes and one pane with a line
+        // lying on it. Along a line running beside it, there is no point on
+        // it to weld to, and the end stays.
+        final probe = Segment(end - outward * weld, end + outward * weld);
+        return probe.crossing(b)?.at ?? end;
       }
       if (!outline.contains(end)) return end;
       for (final region in opened) {
