@@ -278,7 +278,7 @@ makes it real. Everything above is building.
 ### The only questions left
 
 A question is for a drawing that says *nothing*, not for one that says
-something inconvenient. There are exactly four, and each is asked because
+something inconvenient. There are exactly five, and each is asked because
 the drawing does not hold the answer:
 
 - **The outline does not close.** There is no shape, so there is no frame,
@@ -303,6 +303,11 @@ the drawing does not hold the answer:
 - **The real size of every part.** A sketch has proportions and no scale,
   so a size read off it is a guess — and the user said never to write a
   guess as a number. See *Sizes are asked for, never guessed*.
+- **What a door is built of — panel, glass or both — as a door or a door
+  & window design starts**, and, where it is both, which of the parts the
+  user drew are which. Lines say where the parts are, never what fills
+  them. A window and a sliding set are not asked; they have the
+  **Material** tool. See *Glass or panel*.
 
 The third and fourth are the only ones asked about something the application
 *has* built, and it is still not a questionnaire between the drawing and the
@@ -2346,6 +2351,87 @@ width and the height independent, the last of a row worked out, a size
 that cannot fit refused with a reason, a re-reading — even one that keeps
 nothing — building the same sizes, and a line drawn afterwards asking for
 its one new size and nothing else.
+
+### Glass or panel
+
+The user's words: *door and door & window — ask at startup. Window and
+sliding — a material tool in the workspace. In every category the user
+decides panel versus glass; the application does not decide for them. The
+existing geometry is never redesigned: material selection changes material
+and appearance, not geometry.* Their two photographs are the two cases: a
+door that is panel all over, and one with frosted glass over a panel either
+side of a transom they drew.
+
+```
+New Door / New Door & window                New Window / New Sliding
+        ↓                                           ↓
+"How should this door be constructed?"          the drawing
+  Entire design = Panel  → its colour               ↓
+  Entire design = Glass  → its glass            pick a part → Material
+  Both Panel + Glass     → the drawing              ↓
+        ↓                                       Glass | Panel, and its look
+  once read: which parts are glass,
+  which are panel — part by part
+```
+
+- **`Design.construction` is what was said** (`Construction` in
+  `elements.dart`). A new design whose kind `asksConstruction` — a door or
+  a door & window set — starts `pending` and `ConstructionAlert` asks it
+  over the work, before anything is drawn. Null is everything that is not
+  asked: a window, a sliding set, a design kept before the question
+  existed, and one where the user said **Not now**, which puts it away for
+  good.
+- **Panel or glass all over is a finish, and it fills every part drawn.**
+  The user picks the colour or the glass on the second step — **Continue**
+  waits for it, because the colour is theirs to choose — and
+  `Infill.fillWhole` fills every part there is and keeps the finish as
+  `Design.infill`, which `SectionBuilder._carryIdentityForward` gives to a
+  part that is a continuation of nothing. So a door said to be panel is
+  panel in every part drawn after, and a line drawn later makes panel
+  parts, not glass. Where nothing was said it is the plain clear glass
+  every part has always started as, so nothing else reads differently.
+- **Both fills nothing.** It goes straight to the drawing, and once the
+  drawing is read `PartsAlert` asks, part by part, with each part picked
+  out on a small drawing of the design (`PartChoice`, `PartThumb`). No part
+  starts chosen — not the top, not the bottom, not half and half — and
+  **Done** waits until every part is said. Where there is one part only,
+  nothing is divided: it says *your design has no internal division yet*,
+  and **Draw divider** puts the user back on the drawing with a straight
+  line in hand. Once they have drawn it and read it, the parts are asked.
+  The sizes wait until then, so the form does not come up over the
+  drawing they are making. `Design.partsAsked` keeps it asked once.
+- **A part is a pane of the design tree** (`Infill.partsOf`): a main
+  division nobody drew inside, or a pane of one somebody did — inside an
+  opening as much as outside, so an opening's glass over its panel is said
+  the same way and stays the opening's.
+- **The Material tool is in every kind of design** — the paint-roller on
+  the bar at the top, never under More, and the same button on the bar
+  under a picked part — and `MaterialForm` lists every part, the one picked
+  first. It is also how anything said at the start is changed later.
+- **The looks are real materials in real colours**: `GlassLook` (clear,
+  tinted, frosted, dark, blue-grey) and `PanelColour` (white, black, grey,
+  brown), each with **Custom** for any colour, all in `materials.dart` so
+  the solid builds them and a test can ask what *frosted* is. The solid
+  builds glass as glazing facets and a panel as panel facets in the
+  colour chosen; nothing is a picture of either.
+- **Only what fills a part changes.** Every edit goes through
+  `Infill.fill`, which touches a section's finish and nothing else — not an
+  outline, not a bar, not another part. `test/domain/glass_or_panel_test.dart`
+  fingerprints the geometry and requires it back unchanged after every
+  choice and every change, requires the solid's facets to stand exactly
+  where they stood when a colour changes, and holds the choice through a
+  save, a reload and a second reading. The technical drawing writes what
+  fills each part on it — GLASS, FROSTED GLASS, PANEL — under the
+  annotations layer.
+
+`test/app/glass_or_panel_test.dart` holds all of it on the real app: each
+of the three answers, the one-part case and **Draw divider**, **Not now**,
+a door & window set whose leaves are still asked door or window first, a
+window and a sliding set never asked and given their glass and panels with
+the Material tool, the door's answer changed later the same way, and every
+step fitting a phone, a tablet and a laptop. `chooseDesign` in
+`test/app/new_design.dart` puts the question away for tests about
+something else, as a user in a hurry would.
 
 ### Centimetres out, millimetres in
 

@@ -80,6 +80,72 @@ enum HardwareColour {
   }
 }
 
+/// The glass a joiner orders by name, for a part the user says is glass.
+///
+/// Each is a real glazing material in a real colour, and both go on the
+/// pane's own geometry — the solid builds it in that colour and lets that
+/// much light through. There is no picture of glass anywhere; a frosted
+/// pane is a pane that lets less through. **Custom** keeps the glass and
+/// takes any colour.
+enum GlassLook {
+  clear('Clear', MaterialKind.clearGlass, 0xFFD8E6EA),
+  tinted('Tinted', MaterialKind.tintedGlass, 0xFF8E9E98),
+  frosted('Frosted', MaterialKind.frostedGlass, 0xFFE4EAEC),
+  dark('Dark', MaterialKind.tintedGlass, 0xFF3B4347),
+  blueGrey('Blue-grey', MaterialKind.tintedGlass, 0xFF7D93A6);
+
+  const GlassLook(this.label, this.material, this.colour);
+
+  final String label;
+  final MaterialKind material;
+
+  /// 0xAARRGGBB.
+  final int colour;
+
+  Finish get finish => Finish(colour: colour, material: material);
+
+  /// The one of these [finish] is, or null when it is the user's own.
+  static GlassLook? of(Finish finish) {
+    for (final look in values) {
+      if (look.material == finish.material && look.colour == finish.colour) {
+        return look;
+      }
+    }
+    return null;
+  }
+}
+
+/// The colours a door panel is ordered in, for a part the user says is
+/// panel. **Custom** opens the full picker for anything else.
+///
+/// Nothing here is picked for the user: a part is made a panel in the
+/// colour they tap, and the colour goes on the panel's own geometry.
+enum PanelColour {
+  white('White', 0xFFF4F4F1),
+  black('Black', 0xFF1E1F1F),
+  grey('Grey', 0xFF8C9094),
+  brown('Brown', 0xFF5A3D2B);
+
+  const PanelColour(this.label, this.colour);
+
+  final String label;
+
+  /// 0xAARRGGBB.
+  final int colour;
+
+  Finish get finish => Finish(colour: colour, material: MaterialKind.panel);
+
+  /// The one of these [finish] is, or null when it is not a panel or its
+  /// colour is the user's own.
+  static PanelColour? of(Finish finish) {
+    if (finish.material != MaterialKind.panel) return null;
+    for (final option in values) {
+      if (option.colour == finish.colour) return option;
+    }
+    return null;
+  }
+}
+
 /// The materials a piece of ironmongery is made of.
 ///
 /// The glazing kinds are not among them: a handle is not made of clear

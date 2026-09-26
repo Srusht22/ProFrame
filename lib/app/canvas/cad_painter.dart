@@ -12,6 +12,7 @@ import '../../domain/hardware/opening_hardware.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/design_tree.dart';
 import '../../domain/model/elements.dart';
+import '../../domain/model/materials.dart';
 import '../../domain/model/opening_leaf.dart';
 import 'cad_layers.dart';
 import 'cad_style.dart';
@@ -85,6 +86,7 @@ class CadPainter extends CustomPainter {
       _bars(canvas, section.barIds, inside: true);
     }
     if (layers.openings) _openings(canvas, tree);
+    if (layers.annotations) _materialNames(canvas, tree.sections);
     _hardware(canvas);
     if (layers.dimensions) {
       _chains(canvas, tree);
@@ -197,6 +199,54 @@ class CadPainter extends CustomPainter {
       }
 
       canvas.drawPath(path, Cad.stroke(ink.medium, Cad.detail));
+    }
+  }
+
+  /// What fills each part, written on it — GLASS, PANEL — as a joiner's
+  /// elevation says it, so the drawing carries what the user chose and not
+  /// only the hatching that stands for it.
+  ///
+  /// Written above where the part's size goes, and only where the part is
+  /// big enough on the screen to hold both; the part itself is drawn from
+  /// the design's outline, so nothing here can move a line.
+  void _materialNames(Canvas canvas, List<TreeSection> branches) {
+    for (final branch in branches) {
+      if (!branch.isLeaf) {
+        _materialNames(canvas, branch.panes);
+        continue;
+      }
+      final section = design.sectionById(branch.sectionId);
+      if (section == null) continue;
+      if (view.lengthToScreen(section.widthMm) < 62) continue;
+      if (view.lengthToScreen(section.heightMm) < 44) continue;
+
+      final finish = section.finish;
+      final look = GlassLook.of(finish);
+      final word = finish.material.isGlazing
+          ? (look == null || look == GlassLook.clear
+                ? 'GLASS'
+                : '${look.label.toUpperCase()} GLASS')
+          : finish.material.label.toUpperCase().replaceFirst('SOLID ', '');
+      final text = Cad.label(
+        word,
+        colour: ink.medium,
+        size: Cad.smallTextSize,
+        weight: FontWeight.w700,
+      );
+      final marked = design.openingOf(section.id)?.markAt != null;
+      final at =
+          view.toScreen(section.outline.centroid) +
+          Offset(0, marked ? -35 : -16);
+      final box = Rect.fromCenter(
+        center: at,
+        width: text.width + 9,
+        height: text.height + 3,
+      );
+      canvas.drawRect(box, Cad.fill(ink.sheet.withValues(alpha: 0.9)));
+      text.paint(
+        canvas,
+        Offset(at.dx - text.width / 2, at.dy - text.height / 2),
+      );
     }
   }
 

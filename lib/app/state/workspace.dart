@@ -9,6 +9,7 @@ import '../../domain/geometry/vec2.dart';
 import '../../domain/hardware/opening_hardware.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
+import '../../domain/model/infill.dart';
 import '../../domain/model/materials.dart';
 import '../../domain/model/question.dart';
 import '../../domain/recognition/interpreter.dart';
@@ -124,6 +125,77 @@ class WorkspaceState {
       .where((q) => q.id == SketchInterpreter.outlineGapQuestion)
       .firstOrNull;
 
+  /// What a new door or door & window design is built of — panel, glass or
+  /// both — while it has not been said; or null.
+  ///
+  /// Asked as the design starts, before anything is drawn: the user's words,
+  /// *when starting a new door, ask how it should be constructed*. Only a
+  /// design whose kind [DesignKind.asksConstruction] starts
+  /// [Construction.pending], so a window, a sliding set and every design
+  /// kept before this question existed are never asked. **Not now** puts it
+  /// away for good, and the **Material** tool does the same work part by
+  /// part whenever the user likes.
+  DesignQuestion? get constructionQuestion {
+    if (design.construction != Construction.pending) return null;
+    if (settledQuestions.contains(constructionQuestionId)) return null;
+    final whole = design.kind == DesignKind.door ? 'this door' : 'this design';
+    return DesignQuestion(
+      id: constructionQuestionId,
+      prompt: 'How should $whole be constructed?',
+      detail:
+          'You decide what fills the parts you draw. Nothing is divided '
+          'or moved for you, and every part can be changed later.',
+      options: [
+        for (final c in const [
+          Construction.panel,
+          Construction.glass,
+          Construction.both,
+        ])
+          QuestionOption(key: c.name, label: c.label),
+      ],
+    );
+  }
+
+  /// Which parts are glass and which are panel, in a design said to be
+  /// both, once the drawing has been read and nothing else is waiting; or
+  /// null.
+  ///
+  /// The parts are the user's own: the ones their lines made. Where there is
+  /// only one, nothing is divided for them — the question says so, and
+  /// offers the drawing back to draw a divider. That is a different
+  /// question, so putting it away does not put away the one that follows
+  /// once there are parts to choose between.
+  DesignQuestion? get partsQuestion {
+    if (design.construction != Construction.both || design.partsAsked) {
+      return null;
+    }
+    if (design.frame == null || needsReading) return null;
+    if (outlineGapQuestion != null || openingKindQuestions.isNotEmpty) {
+      return null;
+    }
+    final parts = Infill.partsOf(design);
+    if (parts.isEmpty) return null;
+    final id = parts.length < 2 ? onePartQuestionId : partsQuestionId;
+    if (settledQuestions.contains(id)) return null;
+    return DesignQuestion(
+      id: id,
+      prompt: parts.length < 2
+          ? 'Your design has no internal division yet'
+          : 'Which parts should be glass and which should be panel?',
+      detail: parts.length < 2
+          ? 'Draw a divider first to create separate panel and glass '
+                'parts. Nothing is divided for you.'
+          : 'Choose for each part you drew. The lines stay exactly where '
+                'you drew them.',
+      aboutIds: [for (final part in parts) part.id],
+      options: const [],
+    );
+  }
+
+  static const constructionQuestionId = 'construction';
+  static const partsQuestionId = 'parts';
+  static const onePartQuestionId = 'parts-one';
+
   /// The sizes still to be given, once the design is ready to be asked for
   /// them — its outline read, the sheet read, and nothing else waiting on
   /// the user — as their keys joined into one string; or empty.
@@ -135,7 +207,13 @@ class WorkspaceState {
   String get sizesToAsk {
     final said = design.measured;
     if (said == null || design.frame == null || needsReading) return '';
-    if (outlineGapQuestion != null || openingKindQuestions.isNotEmpty) {
+    // A door said to be both is waiting on which parts are which — even
+    // while the user is off drawing the divider that makes the parts — and
+    // the sizes come after, not over the drawing they are making.
+    if (outlineGapQuestion != null ||
+        openingKindQuestions.isNotEmpty ||
+        constructionQuestion != null ||
+        (design.construction == Construction.both && !design.partsAsked)) {
       return '';
     }
     return [
@@ -266,6 +344,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         // Nothing measured yet: every size is asked for once the drawing
         // is read, and shown as `?` until it is given.
         measured: const {},
+        // A door and a door & window set are asked, as they start, what
+        // they are built of. A window and a sliding set are not.
+        construction: kind.asksConstruction ? Construction.pending : null,
       ),
     );
   }
@@ -760,6 +841,67 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       ),
     );
   }
+
+  // --------------------------------------------------- glass and panel
+
+  /// What the user says the whole design is built of, as it starts.
+  ///
+  /// Panel or glass fills every part there is — usually none yet, because
+  /// the question comes before the drawing — and every part a later line
+  /// makes, in the [finish] they chose. Both fills nothing: which parts are
+  /// which is asked once the drawing has parts, and only the user answers
+  /// it. No line is drawn, moved or taken away in any case.
+  void sayConstruction(Construction construction, {Finish? finish}) {
+    if (construction == Construction.pending) return;
+    _remember();
+    final design = state.design;
+    state = state.copyWith(
+      design: construction == Construction.both || finish == null
+          ? design.copyWith(construction: Construction.both)
+          : Infill.fillWhole(design, construction, finish),
+    );
+  }
+
+  /// **Not now**, on the question of what the design is built of. It is put
+  /// away for good; the **Material** tool says the same, part by part.
+  void putConstructionAway() {
+    _remember();
+    state = state.copyWith(
+      design: state.design.copyWith(clearConstruction: true),
+      settledQuestions: {
+        ...state.settledQuestions,
+        WorkspaceState.constructionQuestionId,
+      },
+    );
+  }
+
+  /// Which parts are glass and which panel, as the user said, part by part.
+  /// Nothing but what fills each part changes.
+  void assignParts(Map<String, Finish> finishes) {
+    _remember();
+    state = state.copyWith(
+      design: Infill.fill(state.design, finishes).copyWith(partsAsked: true),
+    );
+  }
+
+  /// The parts question put away: the parts stay as they are, and the
+  /// **Material** tool is where they are said later.
+  void partsLater() => state = state.copyWith(
+    design: state.design.copyWith(partsAsked: true),
+  );
+
+  /// **Draw divider**, where a design said to be both has only one part:
+  /// back to the drawing with a straight line in hand. Nothing is divided
+  /// for the user. Once they have drawn and read it, the parts are asked.
+  void drawDivider() => state = state.copyWith(
+    view: WorkspaceView.draw,
+    tool: Tool.line,
+    clearSelection: true,
+    settledQuestions: {
+      ...state.settledQuestions,
+      WorkspaceState.onePartQuestionId,
+    },
+  );
 
   void dismissQuestion(String questionId) => state = state.copyWith(
     questions: [

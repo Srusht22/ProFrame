@@ -26,6 +26,31 @@ enum OutlineGap {
   closeIt,
 }
 
+/// What the user said, as a door or a door & window set started, it is
+/// built of.
+///
+/// **The user decides, and nothing else does.** A door can be panel all
+/// over, glass all over, or glass in some parts and panel in others — and
+/// which parts is theirs to say, on the parts their own lines made. Nothing
+/// here divides a part, adds a line or moves one: it says what fills the
+/// parts that are there.
+enum Construction {
+  /// A new design that has not been asked yet. It is asked as it opens.
+  pending('Not said'),
+
+  /// Every part is a panel.
+  panel('Panel'),
+
+  /// Every part is glass.
+  glass('Glass'),
+
+  /// Some parts glass and some panel — which, the user says part by part.
+  both('Panel + glass');
+
+  const Construction(this.label);
+  final String label;
+}
+
 /// A door or a window.
 enum DesignKind {
   door('Door', Face.outside),
@@ -76,6 +101,15 @@ enum DesignKind {
 
   /// Whether a mark in this design says a panel slides rather than swings.
   bool get slides => this == sliding;
+
+  /// Whether a new design of this kind is asked, as it starts, what it is
+  /// built of — panel, glass, or both. See [Construction].
+  ///
+  /// A door and a door & window set are: the user's words, *for the door
+  /// and the door & window category, ask when starting*. A window and a
+  /// sliding set are not asked; their parts are given glass or panel with
+  /// the **Material** tool, whenever the user wants to.
+  bool get asksConstruction => this == door || this == both;
 
   /// The face the user draws, and the face both views show.
   ///

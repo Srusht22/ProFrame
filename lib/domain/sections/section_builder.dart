@@ -7,6 +7,7 @@ import '../geometry/vec2.dart';
 import '../hardware/opening_hardware.dart';
 import '../model/design.dart';
 import '../model/elements.dart';
+import '../model/materials.dart';
 import 'planar_graph.dart';
 
 /// Works out the sections of a design from its frame and its dividers.
@@ -62,6 +63,7 @@ abstract final class SectionBuilder {
       design.topLevelSections,
       top,
       nextId,
+      design.infill,
     );
 
     // A bar inside a section whose section has been replaced — a line moved
@@ -279,7 +281,12 @@ abstract final class SectionBuilder {
         if (design.sectionHolding(s.parentId) == parent.id) s,
     ];
     final children = [
-      for (final child in _carryIdentityForward(previous, faces, nextId))
+      for (final child in _carryIdentityForward(
+        previous,
+        faces,
+        nextId,
+        design.infill,
+      ))
         child.copyWith(parentId: parent.id),
     ];
 
@@ -464,10 +471,15 @@ abstract final class SectionBuilder {
   ///
   /// When the count changed, a line was drawn or deleted, and the match is
   /// made on how much ground each new face shares with each old section.
+  ///
+  /// A face that is a continuation of nothing is filled with [fresh] — what
+  /// the user said the whole design is built of, when they said — or with
+  /// the plain clear glass every part has always started as.
   static List<SectionElement> _carryIdentityForward(
     List<SectionElement> previous,
     List<Polygon> faces,
     String Function() nextId,
+    Finish? fresh,
   ) {
     if (previous.length == faces.length) {
       return [
@@ -500,7 +512,11 @@ abstract final class SectionBuilder {
     return [
       for (var i = 0; i < faces.length; i++)
         matched[i]?.copyWith(outline: faces[i]) ??
-            SectionElement(id: nextId(), outline: faces[i]),
+            SectionElement(
+              id: nextId(),
+              outline: faces[i],
+              finish: fresh ?? Finish.glazingDefault,
+            ),
     ];
   }
 

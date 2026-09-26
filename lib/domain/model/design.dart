@@ -4,10 +4,11 @@ import '../geometry/vec2.dart';
 import '../sketch/stroke.dart';
 import 'elements.dart';
 import 'hierarchy.dart';
+import 'materials.dart';
 
 // `Face` and `DesignKind` live with the other element enums, and are given
 // again here so that importing the design still brings them.
-export 'elements.dart' show DesignKind, Face, OutlineGap;
+export 'elements.dart' show Construction, DesignKind, Face, OutlineGap;
 
 /// One design: the user's drawing, and the structured geometry read from it.
 ///
@@ -77,6 +78,25 @@ class Design {
   /// what each one lets be known.
   final Set<String>? measured;
 
+  /// What the user said the design is built of, or null where nothing is
+  /// to be asked: a window, a sliding set, a design kept before the
+  /// question existed, or one where the user put the question away.
+  /// [Construction.pending] is a new door or door & window design that has
+  /// not been asked yet.
+  final Construction? construction;
+
+  /// What fills a part nobody has said anything about — the panel colour or
+  /// the glass the user chose for the whole design — or null for the plain
+  /// clear glass every part has always started as. It is what the user
+  /// said, applied to the parts a later line makes, so a door said to be
+  /// panel all over stays panel all over when a line is drawn in it.
+  final Finish? infill;
+
+  /// Whether the user has been through which parts are glass and which are
+  /// panel, in a design said to be both. Until then it is asked once the
+  /// drawing has parts to choose between.
+  final bool partsAsked;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -99,6 +119,9 @@ class Design {
     this.depthMm = 70,
     this.outlineGap,
     this.measured,
+    this.construction,
+    this.infill,
+    this.partsAsked = false,
   });
 
   factory Design.empty({
@@ -108,6 +131,7 @@ class Design {
     String? customer,
     DateTime? now,
     Set<String>? measured,
+    Construction? construction,
   }) {
     final at = now ?? DateTime.now();
     return Design(
@@ -118,6 +142,7 @@ class Design {
       createdAt: at,
       updatedAt: at,
       measured: measured,
+      construction: construction,
     );
   }
 
@@ -456,6 +481,10 @@ class Design {
     double? depthMm,
     OutlineGap? outlineGap,
     Set<String>? measured,
+    Construction? construction,
+    bool clearConstruction = false,
+    Finish? infill,
+    bool? partsAsked,
     DateTime? updatedAt,
   }) {
     // Every edit passes through here, so this is where the two things that
@@ -498,6 +527,10 @@ class Design {
       depthMm: depthMm ?? this.depthMm,
       outlineGap: outlineGap ?? this.outlineGap,
       measured: measured ?? this.measured,
+      construction:
+          clearConstruction ? null : (construction ?? this.construction),
+      infill: clearConstruction ? null : (infill ?? this.infill),
+      partsAsked: partsAsked ?? this.partsAsked,
     );
   }
 
@@ -557,6 +590,9 @@ class Design {
         'depthMm': depthMm,
         if (outlineGap != null) 'outlineGap': outlineGap!.name,
         if (measured != null) 'measured': [...measured!]..sort(),
+        if (construction != null) 'construction': construction!.name,
+        if (infill != null) 'infill': infill!.toJson(),
+        if (partsAsked) 'partsAsked': true,
         'sketch': sketch.toJson(),
         if (frame != null) 'frame': frame!.toJson(),
         'dividers': [for (final d in dividers) d.toJson()],
@@ -614,6 +650,13 @@ class Design {
         final List<Object?> keys => {for (final k in keys) k! as String},
         _ => null,
       },
+      construction: Construction.values
+          .where((c) => c.name == map['construction'])
+          .firstOrNull,
+      infill: map['infill'] == null
+          ? null
+          : Finish.fromJson(map['infill'], fallback: Finish.glazingDefault),
+      partsAsked: map['partsAsked'] == true,
       sketch: Sketch.fromJson(map['sketch']),
       frame: map['frame'] == null
           ? null

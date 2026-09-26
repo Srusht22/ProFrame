@@ -8,7 +8,9 @@ import '../../domain/model/elements.dart';
 import '../canvas/cad_view.dart';
 import '../canvas/drawing_surface.dart';
 import '../inspector/component_tree.dart';
+import '../inspector/construction_alert.dart';
 import '../inspector/inspector_panel.dart';
+import '../inspector/material_form.dart';
 import '../inspector/measure_form.dart';
 import '../inspector/opening_kind_alert.dart';
 import '../inspector/outline_gap_alert.dart';
@@ -205,6 +207,24 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                 ),
               ),
             ),
+          // Glass or panel, for any part: in every kind of design, and
+          // never under More — it is how a window or a sliding set is given
+          // its glass and its panels.
+          if (state.design.frame != null)
+            BarArrival(
+              order: 1,
+              child: BarIcon(
+                tooltip: 'Material',
+                icon: Icons.format_paint_outlined,
+                onPressed: () => MaterialForm.show(
+                  context,
+                  focusId: MaterialForm.partFor(
+                    state.design,
+                    state.selectedId,
+                  ),
+                ),
+              ),
+            ),
           BarArrival(
             order: 1,
             child: BarIcon(
@@ -295,6 +315,20 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                                 state.selected != null)
                               _PickedBar(
                                 state: state,
+                                onMaterial:
+                                    MaterialForm.partFor(
+                                          state.design,
+                                          state.selectedId,
+                                        ) ==
+                                        null
+                                    ? null
+                                    : () => MaterialForm.show(
+                                        context,
+                                        focusId: MaterialForm.partFor(
+                                          state.design,
+                                          state.selectedId,
+                                        ),
+                                      ),
                                 onEdit: () => _openDrawer(parts: false),
                                 onClear: () => controller.select(null),
                               ),
@@ -331,6 +365,8 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
           ),
           const OpeningKindAlert(),
           const OutlineGapAlert(),
+          const ConstructionAlert(),
+          const PartsAlert(),
         ],
       ),
       endDrawer: layout == WorkspaceLayout.desktop
@@ -492,10 +528,14 @@ class _PickedBar extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onClear;
 
+  /// Glass or panel for what is picked, where it is a part.
+  final VoidCallback? onMaterial;
+
   const _PickedBar({
     required this.state,
     required this.onEdit,
     required this.onClear,
+    this.onMaterial,
   });
 
   @override
@@ -521,6 +561,13 @@ class _PickedBar extends StatelessWidget {
               style: Theme.of(context).textTheme.titleSmall,
             ),
           ),
+          if (onMaterial != null)
+            IconButton(
+              tooltip: 'Glass or panel',
+              visualDensity: VisualDensity.compact,
+              onPressed: onMaterial,
+              icon: const Icon(Icons.format_paint_outlined, size: 18),
+            ),
           TextButton.icon(
             onPressed: onEdit,
             icon: const Icon(Icons.tune, size: 18),

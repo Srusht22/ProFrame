@@ -24,12 +24,33 @@ Future<void> toTheCategories(
 /// On **Choose your design**, picks the card called [card] — `DOOR`,
 /// `WINDOW`, `DOOR & WINDOW` or `SLIDING` — and starts drawing: the way a
 /// user goes from the choice into the drawing.
-Future<void> chooseDesign(WidgetTester tester, String card) async {
+///
+/// A door and a door & window set are asked, as they start, what they are
+/// built of. A test about something else puts that away as a user in a
+/// hurry would — **Not now** — unless [answerConstruction] says the test is
+/// about that question and will answer it itself.
+Future<void> chooseDesign(
+  WidgetTester tester,
+  String card, {
+  bool answerConstruction = false,
+}) async {
   await tester.ensureVisible(find.text(card));
   await tester.pumpAndSettle();
   await tester.tap(find.text(card));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Start drawing'));
+  await tester.pumpAndSettle();
+  if (!answerConstruction) await notNowToConstruction(tester);
+}
+
+/// Puts away the question of what a new door is built of, if it is asked.
+Future<void> notNowToConstruction(WidgetTester tester) async {
+  final asked = find.byKey(const ValueKey('construction-panel'));
+  if (asked.evaluate().isEmpty) return;
+  // On a small phone the card scrolls, as the user would scroll it.
+  await tester.ensureVisible(find.text('Not now').last);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Not now').last);
   await tester.pumpAndSettle();
 }
 
