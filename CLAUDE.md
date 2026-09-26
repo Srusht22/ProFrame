@@ -243,6 +243,7 @@ application, so it is written down rather than left to judgement:
 | Welding two ends drawn a few millimetres apart | Making two sections equal |
 | Trimming a line drawn past its corner | Adding a panel that was not drawn |
 | Reading a `<` as an opening mark | Deciding a section opens |
+| Completing a level or upright line stopped short, to the first line it was heading for | Carrying a line past a line it reached |
 
 The test: **does the change alter what the user would have to build?** If it
 does, it is not cleaning.
@@ -758,14 +759,41 @@ became — along its own line, so the angle it was drawn at is kept; never
 further than that stroke's straightening was allowed to move it, so this can
 only undo the fitter's own displacement; and only when the fit really did
 move the line away. A line drawn to stop part way is nowhere near the ink of
-anything and is left exactly where it ends.
+anything, so this leaves it alone — and the next section finishes it.
 
 The limit is a weld, stated rather than hidden: an end further than that
 from the ink was not drawn onto the line by the same measure the rest of the
 reading uses. `test/domain/a_line_drawn_to_the_frame_reaches_it_test.dart`
 holds the traced drawing, a hundred and twenty hand-wobbled copies of it,
-the transom started either side of the jamb, the angle kept, and a line that
-genuinely stops short staying short.
+the transom started either side of the jamb, the angle kept, and a line
+started well short of the jamb completed to it.
+
+### A line stopped short is completed
+
+The user's words: *when I start drawing a straight line and stop before
+reaching the boundary, complete it to that boundary — horizontal and
+vertical.* A hand drawing a transom across a door lifts a finger's width
+before the far jamb, and a line that stops short divides nothing: the door
+came back one part with a line lying in it, which is not what they drew.
+
+So `SketchInterpreter._completed` carries **an end that touches nothing**
+along the line's own direction to the **first** line it meets — the outline,
+another line on the sheet, or a bar made inside the design with its tools.
+The first and never further: a line heading for a transom stops at the
+transom, not the sill beyond it. **An end already touching a line**, by the
+weld the rest of the reading uses, is where the user put it and does not
+move — which is what keeps the old bug fixed, the upright drawn from a rail
+down to the sill that came back running head to sill. Only level and
+upright lines, because a line at a slope says nothing about where it was
+going; only ends inside the outline; and only lines that divide the design —
+a line drawn inside an opening that is already there is laid across its sash
+as before. The ink is not touched: completing is the reading of the line,
+and nothing moves but its free end. No part is made that the completed line
+does not cut off, no opening is made or moved, and nothing is asked.
+`test/domain/a_line_stopped_short_is_completed_test.dart` holds both
+directions, the first-line rule, a line between two lines left alone, a
+diagonal left alone, and the frame, the other lines and the opening
+fingerprinted and required back unchanged.
 
 ### Pause to straighten
 

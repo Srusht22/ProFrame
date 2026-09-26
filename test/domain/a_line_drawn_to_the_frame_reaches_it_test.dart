@@ -209,23 +209,39 @@ void main() {
       );
     });
 
-    test('a line that stops short of the jamb stays short', () {
-      // A line drawn to reach part way is the drawing, not a wobble: it is
-      // nowhere near the ink of the jamb, so nothing carries it there.
-      final design = drawn(transomStartX: 230);
-      final transom = design.dividers.firstWhere(
-        (b) => b.fromStrokeId == 'transom',
-      );
-      final left = math.min(transom.a.x, transom.b.x);
+    test('a line that stops short of the jamb is completed to it', () {
+      // The user's words: *when I draw a straight line and stop before the
+      // boundary, complete it to that boundary.* The transom drawn from well
+      // short of the jamb comes out as the transom drawn to it: the same
+      // left end, the same parts, and still level.
+      final short = drawn(transomStartX: 230);
+      final reached = drawn();
+      DividerElement transomOf(Design d) =>
+          d.dividers.firstWhere((b) => b.fromStrokeId == 'transom');
+      final completed = transomOf(short);
+      final left = completed.a.x < completed.b.x ? completed.a : completed.b;
+      final onFrame = short.frame!.outline.edges
+          .map((edge) => edge.distanceTo(left))
+          .reduce(math.min);
       expect(
-        left,
-        closeTo(screen(230, 0).x, 1),
-        reason: 'its end is where the user put it',
+        onFrame,
+        lessThan(1),
+        reason: 'carried to the jamb it was drawn towards',
       );
       expect(
-        design.topLevelSections,
-        hasLength(5),
-        reason: 'and so it divides nothing on that side',
+        left.x,
+        lessThan(screen(230, 0).x - 50),
+        reason: 'well past where the hand stopped',
+      );
+      expect(
+        (completed.a.y - completed.b.y).abs(),
+        lessThan(1),
+        reason: 'along its own line, so still level',
+      );
+      expect(
+        short.topLevelSections,
+        hasLength(reached.topLevelSections.length),
+        reason: 'and it divides that side, as the drawn one does',
       );
     });
   });

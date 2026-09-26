@@ -256,8 +256,22 @@ abstract final class SketchInterpreter {
       return id;
     }
 
+    // What a line the user stopped short can be finished to: the outline,
+    // every other line drawn on the sheet, and the bars made inside the
+    // design with its own tools. See `_completed`.
+    final inner = [
+      for (final r in welded)
+        if (!_liesOn(r.segment, outline, weld)) r.segment,
+    ];
+    final boundaries = [
+      ...outline.edges,
+      ...inner,
+      for (final d in dividers) Segment(d.a, d.b),
+    ];
+
     for (final run in welded) {
       if (_liesOn(run.segment, outline, weld)) continue;
+      final completed = _completed(run.segment, boundaries, outline, weld);
 
       final made = madeBefore[run.strokeId];
       final before = (made == null || made.isEmpty) ? null : made.removeAt(0);
@@ -274,7 +288,7 @@ abstract final class SketchInterpreter {
         // never moved. Its ends are the design's now; only the stroke's
         // going takes it away.
         dividers.add(before.parentId == null
-            ? before.copyWith(a: run.segment.a, b: run.segment.b)
+            ? before.copyWith(a: completed.a, b: completed.b)
             : before);
         continue;
       }
@@ -327,8 +341,8 @@ abstract final class SketchInterpreter {
 
       dividers.add(DividerElement(
         id: nextDividerId(),
-        a: run.segment.a,
-        b: run.segment.b,
+        a: completed.a,
+        b: completed.b,
         widthMm: width,
         finish: frame.finish,
         fromStrokeId: run.strokeId,
@@ -1249,6 +1263,67 @@ abstract final class SketchInterpreter {
   /// Tested along the whole run, not just at its ends, because a run that
   /// starts and finishes on the boundary can still cut straight across the
   /// middle — a diagonal from one corner to another does exactly that.
+  /// A straight line the user stopped short of what they were drawing it
+  /// to, finished there.
+  ///
+  /// The user's words: *when I draw a straight line and stop before the
+  /// boundary, complete it to that boundary.* A hand drawing a transom
+  /// across a door lifts a finger's width before the far jamb, and a line
+  /// that stops short divides nothing — the door would come back one part
+  /// with a line lying in it, which is not what they drew.
+  ///
+  /// So an end of a level or upright line that **touches nothing** is carried
+  /// along the line's own direction to the **first** line it meets: the
+  /// outline, another line drawn on the sheet, or a bar made inside the
+  /// design. The first, never further — a line drawn towards a transom stops
+  /// at the transom, not at the sill beyond it. An end that already touches
+  /// a line, by the weld the rest of the reading uses, is where the user
+  /// put it and is not moved: that is what keeps a line drawn from a rail
+  /// down to the sill from being stretched on past the rail. Nothing else
+  /// moves; the line is only made to reach.
+  ///
+  /// Only level and upright lines — a line drawn at a slope says nothing
+  /// about where it was going — and only ends inside the outline, because
+  /// a line drawn off the design is not heading for any part of it.
+  static Segment _completed(
+    Segment line,
+    List<Segment> boundaries,
+    Polygon outline,
+    double weld,
+  ) {
+    if (line.length == 0) return line;
+    if (!line.isHorizontalish && !line.isVerticalish) return line;
+    if (line.offAxisDegrees > Tol.axisSnapDegrees) return line;
+    final others = [
+      for (final b in boundaries)
+        if (b != line) b,
+    ];
+    final reach = math.max(outline.width, outline.height) * 2;
+
+    Vec2 finish(Vec2 end, Vec2 outward) {
+      for (final b in others) {
+        if (b.distanceTo(end) <= weld) return end;
+      }
+      if (!outline.contains(end)) return end;
+      final ray = Segment(end, end + outward * reach);
+      Vec2? nearest;
+      var best = double.infinity;
+      for (final b in others) {
+        final crossing = ray.crossing(b);
+        if (crossing == null) continue;
+        final d = crossing.at.distanceTo(end);
+        if (d > weld && d < best) {
+          best = d;
+          nearest = crossing.at;
+        }
+      }
+      return nearest ?? end;
+    }
+
+    final u = line.unit;
+    return Segment(finish(line.a, u * -1), finish(line.b, u));
+  }
+
   static bool _liesOn(Segment run, Polygon outline, double tolerance) {
     const samples = 9;
     for (var i = 0; i <= samples; i++) {
