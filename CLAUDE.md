@@ -786,8 +786,9 @@ move — which is what keeps the old bug fixed, the upright drawn from a rail
 down to the sill that came back running head to sill. Only level and
 upright lines, because a line at a slope says nothing about where it was
 going; only ends inside the outline; and only lines that divide the design —
-a line drawn inside an opening that is already there is laid across its sash
-as before. The ink is not touched: completing is the reading of the line,
+a line drawn inside an opening that is already there, or started inside it,
+is the opening's and is laid across its sash, never the design (see *Only
+the marked section opens*). The ink is not touched: completing is the reading of the line,
 and nothing moves but its free end. No part is made that the completed line
 does not cut off, no opening is made or moved, and nothing is asked.
 `test/domain/a_line_stopped_short_is_completed_test.dart` holds both
@@ -1561,6 +1562,25 @@ line lying on it. `test/domain/a_line_drawn_in_the_opening_joins_it_test.dart`
 holds this, and holds the four things that must *not* join: a line in the
 fixed light, a line right across the window, a line along the sash's own
 jamb, and any line at all on a first reading.
+
+**A line started inside the opening and stopped early joins it too** — the
+user's words: *if I start a line inside an opening, complete it to the
+opening's boundary; do not expand, move or resize the opening.* A hand draws
+a rail from the sash's jamb and lifts before the far one, so the line touches
+the sash at one end and is not clear of it all round; read as a line of the
+design, the completion in *A line stopped short is completed* then carried
+it across the whole design and cut the opening in two. So
+`_openingAlreadyHolding` also takes a line with an end well inside the
+opening — by the line's own thickness — that lies within the opening all
+the way, give or take the frame's profile for the member it was started
+from. It is laid across the opening's own outline by `spanAcross`, and so
+reaches the opening's boundary and no further. A line along a jamb has no
+end well inside and a line across the window leaves the opening, so neither
+joins, as before. `test/domain/a_line_started_in_the_opening_is_completed_to_it_test.dart`
+holds it from either jamb, stopped short at both ends, upright, in a door
+that is one light, and in a line started in the fixed light instead — with
+the opening and everything outside it fingerprinted and required back
+unchanged.
 
 **A reading re-reads the drawing; it does not overturn what the user said
 about it.** Every bar was rebuilt from its stroke on every reading, with a

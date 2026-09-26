@@ -319,7 +319,12 @@ abstract final class SketchInterpreter {
       // And it is the user's either way: **Divides** moves a bar in or out
       // by hand, and that now outlasts every later reading.
       final width = frame.profileMm * 0.8;
-      final joined = _openingAlreadyHolding(design, run.segment, width);
+      final joined = _openingAlreadyHolding(
+        design,
+        run.segment,
+        width,
+        memberMm: frame.profileMm + weld,
+      );
       if (joined != null) {
         // Laid right across the region it has joined, as **Divides** and the
         // line tools both do: a hand-drawn line stops a few millimetres
@@ -1084,17 +1089,36 @@ abstract final class SketchInterpreter {
   /// so the region is the one the user was looking at when they drew. The
   /// margin is the bar's own thickness: a line closer than that to an edge
   /// is running along it rather than dividing what is inside.
+  ///
+  /// **A line started inside the opening and stopped early is the
+  /// opening's too** — the user's words: *if I start a line inside an
+  /// opening, complete it to the opening's boundary; do not expand, move
+  /// or resize the opening.* A hand draws a rail across a sash from its
+  /// jamb and lifts before the far one, so the line touches the sash at one
+  /// end and is not clear of it all round. Read as a line of the design, it
+  /// was then completed across the whole design and cut the opening in two.
+  /// So a line with an end well inside the opening — inside it by the line's
+  /// own thickness — that lies within the opening all the way, give or take
+  /// [memberMm] for the frame or the bar it was started from, joins it; and
+  /// the caller lays it across the opening's own outline and no further. A
+  /// line along a jamb has no end well inside; a line across the window
+  /// leaves the opening; neither joins, as before.
   static ({String openingId, Polygon outline})? _openingAlreadyHolding(
     Design design,
     Segment line,
-    double widthMm,
-  ) {
+    double widthMm, {
+    double memberMm = 0,
+  }) {
     for (final opening in design.openings) {
       final section = design.sectionById(opening.sectionId);
       if (section == null || section.outline.isEmpty) continue;
       final room = section.outline.inset(math.max(widthMm, Tol.minLineMm));
       if (room.isEmpty || room.area <= 0) continue;
-      if (!room.holds(line)) continue;
+      final clear = room.holds(line);
+      final startedInside =
+          (room.contains(line.a) || room.contains(line.b)) &&
+          section.outline.holds(line, reach: memberMm);
+      if (!clear && !startedInside) continue;
       return (openingId: opening.id, outline: section.outline);
     }
     return null;
