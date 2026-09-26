@@ -1068,6 +1068,18 @@ Designs  →  New Design  →  who it is for  →  Continue
   store sorts by it, and `designsRevisionProvider` tells the list to read
   its page again.
 
+- **Everything else is on the card's ⋮**, or by pressing and holding the
+  card — the user's words, over a phone screenshot of the list: *what if I
+  want to delete one of them, or other things?* `DesignActionsSheet` rises
+  from the foot of the screen with **Open**, **Rename** (who it is for),
+  **Duplicate** (`DesignStore.duplicate`: the same design under an id and a
+  number of its own, the original untouched) and **Delete**, each in words.
+  Delete is asked about first, because the card simply goes, and can then
+  be undone for as long as the notice stands: the design is kept in hand
+  and saved back exactly as it was. Nothing on the sheet touches the
+  drawing or the geometry. `test/app/what_can_be_done_with_a_design_test.dart`
+  holds each of them, and that the other designs come back byte for byte.
+
 A phone gets a list of cards a thumb works down, the picture beside the
 words; anything wider a grid, every picture the same height.
 `test/app/the_designs_screen_test.dart` holds all of it, and

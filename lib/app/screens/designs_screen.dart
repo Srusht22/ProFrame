@@ -159,6 +159,81 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen> {
         .push(MaterialPageRoute<void>(builder: (_) => const WorkspaceScreen()));
   }
 
+  /// Everything else that can be done with a design, from its card: open,
+  /// rename, duplicate, delete. A sheet from the foot of the screen, one
+  /// thing a row, each saying what it does — the people using this are not
+  /// people who read a menu of icons.
+  Future<void> _moreFor(DesignSummary summary) async {
+    final chosen = await showModalBottomSheet<DesignAction>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: context.palette.surface,
+      builder: (context) => DesignActionsSheet(summary: summary),
+    );
+    if (chosen == null || !mounted) return;
+    switch (chosen) {
+      case DesignAction.open:
+        await _open(summary);
+      case DesignAction.rename:
+        await _rename(summary);
+      case DesignAction.duplicate:
+        await _duplicate(summary);
+      case DesignAction.delete:
+        await _delete(summary);
+    }
+  }
+
+  void _changed() => ref.read(designsRevisionProvider.notifier).changed();
+
+  Future<void> _rename(DesignSummary summary) async {
+    final who = await showDialog<String>(
+      context: context,
+      builder: (context) => _RenameDialog(current: summary.title),
+    );
+    if (who == null || who.trim().isEmpty || !mounted) return;
+    await _store.rename(summary.id, who);
+    _changed();
+  }
+
+  Future<void> _duplicate(DesignSummary summary) async {
+    final copy = await _store.duplicate(summary.id);
+    if (copy == null || !mounted) return;
+    _changed();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Copy made: ${DesignSummary.of(copy).title}')),
+    );
+  }
+
+  /// Deleting is asked about first, because it cannot be seen being done —
+  /// the card simply goes — and then it can still be undone for a moment:
+  /// the design is kept in hand until the notice has gone.
+  Future<void> _delete(DesignSummary summary) async {
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (context) => _DeleteDialog(title: summary.title),
+    );
+    if (sure != true || !mounted) return;
+    final design = await _store.load(summary.id);
+    await _store.remove(summary.id);
+    if (!mounted) return;
+    _changed();
+    final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('${summary.title} deleted'),
+        action: design == null
+            ? null
+            : SnackBarAction(
+                label: 'Undo',
+                onPressed: () async {
+                  await _store.save(design);
+                  if (mounted) _changed();
+                },
+              ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // A design kept anywhere — made, edited, left — and the page is read
@@ -222,6 +297,7 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen> {
                     gutter: gutter,
                     phone: phone,
                     onOpen: _open,
+                    onMore: _moreFor,
                     onNearEnd: () => WidgetsBinding.instance
                         .addPostFrameCallback((_) => _more()),
                   ),
@@ -460,6 +536,7 @@ class _Designs extends StatelessWidget {
   final double gutter;
   final bool phone;
   final ValueChanged<DesignSummary> onOpen;
+  final ValueChanged<DesignSummary> onMore;
 
   /// Called as the last few cards read so far are built, so the next page
   /// is read before the list runs out.
@@ -471,6 +548,7 @@ class _Designs extends StatelessWidget {
     required this.gutter,
     required this.phone,
     required this.onOpen,
+    required this.onMore,
     required this.onNearEnd,
   });
 
@@ -482,6 +560,7 @@ class _Designs extends StatelessWidget {
       now: now,
       wide: wide,
       onOpen: () => onOpen(designs[i]),
+      onMore: () => onMore(designs[i]),
     );
   }
 
@@ -528,12 +607,17 @@ class DesignCard extends StatefulWidget {
   final bool wide;
   final VoidCallback onOpen;
 
+  /// What else can be done with it — rename, duplicate, delete — from the
+  /// **⋮** on the card, or by pressing and holding it.
+  final VoidCallback? onMore;
+
   /// How tall the picture is on a card in the grid.
   static const previewHeight = 156.0;
 
   /// How tall a card in the grid is: the picture, and room under it for the
-  /// words to run to two lines of tags and still leave the way in.
-  static const gridHeight = previewHeight + 170;
+  /// words to run to two lines of tags and still leave the way in — and for
+  /// the ⋮ beside the name, which is a thumb's target tall.
+  static const gridHeight = previewHeight + 184;
 
   const DesignCard({
     super.key,
@@ -541,7 +625,11 @@ class DesignCard extends StatefulWidget {
     required this.now,
     required this.wide,
     required this.onOpen,
+    this.onMore,
   });
+
+  /// The key of the **⋮** on the card of the design [id].
+  static ValueKey<String> moreKey(String id) => ValueKey('design-more-$id');
 
   @override
   State<DesignCard> createState() => _DesignCardState();
@@ -599,6 +687,20 @@ class _DesignCardState extends State<DesignCard> {
                 color: context.palette.muted,
               ),
             ),
+            if (widget.onMore != null)
+              IconButton(
+                key: DesignCard.moreKey(design.id),
+                tooltip: 'More options',
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                onPressed: widget.onMore,
+                icon: Icon(
+                  Icons.more_vert,
+                  size: 20,
+                  color: context.palette.muted,
+                ),
+              ),
           ],
         ),
         const SizedBox(height: 8),
@@ -723,6 +825,7 @@ class _DesignCardState extends State<DesignCard> {
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: widget.onOpen,
+            onLongPress: widget.onMore,
             child: body,
           ),
         ),
@@ -895,4 +998,172 @@ class _NoMatch extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// What can be done with a design from its card.
+enum DesignAction { open, rename, duplicate, delete }
+
+/// The sheet of what can be done with one design: each thing on a row of
+/// its own, in words, with the one that cannot be seen being undone —
+/// delete — last and in red.
+class DesignActionsSheet extends StatelessWidget {
+  final DesignSummary summary;
+
+  const DesignActionsSheet({super.key, required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final danger = Theme.of(context).colorScheme.error;
+    Widget row(
+      DesignAction action,
+      IconData icon,
+      String label,
+      String detail, {
+      Color? colour,
+    }) => ListTile(
+      key: ValueKey('design-action-${action.name}'),
+      leading: Icon(icon, color: colour ?? p.primary),
+      title: Text(
+        label,
+        style: TextStyle(fontWeight: FontWeight.w600, color: colour ?? p.ink),
+      ),
+      subtitle: Text(detail, style: TextStyle(color: p.muted, fontSize: 12.5)),
+      onTap: () => Navigator.of(context).pop(action),
+    );
+
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    summary.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                Text(
+                  '#${summary.number}',
+                  style: TextStyle(fontSize: 12, color: p.muted),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          row(
+            DesignAction.open,
+            Icons.arrow_forward,
+            'Open',
+            'Carry on with this design.',
+          ),
+          row(
+            DesignAction.rename,
+            Icons.edit_outlined,
+            'Rename',
+            'Change who this design is for.',
+          ),
+          row(
+            DesignAction.duplicate,
+            Icons.copy_all_outlined,
+            'Duplicate',
+            'A copy to change without touching this one.',
+          ),
+          row(
+            DesignAction.delete,
+            Icons.delete_outline,
+            'Delete',
+            'Remove it from this device.',
+            colour: danger,
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+class _RenameDialog extends StatefulWidget {
+  final String current;
+  const _RenameDialog({required this.current});
+
+  @override
+  State<_RenameDialog> createState() => _RenameDialogState();
+}
+
+class _RenameDialogState extends State<_RenameDialog> {
+  late final _field = TextEditingController(text: widget.current)
+    ..addListener(() => setState(() {}));
+
+  @override
+  void dispose() {
+    _field.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ok = _field.text.trim().isNotEmpty;
+    void save() {
+      if (ok) Navigator.of(context).pop(_field.text.trim());
+    }
+
+    return AlertDialog(
+      title: const Text('Rename'),
+      content: TextField(
+        key: const ValueKey('rename-customer'),
+        controller: _field,
+        autofocus: true,
+        textCapitalization: TextCapitalization.words,
+        decoration: const InputDecoration(labelText: 'Who it is for'),
+        onSubmitted: (_) => save(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: ok ? save : null, child: const Text('Save')),
+      ],
+    );
+  }
+}
+
+class _DeleteDialog extends StatelessWidget {
+  final String title;
+  const _DeleteDialog({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    final danger = Theme.of(context).colorScheme.error;
+    return AlertDialog(
+      icon: Icon(Icons.delete_outline, color: danger),
+      title: Text('Delete $title?'),
+      content: const Text(
+        'The design will be removed from this device. You can undo it '
+        'straight afterwards.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const ValueKey('confirm-delete'),
+          style: FilledButton.styleFrom(
+            backgroundColor: danger,
+            foregroundColor: Theme.of(context).colorScheme.onError,
+          ),
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Delete'),
+        ),
+      ],
+    );
+  }
 }

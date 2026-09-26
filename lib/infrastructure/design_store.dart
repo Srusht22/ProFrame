@@ -322,6 +322,42 @@ class DesignStore {
     _recent.remove(designId);
   }
 
+  /// A copy of the design kept as [id], made now under an id and a number
+  /// of its own — the same drawing, geometry and everything said about it —
+  /// kept beside the original, which is not touched. Null where nothing is
+  /// kept as [id].
+  ///
+  /// So a workshop can start a customer's second door from their first
+  /// without changing the first.
+  Future<Design?> duplicate(String id, {DateTime? now}) async {
+    final original = await load(id);
+    if (original == null) return null;
+    final at = now ?? DateTime.now();
+    final json = original.toJson()
+      ..['id'] = 'design-${at.microsecondsSinceEpoch}'
+      ..['createdAt'] = at.toIso8601String()
+      ..['updatedAt'] = at.toIso8601String();
+    if (original.customer != null) {
+      json['customer'] = '${original.customer} (copy)';
+    } else {
+      json['name'] = '${original.name} (copy)';
+    }
+    final copy = Design.fromJson(json);
+    await save(copy);
+    return copy;
+  }
+
+  /// The design kept as [id], now said to be for [customer]. Nothing else
+  /// about it changes. Null where nothing is kept as [id].
+  Future<Design?> rename(String id, String customer) async {
+    final design = await load(id);
+    final who = customer.trim();
+    if (design == null || who.isEmpty) return null;
+    final renamed = design.copyWith(customer: who);
+    await save(renamed);
+    return renamed;
+  }
+
   /// Every design kept, whole, most recently edited first. For a handful —
   /// a test, an export — never for the list, which reads [page].
   Future<List<Design>> all() async {
