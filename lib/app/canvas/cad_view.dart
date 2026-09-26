@@ -146,8 +146,16 @@ class _CadViewState extends ConsumerState<CadView> {
                   ? null
                   : _lineAt(_pointer, within, _inside);
 
+              // The figure being typed into stands *above* the drawing's own
+              // pointer handling, not inside it. Inside it, pressing Apply
+              // was first a press on the drawing — away from any figure —
+              // which put the editor away before the button could take the
+              // tap, so a typed figure was sometimes applied and sometimes
+              // not, depending on what lay under the button.
               return ClipRect(
-                child: MouseRegion(
+                child: Stack(
+                  children: [
+                    Positioned.fill(child: MouseRegion(
                   cursor: _holding == null
                       ? SystemMouseCursors.precise
                       : SystemMouseCursors.move,
@@ -229,16 +237,6 @@ class _CadViewState extends ConsumerState<CadView> {
                               scale: view.scale,
                             ),
                           ),
-                          if (_editing case final figure?)
-                            _FigureEditor(
-                              figure: figure,
-                              within: size,
-                              onApply: (value) {
-                                _applyFigure(figure, value, controller);
-                                setState(() => _editing = null);
-                              },
-                              onCancel: () => setState(() => _editing = null),
-                            ),
                           Positioned(
                             right: 12,
                             top: 12,
@@ -253,6 +251,18 @@ class _CadViewState extends ConsumerState<CadView> {
                       ),
                     ),
                   ),
+                )),
+                    if (_editing case final figure?)
+                      _FigureEditor(
+                        figure: figure,
+                        within: size,
+                        onApply: (value) {
+                          _applyFigure(figure, value, controller);
+                          setState(() => _editing = null);
+                        },
+                        onCancel: () => setState(() => _editing = null),
+                      ),
+                  ],
                 ),
               );
             },
@@ -1032,17 +1042,25 @@ class _FigureEditorState extends State<_FigureEditor> {
                 onSubmitted: (_) => _apply(),
               ),
               const SizedBox(height: 8),
+              // Each button takes its share of the card, so Apply is never
+              // pushed off its edge where a press could miss it.
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(
-                    onPressed: widget.onCancel,
-                    child: const Text('Cancel'),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: widget.onCancel,
+                      child: const Text('Cancel', maxLines: 1),
+                    ),
                   ),
-                  const SizedBox(width: 4),
-                  FilledButton(
-                    onPressed: _apply,
-                    child: const Text('Apply'),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _apply,
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      child: const Text('Apply', maxLines: 1),
+                    ),
                   ),
                 ],
               ),

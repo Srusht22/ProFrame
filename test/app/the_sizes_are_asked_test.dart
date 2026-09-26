@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/app.dart';
 import 'package:proframe/app/canvas/cad_layers.dart';
+import 'package:proframe/app/canvas/cad_painter.dart';
 import 'package:proframe/app/canvas/dimension_handles.dart';
 import 'package:proframe/app/canvas/view_transform.dart';
 import 'package:proframe/app/inspector/measure_form.dart';
@@ -202,6 +203,71 @@ void main() {
     expect(find.byType(MeasureForm), findsOneWidget);
     final design = c.read(workspaceProvider).design;
     expect(design.kind, DesignKind.both);
+  });
+
+  testWidgets('a figure typed on the drawing and applied is the figure', (
+    tester,
+  ) async {
+    // The user's screenshot: the overall height tapped on the technical
+    // drawing, 250 typed, Apply pressed — and nothing changed. Apply sat
+    // inside the drawing's own pointer handling, so pressing it was first a
+    // press on the drawing away from any figure, which put the editor away
+    // before the button was let go.
+    final c = await openTheApp(tester, 'WINDOW');
+    await sheet.twoLeaves(c);
+    await tester.pumpAndSettle();
+    await giveEverySize(tester, c, {
+      Measurements.profileKey: '6',
+      Measurements.barsKey: '5',
+      Measurements.widthKey: '100',
+      Measurements.heightKey: '200',
+    });
+    expect(c.read(workspaceProvider).design.widthMm, closeTo(1000, 0.01));
+
+    Future<void> typeOver(DimensionOf of, String value) async {
+      final paint = find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is CadPainter,
+      );
+      final painter = tester.widget<CustomPaint>(paint).painter! as CadPainter;
+      final figure = CadDimensions.of(
+        painter.design,
+        painter.view,
+        painter.layers,
+      ).firstWhere((f) => f.of == of);
+      final origin = tester.getTopLeft(paint);
+      await tester.tapAt(origin + figure.rect.center);
+      await tester.pumpAndSettle();
+      // The editor's own field: the one beside its Apply.
+      final editor = find
+          .ancestor(of: find.text('Apply'), matching: find.byType(Column))
+          .first;
+      await tester.enterText(
+        find.descendant(of: editor, matching: find.byType(TextField)),
+        value,
+      );
+      await tester.pump();
+      // Held as a finger holds it, so the drawing sees the press a frame
+      // before the button sees it let go.
+      final press = await tester.startGesture(
+        tester.getCenter(find.text('Apply')),
+      );
+      await tester.pump(const Duration(milliseconds: 120));
+      await press.up();
+      await tester.pumpAndSettle();
+    }
+
+    await typeOver(DimensionOf.overallWidth, '150');
+    var design = c.read(workspaceProvider).design;
+    expect(design.widthMm, closeTo(1500, 0.01));
+    expect(design.heightMm, closeTo(2000, 0.01));
+
+    await typeOver(DimensionOf.overallHeight, '250');
+    design = c.read(workspaceProvider).design;
+    expect(design.heightMm, closeTo(2500, 0.01), reason: 'applied');
+    expect(design.widthMm, closeTo(1500, 0.01), reason: 'and only that');
+    // Typing a size that was already asked for does not bring the whole
+    // form back.
+    expect(find.byType(MeasureForm), findsNothing);
   });
 
   group('it fits the screen it is on', () {

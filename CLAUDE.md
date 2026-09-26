@@ -2223,6 +2223,16 @@ Nothing else moves. Changing one pane's height moves the transom, so the pane
 above it changes too — that is arithmetic, not redesign — and the overall size
 stays exactly as it was.
 
+**The editor a figure opens stands above the drawing, never inside it.** It
+used to sit inside the drawing's own pointer handling, so pressing **Apply**
+was first a press on the drawing away from any figure — which put the editor
+away before the button was let go. A quick click sometimes got through; a
+finger held for a moment never did, and the user's typed height simply did
+not happen. `test/app/the_sizes_are_asked_test.dart` presses **Apply** the
+way a finger does, held for a frame, and fails with the editor back inside.
+Giving a figure there does not bring the whole Measurements form back: it
+reopens only for a size it has not asked about before.
+
 **A bar's own figures are editable too, and both are about its middle.**
 `Length` and `Angle` on a bar's panel were readouts, so a line drawn by hand
 could be moved and re-homed and recoloured but never made a given length or

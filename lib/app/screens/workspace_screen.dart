@@ -73,9 +73,11 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
   Timer? _keeping;
   bool _unkept = false;
 
-  /// The sizes the form was last opened for, so the same list is not put
-  /// again the moment the user closes it; and whether it is open now.
-  String _askedFor = '';
+  /// Every size the form has already been opened for, so it comes back
+  /// only for a size that is new — a line drawn and read — and never
+  /// because one of the old ones was just given somewhere else, such as a
+  /// figure typed on the drawing. And whether it is open now.
+  final _askedAbout = <String>{};
   bool _asking = false;
 
   @override
@@ -92,8 +94,10 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
   /// Asks for the sizes once a reading has made something to measure and
   /// nothing else is waiting on the user.
   void _sizesOutstanding(String keys) {
-    if (keys.isEmpty || keys == _askedFor || _asking || !mounted) return;
-    _askedFor = keys;
+    if (keys.isEmpty || _asking || !mounted) return;
+    final outstanding = keys.split(',');
+    if (outstanding.every(_askedAbout.contains)) return;
+    _askedAbout.addAll(outstanding);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted || _asking) return;
       _asking = true;
