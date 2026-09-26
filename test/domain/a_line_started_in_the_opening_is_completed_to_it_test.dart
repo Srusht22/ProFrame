@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/domain/geometry/segment.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
-import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/recognition/interpreter.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 

@@ -256,22 +256,60 @@ abstract final class SketchInterpreter {
       return id;
     }
 
-    // What a line the user stopped short can be finished to: the outline,
-    // every other line drawn on the sheet, and the bars made inside the
-    // design with its own tools. See `_completed`.
-    final inner = [
-      for (final r in welded)
-        if (!_liesOn(r.segment, outline, weld)) r.segment,
-    ];
+    // What a line of the design the user stopped short can be finished to:
+    // the design's own lines and nothing of an opening's. See `_completed`.
+    //
+    // **A line started outside an opening belongs to the surrounding
+    // design, so it is completed against the surrounding design** — the
+    // outline, the lines that divide the design, and the bars made in the
+    // design with its own tools — and never against a line that is an
+    // opening's. Which lines are an opening's is settled here, before any
+    // is completed, by the same pairing and the same test the loop below
+    // uses: a line re-read from a bar that was already the opening's, or a
+    // line drawn inside an opening that is already there.
+    final width = frame.profileMm * 0.8;
+    final memberMm = frame.profileMm + weld;
+    final pairing = {
+      for (final entry in madeBefore.entries) entry.key: [...entry.value],
+    };
+    final ofTheDesign = <Segment>[];
+    for (final run in welded) {
+      if (_liesOn(run.segment, outline, weld)) continue;
+      final made = pairing[run.strokeId];
+      final before = (made == null || made.isEmpty) ? null : made.removeAt(0);
+      final opening = before != null
+          ? before.parentId != null
+          : _openingAlreadyHolding(
+                  design,
+                  run.segment,
+                  width,
+                  memberMm: memberMm,
+                ) !=
+                null;
+      if (!opening) ofTheDesign.add(run.segment);
+    }
     final boundaries = [
       ...outline.edges,
-      ...inner,
-      for (final d in dividers) Segment(d.a, d.b),
+      ...ofTheDesign,
+      for (final d in dividers)
+        if (d.parentId == null) Segment(d.a, d.b),
+    ];
+    // The regions the design already opens: a line of the design is never
+    // completed through one of them.
+    final opened = [
+      for (final opening in design.openings)
+        ?design.sectionById(opening.sectionId)?.outline,
     ];
 
     for (final run in welded) {
       if (_liesOn(run.segment, outline, weld)) continue;
-      final completed = _completed(run.segment, boundaries, outline, weld);
+      final completed = _completed(
+        run.segment,
+        boundaries,
+        outline,
+        weld,
+        opened: opened,
+      );
 
       final made = madeBefore[run.strokeId];
       final before = (made == null || made.isEmpty) ? null : made.removeAt(0);
@@ -318,12 +356,11 @@ abstract final class SketchInterpreter {
       //
       // And it is the user's either way: **Divides** moves a bar in or out
       // by hand, and that now outlasts every later reading.
-      final width = frame.profileMm * 0.8;
       final joined = _openingAlreadyHolding(
         design,
         run.segment,
         width,
-        memberMm: frame.profileMm + weld,
+        memberMm: memberMm,
       );
       if (joined != null) {
         // Laid right across the region it has joined, as **Divides** and the
@@ -1309,12 +1346,20 @@ abstract final class SketchInterpreter {
   /// Only level and upright lines — a line drawn at a slope says nothing
   /// about where it was going — and only ends inside the outline, because
   /// a line drawn off the design is not heading for any part of it.
+  ///
+  /// And never through an opening. These are the design's lines, so an end
+  /// that the hand carried into a region the design already opens ([opened])
+  /// is left where it was drawn: completing it would run it on across the
+  /// opening, which is the opening's own ground. A line heading for an
+  /// opening stops at the opening's edge, because that is where the
+  /// surrounding design ends in that direction.
   static Segment _completed(
     Segment line,
     List<Segment> boundaries,
     Polygon outline,
-    double weld,
-  ) {
+    double weld, {
+    List<Polygon> opened = const [],
+  }) {
     if (line.length == 0) return line;
     if (!line.isHorizontalish && !line.isVerticalish) return line;
     if (line.offAxisDegrees > Tol.axisSnapDegrees) return line;
@@ -1329,6 +1374,9 @@ abstract final class SketchInterpreter {
         if (b.distanceTo(end) <= weld) return end;
       }
       if (!outline.contains(end)) return end;
+      for (final region in opened) {
+        if (region.contains(end)) return end;
+      }
       final ray = Segment(end, end + outward * reach);
       Vec2? nearest;
       var best = double.infinity;

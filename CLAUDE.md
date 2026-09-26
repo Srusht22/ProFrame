@@ -788,7 +788,24 @@ upright lines, because a line at a slope says nothing about where it was
 going; only ends inside the outline; and only lines that divide the design —
 a line drawn inside an opening that is already there, or started inside it,
 is the opening's and is laid across its sash, never the design (see *Only
-the marked section opens*). The ink is not touched: completing is the reading of the line,
+the marked section opens*).
+
+**A line started outside an opening belongs to the surrounding design, and
+is completed against the surrounding design** — the user's words: *complete
+it to the boundary of that surrounding design area; do not extend it through
+the opening, and do not use the opening's boundary for it.* Which lines are
+an opening's is settled before any line is completed, by the same pairing
+and the same `_openingAlreadyHolding` the reading then uses, and a line of
+the design is completed only against the outline, the design's own lines and
+the bars made in the design — never a line of an opening's. It is never run
+through an opening either: a line heading for one stops at its edge, which
+is where the surrounding design ends in that direction, and an end the hand
+carried *into* a region the design already opens is left where it was
+drawn rather than run on across it.
+`test/domain/a_line_outside_the_opening_is_completed_to_the_design_test.dart`
+holds the user's own test — one line inside the opening completed inside
+it, one outside completed frame to frame — and the line heading for the
+opening, the line level with it, and the end carried into it. The ink is not touched: completing is the reading of the line,
 and nothing moves but its free end. No part is made that the completed line
 does not cut off, no opening is made or moved, and nothing is asked.
 `test/domain/a_line_stopped_short_is_completed_test.dart` holds both
