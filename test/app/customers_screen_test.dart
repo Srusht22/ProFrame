@@ -264,6 +264,7 @@ void main() {
       expect(page.customerId, kept['Adam']!.id);
       expect(find.text('+964 750 123 4567'), findsOneWidget);
       expect(find.text('Designs'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Kitchen Window'), 100);
       expect(find.text('Kitchen Window'), findsOneWidget);
       expect(overflowing(tester), isEmpty);
 

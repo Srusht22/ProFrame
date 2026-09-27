@@ -1230,17 +1230,28 @@ on saving a new one.
 **The customer's page** (`customer_screen.dart`) is the person first —
 their initials, name, how many designs, then *Customer information*:
 phone, address and notes, each said to be *Not given* where it was not —
-and **Designs** beneath: their own designs, found by `customerId` and read
-a page at a time, each a row with its kind, its own name and when it was
-last edited, opening exactly as kept. With none it says *No designs yet*.
-**New Design** is in the heading, or in the empty state, and is the only
-way on: **opening a customer asks nothing, begins nothing and opens no
+and **Designs** beneath: their own designs — every design whose
+`customerId` is theirs and no other — read a page at a time and shown as
+cards (`CustomerDesignCard`), one above another on a phone and two or three
+across where there is room. A card is the design's picture, then its name,
+its category, *Last edited:* as a date and a time (`lastEdited`), and
+**Open**, which opens it exactly as kept. **The picture is the design
+itself**: `DesignPicture`, the same one the designs list uses, reads the
+design and draws it with `DesignPreview` from its own geometry, or shows
+the empty sheet saying *Nothing drawn yet* — never an invented drawing and
+never an image. With no designs the page says *No designs yet*.
+**New Design** is in the empty state, or — once there are designs — a
+button standing at the foot of the screen through any scroll, with room
+left under the last card so it never covers one. It is the only way on: **opening a customer asks nothing, begins nothing and opens no
 drawing** — door, window or sliding is asked by *Choose your design* when
 New Design is pressed, and not before. A design begun there is the
 customer's from the start (`StartScreen.customerId`), takes the model's
 own name rather than the person's, and the way back from it is to the
 customer's page (`CustomerScreen.route` names it on the navigator).
-`test/app/a_customer_s_page_test.dart` holds it. `customersRevisionProvider` tells the list and the page to read
+`test/app/a_customer_s_page_test.dart` and
+`test/app/a_customer_s_designs_as_cards_test.dart` hold it — the second
+with three customers' designs made interleaved and each page required to
+hold exactly that customer's. `customersRevisionProvider` tells the list and the page to read
 again when a customer is made, and they listen to the designs' revision
 too, because keeping a design can bring a customer with it.
 `test/app/customers_screen_test.dart` holds all of it on the real app,

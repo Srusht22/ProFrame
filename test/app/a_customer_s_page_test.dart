@@ -84,6 +84,7 @@ void main() {
 
     // Then his designs, each by its own name and kind.
     expect(find.text('Designs'), findsOneWidget);
+    final seen = <String>{};
     for (final name in [
       'Basement Door',
       'Front Entrance Door',
@@ -92,9 +93,16 @@ void main() {
     ]) {
       await tester.scrollUntilVisible(find.text(name), 100);
       expect(find.text(name), findsOneWidget);
+      seen.addAll(rows(tester));
     }
-    expect(rows(tester), hasLength(4));
-    expect(find.textContaining('Sliding ·'), findsOneWidget);
+    expect(seen, hasLength(4));
+    expect(
+      find.descendant(
+        of: find.byKey(CustomerScreen.designKey('adam-3')),
+        matching: find.text('Sliding'),
+      ),
+      findsOneWidget,
+    );
     // And New Design.
     expect(find.byKey(CustomerScreen.newDesignButton), findsOneWidget);
 

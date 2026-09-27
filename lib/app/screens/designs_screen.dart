@@ -693,7 +693,7 @@ class _DesignCardState extends State<DesignCard> {
           border: Border.all(color: context.palette.hairline),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: RepaintBoundary(child: _Picture(summary: design)),
+        child: RepaintBoundary(child: DesignPicture(summary: design)),
       ),
     );
 
@@ -875,16 +875,21 @@ class _DesignCardState extends State<DesignCard> {
 /// The picture on a card: the design itself, read from the store when the
 /// card is built — so only the designs on the screen are ever read — and
 /// read again only when it has been edited since.
-class _Picture extends ConsumerStatefulWidget {
+/// The picture of a kept design: the design itself, read from the store
+/// when the picture is built and drawn by `DesignPreview` from its own
+/// geometry — or, while it is being read or where there is nothing kept, the
+/// empty sheet, never anything standing in for it. The designs list and a
+/// customer's page both show a design by this.
+class DesignPicture extends ConsumerStatefulWidget {
   final DesignSummary summary;
 
-  const _Picture({required this.summary});
+  const DesignPicture({super.key, required this.summary});
 
   @override
-  ConsumerState<_Picture> createState() => _PictureState();
+  ConsumerState<DesignPicture> createState() => _DesignPictureState();
 }
 
-class _PictureState extends ConsumerState<_Picture> {
+class _DesignPictureState extends ConsumerState<DesignPicture> {
   late Future<Design?> _design = _read();
 
   Future<Design?> _read() async {
@@ -896,7 +901,7 @@ class _PictureState extends ConsumerState<_Picture> {
   }
 
   @override
-  void didUpdateWidget(_Picture old) {
+  void didUpdateWidget(DesignPicture old) {
     super.didUpdateWidget(old);
     if (old.summary.id != widget.summary.id ||
         old.summary.updatedAt != widget.summary.updatedAt) {

@@ -144,6 +144,21 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
         foregroundColor: AppTheme.accent,
         title: Text(customer?.name ?? ''),
       ),
+      // Where the customer has designs, New Design stands at the foot of the
+      // screen whatever is scrolled past — a customer with forty designs can
+      // begin the forty-first without scrolling back to the top. Where they
+      // have none, the empty state carries it instead, in the middle of the
+      // page.
+      floatingActionButton: customer == null || _total == 0
+          ? null
+          : FloatingActionButton.extended(
+              key: CustomerScreen.newDesignButton,
+              onPressed: () => _newDesign(customer),
+              backgroundColor: p.band,
+              foregroundColor: AppTheme.accent,
+              icon: const Icon(Icons.add),
+              label: const Text('New Design'),
+            ),
       body: !_loaded
           ? const SizedBox.shrink()
           : customer == null
@@ -170,12 +185,7 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
                     SliverPadding(
                       padding: EdgeInsets.fromLTRB(across, 28, across, 12),
                       sliver: SliverToBoxAdapter(
-                        child: _DesignsHeading(
-                          count: _total,
-                          onNewDesign: _total == 0
-                              ? null
-                              : () => _newDesign(customer),
-                        ),
+                        child: _DesignsHeading(count: _total),
                       ),
                     ),
                     if (_total == 0)
@@ -191,26 +201,17 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
                     else
                       SliverPadding(
                         padding: EdgeInsets.symmetric(horizontal: across),
-                        sliver: SliverList.separated(
-                          itemCount: _designs.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(height: 10),
-                          itemBuilder: (context, i) {
-                            if (i >= _designs.length - 8) {
-                              WidgetsBinding.instance.addPostFrameCallback(
-                                (_) => _more(),
-                              );
-                            }
-                            final design = _designs[i];
-                            return _DesignRow(
-                              key: CustomerScreen.designKey(design.id),
-                              design: design,
-                              onOpen: () => _open(design),
-                            );
-                          },
+                        sliver: _Cards(
+                          designs: _designs,
+                          width: room.maxWidth - across * 2,
+                          onOpen: _open,
+                          onNearEnd: () => WidgetsBinding.instance
+                              .addPostFrameCallback((_) => _more()),
                         ),
                       ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                    // Room under the last card for New Design, so it never
+                    // stands over a card that cannot be scrolled clear of it.
+                    const SliverToBoxAdapter(child: SizedBox(height: 104)),
                   ],
                 );
               },
@@ -220,7 +221,7 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
 }
 
 /// The width the customer's page lays its content out in.
-const _contentWidth = 760.0;
+const _contentWidth = 960.0;
 
 /// Who the customer is: their initials and name, and then their
 /// information — phone, address and notes — each on a line of its own and
@@ -354,68 +355,41 @@ class _Person extends StatelessWidget {
   }
 }
 
-/// **Designs**, how many, and — where there are any — **New Design**
-/// beside them. Where there are none the empty state carries the button.
+/// **Designs**, and how many.
 class _DesignsHeading extends StatelessWidget {
   final int count;
-  final VoidCallback? onNewDesign;
 
-  const _DesignsHeading({required this.count, required this.onNewDesign});
+  const _DesignsHeading({required this.count});
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     return Row(
       children: [
-        Flexible(
-          child: Row(
-            children: [
-              Flexible(
-                child: Text(
-                  'Designs',
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: p.ink,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: p.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  '$count',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: p.primary,
-                  ),
-                ),
-              ),
-            ],
+        Text(
+          'Designs',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: p.ink,
           ),
         ),
-        if (onNewDesign != null) ...[
-          const SizedBox(width: 12),
-          // Compact beside a heading: the theme's button is sized to stand
-          // on its own, and at full size it would push the heading off a
-          // narrow phone.
-          FilledButton.icon(
-            key: CustomerScreen.newDesignButton,
-            onPressed: onNewDesign,
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 44),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-            ),
-            icon: const Icon(Icons.add, size: 20),
-            label: const Text('New Design'),
+        const SizedBox(width: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: p.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(999),
           ),
-        ],
+          child: Text(
+            '$count',
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: p.primary,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -469,13 +443,110 @@ class _NoDesigns extends StatelessWidget {
   }
 }
 
-/// One of the customer's designs: what it is, what it is called, when it
-/// was last edited, and the way into it.
-class _DesignRow extends StatelessWidget {
+/// The customer's designs as cards: one above another on a phone, two or
+/// three across where there is room, every card the same height.
+class _Cards extends StatelessWidget {
+  final List<DesignSummary> designs;
+  final double width;
+  final ValueChanged<DesignSummary> onOpen;
+
+  /// Called as the last few cards read so far are built, so the next page
+  /// is read before the list runs out.
+  final VoidCallback onNearEnd;
+
+  const _Cards({
+    required this.designs,
+    required this.width,
+    required this.onOpen,
+    required this.onNearEnd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    Widget card(int i) {
+      if (i >= designs.length - 8) onNearEnd();
+      final design = designs[i];
+      return CustomerDesignCard(
+        key: CustomerScreen.designKey(design.id),
+        design: design,
+        now: now,
+        onOpen: () => onOpen(design),
+      );
+    }
+
+    final columns = (width / 290).floor().clamp(1, 3);
+    if (columns == 1) {
+      return SliverList.separated(
+        itemCount: designs.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 14),
+        itemBuilder: (context, i) => card(i),
+      );
+    }
+    return SliverGrid.builder(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+        mainAxisExtent: CustomerDesignCard.height,
+      ),
+      itemCount: designs.length,
+      itemBuilder: (context, i) => card(i),
+    );
+  }
+}
+
+/// When a design was last edited, as a date and a time: *Today, 09:14*,
+/// *Yesterday, 18:02*, or *1 Mar 2026, 09:14*, seen from [now].
+String lastEdited(DateTime then, DateTime now) {
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  String two(int n) => n.toString().padLeft(2, '0');
+  final time = '${two(then.hour)}:${two(then.minute)}';
+  final day = DateTime(then.year, then.month, then.day);
+  final today = DateTime(now.year, now.month, now.day);
+  final gone = today.difference(day).inDays;
+  if (gone == 0) return 'Today, $time';
+  if (gone == 1) return 'Yesterday, $time';
+  return '${then.day} ${months[then.month - 1]} ${then.year}, $time';
+}
+
+/// One of the customer's designs as a card: its picture — the design itself,
+/// drawn from its own geometry by the same `DesignPicture` the designs list
+/// uses, or the empty sheet saying *Nothing drawn yet* — then its name, its
+/// category, when it was last edited, and **Open**.
+class CustomerDesignCard extends StatelessWidget {
   final DesignSummary design;
+  final DateTime now;
   final VoidCallback onOpen;
 
-  const _DesignRow({super.key, required this.design, required this.onOpen});
+  /// How tall a card is, in the list and in the grid alike.
+  static const height = 318.0;
+
+  /// How tall its picture is.
+  static const pictureHeight = 156.0;
+
+  const CustomerDesignCard({
+    super.key,
+    required this.design,
+    required this.now,
+    required this.onOpen,
+  });
+
+  /// The **Open** on the card of the design [id].
+  static ValueKey<String> openKey(String id) => ValueKey('open-design-$id');
 
   static IconData iconOf(DesignKind kind) => switch (kind) {
     DesignKind.door => Icons.door_front_door_outlined,
@@ -489,54 +560,107 @@ class _DesignRow extends StatelessWidget {
     final p = context.palette;
     return Material(
       color: p.surface,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         onTap: onOpen,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          height: height,
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: p.hairline),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: p.primary.withValues(alpha: 0.08),
+              SizedBox(
+                height: pictureHeight,
+                child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(iconOf(design.kind), color: p.primary),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      design.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w700,
-                        color: p.ink,
-                      ),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: p.hairline),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${design.kind.label} · '
-                      '${editedAgo(design.updatedAt, DateTime.now())}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, color: p.muted),
+                    child: RepaintBoundary(
+                      child: DesignPicture(summary: design),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  design.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: p.ink,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: p.shell,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(iconOf(design.kind), size: 14, color: p.primary),
+                          const SizedBox(width: 5),
+                          Text(
+                            design.kind.label,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: p.primary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: p.muted),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  'Last edited: ${lastEdited(design.updatedAt, now)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12.5, color: p.muted),
+                ),
+              ),
+              const Spacer(),
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton.icon(
+                  key: openKey(design.id),
+                  onPressed: onOpen,
+                  style: TextButton.styleFrom(
+                    foregroundColor: p.primary,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  iconAlignment: IconAlignment.end,
+                  icon: const Icon(Icons.arrow_forward, size: 18),
+                  label: const Text('Open'),
+                ),
+              ),
             ],
           ),
         ),
