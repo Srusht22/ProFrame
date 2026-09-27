@@ -1172,6 +1172,52 @@ words; anything wider a grid, every picture the same height.
 `test/app/new_design.dart` is how every other app test now gets from the
 designs to the choice of door or window.
 
+### Customers and their designs
+
+**A customer is not a design.** One customer has many designs, and each
+design belongs to exactly one customer:
+
+```
+Customer  (lib/domain/model/customer.dart)      Design
+  id  ◄──────────────────────────────────────── customerId
+  name, phone, address, notes                    name, kind (the category:
+  createdAt, updatedAt                           door, window, door & window,
+                                                 sliding), the drawing
+```
+
+The person's phone, address and notes are the customer's and never in a
+design; the design's name and category are the design's and never on the
+customer. **Neither holds a copy of the other**: a customer's designs are
+the designs naming it, `DesignStore.page(customerId: …)`, so changing a
+phone number touches no design and a customer with forty designs is kept
+as small as one with none.
+
+`CustomerStore` (`lib/infrastructure/customer_store.dart`) is laid out as
+`DesignStore` is — a key a customer and an index of `CustomerSummary`
+beside them, paged and searched by name or phone — and
+`customerStoreProvider` is the one both stores share.
+
+**Every design kept belongs to a customer.** `DesignStore.save` gives a
+design without a `customerId` the customer it was typed as being for — the
+one already called that (`CustomerStore.obtain`, by name however it is
+spaced or capitalised) or a new one — and returns the design as kept; the
+workspace takes the id back without counting it as an edit. Designs kept
+before customers existed are brought over the first time the store is
+read, each given the customer its name says and nothing else about it
+changed; one kept before anybody was asked who it was for becomes the
+customer its own name stands for, as the list already showed it. A
+duplicate is another design of the **same** customer, named `(copy)`; a
+design said to be for somebody else moves to that customer.
+
+`Design.customer` — the name typed when the design was begun — is still
+what the list shows until the customer screens are built; the customer
+record is what is true of the person.
+`test/infrastructure/customers_and_designs_test.dart` holds all of it: a
+customer with no designs, one with four, every kept design naming its
+customer, the name and category the design's own, the person's details
+never in a design, searching, both older stores brought over with nothing
+lost, and a design made for, listed under and removed from a customer.
+
 ### Choose your design
 
 After the new design's form, one question: what the product is.

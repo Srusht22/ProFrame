@@ -148,18 +148,27 @@ void main() {
         .firstWhere((d) => d.id == designs.first.id);
     expect(renamed.customer, 'Karwan Ali');
     expect(find.text('Karwan Ali'), findsOneWidget);
+    // It now belongs to the customer of that name.
+    final owner = await tester.runAsync(
+      () => DesignStore().customers.load(renamed.customerId!),
+    );
+    expect(owner!.name, 'Karwan Ali');
     // Only who it is for: the drawing and the geometry are as they were.
     final before = designs.first.toJson()
       ..remove('customer')
+      ..remove('customerId')
       ..remove('updatedAt');
     final after = renamed.toJson()
       ..remove('customer')
+      ..remove('customerId')
       ..remove('updatedAt');
     expect(jsonEncode(after), jsonEncode(before));
   });
 
-  testWidgets('duplicate keeps a copy with a number of its own, and the '
-      'original untouched', (tester) async {
+  testWidgets('duplicate keeps a copy with a number of its own — another '
+      'design of the same customer — and the original untouched', (
+    tester,
+  ) async {
     final designs = await screen.keepThree();
     await screen.openTheApp(tester);
     await actionsFor(tester, designs.first);
@@ -167,22 +176,27 @@ void main() {
 
     final all = await kept(tester);
     expect(all, hasLength(4));
-    final copy = all.firstWhere((d) => d.customer == 'Karwan (copy)');
+    final copy = all.firstWhere(
+      (d) => d.name == '${designs.first.name} (copy)',
+    );
     expect(copy.id, isNot(designs.first.id));
     expect(
       DesignSummary.of(copy).number,
       isNot(DesignSummary.of(designs.first).number),
     );
+    // The same customer's: a second design of theirs, not a second person.
+    expect(copy.customerId, designs.first.customerId);
+    expect(copy.customer, designs.first.customer);
     // The same design: drawing, geometry and everything said about it.
     Map<String, Object?> content(Design d) => d.toJson()
       ..remove('id')
-      ..remove('customer')
+      ..remove('name')
       ..remove('createdAt')
       ..remove('updatedAt');
     expect(jsonEncode(content(copy)), jsonEncode(content(designs.first)));
     final original = all.firstWhere((d) => d.id == designs.first.id);
     expect(jsonEncode(original.toJson()), jsonEncode(designs.first.toJson()));
-    expect(find.text('Karwan (copy)'), findsOneWidget);
+    expect(find.text('Karwan'), findsNWidgets(2));
   });
 
   testWidgets('open from the sheet opens it exactly as saved', (tester) async {

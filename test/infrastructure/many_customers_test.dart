@@ -103,7 +103,12 @@ void main() {
   test('a design is read whole, exactly as kept', () async {
     final store = await keep(50);
     final one = await store.load(numbered(17).id);
-    expect(jsonEncode(one!.toJson()), jsonEncode(numbered(17).toJson()));
+    // Exactly as it was handed over, and now belonging to its customer.
+    expect(one!.customerId, isNotNull);
+    expect(
+      jsonEncode(one.toJson()..remove('customerId')),
+      jsonEncode(numbered(17).toJson()),
+    );
     expect(await store.load('no-such-design'), isNull);
   });
 
@@ -139,9 +144,15 @@ void main() {
       expect(page.total, 2);
       expect(page.items.first.customer, 'Customer 2');
       for (final d in older) {
+        // Nothing about it lost or changed; it now belongs to its customer.
+        final moved = (await store.load(d.id))!;
         expect(
-          jsonEncode((await store.load(d.id))!.toJson()),
+          jsonEncode(moved.toJson()..remove('customerId')),
           jsonEncode(d.toJson()),
+        );
+        expect(
+          (await store.customers.load(moved.customerId!))!.name,
+          d.customer,
         );
       }
       final prefs = await SharedPreferences.getInstance();

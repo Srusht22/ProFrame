@@ -18,6 +18,7 @@ import '../../domain/sections/section_builder.dart';
 import '../../domain/sketch/stroke.dart';
 import '../../domain/solid/camera.dart';
 import '../../domain/solid/mesh.dart';
+import '../../infrastructure/customer_store.dart';
 import '../../infrastructure/design_store.dart';
 import '../canvas/cad_layers.dart';
 import '../viewer/display_style.dart';
@@ -331,8 +332,14 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   bool get canRedo => _redo.isNotEmpty;
 
   /// Begins a new design of [kind] — for [customer], called [name], when
-  /// the user said who it is for and what it is called.
-  void startDesign(DesignKind kind, {String? name, String? customer}) {
+  /// the user said who it is for and what it is called; and belonging to
+  /// the customer kept as [customerId] where that is already known.
+  void startDesign(
+    DesignKind kind, {
+    String? name,
+    String? customer,
+    String? customerId,
+  }) {
     _undo.clear();
     _redo.clear();
     state = WorkspaceState(
@@ -341,6 +348,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         kind: kind,
         name: name,
         customer: customer,
+        customerId: customerId,
         // Nothing measured yet: every size is asked for once the drawing
         // is read, and shown as `?` until it is given.
         measured: const {},
@@ -1347,8 +1355,22 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       state = state.copyWith(design: state.design.copyWith(name: name));
 
   /// Keeps the design, sketch and all.
+  ///
+  /// A design kept for the first time is given its customer by the store;
+  /// the design being edited takes that on as it is, without an entry in
+  /// the history and without counting as an edit, so the next keep names
+  /// the same customer rather than asking again.
   Future<void> save() async {
-    await ref.read(designStoreProvider).save(state.design);
+    final kept = await ref.read(designStoreProvider).save(state.design);
+    final now = state.design;
+    if (now.id == kept.id && now.customerId == null) {
+      state = state.copyWith(
+        design: now.copyWith(
+          customerId: kept.customerId,
+          updatedAt: now.updatedAt,
+        ),
+      );
+    }
     ref.read(designsRevisionProvider.notifier).changed();
   }
 
@@ -1365,7 +1387,14 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   }
 }
 
-final designStoreProvider = Provider<DesignStore>((ref) => DesignStore());
+/// The workshop's customers, and the one store of them every screen reads.
+final customerStoreProvider = Provider<CustomerStore>((ref) => CustomerStore());
+
+/// The kept designs, each belonging to one of [customerStoreProvider]'s
+/// customers.
+final designStoreProvider = Provider<DesignStore>(
+  (ref) => DesignStore(customers: ref.read(customerStoreProvider)),
+);
 
 /// Counts every change to the kept designs, so the list of them knows to
 /// read its page again. The list itself is never held here: it is paged

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/dimensions/measurements.dart';
 import '../domain/model/design.dart';
+import 'customer_store.dart';
 
 /// A short number for the design with [id] that a person can read out and
 /// type back in: the moment it was made, to the millisecond, written in
@@ -35,6 +36,9 @@ String shortIdOf(String id) {
 class DesignSummary {
   final String id;
   final String? customer;
+
+  /// The customer the design belongs to — see `Design.customerId`.
+  final String? customerId;
   final String name;
   final DesignKind kind;
 
@@ -52,6 +56,7 @@ class DesignSummary {
     required this.createdAt,
     required this.updatedAt,
     this.customer,
+    this.customerId,
     this.widthMm,
     this.heightMm,
   });
@@ -59,6 +64,7 @@ class DesignSummary {
   factory DesignSummary.of(Design design) => DesignSummary(
     id: design.id,
     customer: design.customer,
+    customerId: design.customerId,
     name: design.name,
     kind: design.kind,
     // Only a size the user has given: one read off the sketch is a guess,
@@ -103,6 +109,7 @@ class DesignSummary {
     'name': name,
     'kind': kind.name,
     if (customer != null) 'customer': customer,
+    if (customerId != null) 'customerId': customerId,
     if (widthMm != null) 'w': widthMm,
     if (heightMm != null) 'h': heightMm,
     'createdAt': createdAt.toIso8601String(),
@@ -117,6 +124,7 @@ class DesignSummary {
       orElse: () => DesignKind.window,
     ),
     customer: map['customer'] as String?,
+    customerId: map['customerId'] as String?,
     widthMm: (map['w'] as num?)?.toDouble(),
     heightMm: (map['h'] as num?)?.toDouble(),
     createdAt: DateTime.parse(map['createdAt']! as String),
@@ -150,7 +158,20 @@ class DesignPage {
 /// This one keeps its designs on the device, in the browser's own storage
 /// on the web. That has a size limit of its own — a few megabytes in most
 /// browsers — which a server does not.
+///
+/// **Every design kept belongs to a customer.** One kept without a
+/// `customerId` is given the customer it was typed as being for — the one
+/// already called that in [customers], or a new one — and so is every
+/// design kept before customers existed, the first time the store is read.
+/// Nothing else about a design changes on the way in. A customer's designs
+/// are then the designs naming it: [page] with a `customerId`.
 class DesignStore {
+  /// Where the people the designs belong to are kept.
+  final CustomerStore customers;
+
+  DesignStore({CustomerStore? customers})
+    : customers = customers ?? CustomerStore();
+
   /// Where the index is kept, and where each design is.
   static const indexKey = 'proframe.index.v2';
   static const designKeyPrefix = 'proframe.design.v2.';
@@ -181,7 +202,9 @@ class DesignStore {
       _byId = const {};
       return _index = const [];
     }
-    if (identical(text, _indexText) || text == _indexText) return _index;
+    if (identical(text, _indexText) || text == _indexText) {
+      return _withCustomers(prefs, _index);
+    }
     final list = <DesignSummary>[];
     try {
       for (final entry in jsonDecode(text) as List<Object?>) {
@@ -198,7 +221,72 @@ class DesignStore {
     list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     _indexText = text;
     _byId = {for (final s in list) s.id: s};
-    return _index = list;
+    _index = list;
+    return _withCustomers(prefs, list);
+  }
+
+  /// [index], with every design in it that has no customer yet given one.
+  Future<List<DesignSummary>> _withCustomers(
+    SharedPreferences prefs,
+    List<DesignSummary> index,
+  ) async {
+    final waiting = index.any(
+      (s) => s.customerId == null && !_unadoptable.contains(s.id),
+    );
+    return waiting ? _adoptAll(prefs, index) : index;
+  }
+
+  /// Designs whose file could not be read, and so could not be given a
+  /// customer — tried once a session rather than on every read.
+  final _unadoptable = <String>{};
+
+  /// [design] as it is kept: belonging to a customer. One that already
+  /// names its customer is returned as it is; one that does not is given
+  /// the customer it was typed as being for, or — kept before anybody was
+  /// asked — the one its own name stands for, as the list already showed
+  /// it. Nothing else about it changes, not even when it was last edited.
+  Future<Design> _owned(Design design) async {
+    if (design.customerId != null) return design;
+    final who = design.customer?.trim();
+    final customer = await customers.obtain(
+      who == null || who.isEmpty ? design.name : who,
+      at: design.createdAt,
+    );
+    return design.copyWith(
+      customerId: customer.id,
+      updatedAt: design.updatedAt,
+    );
+  }
+
+  /// Every design in [index] kept before customers existed, given its
+  /// customer and kept again — the file and its line in the index — with
+  /// nothing else about it changed.
+  Future<List<DesignSummary>> _adoptAll(
+    SharedPreferences prefs,
+    List<DesignSummary> index,
+  ) async {
+    final adopted = <DesignSummary>[];
+    for (final s in index) {
+      if (s.customerId != null || _unadoptable.contains(s.id)) {
+        adopted.add(s);
+        continue;
+      }
+      final text = prefs.getString(_designKey(s.id));
+      final Design design;
+      try {
+        design = Design.fromJson(jsonDecode(text!));
+      } on Object {
+        _unadoptable.add(s.id);
+        adopted.add(s);
+        continue;
+      }
+      final owned = await _owned(design);
+      await prefs.setString(_designKey(s.id), jsonEncode(owned.toJson()));
+      _recent.remove(s.id);
+      adopted.add(DesignSummary.of(owned));
+    }
+    await _write(prefs, adopted);
+    return adopted;
   }
 
   Future<void> _write(
@@ -240,19 +328,23 @@ class DesignStore {
   }
 
   /// The designs a search for [query] finds, most recently edited first:
-  /// [limit] of them from [offset], and how many it found in all.
+  /// [limit] of them from [offset], and how many it found in all. With
+  /// [customerId], only that customer's designs.
   Future<DesignPage> page({
     String query = '',
+    String? customerId,
     int offset = 0,
     int limit = 40,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final index = await _read(prefs);
-    final found = query.trim().isEmpty
+    final found = query.trim().isEmpty && customerId == null
         ? index
         : [
             for (final s in index)
-              if (s.matches(query)) s,
+              if ((customerId == null || s.customerId == customerId) &&
+                  s.matches(query))
+                s,
           ];
     final start = offset.clamp(0, found.length);
     final end = (start + limit).clamp(start, found.length);
@@ -291,8 +383,10 @@ class DesignStore {
     if (_recent.length > _recentLimit) _recent.remove(_recent.keys.first);
   }
 
-  Future<void> save(Design design) async {
+  /// Keeps [design], and returns it as kept — belonging to a customer.
+  Future<Design> save(Design unowned) async {
     final prefs = await SharedPreferences.getInstance();
+    final design = await _owned(unowned);
     final index = [
       for (final s in await _read(prefs))
         if (s.id != design.id) s,
@@ -309,6 +403,7 @@ class DesignStore {
     index.insert(at, summary);
     await _write(prefs, index);
     _remember(design);
+    return design;
   }
 
   Future<void> remove(String designId) async {
@@ -328,34 +423,30 @@ class DesignStore {
   /// kept as [id].
   ///
   /// So a workshop can start a customer's second door from their first
-  /// without changing the first.
+  /// without changing the first. The copy is the same customer's — another
+  /// of their designs, not another person — and it is the design's own
+  /// name that says it is the copy.
   Future<Design?> duplicate(String id, {DateTime? now}) async {
     final original = await load(id);
     if (original == null) return null;
     final at = now ?? DateTime.now();
     final json = original.toJson()
       ..['id'] = 'design-${at.microsecondsSinceEpoch}'
+      ..['name'] = '${original.name} (copy)'
       ..['createdAt'] = at.toIso8601String()
       ..['updatedAt'] = at.toIso8601String();
-    if (original.customer != null) {
-      json['customer'] = '${original.customer} (copy)';
-    } else {
-      json['name'] = '${original.name} (copy)';
-    }
-    final copy = Design.fromJson(json);
-    await save(copy);
-    return copy;
+    return save(Design.fromJson(json));
   }
 
-  /// The design kept as [id], now said to be for [customer]. Nothing else
-  /// about it changes. Null where nothing is kept as [id].
+  /// The design kept as [id], now said to be for [customer] — and so
+  /// belonging to the customer of that name, who is made if there is none.
+  /// Nothing else about it changes. Null where nothing is kept as [id].
   Future<Design?> rename(String id, String customer) async {
     final design = await load(id);
     final who = customer.trim();
     if (design == null || who.isEmpty) return null;
-    final renamed = design.copyWith(customer: who);
-    await save(renamed);
-    return renamed;
+    final owner = await customers.obtain(who);
+    return save(design.copyWith(customer: who, customerId: owner.id));
   }
 
   /// Every design kept, whole, most recently edited first. For a handful —

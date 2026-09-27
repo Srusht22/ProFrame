@@ -95,11 +95,10 @@ Future<List<Design>> keepThree() async {
       wide: 1600,
     ),
   ];
+  // What the store kept — each design now belonging to its customer — which
+  // is what everything afterwards is compared with.
   final store = DesignStore();
-  for (final design in designs) {
-    await store.save(design);
-  }
-  return designs;
+  return [for (final design in designs) await store.save(design)];
 }
 
 Future<ProviderContainer> openTheApp(

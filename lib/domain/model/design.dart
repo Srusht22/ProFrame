@@ -43,6 +43,18 @@ class Design {
   /// found again among hundreds, and it says nothing about the geometry.
   final String? customer;
 
+  /// The customer this design belongs to — the id of a `Customer` — or
+  /// null for a design not yet kept. Every design that is kept has one:
+  /// `DesignStore` gives it one on the way in, and gives one to every
+  /// design kept before customers existed.
+  ///
+  /// It is the relationship, and only the relationship. The person's
+  /// phone, address and notes are the customer's and live there, never
+  /// here: a design is the drawing and its geometry, and what it is called
+  /// ([name]) and what it is ([kind]) — the category it was begun as, a
+  /// door, a window, a door & window set or a sliding set.
+  final String? customerId;
+
   /// The user's own marks. Kept for the life of the design.
   final Sketch sketch;
 
@@ -107,6 +119,7 @@ class Design {
     required this.createdAt,
     required this.updatedAt,
     this.customer,
+    this.customerId,
     this.sketch = const Sketch(),
     this.frame,
     this.dividers = const [],
@@ -129,6 +142,7 @@ class Design {
     required DesignKind kind,
     String? name,
     String? customer,
+    String? customerId,
     DateTime? now,
     Set<String>? measured,
     Construction? construction,
@@ -139,6 +153,7 @@ class Design {
       name: name ?? 'Untitled ${kind.label.toLowerCase()}',
       kind: kind,
       customer: customer,
+      customerId: customerId,
       createdAt: at,
       updatedAt: at,
       measured: measured,
@@ -467,6 +482,7 @@ class Design {
   Design copyWith({
     String? name,
     String? customer,
+    String? customerId,
     DesignKind? kind,
     Sketch? sketch,
     FrameElement? frame,
@@ -525,6 +541,7 @@ class Design {
       name: name ?? this.name,
       kind: kind ?? this.kind,
       customer: customer ?? this.customer,
+      customerId: customerId ?? this.customerId,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
       sketch: sketch ?? this.sketch,
@@ -597,6 +614,7 @@ class Design {
         'name': name,
         'kind': kind.name,
         if (customer != null) 'customer': customer,
+        if (customerId != null) 'customerId': customerId,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
         'depthMm': depthMm,
@@ -652,6 +670,7 @@ class Design {
         orElse: () => DesignKind.window,
       ),
       customer: map['customer'] as String?,
+      customerId: map['customerId'] as String?,
       createdAt: DateTime.parse(map['createdAt']! as String),
       updatedAt: DateTime.parse(map['updatedAt']! as String),
       depthMm: (map['depthMm'] as num?)?.toDouble() ?? 70,
