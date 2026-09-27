@@ -2230,6 +2230,19 @@ than to a picture of one, what is inside the leaf never reaches past the leaf
 as it swings, and what lights up when the opening is picked is exactly what
 moves when it opens.
 
+**One transform places the whole leaf.** `_addLeaf` works out the leaf's
+swing once — its own, then its parent's where it hangs inside another leaf —
+and hands that one function to the sash, the ironmongery and, through
+`_addSash`, the panes and the bars inside it. Nothing inside an opening is
+placed by a route of its own, so nothing can turn by a different amount or
+be left behind. `test/domain/the_solid_moves_the_opening_as_one_test.dart`
+holds it on a sheet-drawn opening holding glass, an internal divider, a
+panel, a handle and hinges: moved to a light of the same size, every facet
+of it is carried by exactly the move and nothing else is built differently;
+swung, every point of it keeps its distance from the sash, so it all turns
+as one body. Handing the bars inside a leaf the identity instead of the
+leaf's transform fails it.
+
 **The two views are held to each other, not just to the tree.**
 `test/domain/the_solid_is_the_cad_hierarchy_test.dart` builds the set of
 parts the drawing puts on the sheet and the set the solid builds, and
