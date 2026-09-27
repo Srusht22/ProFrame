@@ -727,6 +727,16 @@ the drawing cannot be normalising the opening to a side of its own choosing;
 and one internal line and two internal lines are different pictures, so it
 cannot be drawing a fixed idea of what a sash contains.
 
+`test/app/cad_draws_the_opening_s_line_inside_it_test.dart` holds the same
+for a line **drawn on the sheet**, stopped short inside an opening under a
+band across the head: every pixel the line adds to the technical drawing,
+on every layer setting, is inside the opening — none above it, none in the
+band, none in the fixed light — and with the opening moved to the other
+light the line is drawn there, as far down it as before. CAD positions an
+opening's child from the child's own geometry, which the model keeps in the
+opening's terms by carrying it whenever the opening moves or is resized; it
+does not add the opening's position again, which would count it twice.
+
 Alongside that it holds what the pixels cannot say on their own: the drawn
 body of a bar inside an opening, clipped exactly as `_barBody` clips it,
 lies within that opening's outline at every corner; no fixed section is
