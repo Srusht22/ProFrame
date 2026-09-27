@@ -63,11 +63,8 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
         );
     if (!mounted) return;
     ref.read(customersRevisionProvider.notifier).changed();
-    await Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => CustomerScreen(customerId: customer.id),
-      ),
-    );
+    await Navigator.of(context)
+        .pushReplacement(CustomerScreen.route(customer.id));
   }
 
   @override

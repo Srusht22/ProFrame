@@ -1224,10 +1224,23 @@ search as a number when it is one.
 **New Customer** (`new_customer_screen.dart`) asks for a name and offers
 phone, address and notes; saving makes the customer and nothing else — no
 design is begun — and goes to the customer's page. **Tapping a customer
-opens that customer, never a drawing**: `CustomerScreen`
-(`customer_screen.dart`) shows who they are and how many designs are
-theirs, with the place for their designs held until those cards are
-built. `customersRevisionProvider` tells the list and the page to read
+opens that customer, never a drawing**, from the list, from a search and
+on saving a new one.
+
+**The customer's page** (`customer_screen.dart`) is the person first —
+their initials, name, how many designs, then *Customer information*:
+phone, address and notes, each said to be *Not given* where it was not —
+and **Designs** beneath: their own designs, found by `customerId` and read
+a page at a time, each a row with its kind, its own name and when it was
+last edited, opening exactly as kept. With none it says *No designs yet*.
+**New Design** is in the heading, or in the empty state, and is the only
+way on: **opening a customer asks nothing, begins nothing and opens no
+drawing** — door, window or sliding is asked by *Choose your design* when
+New Design is pressed, and not before. A design begun there is the
+customer's from the start (`StartScreen.customerId`), takes the model's
+own name rather than the person's, and the way back from it is to the
+customer's page (`CustomerScreen.route` names it on the navigator).
+`test/app/a_customer_s_page_test.dart` holds it. `customersRevisionProvider` tells the list and the page to read
 again when a customer is made, and they listen to the designs' revision
 too, because keeping a design can bring a customer with it.
 `test/app/customers_screen_test.dart` holds all of it on the real app,

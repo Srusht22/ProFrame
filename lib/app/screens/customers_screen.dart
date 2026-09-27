@@ -133,11 +133,8 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
 
   /// The customer's own page — who they are and their designs — and never
   /// a drawing.
-  void _open(CustomerSummary customer) => Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => CustomerScreen(customerId: customer.id),
-    ),
-  );
+  void _open(CustomerSummary customer) =>
+      Navigator.of(context).push(CustomerScreen.route(customer.id));
 
   @override
   Widget build(BuildContext context) {

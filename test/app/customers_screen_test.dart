@@ -246,7 +246,7 @@ void main() {
       await tester.tap(find.byKey(NewCustomerScreen.saveButton));
       await tester.pumpAndSettle();
       expect(find.byType(CustomerScreen), findsOneWidget);
-      expect(find.text('No phone, address or notes kept yet.'), findsOneWidget);
+      expect(find.text('Not given'), findsNWidgets(3));
     });
   });
 
@@ -263,9 +263,8 @@ void main() {
       final page = tester.widget<CustomerScreen>(find.byType(CustomerScreen));
       expect(page.customerId, kept['Adam']!.id);
       expect(find.text('+964 750 123 4567'), findsOneWidget);
-      expect(find.byKey(CustomerScreen.designsPlaceholder), findsOneWidget);
-      expect(find.text('4 designs'), findsWidgets);
-      expect(find.text("Adam's designs will be shown here."), findsOneWidget);
+      expect(find.text('Designs'), findsOneWidget);
+      expect(find.text('Kitchen Window'), findsOneWidget);
       expect(overflowing(tester), isEmpty);
 
       // And back to the customers.

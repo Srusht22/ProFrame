@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/model/design.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
+import 'customer_screen.dart';
 import 'workspace_screen.dart';
 
 /// **Choose your design**: the one step between naming a new design and
@@ -37,7 +38,13 @@ class StartScreen extends ConsumerStatefulWidget {
   /// Who the new design is for.
   final String? customer;
 
-  const StartScreen({super.key, this.customer});
+  /// The customer the new design belongs to, when it is begun from that
+  /// customer's own page. The design is then one of theirs from the moment
+  /// it exists, is not named after them — it is one of their designs, not
+  /// them — and the way back from it is to their page.
+  final String? customerId;
+
+  const StartScreen({super.key, this.customer, this.customerId});
 
   /// The four choices, in the order they are shown, and what each card says.
   static const choices = [
@@ -108,17 +115,26 @@ class _StartScreenState extends ConsumerState<StartScreen>
   void _begin() {
     final kind = _chosen;
     if (kind == null) return;
+    final owner = widget.customerId;
     final controller = ref.read(workspaceProvider.notifier)
-      ..startDesign(kind, name: widget.customer, customer: widget.customer);
+      ..startDesign(
+        kind,
+        name: owner == null ? widget.customer : null,
+        customer: widget.customer,
+        customerId: owner,
+      );
     // Kept straight away, so it is among the recent designs from the moment
     // it exists, not only once something has been drawn.
     unawaited(controller.keep());
-    // Into the design with the designs screen underneath it, so the way back
-    // is to the list the design is now in — not through the steps that
-    // began it.
+    // Into the design with the list it is now in underneath it — the
+    // customer's page where it was begun from there, the designs screen
+    // otherwise — so the way back is not through the steps that began it.
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(builder: (_) => const WorkspaceScreen()),
-      (route) => route.isFirst,
+      (route) =>
+          route.isFirst ||
+          (owner != null &&
+              route.settings.name == CustomerScreen.routeName(owner)),
     );
   }
 
