@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../domain/model/new_design_setup.dart';
 import '../theme/app_theme.dart';
 import 'start_screen.dart';
 
@@ -41,7 +42,9 @@ class _NewDesignScreenState extends State<NewDesignScreen> {
   void _continue() {
     if (_who.isEmpty) return;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => StartScreen(customer: _who)),
+      MaterialPageRoute<void>(
+        builder: (_) => StartScreen(setup: NewDesignSetup.forPerson(_who)),
+      ),
     );
   }
 

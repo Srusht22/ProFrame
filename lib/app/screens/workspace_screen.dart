@@ -184,8 +184,8 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
           child: AnimatedSwitcher(
             duration: BarMotion.of(context, BarMotion.change),
             child: Text(
-              state.design.name,
-              key: ValueKey(state.design.name),
+              state.design.shownName,
+              key: ValueKey(state.design.shownName),
               overflow: TextOverflow.ellipsis,
             ),
           ),

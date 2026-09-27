@@ -11,6 +11,7 @@ import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import '../../domain/model/infill.dart';
 import '../../domain/model/materials.dart';
+import '../../domain/model/new_design_setup.dart';
 import '../../domain/model/question.dart';
 import '../../domain/recognition/interpreter.dart';
 import '../../domain/recognition/opening_symbol.dart';
@@ -333,30 +334,29 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
   /// Begins a new design of [kind] — for [customer], called [name], when
   /// the user said who it is for and what it is called; and belonging to
-  /// the customer kept as [customerId] where that is already known.
+  /// the customer kept as [customerId] where that is already known. The
+  /// whole setup said in one call; it goes through [begin] like any other.
   void startDesign(
     DesignKind kind, {
     String? name,
     String? customer,
     String? customerId,
-  }) {
+  }) => begin(
+    NewDesignSetup(
+      customerId: customerId,
+      customer: customer,
+      name: name,
+      kind: kind,
+    ),
+  );
+
+  /// Begins the design a completed [setup] describes — the only way a new
+  /// design comes into being from the screens. Nothing is filled in that
+  /// the setup does not say: see `NewDesignSetup.begin`.
+  void begin(NewDesignSetup setup) {
     _undo.clear();
     _redo.clear();
-    state = WorkspaceState(
-      design: Design.empty(
-        id: _newId('design'),
-        kind: kind,
-        name: name,
-        customer: customer,
-        customerId: customerId,
-        // Nothing measured yet: every size is asked for once the drawing
-        // is read, and shown as `?` until it is given.
-        measured: const {},
-        // A door and a door & window set are asked, as they start, what
-        // they are built of. A window and a sliding set are not.
-        construction: kind.asksConstruction ? Construction.pending : null,
-      ),
-    );
+    state = WorkspaceState(design: setup.begin(id: _newId('design')));
   }
 
   void openDesign(Design design) {

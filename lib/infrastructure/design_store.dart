@@ -42,6 +42,10 @@ class DesignSummary {
   final String name;
   final DesignKind kind;
 
+  /// What to call it on the screen — its name, or where it has none,
+  /// `shownNameOf` says so.
+  String get shownName => shownNameOf(name, kind);
+
   /// The overall size, where the drawing has been read into a frame.
   final double? widthMm;
   final double? heightMm;

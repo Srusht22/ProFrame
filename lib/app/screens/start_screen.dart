@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/design.dart';
+import '../../domain/model/new_design_setup.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'customer_screen.dart';
@@ -25,26 +26,26 @@ import 'workspace_screen.dart';
 /// said to be a door or a window of its own — a door design can hold a
 /// window leaf, and a window design a door.
 ///
-/// It is reached from the new design's form, which has already asked who
-/// the design is for; [customer] is that answer, and the design is called
-/// by it. Opening a saved design never comes here: it goes straight into
-/// the design as it was kept.
+/// It is a step of a [NewDesignSetup] — reached from a customer's page, or
+/// from the designs list's form, which has already asked who the design is
+/// for — and it adds the category to it and nothing else. Nothing is chosen
+/// until the user taps a card, and nothing is kept until **Start drawing**:
+/// turning back from here makes no design. Opening a saved design never
+/// comes here: it goes straight into the design as it was kept.
 ///
 /// **Each card shows the application doing what it does**, not a picture of
 /// a door: a pen draws the outline, then the bars, then the mark that says a
 /// leaf opens, from lines like everything else on the screen
 /// (`no_stock_content_test.dart`). Every movement finishes; nothing loops.
 class StartScreen extends ConsumerStatefulWidget {
-  /// Who the new design is for.
-  final String? customer;
+  /// The new design as it stands: whose it will be, and what else has been
+  /// said. Begun from a customer's page it carries that customer's id, so
+  /// the design is theirs from the moment it exists, is not named after
+  /// them — it is one of their designs, not them — and the way back from it
+  /// is to their page.
+  final NewDesignSetup setup;
 
-  /// The customer the new design belongs to, when it is begun from that
-  /// customer's own page. The design is then one of theirs from the moment
-  /// it exists, is not named after them — it is one of their designs, not
-  /// them — and the way back from it is to their page.
-  final String? customerId;
-
-  const StartScreen({super.key, this.customer, this.customerId});
+  const StartScreen({super.key, required this.setup});
 
   /// The four choices, in the order they are shown, and what each card says.
   static const choices = [
@@ -115,16 +116,12 @@ class _StartScreenState extends ConsumerState<StartScreen>
   void _begin() {
     final kind = _chosen;
     if (kind == null) return;
-    final owner = widget.customerId;
-    final controller = ref.read(workspaceProvider.notifier)
-      ..startDesign(
-        kind,
-        name: owner == null ? widget.customer : null,
-        customer: widget.customer,
-        customerId: owner,
-      );
-    // Kept straight away, so it is among the recent designs from the moment
-    // it exists, not only once something has been drawn.
+    final setup = widget.setup.withKind(kind);
+    final owner = setup.customerId;
+    final controller = ref.read(workspaceProvider.notifier)..begin(setup);
+    // The setup is complete, so the design exists, and it is kept straight
+    // away: among the customer's designs from the moment it exists, not only
+    // once something has been drawn.
     unawaited(controller.keep());
     // Into the design with the list it is now in underneath it — the
     // customer's page where it was begun from there, the designs screen
@@ -190,7 +187,7 @@ class _StartScreenState extends ConsumerState<StartScreen>
 
   @override
   Widget build(BuildContext context) {
-    final forWhom = widget.customer ?? '';
+    final forWhom = widget.setup.customer ?? '';
 
     return Scaffold(
       appBar: AppBar(title: const Text('New Design')),

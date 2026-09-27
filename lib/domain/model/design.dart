@@ -33,9 +33,22 @@ export 'elements.dart' show Construction, DesignKind, Face, OutlineGap;
 /// The one thing that is not a view of this is the user's own sketch, which
 /// lives inside it and is never overwritten by the geometry read from it —
 /// so what they drew can always be compared with what was made of it.
+/// What to call a design named [name] where it is shown: its name, or —
+/// where nobody has given it one — *Untitled* and its category. That is a
+/// label for the absence of a name, shown and never stored: a design begun
+/// without a name is kept with none, rather than with one made up for it.
+String shownNameOf(String name, DesignKind kind) =>
+    name.trim().isEmpty ? 'Untitled ${kind.label.toLowerCase()}' : name;
+
 class Design {
   final String id;
+
+  /// The design's own name — empty where it has not been given one. Where it
+  /// is shown, [shownName] says so.
   final String name;
+
+  /// What to call it on the screen — see [shownNameOf].
+  String get shownName => shownNameOf(name, kind);
   final DesignKind kind;
 
   /// Who the design is for — the person or customer the workshop is

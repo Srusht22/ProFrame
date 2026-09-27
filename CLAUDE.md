@@ -1245,9 +1245,26 @@ button standing at the foot of the screen through any scroll, with room
 left under the last card so it never covers one. It is the only way on: **opening a customer asks nothing, begins nothing and opens no
 drawing** — door, window or sliding is asked by *Choose your design* when
 New Design is pressed, and not before. A design begun there is the
-customer's from the start (`StartScreen.customerId`), takes the model's
-own name rather than the person's, and the way back from it is to the
-customer's page (`CustomerScreen.route` names it on the navigator).
+customer's from the start, and the way back from it is to the customer's
+page (`CustomerScreen.route` names it on the navigator).
+
+**New Design starts a setup, not a design.** It hands *Choose your
+design* a `NewDesignSetup` (`lib/domain/model/new_design_setup.dart`)
+that knows the customer's id and nothing else: no category until a card
+is tapped, no name until one is typed. `NewDesignSetup.begin` is the one
+way a setup becomes a design, it refuses a setup that is not
+`isComplete`, and it fills in nothing the setup does not say — no
+drawing, no size, no name. **A design begun without a name is kept with
+none**: `Design.name` is empty, and only where it is shown does
+`Design.shownName` say *Untitled window*, a label for the absence of a
+name that is never stored. Nothing is kept while the setup is under way,
+so turning back from it leaves the customer with exactly the designs they
+had; it is kept the moment **Start drawing** finishes it. A later step of
+the setup — a name of the design's own, say — is another field on the
+setup and another condition in `isComplete`, carried from screen to
+screen. The designs list's own **New Design** goes through the same
+setup (`NewDesignSetup.forPerson`), called by the person typed as it
+always was. `test/app/a_new_design_for_a_customer_test.dart` holds it.
 **Opening a card is opening that design, by its id, and nothing else.**
 Open, or a tap on the card, reads the design kept under its id and hands it
 to `openDesign` exactly as kept — its drawing, geometry, sizes, openings,
@@ -1297,8 +1314,8 @@ edge, a tint, a tick, and *Door selected* in the bar at the foot, with the
 edge the same width chosen or not so nothing moves — and a
 second tap on another moves the choice rather than adding to it. **Start
 drawing**, in that bar and so always in reach, is off until something is
-chosen; it begins the design with the kind and the customer,
-keeps it, and goes into the existing drawing with the designs underneath.
+chosen; it completes the setup with the kind, begins the design from
+it, keeps it, and goes into the existing drawing with the designs underneath.
 Nothing else is asked.
 
 **The kind is where the design starts, not a fence round it**, and the

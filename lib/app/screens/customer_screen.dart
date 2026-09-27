@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/customer.dart';
 import '../../domain/model/design.dart';
+import '../../domain/model/new_design_setup.dart';
 import '../../infrastructure/design_store.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -116,7 +117,7 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
   void _newDesign(Customer customer) => Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (_) =>
-          StartScreen(customer: customer.name, customerId: customer.id),
+          StartScreen(setup: NewDesignSetup.forCustomer(customer)),
     ),
   );
 
@@ -137,7 +138,7 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
       if (!mounted) return;
       if (design == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${summary.name} could not be opened.')),
+          SnackBar(content: Text('${summary.shownName} could not be opened.')),
         );
         return;
       }
@@ -614,7 +615,7 @@ class CustomerDesignCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Text(
-                  design.name,
+                  design.shownName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
