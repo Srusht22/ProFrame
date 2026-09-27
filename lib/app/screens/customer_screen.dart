@@ -120,13 +120,34 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
     ),
   );
 
-  /// One of the customer's designs, opened exactly as it was kept.
+  /// Whether a design is being opened, so a second tap on a card while the
+  /// first is still on its way does not open the design twice over.
+  bool _opening = false;
+
+  /// One of the customer's designs, opened by its id exactly as it was kept
+  /// — its drawing, geometry, openings, internal lines, materials and sizes
+  /// — straight into the workspace. Nothing is asked on the way: what the
+  /// design is was said when it was begun and is kept in it, so *Choose your
+  /// design* is not shown again, and nothing new is made.
   Future<void> _open(DesignSummary summary) async {
-    final design = await _store.load(summary.id);
-    if (design == null || !mounted) return;
-    ref.read(workspaceProvider.notifier).openDesign(design);
-    await Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: (_) => const WorkspaceScreen()));
+    if (_opening) return;
+    _opening = true;
+    try {
+      final design = await _store.load(summary.id);
+      if (!mounted) return;
+      if (design == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${summary.name} could not be opened.')),
+        );
+        return;
+      }
+      ref.read(workspaceProvider.notifier).openDesign(design);
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const WorkspaceScreen()));
+    } finally {
+      _opening = false;
+    }
   }
 
   @override

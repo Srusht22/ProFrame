@@ -1248,6 +1248,20 @@ New Design is pressed, and not before. A design begun there is the
 customer's from the start (`StartScreen.customerId`), takes the model's
 own name rather than the person's, and the way back from it is to the
 customer's page (`CustomerScreen.route` names it on the navigator).
+**Opening a card is opening that design, by its id, and nothing else.**
+Open, or a tap on the card, reads the design kept under its id and hands it
+to `openDesign` exactly as kept — its drawing, geometry, sizes, openings,
+the lines inside them and every glass and panel — and goes into the
+workspace. *Choose your design* is never shown, nothing is asked about
+what it is (that was said when it was begun, and is kept in it), nothing is
+read again, and nothing is kept until the user changes something, so
+opening and coming back makes no design and no copy. A second tap while it
+is opening does nothing, and a design removed elsewhere says it could not
+be opened rather than beginning one. The sizes form can still come up over
+it, as over any design with sizes not yet given — that is a question about
+this design, not the start of another.
+`test/app/opening_an_existing_design_test.dart` holds it on Adam's
+basement door, drawn, divided, glazed and measured.
 `test/app/a_customer_s_page_test.dart` and
 `test/app/a_customer_s_designs_as_cards_test.dart` hold it — the second
 with three customers' designs made interleaved and each page required to
