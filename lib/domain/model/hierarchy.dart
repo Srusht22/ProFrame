@@ -96,6 +96,51 @@ abstract final class Hierarchy {
     );
   }
 
+  /// [dividers] and [sections] with every parent that names an opening in
+  /// [before] which is not in [after] handed to the section that opening was
+  /// on.
+  ///
+  /// An opening goes when the user cancels it, rubs its mark out or deletes
+  /// it — and the region it was on stays, because that region is made by the
+  /// user's lines and not by the mark. What they drew inside it was drawn
+  /// inside that region, so it stays that region's: never promoted to a line
+  /// of the whole design, and never left naming an opening that is not
+  /// there, which is a line nothing draws and a pane that comes loose into
+  /// the main divisions. Marking the region again gives it back to the new
+  /// opening by [underOpenings], because a child of a section that opens is
+  /// the opening's.
+  static ({List<DividerElement> dividers, List<SectionElement> sections})
+      outOfClosedOpenings(
+    List<DividerElement> dividers,
+    List<SectionElement> sections,
+    List<OpeningElement> before,
+    List<OpeningElement> after,
+  ) {
+    final stays = {for (final opening in after) opening.id};
+    final wasOn = <String, String>{
+      for (final opening in before)
+        if (!stays.contains(opening.id)) opening.id: opening.sectionId,
+    };
+    if (wasOn.isEmpty) return (dividers: dividers, sections: sections);
+
+    return (
+      dividers: [
+        for (final divider in dividers)
+          if (wasOn[divider.parentId] case final region?)
+            divider.copyWith(parentId: region)
+          else
+            divider,
+      ],
+      sections: [
+        for (final section in sections)
+          if (wasOn[section.parentId] case final region?)
+            section.copyWith(parentId: region)
+          else
+            section,
+      ],
+    );
+  }
+
   /// [sections] with any parent that is not a section of this design, or
   /// that leads back round to the section itself, cleared.
   static List<SectionElement> settle(

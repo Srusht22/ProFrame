@@ -501,10 +501,22 @@ class Design {
     // when nothing does. Clearing it earlier would let a stale reference
     // reshape the top-level subdivision before that reconciliation had run,
     // and take the opening it came from with it.
+    //
+    // And a thing inside an opening that has just gone is handed to the
+    // region the opening was on, so it has one owner still: the region it
+    // was drawn in, not the design and not an opening that is not there.
     final theOpenings = openings ?? this.openings;
+    final kept = openings == null
+        ? (dividers: dividers ?? this.dividers, sections: sections ?? this.sections)
+        : Hierarchy.outOfClosedOpenings(
+            dividers ?? this.dividers,
+            sections ?? this.sections,
+            this.openings,
+            openings,
+          );
     final owned = Hierarchy.underOpenings(
-      dividers ?? this.dividers,
-      sections ?? this.sections,
+      kept.dividers,
+      kept.sections,
       theOpenings,
     );
     final live = Hierarchy.settle(owned.sections, theOpenings);

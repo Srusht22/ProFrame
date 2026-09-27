@@ -2290,6 +2290,21 @@ are rebuilt from scratch on every rebuild, so there was nothing to migrate,
 and `contentsOf` still accepts either form for a design loaded from disk
 before its first rebuild.
 
+**When the opening goes, what was inside it stays in the region.** An
+opening goes when the user deletes it, says it is fixed after all, or rubs
+its mark out — and the region it was on stays, because the user's lines made
+that region and the mark did not. Its lines and panes were left naming an
+opening that no longer existed: a line no view drew, and panes that came
+loose into the main divisions on top of the light they were in.
+`Hierarchy.outOfClosedOpenings`, applied by `Design.copyWith`, hands every
+child of an opening that has just gone to the section it was on, so each
+keeps one owner — never the design, never nothing. Marking the region again
+gives them back to the new opening by `underOpenings`.
+`test/domain/an_internal_line_has_one_owner_test.dart` holds this, and holds
+that a line drawn inside an opening is one bar with one owner: the opening's
+in the model and in `DesignTree`, never also a line of the design, moving
+and resizing with the opening at the same place in its own coordinates.
+
 `test/domain/geometry_has_parents_test.dart` holds this: a line belongs to the
 opening and not to the design, it survives a second reading of the sheet, a
 save and a reload, a resize, a neighbouring bar moving and the opening being
