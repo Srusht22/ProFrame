@@ -8,6 +8,7 @@ import '../canvas/design_preview.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'appearance_button.dart';
+import 'customers_screen.dart';
 import 'new_design_screen.dart';
 import 'workspace_screen.dart';
 
@@ -149,6 +150,10 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen> {
   void _newDesign() => Navigator.of(context)
       .push(MaterialPageRoute<void>(builder: (_) => const NewDesignScreen()));
 
+  /// Everyone the workshop draws for, and a customer's designs by them.
+  void _customers() => Navigator.of(context)
+      .push(MaterialPageRoute<void>(builder: (_) => const CustomersScreen()));
+
   /// Opens the design exactly as it was saved — its sketch, its geometry,
   /// its openings, its materials — to carry on where it was left.
   Future<void> _open(DesignSummary summary) async {
@@ -256,6 +261,7 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen> {
                   search: _search,
                   onSearch: _searchFor,
                   onNewDesign: _newDesign,
+                  onCustomers: _customers,
                 ),
               ),
               if (!_loaded)
@@ -343,6 +349,7 @@ class _Header extends StatelessWidget {
   final TextEditingController search;
   final ValueChanged<String> onSearch;
   final VoidCallback onNewDesign;
+  final VoidCallback onCustomers;
 
   const _Header({
     required this.phone,
@@ -351,6 +358,7 @@ class _Header extends StatelessWidget {
     required this.search,
     required this.onSearch,
     required this.onNewDesign,
+    required this.onCustomers,
   });
 
   @override
@@ -382,9 +390,12 @@ class _Header extends StatelessWidget {
                 ),
               ),
             ),
-            // On a phone the button shares the top line; wider, it stands
+            // On a phone the buttons share the top line; wider, they stand
             // beside New Design.
-            if (phone) const AppearanceButton(colour: AppTheme.accent),
+            if (phone) ...[
+              CustomersButton(onPressed: onCustomers),
+              const AppearanceButton(colour: AppTheme.accent),
+            ],
           ],
         ),
         if (!phone) const SizedBox(height: 6),
@@ -472,6 +483,11 @@ class _Header extends StatelessWidget {
                         children: [
                           Expanded(child: title),
                           const SizedBox(width: 16),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: CustomersButton(onPressed: onCustomers),
+                          ),
+                          const SizedBox(width: 4),
                           const Padding(
                             padding: EdgeInsets.only(bottom: 6),
                             child: AppearanceButton(colour: AppTheme.accent),
@@ -489,6 +505,28 @@ class _Header extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The way from the designs to the customers they are for.
+class CustomersButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const CustomersButton({super.key, required this.onPressed});
+
+  static const openKey = ValueKey('open-customers');
+
+  @override
+  Widget build(BuildContext context) => TextButton.icon(
+    key: openKey,
+    onPressed: onPressed,
+    style: TextButton.styleFrom(
+      foregroundColor: AppTheme.accent,
+      visualDensity: VisualDensity.compact,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ),
+    icon: const Icon(Icons.people_alt_outlined, size: 20),
+    label: const Text('Customers'),
+  );
 }
 
 class _SectionTitle extends StatelessWidget {

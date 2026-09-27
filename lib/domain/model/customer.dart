@@ -70,9 +70,20 @@ class Customer {
     // the marks a number is written with — so a name with a figure in it
     // is not also found in everybody's phone number.
     if (!RegExp(r'^[0-9+\-().\s]+$').hasMatch(wanted)) return false;
-    final digits = wanted.replaceAll(RegExp(r'[^0-9+]'), '');
-    return digits.isNotEmpty &&
-        phone.replaceAll(RegExp(r'[^0-9+]'), '').contains(digits);
+    final digits = _significant(wanted);
+    return digits.isNotEmpty && _significant(phone).contains(digits);
+  }
+
+  /// A phone number's digits without whatever only says how it is dialled:
+  /// the `+` or `00` before a country code, and the `0` a number is dialled
+  /// with at home. So `0750 123 4567` and `+964 750 123 4567` — the same
+  /// number, written the local way and the international way — are both
+  /// found by either.
+  static String _significant(String number) {
+    final digits = number.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('00')) return digits.substring(2);
+    if (digits.startsWith('0')) return digits.substring(1);
+    return digits;
   }
 
   Map<String, Object?> toJson() => {

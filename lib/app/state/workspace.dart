@@ -1399,6 +1399,14 @@ final designStoreProvider = Provider<DesignStore>(
 /// Counts every change to the kept designs, so the list of them knows to
 /// read its page again. The list itself is never held here: it is paged
 /// out of the store as it is looked at.
+/// Counts every change to the kept customers — one made, one changed — so
+/// the list of them knows to read its page again. A change to the designs
+/// is listened to as well, because keeping a design can bring a customer
+/// with it and changes how many designs a customer has.
+final customersRevisionProvider = NotifierProvider<DesignsRevision, int>(
+  DesignsRevision.new,
+);
+
 final designsRevisionProvider = NotifierProvider<DesignsRevision, int>(
   DesignsRevision.new,
 );

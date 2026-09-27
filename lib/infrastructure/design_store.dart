@@ -351,6 +351,19 @@ class DesignStore {
     return DesignPage(found.sublist(start, end), found.length);
   }
 
+  /// How many designs each customer has, by customer id, read from the
+  /// index in one pass — a line a design, never the designs themselves. A
+  /// customer with none is not in it.
+  Future<Map<String, int>> countsByCustomer() async {
+    final prefs = await SharedPreferences.getInstance();
+    final counts = <String, int>{};
+    for (final s in await _read(prefs)) {
+      final owner = s.customerId;
+      if (owner != null) counts[owner] = (counts[owner] ?? 0) + 1;
+    }
+    return counts;
+  }
+
   /// How many designs are kept.
   Future<int> count() async {
     final prefs = await SharedPreferences.getInstance();

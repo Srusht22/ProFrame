@@ -219,6 +219,15 @@ void main() {
     expect(first.items, hasLength(25));
     expect(first.items.first.name, 'Customer 59', reason: 'latest first');
     expect((await customers.page(query: 'customer 4')).total, 11);
+    // A number is found written the local way or the international way.
+    await customers.create(name: 'Adam', phone: '+964 750 123 4567', now: at);
+    for (final typed in ['0750 123', '+964 750', '00964 750 123 4567']) {
+      expect(
+        (await customers.page(query: typed)).items.map((s) => s.name),
+        contains('Adam'),
+        reason: typed,
+      );
+    }
     expect(
       (await customers.page(query: '07500000042')).items.single.name,
       'Customer 42',

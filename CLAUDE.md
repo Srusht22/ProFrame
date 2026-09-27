@@ -1209,9 +1209,33 @@ customer its own name stands for, as the list already showed it. A
 duplicate is another design of the **same** customer, named `(copy)`; a
 design said to be for somebody else moves to that customer.
 
+**The customers screen** (`customers_screen.dart`) is reached by
+**Customers** on the designs' band, and is laid out as that screen is: a
+band with the count, a search and **New Customer**, then a card a customer
+— their initials, name, phone and how many designs are theirs
+(`DesignStore.countsByCustomer`, one pass over the index), newest first,
+read a page at a time. The search is the customer's own — name or phone,
+never anything inside a design — and a phone number is found written the
+local way or the international way: `0750 123 4567` and
+`+964 750 123 4567` are one number to `Customer.matches`, which drops the
+`+`, the `00` and the home `0` before comparing digits, and only treats a
+search as a number when it is one.
+
+**New Customer** (`new_customer_screen.dart`) asks for a name and offers
+phone, address and notes; saving makes the customer and nothing else — no
+design is begun — and goes to the customer's page. **Tapping a customer
+opens that customer, never a drawing**: `CustomerScreen`
+(`customer_screen.dart`) shows who they are and how many designs are
+theirs, with the place for their designs held until those cards are
+built. `customersRevisionProvider` tells the list and the page to read
+again when a customer is made, and they listen to the designs' revision
+too, because keeping a design can bring a customer with it.
+`test/app/customers_screen_test.dart` holds all of it on the real app,
+from a phone to a laptop.
+
 `Design.customer` — the name typed when the design was begun — is still
-what the list shows until the customer screens are built; the customer
-record is what is true of the person.
+what the designs list shows; the customer record is what is true of the
+person.
 `test/infrastructure/customers_and_designs_test.dart` holds all of it: a
 customer with no designs, one with four, every kept design naming its
 customer, the name and category the design's own, the person's details
