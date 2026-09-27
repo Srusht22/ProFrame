@@ -2605,6 +2605,13 @@ does not leave 40 and 120: it is real material 2.8 cm wide and the glass
 stops at its faces, so the panes are 38.6 and 118.6, and the three together
 are 160 exactly. Quoting 40 and 120 would be a drawing that does not add up.
 
+The same holds when the divider is **drawn on the sheet** rather than
+placed with a tool: an incomplete line drawn 40 cm down a 40 × 160 cm
+opening is completed across it, becomes its one internal divider, and the
+glass above and the panel below stay the opening's — the window keeps its
+two main divisions. `test/domain/a_drawn_line_divides_the_opening_into_glass_and_panel_test.dart`
+holds that, through a second reading, a save and a reload.
+
 `test/domain/internal_sections_test.dart` holds this on those figures, and
 holds that the panes stay the opening's through a save and a reload and
 through the opening being moved to another light.
