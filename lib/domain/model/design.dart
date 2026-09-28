@@ -49,7 +49,16 @@ class Design {
 
   /// What to call it on the screen — see [shownNameOf].
   String get shownName => shownNameOf(name, kind);
+
+  /// The design's **category** — door, window, sliding, or door & window —
+  /// chosen once, on *Choose your design*, when the design is begun, and
+  /// saved with it under `category`. It identifies what the design is and
+  /// builds nothing: a design begun as a door has no frame, no line and no
+  /// opening until the user draws them.
   final DesignKind kind;
+
+  /// The same as [kind], by the name the user knows it by.
+  DesignKind get category => kind;
 
   /// Who the design is for — the person or customer the workshop is
   /// drawing it for — or null where nobody has said. It is how a design is
@@ -625,7 +634,7 @@ class Design {
   Map<String, Object?> toJson() => {
         'id': id,
         'name': name,
-        'kind': kind.name,
+        'category': kind.name,
         if (customer != null) 'customer': customer,
         if (customerId != null) 'customerId': customerId,
         'createdAt': createdAt.toIso8601String(),
@@ -678,8 +687,9 @@ class Design {
     return Design(
       id: map['id']! as String,
       name: map['name']! as String,
+      // Kept as `category`; a design saved before that said `kind`.
       kind: DesignKind.values.firstWhere(
-        (k) => k.name == map['kind'],
+        (k) => k.name == (map['category'] ?? map['kind']),
         orElse: () => DesignKind.window,
       ),
       customer: map['customer'] as String?,

@@ -1323,9 +1323,10 @@ lost, and a design made for, listed under and removed from a customer.
 
 ### Choose your design
 
-After the new design's form, one question: what the product is.
-`StartScreen` offers **Door**, **Window**, **Door & window** and **Sliding**
-as four cards, **all alike** — the user asked *why are all four cards not
+After the new design's name, one question: what the product is — its
+**category**. `StartScreen` offers **Door**, **Window**, **Sliding** and
+**Door & window**, in that order — the user's own — as four cards, **all
+alike** — the user asked *why are all four cards not
 the same?* when two were large and two were smaller under *More types*.
 They are one row of four where the screen holds them, two by two on a
 tablet, and one above another on a phone, each most of the width and a
@@ -1341,6 +1342,18 @@ drawing**, in that bar and so always in reach, is off until something is
 chosen; it completes the setup with the kind, begins the design from
 it, keeps it, and goes into the existing drawing with the designs underneath.
 Nothing else is asked.
+
+**The category is saved into the design and builds nothing.** It is
+`Design.kind` — `Design.category` by the user's name for it — written to
+the file as `category` (a file saved before, which says `kind`, still
+loads as what it was). The design it begins is its id, its customer, its
+name and its category, and nothing else: no line, no frame, no section,
+no opening, no template — the user draws those. It is only for a new
+design: a design opened from its card goes straight to `openDesign` and
+never comes here. `test/app/a_new_design_s_category_test.dart` holds it:
+the four in order on a phone and a laptop, none chosen, each saved as
+the design's category with nothing built, a second tap moving the
+choice, an existing design opening as itself, and older files loading.
 
 **The kind is where the design starts, not a fence round it**, and the
 screen says so: every opening can still be said to be a door or a window

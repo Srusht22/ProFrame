@@ -48,12 +48,13 @@ class StartScreen extends ConsumerStatefulWidget {
 
   const StartScreen({super.key, required this.setup});
 
-  /// The four choices, in the order they are shown, and what each card says.
+  /// The four choices, in the order they are shown — the user's own
+  /// order: door, window, sliding, door & window — and what each card says.
   static const choices = [
     (DesignKind.door, 'Create a custom door design'),
     (DesignKind.window, 'Create a custom window design'),
-    (DesignKind.both, 'Doors and windows in one frame'),
     (DesignKind.sliding, 'Panels that slide past each other'),
+    (DesignKind.both, 'Doors and windows in one frame'),
   ];
 
   /// What the button that begins the design says.

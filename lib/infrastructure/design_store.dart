@@ -111,7 +111,7 @@ class DesignSummary {
   Map<String, Object?> toJson() => {
     'id': id,
     'name': name,
-    'kind': kind.name,
+    'category': kind.name,
     if (customer != null) 'customer': customer,
     if (customerId != null) 'customerId': customerId,
     if (widthMm != null) 'w': widthMm,
@@ -123,8 +123,9 @@ class DesignSummary {
   static DesignSummary fromJson(Map<String, Object?> map) => DesignSummary(
     id: map['id']! as String,
     name: map['name']! as String,
+    // Kept as `category`; an index written before that said `kind`.
     kind: DesignKind.values.firstWhere(
-      (k) => k.name == map['kind'],
+      (k) => k.name == (map['category'] ?? map['kind']),
       orElse: () => DesignKind.window,
     ),
     customer: map['customer'] as String?,
