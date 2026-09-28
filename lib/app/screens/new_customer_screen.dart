@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/model/customer.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'customer_screen.dart';
@@ -13,8 +14,17 @@ import 'customer_screen.dart';
 /// saving makes the customer and nothing else: no design is begun for
 /// them, because a customer is somebody the workshop draws for, not a
 /// drawing. Saving goes straight to the customer's own page.
+///
+/// Given [editing], the same form changes that customer instead: the
+/// fields start as they are kept, and saving keeps the same customer — the
+/// same id, the same designs — with what was typed, and goes back to their
+/// page. It touches the customer's record and nothing else: no design
+/// holds the person's phone, address or notes, so there is no design to
+/// change.
 class NewCustomerScreen extends ConsumerStatefulWidget {
-  const NewCustomerScreen({super.key});
+  final Customer? editing;
+
+  const NewCustomerScreen({super.key, this.editing});
 
   static const nameField = ValueKey('customer-name');
   static const phoneField = ValueKey('customer-phone');
@@ -27,11 +37,13 @@ class NewCustomerScreen extends ConsumerStatefulWidget {
 }
 
 class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
-  final _name = TextEditingController();
-  final _phone = TextEditingController();
-  final _address = TextEditingController();
-  final _notes = TextEditingController();
+  late final _name = TextEditingController(text: widget.editing?.name);
+  late final _phone = TextEditingController(text: widget.editing?.phone);
+  late final _address = TextEditingController(text: widget.editing?.address);
+  late final _notes = TextEditingController(text: widget.editing?.notes);
   bool _saving = false;
+
+  bool get _editing => widget.editing != null;
 
   @override
   void initState() {
@@ -53,6 +65,23 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
   Future<void> _save() async {
     if (!_ready) return;
     setState(() => _saving = true);
+    final editing = widget.editing;
+    if (editing != null) {
+      await ref
+          .read(customerStoreProvider)
+          .save(
+            editing.copyWith(
+              name: _name.text.trim(),
+              phone: _phone.text.trim(),
+              address: _address.text.trim(),
+              notes: _notes.text.trim(),
+            ),
+          );
+      if (!mounted) return;
+      ref.read(customersRevisionProvider.notifier).changed();
+      Navigator.of(context).pop();
+      return;
+    }
     final customer = await ref
         .read(customerStoreProvider)
         .create(
@@ -112,7 +141,7 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('New Customer')),
+      appBar: AppBar(title: Text(_editing ? 'Edit Customer' : 'New Customer')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -131,7 +160,7 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'New Customer',
+                      _editing ? 'Edit Customer' : 'New Customer',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
@@ -140,8 +169,11 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Who are you drawing for? Their designs are kept '
-                      'together under them.',
+                      _editing
+                          ? 'Change how to reach them or what to remember. '
+                                'Their designs stay exactly as they are.'
+                          : 'Who are you drawing for? Their designs are kept '
+                                'together under them.',
                       style: TextStyle(fontSize: 14, color: p.muted),
                     ),
                     const SizedBox(height: 8),
@@ -149,7 +181,7 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
                     TextField(
                       key: NewCustomerScreen.nameField,
                       controller: _name,
-                      autofocus: true,
+                      autofocus: !_editing,
                       textCapitalization: TextCapitalization.words,
                       textInputAction: TextInputAction.next,
                       decoration: look('e.g. Adam', Icons.person_outline),
@@ -201,7 +233,7 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
                         minimumSize: const Size(0, 52),
                       ),
                       icon: const Icon(Icons.check),
-                      label: const Text('Save customer'),
+                      label: Text(_editing ? 'Save changes' : 'Save customer'),
                     ),
                   ],
                 ),

@@ -330,15 +330,23 @@ class InspectorPanel extends ConsumerWidget {
 /// Which design is being edited: its name, its category and who it is for,
 /// read from the design's own identity. Nothing here can be typed over — the
 /// name and category were given when the design was begun.
-class _Identity extends StatelessWidget {
+///
+/// Who it is for is the customer's name as it is kept now, found by the
+/// design's `customerId`; the name typed when the design was begun is only
+/// what is shown where there is no customer to ask.
+class _Identity extends ConsumerWidget {
   final Design design;
 
   const _Identity({required this.design});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final p = context.palette;
-    final who = design.customer?.trim() ?? '';
+    final owner = design.customerId;
+    final now = owner == null
+        ? null
+        : ref.watch(customerNameProvider(owner)).value;
+    final who = (now ?? design.customer)?.trim() ?? '';
     return Container(
       key: InspectorPanel.identityKey,
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),

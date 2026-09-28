@@ -92,6 +92,23 @@ class DesignSummary {
     return who == null || who.isEmpty ? name : who;
   }
 
+  /// The same design, listed under [customerName] — the name its customer
+  /// is kept under now — where there is one.
+  DesignSummary under(String? customerName) =>
+      customerName == null || customerName == customer
+      ? this
+      : DesignSummary(
+          id: id,
+          name: name,
+          kind: kind,
+          createdAt: createdAt,
+          updatedAt: updatedAt,
+          customer: customerName,
+          customerId: customerId,
+          widthMm: widthMm,
+          heightMm: heightMm,
+        );
+
   /// Its [shortIdOf].
   String get number => shortIdOf(id);
 
@@ -365,7 +382,14 @@ class DesignStore {
     int limit = 40,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final index = await _read(prefs);
+    final names = customers.namesNow(prefs);
+    // Each design under the name its customer has now: the name typed when
+    // it was begun is kept in the design and not rewritten, so a customer
+    // renamed is listed — and found — by the new name without any design
+    // being touched.
+    final index = [
+      for (final s in await _read(prefs)) s.under(names[s.customerId]),
+    ];
     final found = query.trim().isEmpty && customerId == null
         ? index
         : [

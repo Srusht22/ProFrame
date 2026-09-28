@@ -1312,6 +1312,28 @@ too, because keeping a design can bring a customer with it.
 `test/app/customers_screen_test.dart` holds all of it on the real app,
 from a phone to a laptop.
 
+**A customer's information is edited on their page, and only there.**
+**Edit**, beside *Customer information* (`CustomerScreen.editButton`), opens
+the form a customer is made with — `NewCustomerScreen(editing:)` — filled
+in with the name, phone, address and notes as kept. **Save changes** keeps
+the same customer, same id and same designs, with what was typed, trimmed;
+a name is still needed, so an empty one or one of only spaces cannot be
+saved. It writes the customer's record and nothing else: no design holds
+the person's phone, address or notes, so changing Adam's phone cannot
+touch Basement Door and changing his address cannot touch Kitchen Window.
+**A renamed customer is shown by the new name without any design being
+rewritten.** `Design.customer` keeps the name typed when the design was
+begun, and it stays exactly as kept; where a name is shown the customer's
+own is asked for by `customerId` — `DesignStore.page` lists each design
+under `CustomerStore.namesNow`, so the designs list shows and searches the
+name as it is now, and the design's own panel reads `customerNameProvider`.
+`test/app/editing_a_customer_test.dart` holds it: every field edited and
+kept through a reload, every design's stored text and the index of them
+byte for byte unchanged, none of the person's details in any design, the
+other customers untouched, an empty name refused, the new name found in
+the customers, the designs and the workspace, and the form fitting a
+phone, a tablet and a laptop.
+
 **Nothing kept is lost to something else being kept at the same
 moment.** Each store keeps a record a key and an index beside them, so
 keeping is a read of the index and a write of it back — and a read, then

@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 import 'customers_screen.dart';
 import 'design_name_screen.dart';
 import 'designs_screen.dart';
+import 'new_customer_screen.dart';
 import 'workspace_screen.dart';
 
 /// One customer, and the designs that are theirs.
@@ -30,6 +31,10 @@ class CustomerScreen extends ConsumerStatefulWidget {
   /// The **New Design** action, in the designs' heading or in the empty
   /// state where the customer has none.
   static const newDesignButton = ValueKey('customer-new-design');
+
+  /// **Edit** on the customer's information: their name, phone, address
+  /// and notes, in a form of their own.
+  static const editButton = ValueKey('customer-edit');
 
   /// The row of the design [id] in the customer's designs.
   static ValueKey<String> designKey(String id) =>
@@ -122,6 +127,16 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
     ),
   );
 
+  /// The customer's own information — name, phone, address, notes — in
+  /// the form a customer is made with, filled in. Saving changes the
+  /// customer and nothing else, and the page reads them again when it is
+  /// told customers have changed.
+  void _edit(Customer customer) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => NewCustomerScreen(editing: customer),
+    ),
+  );
+
   /// Whether a design is being opened, so a second tap on a card while the
   /// first is still on its way does not open the design twice over.
   bool _opening = false;
@@ -202,7 +217,11 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
                     SliverPadding(
                       padding: EdgeInsets.fromLTRB(across, 20, across, 0),
                       sliver: SliverToBoxAdapter(
-                        child: _Person(customer: customer, designs: _total),
+                        child: _Person(
+                          customer: customer,
+                          designs: _total,
+                          onEdit: () => _edit(customer),
+                        ),
                       ),
                     ),
                     SliverPadding(
@@ -252,8 +271,13 @@ const _contentWidth = 960.0;
 class _Person extends StatelessWidget {
   final Customer customer;
   final int designs;
+  final VoidCallback onEdit;
 
-  const _Person({required this.customer, required this.designs});
+  const _Person({
+    required this.customer,
+    required this.designs,
+    required this.onEdit,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -359,15 +383,31 @@ class _Person extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           Divider(height: 1, color: p.hairline),
-          const SizedBox(height: 14),
-          Text(
-            'Customer information',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.3,
-              color: p.ink,
-            ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Customer information',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                    color: p.ink,
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                key: CustomerScreen.editButton,
+                onPressed: onEdit,
+                style: TextButton.styleFrom(
+                  foregroundColor: p.primary,
+                  minimumSize: const Size(48, 44),
+                ),
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Edit'),
+              ),
+            ],
           ),
           line(Icons.phone_outlined, 'Phone', customer.phone, number: true),
           line(Icons.place_outlined, 'Address', customer.address),

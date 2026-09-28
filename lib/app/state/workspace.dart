@@ -1405,9 +1405,6 @@ final designStoreProvider = Provider<DesignStore>(
   (ref) => DesignStore(customers: ref.read(customerStoreProvider)),
 );
 
-/// Counts every change to the kept designs, so the list of them knows to
-/// read its page again. The list itself is never held here: it is paged
-/// out of the store as it is looked at.
 /// Counts every change to the kept customers — one made, one changed — so
 /// the list of them knows to read its page again. A change to the designs
 /// is listened to as well, because keeping a design can bring a customer
@@ -1416,6 +1413,17 @@ final customersRevisionProvider = NotifierProvider<DesignsRevision, int>(
   DesignsRevision.new,
 );
 
+/// The name customer [id] is kept under now, or null where there is none —
+/// read again whenever a customer is made or changed.
+final customerNameProvider = FutureProvider.autoDispose
+    .family<String?, String>((ref, id) async {
+      ref.watch(customersRevisionProvider);
+      return (await ref.read(customerStoreProvider).load(id))?.name;
+    });
+
+/// Counts every change to the kept designs, so the list of them knows to
+/// read its page again. The list itself is never held here: it is paged
+/// out of the store as it is looked at.
 final designsRevisionProvider = NotifierProvider<DesignsRevision, int>(
   DesignsRevision.new,
 );

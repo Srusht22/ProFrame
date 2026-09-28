@@ -158,6 +158,12 @@ class CustomerStore {
     return Future.wait([record, _write(prefs, index)]);
   }
 
+  /// Every customer's name as it is kept now, by id — one pass over the
+  /// index, never the records themselves.
+  Map<String, String> namesNow(SharedPreferences prefs) => {
+    for (final s in _indexNow(prefs)) s.id: s.name,
+  };
+
   /// The customer kept as [id], read now, or null where there is none.
   Customer? _loadNow(SharedPreferences prefs, String id) {
     final text = prefs.getString(_customerKey(id));
