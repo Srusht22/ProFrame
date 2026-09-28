@@ -9,10 +9,33 @@ import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'appearance_button.dart';
 import 'customers_screen.dart';
-import 'delete_design.dart';
-import 'design_information_screen.dart';
+import 'design_actions.dart';
 import 'new_design_screen.dart';
-import 'workspace_screen.dart';
+
+/// The months as a date on a card writes them.
+const monthNames = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+/// The mark of a design's category, wherever one is shown: on a card, on a
+/// filter chip, beside a design's information.
+IconData kindIcon(DesignKind kind) => switch (kind) {
+  DesignKind.door => Icons.door_front_door_outlined,
+  DesignKind.window => Icons.window_outlined,
+  DesignKind.both => Icons.splitscreen_outlined,
+  DesignKind.sliding => Icons.door_sliding_outlined,
+};
 
 /// How long ago [then] was, as a person would say it, seen from [now].
 String editedAgo(DateTime then, DateTime now) {
@@ -23,21 +46,7 @@ String editedAgo(DateTime then, DateTime now) {
   if (gone.inHours < 24) return 'Edited ${ago(gone.inHours, 'hour')}';
   if (gone.inDays == 1) return 'Edited yesterday';
   if (gone.inDays < 7) return 'Edited ${ago(gone.inDays, 'day')}';
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  final date = '${then.day} ${months[then.month - 1]}';
+  final date = '${then.day} ${monthNames[then.month - 1]}';
   return then.year == now.year ? 'Edited $date' : 'Edited $date ${then.year}';
 }
 
@@ -163,30 +172,8 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen> {
   /// because all of that was said when the design was begun and is kept in
   /// it. A second tap while it is opening does nothing, and a design
   /// removed since the list was read says so rather than beginning one.
-  Future<void> _open(DesignSummary summary) async {
-    if (_opening) return;
-    _opening = true;
-    try {
-      final design = await _store.load(summary.id);
-      if (!mounted) return;
-      if (design == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${summary.shownName} could not be opened.')),
-        );
-        await _reload();
-        return;
-      }
-      ref.read(workspaceProvider.notifier).openDesign(design);
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute<void>(builder: (_) => const WorkspaceScreen()));
-    } finally {
-      _opening = false;
-    }
-  }
-
-  /// Whether a design is being opened.
-  bool _opening = false;
+  Future<void> _open(DesignSummary summary) =>
+      openKeptDesign(context, ref, summary);
 
   /// Everything else that can be done with a design, from its card: open,
   /// rename, duplicate, delete. A sheet from the foot of the screen, one
@@ -220,20 +207,8 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen> {
 
   /// **Edit information**: what the design is called. The same design is
   /// renamed where it is kept, by its id, and nothing else about it changes.
-  Future<void> _editInformation(DesignSummary summary) async {
-    final named = await Navigator.of(context).push<String>(
-      MaterialPageRoute<String>(
-        builder: (_) => DesignInformationScreen(
-          name: summary.name,
-          kind: summary.kind,
-          customer: summary.customer,
-        ),
-      ),
-    );
-    if (named == null || named == summary.name || !mounted) return;
-    await _store.retitle(summary.id, named);
-    _changed();
-  }
+  Future<void> _editInformation(DesignSummary summary) =>
+      editDesignInformation(context, ref, summary);
 
   Future<void> _rename(DesignSummary summary) async {
     final who = await showDialog<String>(
@@ -706,13 +681,6 @@ class DesignCard extends StatefulWidget {
 class _DesignCardState extends State<DesignCard> {
   bool _hover = false;
 
-  IconData get _kindIcon => switch (widget.summary.kind) {
-    DesignKind.door => Icons.door_front_door_outlined,
-    DesignKind.window => Icons.window_outlined,
-    DesignKind.both => Icons.splitscreen_outlined,
-    DesignKind.sliding => Icons.door_sliding_outlined,
-  };
-
   @override
   Widget build(BuildContext context) {
     final design = widget.summary;
@@ -792,7 +760,7 @@ class _DesignCardState extends State<DesignCard> {
           runSpacing: 6,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            _Chip(icon: _kindIcon, label: design.kind.label),
+            _Chip(icon: kindIcon(design.kind), label: design.kind.label),
             if (design.widthMm != null || design.heightMm != null)
               _Chip(
                 icon: Icons.straighten,

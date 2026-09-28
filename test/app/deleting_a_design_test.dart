@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/screens/customer_screen.dart';
-import 'package:proframe/app/screens/delete_design.dart';
+import 'package:proframe/app/screens/design_actions.dart';
 import 'package:proframe/app/screens/designs_screen.dart';
 import 'package:proframe/domain/model/customer.dart';
 import 'package:proframe/infrastructure/customer_store.dart';

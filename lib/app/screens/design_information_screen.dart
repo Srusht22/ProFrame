@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/new_design_setup.dart';
 import '../theme/app_theme.dart';
-import 'customer_screen.dart';
 import 'design_name_screen.dart';
+import 'designs_screen.dart';
 
 /// **Edit information** for a design that already exists: what it is
 /// called — *Basement Door* made *Basement Door - New PVC*.
@@ -205,7 +205,7 @@ class _DesignInformationScreenState extends State<DesignInformationScreen> {
                       child: Row(
                         children: [
                           Icon(
-                            CustomerDesignCard.iconOf(widget.kind),
+                            kindIcon(widget.kind),
                             size: 20,
                             color: p.primary,
                           ),

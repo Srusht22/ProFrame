@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/screens/customer_screen.dart';
 import 'package:proframe/app/screens/customers_screen.dart';
-import 'package:proframe/app/screens/delete_design.dart';
+import 'package:proframe/app/screens/design_actions.dart';
 import 'package:proframe/app/screens/design_information_screen.dart';
 import 'package:proframe/app/screens/design_name_screen.dart';
 import 'package:proframe/app/screens/designs_screen.dart';

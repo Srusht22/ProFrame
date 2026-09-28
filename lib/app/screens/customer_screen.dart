@@ -8,12 +8,10 @@ import '../../infrastructure/design_store.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'customers_screen.dart';
-import 'delete_design.dart';
-import 'design_information_screen.dart';
+import 'design_actions.dart';
 import 'design_name_screen.dart';
 import 'designs_screen.dart';
 import 'new_customer_screen.dart';
-import 'workspace_screen.dart';
 
 /// One customer, and the designs that are theirs.
 ///
@@ -202,24 +200,8 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
     ),
   );
 
-  /// **Edit information** on a design's card: what it is called. The
-  /// design is renamed where it is kept — the same design, by its id, with
-  /// everything drawn in it untouched — and the page reads it again.
-  Future<void> _editInformation(DesignSummary summary) async {
-    final named = await Navigator.of(context).push<String>(
-      MaterialPageRoute<String>(
-        builder: (_) => DesignInformationScreen(
-          name: summary.name,
-          kind: summary.kind,
-          customer: _customer?.name,
-        ),
-      ),
-    );
-    if (named == null || named == summary.name || !mounted) return;
-    await _store.retitle(summary.id, named);
-    if (!mounted) return;
-    ref.read(designsRevisionProvider.notifier).changed();
-  }
+  Future<void> _editInformation(DesignSummary summary) =>
+      editDesignInformation(context, ref, summary);
 
   /// The **⋮** on a design's card: open it, edit its information, or
   /// delete it. Deleting is that one design, asked about first by its name
@@ -253,35 +235,10 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
     }
   }
 
-  /// Whether a design is being opened, so a second tap on a card while the
-  /// first is still on its way does not open the design twice over.
-  bool _opening = false;
-
-  /// One of the customer's designs, opened by its id exactly as it was kept
-  /// — its drawing, geometry, openings, internal lines, materials and sizes
-  /// — straight into the workspace. Nothing is asked on the way: what the
-  /// design is was said when it was begun and is kept in it, so *Choose your
-  /// design* is not shown again, and nothing new is made.
-  Future<void> _open(DesignSummary summary) async {
-    if (_opening) return;
-    _opening = true;
-    try {
-      final design = await _store.load(summary.id);
-      if (!mounted) return;
-      if (design == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${summary.shownName} could not be opened.')),
-        );
-        return;
-      }
-      ref.read(workspaceProvider.notifier).openDesign(design);
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute<void>(builder: (_) => const WorkspaceScreen()));
-    } finally {
-      _opening = false;
-    }
-  }
+  /// One of the customer's designs, opened exactly as it was kept — see
+  /// `openKeptDesign`.
+  Future<void> _open(DesignSummary summary) =>
+      openKeptDesign(context, ref, summary);
 
   @override
   Widget build(BuildContext context) {
@@ -648,7 +605,7 @@ class _Finder extends StatelessWidget {
           avatar: kind == null
               ? null
               : Icon(
-                  CustomerDesignCard.iconOf(kind),
+                  kindIcon(kind),
                   size: 16,
                   color: on ? AppTheme.accent : p.primary,
                 ),
@@ -902,20 +859,6 @@ class _Cards extends StatelessWidget {
 /// When a design was last edited, as a date and a time: *Today, 09:14*,
 /// *Yesterday, 18:02*, or *1 Mar 2026, 09:14*, seen from [now].
 String lastEdited(DateTime then, DateTime now) {
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
   String two(int n) => n.toString().padLeft(2, '0');
   final time = '${two(then.hour)}:${two(then.minute)}';
   final day = DateTime(then.year, then.month, then.day);
@@ -923,7 +866,7 @@ String lastEdited(DateTime then, DateTime now) {
   final gone = today.difference(day).inDays;
   if (gone == 0) return 'Today, $time';
   if (gone == 1) return 'Yesterday, $time';
-  return '${then.day} ${months[then.month - 1]} ${then.year}, $time';
+  return '${then.day} ${monthNames[then.month - 1]} ${then.year}, $time';
 }
 
 /// One of the customer's designs as a card: its picture — the design itself,
@@ -964,13 +907,6 @@ class CustomerDesignCard extends StatelessWidget {
 
   /// The **Edit information** on the card of the design [id].
   static ValueKey<String> editKey(String id) => ValueKey('edit-design-$id');
-
-  static IconData iconOf(DesignKind kind) => switch (kind) {
-    DesignKind.door => Icons.door_front_door_outlined,
-    DesignKind.window => Icons.window_outlined,
-    DesignKind.both => Icons.splitscreen_outlined,
-    DesignKind.sliding => Icons.door_sliding_outlined,
-  };
 
   @override
   Widget build(BuildContext context) {
@@ -1056,7 +992,7 @@ class CustomerDesignCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(iconOf(design.kind), size: 14, color: p.primary),
+                          Icon(kindIcon(design.kind), size: 14, color: p.primary),
                           const SizedBox(width: 5),
                           Text(
                             design.kind.label,

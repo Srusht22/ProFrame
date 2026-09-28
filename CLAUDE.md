@@ -1375,7 +1375,7 @@ kitchen window, which his page never shows.
 the customer.** A design is deleted from the ⋮ on its card — on the
 customer's page (`CustomerDesignCard.moreKey`: Open, Edit information,
 Delete) and in the designs list — and both go through `deleteDesign` in
-`delete_design.dart`. It asks first, *Delete Basement Door?*, with the
+`design_actions.dart`. It asks first, *Delete Basement Door?*, with the
 design's category, customer and number under it and a plain word that the
 customer, their phone, address and notes, and their other designs stay;
 nothing is removed until **Delete design** is pressed, and Cancel, a tap
@@ -1503,6 +1503,51 @@ customer with no designs, one with four, every kept design naming its
 customer, the name and category the design's own, the person's details
 never in a design, searching, both older stores brought over with nothing
 lost, and a design made for, listed under and removed from a customer.
+
+### How customers and designs are put together
+
+```
+CUSTOMER            domain/model/customer.dart    kept by CustomerStore
+   │ customerId        (one customer, many designs; neither copies the other)
+DESIGN              domain/model/design.dart      kept by DesignStore,
+   │                   listed by DesignSummary lines of its index
+THE DESIGN ITSELF   the one document: sketch, frame, bars, sections,
+   │                   openings, hardware, dimensions, sizes, finishes
+DRAW / CAD / 3D     WorkspaceController.openDesign or .begin, then
+                       DesignPainter, CadPainter and MeshBuilder
+```
+
+Each layer has one place. The models are the domain's; the stores are
+`lib/infrastructure`; the providers that hand them out and say when they
+changed — `customerStoreProvider`, `designStoreProvider`,
+`customersRevisionProvider`, `designsRevisionProvider`,
+`customerNameProvider` — are in `lib/app/state/workspace.dart`; the screens
+are `customers_screen`, `customer_screen`, `new_customer_screen`,
+`designs_screen`, `design_name_screen`, `start_screen` and
+`design_information_screen`; and what can be done with a design from its
+card — open it, edit its information, delete it — is `design_actions.dart`,
+one implementation that the designs list and a customer's page both call.
+`kindIcon` is the one mark for a category. `Design.customer` is the name
+typed when a design was begun, kept for designs made before customers and
+for the designs list's own New Design; whatever shows a customer's name
+asks the customer by `customerId`.
+
+The twelve things the restructuring was measured against, and where each
+is held:
+
+| | Held by |
+| --- | --- |
+| One customer, many designs | `customers_and_designs_test`, `designs_are_kept_for_their_customer_test` |
+| Designs shown as cards | `a_customer_s_designs_as_cards_test`, `recent_designs_test`, `real_design_previews_test` |
+| Customer information available and editable | `a_customer_s_page_test`, `editing_a_customer_test` |
+| New Design makes a new design | `a_new_design_for_a_customer_test` |
+| A specific name is required | `a_design_is_named_test` |
+| A category is required | `a_new_design_s_category_test` |
+| Existing designs open directly, never asked the category | `opening_an_existing_design_test`, `recent_designs_test` |
+| Designs stay with their customer | `designs_are_kept_for_their_customer_test`, `finding_a_customer_s_designs_test` |
+| Design data preserved | `editing_a_design_s_information_test`, `deleting_a_design_test`, `customers_are_never_deleted_test` |
+| Draw, CAD and 3D preserved | `a_design_in_every_view_test`, and every test of the drawing itself |
+| The whole workflow at once | `the_whole_customer_workflow_test` |
 
 ### Choose your design
 

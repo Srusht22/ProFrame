@@ -4,6 +4,76 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../infrastructure/design_store.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
+import 'design_information_screen.dart';
+import 'workspace_screen.dart';
+
+// What can be done with one kept design from its card — open it, edit its
+// information, delete it — done one way wherever the card is: the designs
+// list and a customer's page both call these, so the two cannot come to
+// behave differently.
+
+/// Whether a design is being opened, so a second tap while it opens does
+/// nothing.
+bool _opening = false;
+
+/// Opens the design [summary] names exactly as it was kept — its drawing,
+/// geometry, openings, internal lines, materials and sizes — straight into
+/// the workspace, by its id. Nothing is asked on the way: what the design
+/// is was said when it was begun and is kept in it, so no name, no
+/// category and no New Design, and nothing new is made. A design removed
+/// since the list was read says it could not be opened, begins nothing,
+/// and the lists read again.
+Future<void> openKeptDesign(
+  BuildContext context,
+  WidgetRef ref,
+  DesignSummary summary,
+) async {
+  if (_opening) return;
+  _opening = true;
+  final Future<void> shown;
+  try {
+    final design = await ref.read(designStoreProvider).load(summary.id);
+    if (!context.mounted) return;
+    if (design == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${summary.shownName} could not be opened.')),
+      );
+      ref.read(designsRevisionProvider.notifier).changed();
+      return;
+    }
+    ref.read(workspaceProvider.notifier).openDesign(design);
+    shown = Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => const WorkspaceScreen()));
+  } finally {
+    // Only the reading and the start of the opening are guarded, never the
+    // time the design is open: the guard is shared by every list, so one
+    // held while a design is on the screen would stop the next open.
+    _opening = false;
+  }
+  await shown;
+}
+
+/// **Edit information**: what the design [summary] names is called. The
+/// same design is renamed where it is kept, by its id — `DesignStore.retitle`
+/// — and nothing else about it changes; the lists read it again.
+Future<void> editDesignInformation(
+  BuildContext context,
+  WidgetRef ref,
+  DesignSummary summary,
+) async {
+  final named = await Navigator.of(context).push<String>(
+    MaterialPageRoute<String>(
+      builder: (_) => DesignInformationScreen(
+        name: summary.name,
+        kind: summary.kind,
+        customer: summary.customer,
+      ),
+    ),
+  );
+  if (named == null || named == summary.name) return;
+  await ref.read(designStoreProvider).retitle(summary.id, named);
+  ref.read(designsRevisionProvider.notifier).changed();
+}
 
 /// Deleting one design, from wherever it is offered: asked about first, by
 /// the design's own name, and then removed — that design and nothing else.
