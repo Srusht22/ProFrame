@@ -1328,6 +1328,21 @@ it, as over any design with sizes not yet given — that is a question about
 this design, not the start of another.
 `test/app/opening_an_existing_design_test.dart` holds it on Adam's
 basement door, drawn, divided, glazed and measured.
+**And the design opened is the one design every view shows.** Customer →
+design → the saved design → Draw, CAD and 3D: `openDesign` puts the saved
+design into the workspace as it is, and the drawing (`DesignPainter`), the
+technical drawing (`CadPainter`) and the solid (`MeshBuilder`, through
+`ModelView`) are each built from that very object — nothing rebuilt, read
+again, re-measured or approximated on the way in, and no view with a
+geometry of its own. The customer and design layer holds none either:
+`DesignSummary`'s size is a label written from the design on each save and
+never built from. `test/app/a_design_in_every_view_test.dart` holds it on
+Adam's Basement Door: the design in hand is the saved text exactly, each
+view's painter holds the same object (`identical`), the solid is facet for
+facet the one the saved design builds, looking through all three leaves
+the undo history empty and the device's storage byte for byte, an edit
+made in one view is the edit the others show and the one kept, and a
+design with nothing drawn has no geometry made for it in any view.
 `test/app/a_customer_s_page_test.dart` and
 `test/app/a_customer_s_designs_as_cards_test.dart` hold it — the second
 with three customers' designs made interleaved and each page required to
