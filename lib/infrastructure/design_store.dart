@@ -523,6 +523,18 @@ class DesignStore {
     return save(design.copyWith(customer: who, customerId: owner.id));
   }
 
+  /// The design kept as [id], now called [name] — trimmed — and nothing
+  /// else about it changed: the same id, the same customer, the same
+  /// category, and its drawing, geometry, sizes, openings, lines and
+  /// materials exactly as kept. Null where nothing is kept as [id] or the
+  /// name is empty.
+  Future<Design?> retitle(String id, String name) async {
+    final design = await load(id);
+    final called = name.trim();
+    if (design == null || called.isEmpty) return null;
+    return save(design.copyWith(name: called));
+  }
+
   /// Every design kept, whole, most recently edited first. For a handful —
   /// a test, an export — never for the list, which reads [page].
   Future<List<Design>> all() async {

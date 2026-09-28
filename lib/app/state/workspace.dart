@@ -1360,8 +1360,13 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     measure({Measurements.heightKey: heightMm});
   }
 
-  void rename(String name) =>
-      state = state.copyWith(design: state.design.copyWith(name: name));
+  /// The design in hand called [name], trimmed — its metadata and nothing
+  /// else. An empty name is not a name, and is refused.
+  void rename(String name) {
+    final called = name.trim();
+    if (called.isEmpty || called == state.design.name) return;
+    state = state.copyWith(design: state.design.copyWith(name: called));
+  }
 
   /// Keeps the design, sketch and all.
   ///

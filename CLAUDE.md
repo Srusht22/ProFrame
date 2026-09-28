@@ -1334,6 +1334,27 @@ other customers untouched, an empty name refused, the new name found in
 the customers, the designs and the workspace, and the form fitting a
 phone, a tablet and a laptop.
 
+**A design's information is edited without touching the design.**
+**Edit information** — on a design's card on the customer's page
+(`CustomerDesignCard.editKey`), on the ⋮ sheet of the designs list, and on
+the design's own panel in the workspace (`InspectorPanel.editInformationKey`)
+— opens `DesignInformationScreen`: the name, to be typed over, and the
+category, shown and not changeable, because everything drawn in the design
+was drawn in it. The name is held to `NewDesignSetup.nameProblem`, as a new
+design's is. **Save changes** renames the same design by its id —
+`DesignStore.retitle` from the lists, `WorkspaceController.rename` for the
+design in hand, both `Design.copyWith(name:)` and nothing else — so no
+design is made, and its drawing, lines, openings, the divisions inside
+them, materials, sizes, drawn dimensions, the technical drawing and the
+solid all stay exactly as kept.
+`test/app/editing_a_design_s_information_test.dart` holds it on Adam's
+basement door, drawn, divided, glazed and measured: *Basement Door - New
+PVC* from all three places, the design's JSON the same but for its name
+and edited time, the technical drawing the same to the pixel and the solid
+facet for facet, every other design byte for byte, the name through a
+reload and the design opening as itself, an empty name refused, and the
+form fitting a phone, a tablet and a laptop.
+
 **Nothing kept is lost to something else being kept at the same
 moment.** Each store keeps a record a key and an index beside them, so
 keeping is a read of the index and a write of it back — and a read, then

@@ -9,6 +9,7 @@ import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'appearance_button.dart';
 import 'customers_screen.dart';
+import 'design_information_screen.dart';
 import 'new_design_screen.dart';
 import 'workspace_screen.dart';
 
@@ -172,6 +173,8 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen> {
     final chosen = await showModalBottomSheet<DesignAction>(
       context: context,
       showDragHandle: true,
+      // As tall as its rows, scrolling only where the screen is shorter.
+      isScrollControlled: true,
       backgroundColor: context.palette.surface,
       builder: (context) => DesignActionsSheet(summary: summary),
     );
@@ -179,6 +182,8 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen> {
     switch (chosen) {
       case DesignAction.open:
         await _open(summary);
+      case DesignAction.information:
+        await _editInformation(summary);
       case DesignAction.rename:
         await _rename(summary);
       case DesignAction.duplicate:
@@ -189,6 +194,23 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen> {
   }
 
   void _changed() => ref.read(designsRevisionProvider.notifier).changed();
+
+  /// **Edit information**: what the design is called. The same design is
+  /// renamed where it is kept, by its id, and nothing else about it changes.
+  Future<void> _editInformation(DesignSummary summary) async {
+    final named = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
+        builder: (_) => DesignInformationScreen(
+          name: summary.name,
+          kind: summary.kind,
+          customer: summary.customer,
+        ),
+      ),
+    );
+    if (named == null || named == summary.name || !mounted) return;
+    await _store.retitle(summary.id, named);
+    _changed();
+  }
 
   Future<void> _rename(DesignSummary summary) async {
     final who = await showDialog<String>(
@@ -1044,7 +1066,7 @@ class _NoMatch extends StatelessWidget {
 }
 
 /// What can be done with a design from its card.
-enum DesignAction { open, rename, duplicate, delete }
+enum DesignAction { open, information, rename, duplicate, delete }
 
 /// The sheet of what can be done with one design: each thing on a row of
 /// its own, in words, with the one that cannot be seen being undone —
@@ -1076,57 +1098,65 @@ class DesignActionsSheet extends StatelessWidget {
     );
 
     return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    summary.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      summary.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                   ),
-                ),
-                Text(
-                  '#${summary.number}',
-                  style: TextStyle(fontSize: 12, color: p.muted),
-                ),
-              ],
+                  Text(
+                    '#${summary.number}',
+                    style: TextStyle(fontSize: 12, color: p.muted),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Divider(height: 1),
-          row(
-            DesignAction.open,
-            Icons.arrow_forward,
-            'Open',
-            'Carry on with this design.',
-          ),
-          row(
-            DesignAction.rename,
-            Icons.edit_outlined,
-            'Rename',
-            'Change who this design is for.',
-          ),
-          row(
-            DesignAction.duplicate,
-            Icons.copy_all_outlined,
-            'Duplicate',
-            'A copy to change without touching this one.',
-          ),
-          row(
-            DesignAction.delete,
-            Icons.delete_outline,
-            'Delete',
-            'Remove it from this device.',
-            colour: danger,
-          ),
-          const SizedBox(height: 8),
-        ],
+            const Divider(height: 1),
+            row(
+              DesignAction.open,
+              Icons.arrow_forward,
+              'Open',
+              'Carry on with this design.',
+            ),
+            row(
+              DesignAction.information,
+              Icons.drive_file_rename_outline,
+              'Edit information',
+              'Change the name of this design.',
+            ),
+            row(
+              DesignAction.rename,
+              Icons.edit_outlined,
+              'Rename',
+              'Change who this design is for.',
+            ),
+            row(
+              DesignAction.duplicate,
+              Icons.copy_all_outlined,
+              'Duplicate',
+              'A copy to change without touching this one.',
+            ),
+            row(
+              DesignAction.delete,
+              Icons.delete_outline,
+              'Delete',
+              'Remove it from this device.',
+              colour: danger,
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }

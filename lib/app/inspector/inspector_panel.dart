@@ -12,6 +12,7 @@ import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import '../../domain/model/materials.dart';
 import '../../domain/sections/section_bands.dart';
+import '../screens/design_information_screen.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'colour_picker.dart';
@@ -27,6 +28,9 @@ class InspectorPanel extends ConsumerWidget {
 
   /// The design being edited, named at the head of its own panel.
   static const identityKey = ValueKey('workspace-design-identity');
+
+  /// **Edit information** on the design's own panel.
+  static const editInformationKey = ValueKey('workspace-edit-information');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -378,9 +382,38 @@ class _Identity extends ConsumerWidget {
                 _Fact(icon: Icons.person_outline, text: who),
             ],
           ),
+          const SizedBox(height: 4),
+          TextButton.icon(
+            key: InspectorPanel.editInformationKey,
+            onPressed: () => _edit(context, ref, who),
+            style: TextButton.styleFrom(
+              foregroundColor: p.primary,
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+            ),
+            icon: const Icon(Icons.edit_outlined, size: 17),
+            label: const Text('Edit information'),
+          ),
         ],
       ),
     );
+  }
+
+  /// **Edit information**: what the design is called. Renaming is an edit
+  /// to the design in hand — its name and nothing else — kept as every
+  /// edit here is.
+  Future<void> _edit(BuildContext context, WidgetRef ref, String who) async {
+    final named = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
+        builder: (_) => DesignInformationScreen(
+          name: design.name,
+          kind: design.kind,
+          customer: who,
+        ),
+      ),
+    );
+    if (named == null) return;
+    ref.read(workspaceProvider.notifier).rename(named);
   }
 }
 

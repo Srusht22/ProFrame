@@ -8,6 +8,7 @@ import '../../infrastructure/design_store.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'customers_screen.dart';
+import 'design_information_screen.dart';
 import 'design_name_screen.dart';
 import 'designs_screen.dart';
 import 'new_customer_screen.dart';
@@ -137,6 +138,25 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
     ),
   );
 
+  /// **Edit information** on a design's card: what it is called. The
+  /// design is renamed where it is kept — the same design, by its id, with
+  /// everything drawn in it untouched — and the page reads it again.
+  Future<void> _editInformation(DesignSummary summary) async {
+    final named = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
+        builder: (_) => DesignInformationScreen(
+          name: summary.name,
+          kind: summary.kind,
+          customer: _customer?.name,
+        ),
+      ),
+    );
+    if (named == null || named == summary.name || !mounted) return;
+    await _store.retitle(summary.id, named);
+    if (!mounted) return;
+    ref.read(designsRevisionProvider.notifier).changed();
+  }
+
   /// Whether a design is being opened, so a second tap on a card while the
   /// first is still on its way does not open the design twice over.
   bool _opening = false;
@@ -247,6 +267,7 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
                           designs: _designs,
                           width: room.maxWidth - across * 2,
                           onOpen: _open,
+                          onEdit: _editInformation,
                           onNearEnd: () => WidgetsBinding.instance
                               .addPostFrameCallback((_) => _more()),
                         ),
@@ -512,6 +533,7 @@ class _Cards extends StatelessWidget {
   final List<DesignSummary> designs;
   final double width;
   final ValueChanged<DesignSummary> onOpen;
+  final ValueChanged<DesignSummary> onEdit;
 
   /// Called as the last few cards read so far are built, so the next page
   /// is read before the list runs out.
@@ -521,6 +543,7 @@ class _Cards extends StatelessWidget {
     required this.designs,
     required this.width,
     required this.onOpen,
+    required this.onEdit,
     required this.onNearEnd,
   });
 
@@ -535,6 +558,7 @@ class _Cards extends StatelessWidget {
         design: design,
         now: now,
         onOpen: () => onOpen(design),
+        onEdit: () => onEdit(design),
       );
     }
 
@@ -589,11 +613,14 @@ String lastEdited(DateTime then, DateTime now) {
 /// One of the customer's designs as a card: its picture — the design itself,
 /// drawn from its own geometry by the same `DesignPicture` the designs list
 /// uses, or the empty sheet saying *Nothing drawn yet* — then its name, its
-/// category, when it was last edited, and **Open**.
+/// category, when it was last edited, **Edit information** and **Open**.
 class CustomerDesignCard extends StatelessWidget {
   final DesignSummary design;
   final DateTime now;
   final VoidCallback onOpen;
+
+  /// **Edit information** — the design's name — where it can be edited.
+  final VoidCallback? onEdit;
 
   /// How tall a card is, in the list and in the grid alike.
   static const height = 318.0;
@@ -606,10 +633,14 @@ class CustomerDesignCard extends StatelessWidget {
     required this.design,
     required this.now,
     required this.onOpen,
+    this.onEdit,
   });
 
   /// The **Open** on the card of the design [id].
   static ValueKey<String> openKey(String id) => ValueKey('open-design-$id');
+
+  /// The **Edit information** on the card of the design [id].
+  static ValueKey<String> editKey(String id) => ValueKey('edit-design-$id');
 
   static IconData iconOf(DesignKind kind) => switch (kind) {
     DesignKind.door => Icons.door_front_door_outlined,
@@ -710,19 +741,40 @@ class CustomerDesignCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: TextButton.icon(
-                  key: openKey(design.id),
-                  onPressed: onOpen,
-                  style: TextButton.styleFrom(
-                    foregroundColor: p.primary,
-                    visualDensity: VisualDensity.compact,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (onEdit case final onEdit?)
+                    Flexible(
+                      child: TextButton.icon(
+                        key: editKey(design.id),
+                        onPressed: onEdit,
+                        style: TextButton.styleFrom(
+                          foregroundColor: p.muted,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.edit_outlined, size: 17),
+                        label: const Text(
+                          'Edit information',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                  else
+                    const Spacer(),
+                  TextButton.icon(
+                    key: openKey(design.id),
+                    onPressed: onOpen,
+                    style: TextButton.styleFrom(
+                      foregroundColor: p.primary,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    iconAlignment: IconAlignment.end,
+                    icon: const Icon(Icons.arrow_forward, size: 18),
+                    label: const Text('Open'),
                   ),
-                  iconAlignment: IconAlignment.end,
-                  icon: const Icon(Icons.arrow_forward, size: 18),
-                  label: const Text('Open'),
-                ),
+                ],
               ),
             ],
           ),
