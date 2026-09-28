@@ -221,6 +221,7 @@ void main() {
       // right, and the other leaf is left exactly as it was.
       final first = find.byKey(ValueKey('kind-switch-${order[0].id}'));
       await tester.ensureVisible(first);
+      await tester.pumpAndSettle();
       await tester.tap(
         find.descendant(of: first, matching: find.text('Window')),
       );

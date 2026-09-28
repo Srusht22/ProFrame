@@ -40,6 +40,41 @@ export 'elements.dart' show Construction, DesignKind, Face, OutlineGap;
 String shownNameOf(String name, DesignKind kind) =>
     name.trim().isEmpty ? 'Untitled ${kind.label.toLowerCase()}' : name;
 
+/// Which design this is: its id, whose it is, what it is called and what
+/// it is. Everything the rest of the application needs to know a design by,
+/// and nothing about what is drawn in it.
+///
+/// It is read from the design every time — `Design.identity` — and never
+/// kept beside it, so it cannot say one thing while the design says another.
+class DesignIdentity {
+  final String id;
+  final String? customerId;
+  final String name;
+  final DesignKind category;
+
+  const DesignIdentity({
+    required this.id,
+    required this.customerId,
+    required this.name,
+    required this.category,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is DesignIdentity &&
+      other.id == id &&
+      other.customerId == customerId &&
+      other.name == name &&
+      other.category == category;
+
+  @override
+  int get hashCode => Object.hash(id, customerId, name, category);
+
+  @override
+  String toString() =>
+      'DesignIdentity($id, customer: $customerId, "$name", ${category.name})';
+}
+
 class Design {
   final String id;
 
@@ -59,6 +94,14 @@ class Design {
 
   /// The same as [kind], by the name the user knows it by.
   DesignKind get category => kind;
+
+  /// Which design this is — see [DesignIdentity].
+  DesignIdentity get identity => DesignIdentity(
+        id: id,
+        customerId: customerId,
+        name: name,
+        category: kind,
+      );
 
   /// Who the design is for — the person or customer the workshop is
   /// drawing it for — or null where nobody has said. It is how a design is

@@ -1355,6 +1355,24 @@ the four in order on a phone and a laptop, none chosen, each saved as
 the design's category with nothing built, a second tap moving the
 choice, an existing design opening as itself, and older files loading.
 
+**Start drawing hands the workspace the design, and the workspace knows
+which one it is.** The existing drawing workspace is not a new screen and
+nothing in it was rebuilt: `WorkspaceController.begin` puts the design the
+setup made into it, and everything the workspace does — drawing, reading
+the sheet, sizes, materials, keeping — is an edit to that design.
+`Design.identity` (`DesignIdentity`: id, customer's id, name, category) is
+who the design is, read from the design itself and never kept beside it,
+and the design's own panel — whenever nothing is picked — opens with it
+(`InspectorPanel.identityKey`): the name, the category and who it is for,
+under the name at the top of the screen.
+`test/app/a_new_design_reaches_the_workspace_test.dart` holds it: the
+workspace given the new design's id, Adam's id, its name and its category
+for each of the four; the identity shown; a sheet drawn and read in the
+workspace and the design left, with exactly one design more, every other
+byte for byte, and the same identity coming back from its card; and the
+drawing engine reading a design begun by the setup exactly as it reads
+any other.
+
 **The kind is where the design starts, not a fence round it**, and the
 screen says so: every opening can still be said to be a door or a window
 of its own (`OpeningElement.kind`), beside fixed areas in the same frame.

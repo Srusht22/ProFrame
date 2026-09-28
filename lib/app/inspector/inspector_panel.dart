@@ -25,6 +25,9 @@ import 'measure_form.dart';
 class InspectorPanel extends ConsumerWidget {
   const InspectorPanel({super.key});
 
+  /// The design being edited, named at the head of its own panel.
+  static const identityKey = ValueKey('workspace-design-identity');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(workspaceProvider);
@@ -49,8 +52,11 @@ class InspectorPanel extends ConsumerWidget {
                 : null,
           ),
           const SizedBox(height: 14),
-          if (selected == null)
-            _DesignFields(state: state, controller: controller)
+          if (selected == null) ...[
+            _Identity(design: state.design),
+            const SizedBox(height: 16),
+            _DesignFields(state: state, controller: controller),
+          ]
           else
             ..._fieldsFor(context, selected, state, controller),
         ],
@@ -319,6 +325,79 @@ class InspectorPanel extends ConsumerWidget {
             ),
           ],
       };
+}
+
+/// Which design is being edited: its name, its category and who it is for,
+/// read from the design's own identity. Nothing here can be typed over — the
+/// name and category were given when the design was begun.
+class _Identity extends StatelessWidget {
+  final Design design;
+
+  const _Identity({required this.design});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final who = design.customer?.trim() ?? '';
+    return Container(
+      key: InspectorPanel.identityKey,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: p.shell,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: p.hairline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            design.shownName,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: p.ink,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 12,
+            runSpacing: 4,
+            children: [
+              _Fact(icon: Icons.category_outlined, text: design.kind.label),
+              if (who.isNotEmpty)
+                _Fact(icon: Icons.person_outline, text: who),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Fact extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _Fact({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: context.palette.muted),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 13, color: context.palette.muted),
+            ),
+          ),
+        ],
+      );
 }
 
 class _DesignFields extends StatelessWidget {

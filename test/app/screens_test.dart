@@ -42,8 +42,14 @@ void main() {
 
     await chooseDesign(tester, 'WINDOW');
 
-    // Known by its own name.
-    expect(find.text('Test design'), findsOneWidget);
+    // Known by its own name, at the top of the workspace.
+    expect(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.text('Test design'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Draw'), findsOneWidget);
     expect(find.text('CAD drawing'), findsOneWidget);
     expect(find.text('3D model'), findsOneWidget);

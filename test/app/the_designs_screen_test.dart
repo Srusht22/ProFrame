@@ -459,7 +459,13 @@ void main() {
       expect(design.kind, DesignKind.window);
       // Its own name, at the top of the drawing too.
       expect(design.name, 'Kitchen Window');
-      expect(find.text('Kitchen Window'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.text('Kitchen Window'),
+        ),
+        findsOneWidget,
+      );
 
       // Back is to the designs, where it now is.
       await tester.tap(find.byIcon(Icons.arrow_back));
