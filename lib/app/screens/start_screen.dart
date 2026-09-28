@@ -9,6 +9,7 @@ import '../../domain/model/new_design_setup.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'customer_screen.dart';
+import 'design_name_screen.dart';
 import 'workspace_screen.dart';
 
 /// **Choose your design**: the one step between naming a new design and
@@ -210,7 +211,11 @@ class _StartScreenState extends ConsumerState<StartScreen>
                         children: [
                           _arriving(
                             0,
-                            _Heading(forWhom: forWhom, phone: phone),
+                            _Heading(
+                              forWhom: forWhom,
+                              named: widget.setup.name ?? '',
+                              phone: phone,
+                            ),
                           ),
                           SizedBox(height: phone ? 20 : 28),
                           _cards(columns: columns),
@@ -237,47 +242,36 @@ class _StartScreenState extends ConsumerState<StartScreen>
   }
 }
 
-/// The title, what it asks, and who the design is for.
+/// The title, what it asks, who the design is for and what it is called.
 class _Heading extends StatelessWidget {
   final String forWhom;
+
+  /// The design's own name, as given on the step before.
+  final String named;
   final bool phone;
 
-  const _Heading({required this.forWhom, required this.phone});
+  const _Heading({
+    required this.forWhom,
+    required this.named,
+    required this.phone,
+  });
 
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      if (forWhom.isNotEmpty) ...[
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: context.palette.primary.withValues(alpha: 0.07),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.person_outline,
-                size: 15,
-                color: context.palette.primary,
+      if (forWhom.isNotEmpty || named.isNotEmpty) ...[
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            if (forWhom.isNotEmpty) CustomerChip(name: forWhom),
+            if (named.isNotEmpty)
+              CustomerChip(
+                name: named,
+                icon: Icons.drive_file_rename_outline,
               ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  forWhom,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: context.palette.primary,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          ],
         ),
         const SizedBox(height: 14),
       ],

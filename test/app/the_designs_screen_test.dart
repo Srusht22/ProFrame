@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/app.dart';
 import 'package:proframe/app/canvas/design_preview.dart';
+import 'package:proframe/app/screens/design_name_screen.dart';
 import 'package:proframe/app/screens/designs_screen.dart';
 import 'package:proframe/app/screens/new_design_screen.dart';
 import 'package:proframe/app/screens/start_screen.dart';
@@ -442,6 +443,10 @@ void main() {
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
 
+      // Then the design's own name — the person is not what it is called.
+      expect(find.byType(DesignNameScreen), findsOneWidget);
+      await nameTheDesign(tester, 'Kitchen Window');
+
       expect(find.byType(StartScreen), findsOneWidget);
       for (final card in ['DOOR', 'WINDOW', 'DOOR & WINDOW', 'SLIDING']) {
         expect(find.text(card), findsOneWidget);
@@ -452,9 +457,9 @@ void main() {
       final design = c.read(workspaceProvider).design;
       expect(design.customer, 'Hawre');
       expect(design.kind, DesignKind.window);
-      // Known by who it is for, at the top of the drawing too.
-      expect(design.name, 'Hawre');
-      expect(find.text('Hawre'), findsOneWidget);
+      // Its own name, at the top of the drawing too.
+      expect(design.name, 'Kitchen Window');
+      expect(find.text('Kitchen Window'), findsOneWidget);
 
       // Back is to the designs, where it now is.
       await tester.tap(find.byIcon(Icons.arrow_back));
@@ -502,9 +507,13 @@ void main() {
       expect(go().onPressed, isNotNull);
     });
 
-    testWidgets('back from door or window is back to the form', (tester) async {
+    testWidgets('back from door or window is back through the name to the '
+        'form', (tester) async {
       await openTheApp(tester);
       await toTheCategories(tester);
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+      expect(find.byType(DesignNameScreen), findsOneWidget);
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
       expect(find.byType(NewDesignScreen), findsOneWidget);

@@ -1097,7 +1097,7 @@ kept, the most recently edited first, a search, and **New Design**. The
 user's words: create a new design, or open an existing one.
 
 ```
-Designs  →  New Design  →  who it is for  →  Continue
+Designs  →  New Design  →  who it is for  →  Design name
                                                  ↓
           ←──── back ────  the workspace  ←  Choose your design
 ```
@@ -1112,16 +1112,18 @@ Designs  →  New Design  →  who it is for  →  Continue
   number (`shortIdOf`: the moment it was made, to the millisecond, in eight
   letters and figures — the web's clock stops at the millisecond, so the
   last six digits of an id are always `000` there).
-- **Who a design is for is `Design.customer`, and it is the design's
-  name too.** Metadata, nothing to do with the geometry, written to the
-  file only when there is one, so every design saved before it still
-  loads — and one saved before is known in the list by its own name
-  (`DesignSummary.title`). A design name of its own was asked for once
-  and the user took it out: *only the person / customer is enough*.
-- **New Design asks one thing**, who the design is for, and needs it —
-  **Continue** waits for a name, because the customer is what finds the
-  design again among the rest. Then **Choose your design** (`StartScreen`,
-  given the answer). Choosing keeps the design at
+- **Who a design is for is `Design.customer`; what it is called is
+  `Design.name`, and the two are never the same field.** Who it is for is
+  metadata, nothing to do with the geometry, written to the file only when
+  there is one, so every design saved before it still loads — and one
+  saved before is known in the list by its own name
+  (`DesignSummary.title`). The design's own name was once taken out
+  (*only the person / customer is enough*) and has since been asked for
+  again, required: see *A new design is named*.
+- **New Design asks who the design is for**, and needs it — **Continue**
+  waits for a name, because the customer is what finds the design again
+  among the rest. Then the design's own name (`DesignNameScreen`), then
+  **Choose your design** (`StartScreen`). Choosing keeps the design at
   once, so it is in the list from the moment it exists, and goes into the
   workspace with the designs underneath it — back is to the list, not
   through the steps that began it.
@@ -1248,23 +1250,45 @@ New Design is pressed, and not before. A design begun there is the
 customer's from the start, and the way back from it is to the customer's
 page (`CustomerScreen.route` names it on the navigator).
 
-**New Design starts a setup, not a design.** It hands *Choose your
-design* a `NewDesignSetup` (`lib/domain/model/new_design_setup.dart`)
-that knows the customer's id and nothing else: no category until a card
-is tapped, no name until one is typed. `NewDesignSetup.begin` is the one
-way a setup becomes a design, it refuses a setup that is not
-`isComplete`, and it fills in nothing the setup does not say — no
-drawing, no size, no name. **A design begun without a name is kept with
-none**: `Design.name` is empty, and only where it is shown does
-`Design.shownName` say *Untitled window*, a label for the absence of a
-name that is never stored. Nothing is kept while the setup is under way,
-so turning back from it leaves the customer with exactly the designs they
-had; it is kept the moment **Start drawing** finishes it. A later step of
-the setup — a name of the design's own, say — is another field on the
-setup and another condition in `isComplete`, carried from screen to
-screen. The designs list's own **New Design** goes through the same
-setup (`NewDesignSetup.forPerson`), called by the person typed as it
-always was. `test/app/a_new_design_for_a_customer_test.dart` holds it.
+**New Design starts a setup, not a design.** It hands the steps of a new
+design a `NewDesignSetup` (`lib/domain/model/new_design_setup.dart`)
+that knows the customer's id and nothing else: no name until one is
+typed, no category until a card is tapped. `NewDesignSetup.begin` is the
+one way a setup becomes a design, it refuses a setup that is not
+`isComplete` — named and with its category — and it fills in nothing the
+setup does not say: no drawing, no size. Nothing is kept while the setup
+is under way, so turning back from any step leaves the customer with
+exactly the designs they had; it is kept the moment **Start drawing**
+finishes it. A later step is another field on the setup and another
+condition in `isComplete`, carried from screen to screen. The designs
+list's own **New Design** goes through the same setup
+(`NewDesignSetup.forPerson`). `test/app/a_new_design_for_a_customer_test.dart`
+holds it.
+
+**A new design is named, and the name is required.** The user's words:
+*the customer name and design name are different — Adam is the customer,
+Basement Door is the design.* `DesignNameScreen` is the first step after
+**New Design**, from a customer's page and from the designs list alike.
+Its field starts empty — never the customer's name, which
+`forCustomer` and `forPerson` both leave out of `name` — and nothing is
+ever numbered for the user (*Door 1*, *Window 1*) unless that is what
+they type. `NewDesignSetup.nameProblem` is the one rule: only emptiness
+is wrong, and whitespace either side is trimmed away, so **Continue**
+with nothing in the field says *Enter a name for this design…* under it
+in the theme's error colour and goes nowhere; typing takes the message
+away. `withName` refuses an empty name, so none can get into a setup by
+any route. The name is the design's — `Design.name`, saved with it,
+shown on its card and at the top of the drawing, and on *Choose your
+design* beside the customer's chip — and never on the customer record.
+`Design.shownName` still labels a design with no name, as one begun
+through `startDesign` (for tests only, `@visibleForTesting`) may be, as
+*Untitled window*, and never stores it.
+`test/app/a_design_is_named_test.dart` holds it: the field empty and not
+Adam, an empty and an all-space name refused with the message, the name
+trimmed and kept as the design's, the customer's record byte for byte
+unchanged, the user's own four names kept exactly, nothing numbered,
+back through the steps keeping nothing, and the message fitting a phone,
+a tablet and a laptop.
 **Opening a card is opening that design, by its id, and nothing else.**
 Open, or a tap on the card, reads the design kept under its id and hands it
 to `openDesign` exactly as kept — its drawing, geometry, sizes, openings,

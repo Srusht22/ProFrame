@@ -4,11 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 /// From the designs screen the app opens on, through **New Design**, to the
 /// choice of door, window, both or sliding — the way a user begins a design.
 ///
-/// The form asks one thing, who the design is for, and needs it; [customer]
-/// is typed in, or a name that says it is a test's where none is given.
+/// The form asks who the design is for, and needs it; [customer] is typed
+/// in, or a name that says it is a test's where none is given. Then the
+/// design's own name, which is required too: [design].
 Future<void> toTheCategories(
   WidgetTester tester, {
   String customer = 'Test customer',
+  String design = 'Test design',
 }) async {
   await tester.tap(find.text('New Design').first);
   await tester.pumpAndSettle();
@@ -18,6 +20,19 @@ Future<void> toTheCategories(
   );
   await tester.pump();
   await tester.tap(find.text('Continue'));
+  await tester.pumpAndSettle();
+  await nameTheDesign(tester, design);
+}
+
+/// On **Design name**, types [name] and goes on — the step every new
+/// design takes before its category is chosen.
+Future<void> nameTheDesign(WidgetTester tester, String name) async {
+  await tester.enterText(
+    find.byKey(const ValueKey('design-name-field')),
+    name,
+  );
+  await tester.pump();
+  await tester.tap(find.byKey(const ValueKey('design-name-continue')));
   await tester.pumpAndSettle();
 }
 

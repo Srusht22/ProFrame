@@ -42,8 +42,8 @@ void main() {
 
     await chooseDesign(tester, 'WINDOW');
 
-    // Known by who it is for.
-    expect(find.text('Test customer'), findsOneWidget);
+    // Known by its own name.
+    expect(find.text('Test design'), findsOneWidget);
     expect(find.text('Draw'), findsOneWidget);
     expect(find.text('CAD drawing'), findsOneWidget);
     expect(find.text('3D model'), findsOneWidget);

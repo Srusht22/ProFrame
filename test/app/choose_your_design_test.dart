@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/app.dart';
+import 'package:proframe/app/screens/design_name_screen.dart';
 import 'package:proframe/app/screens/designs_screen.dart';
 import 'package:proframe/app/screens/new_design_screen.dart';
 import 'package:proframe/app/screens/start_screen.dart';
@@ -134,7 +135,11 @@ void main() {
       tester,
     ) async {
       final c = await openTheApp(tester);
-      await toTheCategories(tester, customer: 'Sara');
+      await toTheCategories(
+        tester,
+        customer: 'Sara',
+        design: 'Garden Room',
+      );
       await chooseDesign(tester, card);
 
       // The existing drawing, not a new screen.
@@ -143,7 +148,8 @@ void main() {
       final design = c.read(workspaceProvider).design;
       expect(design.kind, kind);
       expect(design.customer, 'Sara');
-      expect(design.name, 'Sara');
+      // Its own name, not the person's.
+      expect(design.name, 'Garden Room');
       expect(find.text('Read my drawing'), findsNothing);
 
       // The kind chosen is kept with the design.
@@ -153,9 +159,14 @@ void main() {
     });
   }
 
-  testWidgets('back from the choice is back to the form', (tester) async {
+  testWidgets('back from the choice is back through the name to the form', (
+    tester,
+  ) async {
     await openTheApp(tester);
     await toTheCategories(tester);
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DesignNameScreen), findsOneWidget);
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
     expect(find.byType(NewDesignScreen), findsOneWidget);

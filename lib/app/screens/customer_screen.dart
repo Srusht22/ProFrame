@@ -8,8 +8,8 @@ import '../../infrastructure/design_store.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'customers_screen.dart';
+import 'design_name_screen.dart';
 import 'designs_screen.dart';
-import 'start_screen.dart';
 import 'workspace_screen.dart';
 
 /// One customer, and the designs that are theirs.
@@ -112,12 +112,13 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
     });
   }
 
-  /// A new design for this customer: what it is — door, window, both,
-  /// sliding — is asked now, on the way to drawing it, and not before.
+  /// A new design for this customer: its name, then what it is — door,
+  /// window, both, sliding — are asked now, on the way to drawing it, and
+  /// not before.
   void _newDesign(Customer customer) => Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (_) =>
-          StartScreen(setup: NewDesignSetup.forCustomer(customer)),
+          DesignNameScreen(setup: NewDesignSetup.forCustomer(customer)),
     ),
   );
 

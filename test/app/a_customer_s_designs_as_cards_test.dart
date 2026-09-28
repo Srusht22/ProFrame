@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/canvas/design_preview.dart';
 import 'package:proframe/app/screens/customer_screen.dart';
+import 'package:proframe/app/screens/design_name_screen.dart';
 import 'package:proframe/app/screens/designs_screen.dart';
 import 'package:proframe/app/screens/start_screen.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
@@ -262,7 +263,11 @@ void main() {
     // Pressing New Design and turning back makes nothing.
     await tester.tap(find.byKey(CustomerScreen.newDesignButton));
     await tester.pumpAndSettle();
+    expect(find.byType(DesignNameScreen), findsOneWidget);
+    await nameTheDesign(tester, 'Garage Door');
     expect(find.byType(StartScreen), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(await page.keptDesigns(tester), before);
@@ -270,6 +275,7 @@ void main() {
     // Starting one makes exactly one, and it is Adam's card.
     await tester.tap(find.byKey(CustomerScreen.newDesignButton));
     await tester.pumpAndSettle();
+    await nameTheDesign(tester, 'Garage Window');
     await chooseDesign(tester, 'WINDOW');
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();

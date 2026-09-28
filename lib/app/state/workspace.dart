@@ -332,23 +332,32 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   bool get canUndo => _undo.isNotEmpty;
   bool get canRedo => _redo.isNotEmpty;
 
-  /// Begins a new design of [kind] — for [customer], called [name], when
-  /// the user said who it is for and what it is called; and belonging to
-  /// the customer kept as [customerId] where that is already known. The
-  /// whole setup said in one call; it goes through [begin] like any other.
+  /// Begins a new design of [kind] straight away, for code that already
+  /// knows everything about it — a test, or a design put together
+  /// elsewhere. The screens never call it: they go through [begin], which
+  /// will not start a design nobody has named. Here a name not given is
+  /// left empty, never made up.
+  @visibleForTesting
   void startDesign(
     DesignKind kind, {
     String? name,
     String? customer,
     String? customerId,
-  }) => begin(
-    NewDesignSetup(
-      customerId: customerId,
-      customer: customer,
-      name: name,
-      kind: kind,
-    ),
-  );
+  }) {
+    _undo.clear();
+    _redo.clear();
+    state = WorkspaceState(
+      design: Design.empty(
+        id: _newId('design'),
+        kind: kind,
+        name: name ?? '',
+        customer: customer,
+        customerId: customerId,
+        measured: const {},
+        construction: kind.asksConstruction ? Construction.pending : null,
+      ),
+    );
+  }
 
   /// Begins the design a completed [setup] describes — the only way a new
   /// design comes into being from the screens. Nothing is filled in that

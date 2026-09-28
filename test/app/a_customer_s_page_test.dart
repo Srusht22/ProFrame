@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/screens/customer_screen.dart';
 import 'package:proframe/app/screens/customers_screen.dart';
+import 'package:proframe/app/screens/design_name_screen.dart';
 import 'package:proframe/app/screens/new_customer_screen.dart';
 import 'package:proframe/app/screens/start_screen.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
@@ -141,8 +142,9 @@ void main() {
     expect(overflowing(tester), isEmpty);
   });
 
-  testWidgets('New Design asks door, window or sliding only now, and the '
-      'design begun is the customer\'s and comes back to their page', (
+  testWidgets('New Design asks the design\'s name and then door, window or '
+      'sliding only now, and the design begun is the customer\'s and comes '
+      'back to their page', (
     tester,
   ) async {
     final kept = await customers.keepThreeCustomers();
@@ -152,6 +154,8 @@ void main() {
 
     await tester.tap(find.byKey(CustomerScreen.newDesignButton));
     await tester.pumpAndSettle();
+    expect(find.byType(DesignNameScreen), findsOneWidget);
+    await nameTheDesign(tester, 'Kitchen Window');
     expect(find.byType(StartScreen), findsOneWidget);
     await chooseDesign(tester, 'WINDOW');
     expect(find.byType(WorkspaceScreen), findsOneWidget);
@@ -159,7 +163,7 @@ void main() {
     final design = c.read(workspaceProvider).design;
     expect(design.customerId, kept['Karwan']!.id);
     expect(design.kind, DesignKind.window);
-    expect(design.name, isNot('Karwan'), reason: 'a design, not the person');
+    expect(design.name, 'Kitchen Window', reason: 'a design, not the person');
 
     // Back is to Karwan's page, where the design now is.
     await tester.tap(find.byTooltip('Back'));

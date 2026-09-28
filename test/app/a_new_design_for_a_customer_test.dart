@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/screens/customer_screen.dart';
+import 'package:proframe/app/screens/design_name_screen.dart';
 import 'package:proframe/app/screens/start_screen.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/app/state/workspace.dart';
@@ -40,6 +41,12 @@ Future<void> pressNewDesign(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// New Design, then the design's name: on to the choice of category.
+Future<void> toTheChoice(WidgetTester tester, String name) async {
+  await pressNewDesign(tester);
+  await nameTheDesign(tester, name);
+}
+
 NewDesignSetup setupShown(WidgetTester tester) =>
     tester.widget<StartScreen>(find.byType(StartScreen)).setup;
 
@@ -72,22 +79,32 @@ void main() {
       expect(setup.isComplete, isFalse);
     });
 
-    test('it cannot become a design before its category is chosen', () {
+    test('it cannot become a design before it is named and its category '
+        'chosen', () {
       final setup = NewDesignSetup.forCustomer(adam);
       expect(() => setup.begin(id: 'd'), throwsStateError);
+      expect(
+        () => setup.withName('Basement Door').begin(id: 'd'),
+        throwsStateError,
+      );
+      expect(
+        () => setup.withKind(DesignKind.door).begin(id: 'd'),
+        throwsStateError,
+      );
     });
 
-    test('once chosen, the design is Adam\'s, of that category, with no '
-        'made-up name and nothing drawn', () {
+    test('named and chosen, the design is Adam\'s, called what he said, of '
+        'that category, and nothing drawn', () {
       for (final kind in DesignKind.values) {
         final design = NewDesignSetup.forCustomer(adam)
+            .withName('Basement Door')
             .withKind(kind)
             .begin(id: 'd-${kind.name}');
         expect(design.customerId, adam.id);
         expect(design.customer, 'Adam');
         expect(design.kind, kind);
-        expect(design.name, isEmpty, reason: 'kept with no name, not a fake');
-        expect(design.shownName, 'Untitled ${kind.label.toLowerCase()}');
+        expect(design.name, 'Basement Door');
+        expect(design.shownName, 'Basement Door');
         expect(design.sketch.strokes, isEmpty);
         expect(design.frame, isNull);
         expect(design.dividers, isEmpty);
@@ -101,7 +118,8 @@ void main() {
     });
 
     test('a name the user typed is the name, and survives the category', () {
-      const setup = NewDesignSetup(customerId: 'c', name: '  Basement Door ');
+      final setup = const NewDesignSetup(customerId: 'c')
+          .withName('  Basement Door ');
       expect(
         setup.withKind(DesignKind.door).begin(id: 'd').name,
         'Basement Door',
@@ -117,12 +135,20 @@ void main() {
     await page.openCustomer(tester, 'Adam');
     await pressNewDesign(tester);
 
+    // The first step is the design's name, and it knows it is Adam's.
+    final naming = tester.widget<DesignNameScreen>(
+      find.byType(DesignNameScreen),
+    );
+    expect(naming.setup.customerId, kept['Adam']!.id);
+    expect(naming.setup.name, isNull);
+    await nameTheDesign(tester, 'Basement Door');
+
     expect(find.byType(StartScreen), findsOneWidget);
     final setup = setupShown(tester);
     expect(setup.customerId, kept['Adam']!.id);
     expect(setup.customer, 'Adam');
     expect(setup.kind, isNull);
-    expect(setup.name, isNull);
+    expect(setup.name, 'Basement Door');
     // Nothing is chosen for the user, so there is nothing to start yet.
     expect(startDrawing(tester), isNull);
     expect(find.textContaining('selected'), findsNothing);
@@ -137,7 +163,7 @@ void main() {
     final before = await everyKept(tester);
     final inHand = c.read(workspaceProvider).design.id;
 
-    await pressNewDesign(tester);
+    await toTheChoice(tester, 'Basement Door');
     // Not a design: no drawing is open, and none of Adam's is in hand.
     expect(find.byType(WorkspaceScreen), findsNothing);
     expect(c.read(workspaceProvider).design.id, inHand);
@@ -152,7 +178,9 @@ void main() {
     expect(startDrawing(tester), isNotNull);
     expect(await everyKept(tester), before);
 
-    // Turning back leaves Adam exactly as he was.
+    // Turning back, through the name, leaves Adam exactly as he was.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.byType(CustomerScreen), findsOneWidget);
@@ -161,7 +189,7 @@ void main() {
   });
 
   testWidgets('finished, the setup makes one new design of Adam\'s — the '
-      'category chosen, no name made up, nothing copied — and comes back '
+      'name given and the category chosen, nothing copied — and comes back '
       'to his page', (tester) async {
     final kept = await customers.keepThreeCustomers();
     final c = await screen.openTheApp(tester, size: const Size(390, 844));
@@ -169,15 +197,15 @@ void main() {
     await page.openCustomer(tester, 'Adam');
     final before = await everyKept(tester);
 
-    await pressNewDesign(tester);
+    await toTheChoice(tester, 'Front Entrance Door');
     await chooseDesign(tester, 'DOOR');
     expect(find.byType(WorkspaceScreen), findsOneWidget);
     final made = c.read(workspaceProvider).design;
     expect(before.keys, isNot(contains(made.id)), reason: 'a new design');
     expect(made.customerId, kept['Adam']!.id);
     expect(made.kind, DesignKind.door);
-    expect(made.name, isEmpty);
-    expect(find.text('Untitled door'), findsOneWidget);
+    expect(made.name, 'Front Entrance Door');
+    expect(find.text('Front Entrance Door'), findsOneWidget);
     expect(made.sketch.strokes, isEmpty, reason: 'nothing copied into it');
     expect(made.frame, isNull);
 
@@ -204,24 +232,24 @@ void main() {
     final c = await screen.openTheApp(tester, size: const Size(390, 844));
     await customers.toCustomers(tester);
     await page.openCustomer(tester, 'Karwan');
-    await pressNewDesign(tester);
+    await toTheChoice(tester, 'Third Floor Sliding');
     expect(setupShown(tester).customerId, kept['Karwan']!.id);
     await chooseDesign(tester, 'SLIDING');
     final made = c.read(workspaceProvider).design;
     expect(made.customerId, kept['Karwan']!.id);
     expect(made.kind, DesignKind.sliding);
-    expect(made.name, isEmpty);
+    expect(made.name, 'Third Floor Sliding');
   });
 
-  testWidgets('the designs list\'s own New Design is unchanged: called by '
-      'the person typed', (tester) async {
+  testWidgets('the designs list\'s own New Design goes the same way: who it '
+      'is for, then its own name', (tester) async {
     final c = await screen.openTheApp(tester);
-    await toTheCategories(tester, customer: 'Dilan');
+    await toTheCategories(tester, customer: 'Dilan', design: 'Kitchen Window');
     expect(setupShown(tester).customerId, isNull);
     expect(setupShown(tester).kind, isNull);
     await chooseDesign(tester, 'WINDOW');
     final made = c.read(workspaceProvider).design;
-    expect(made.name, 'Dilan');
+    expect(made.name, 'Kitchen Window');
     expect(made.customer, 'Dilan');
     // Kept under the customer that name stands for.
     await tester.tap(find.byTooltip('Back'));
@@ -241,7 +269,11 @@ void main() {
       await customers.toCustomers(tester);
       await page.openCustomer(tester, 'Adam');
       await pressNewDesign(tester);
-      expect(page.overflowing(tester), isEmpty, reason: 'at $size');
+      expect(page.overflowing(tester), isEmpty, reason: 'name at $size');
+      await nameTheDesign(tester, 'Basement Door');
+      expect(page.overflowing(tester), isEmpty, reason: 'choice at $size');
+      await tester.pageBack();
+      await tester.pumpAndSettle();
       await tester.pageBack();
       await tester.pumpAndSettle();
       await tester.pageBack();

@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../domain/model/new_design_setup.dart';
 import '../theme/app_theme.dart';
-import 'start_screen.dart';
+import 'design_name_screen.dart';
 
 /// The one step before a new design: who it is for.
 ///
 /// That is all that is asked, because it is what finds the design again
 /// among every other one the workshop has drawn — the list of designs is
 /// searched by the person it was drawn for. So it is needed: **Continue**
-/// waits until there is a name, and then goes on to *Choose your design*
-/// with it. The design is known by that name everywhere after, from the
-/// list to the top of the drawing.
+/// waits until there is a name, and then goes on to the design's own name
+/// — *Basement Door*, never the person's — and then *Choose your design*.
 class NewDesignScreen extends StatefulWidget {
   const NewDesignScreen({super.key});
 
@@ -43,7 +42,8 @@ class _NewDesignScreenState extends State<NewDesignScreen> {
     if (_who.isEmpty) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => StartScreen(setup: NewDesignSetup.forPerson(_who)),
+        builder: (_) =>
+            DesignNameScreen(setup: NewDesignSetup.forPerson(_who)),
       ),
     );
   }
