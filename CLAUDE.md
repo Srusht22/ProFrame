@@ -1346,6 +1346,24 @@ Window chosen still asks the category afresh.
 designs — 15 doors, 12 windows, 6 sliding, 3 door & window — beside Sara's
 kitchen window, which his page never shows.
 
+**Deleting a design is one design, asked about by its name, and never
+the customer.** A design is deleted from the ⋮ on its card — on the
+customer's page (`CustomerDesignCard.moreKey`: Open, Edit information,
+Delete) and in the designs list — and both go through `deleteDesign` in
+`delete_design.dart`. It asks first, *Delete Basement Door?*, with the
+design's category, customer and number under it and a plain word that the
+customer, their phone, address and notes, and their other designs stay;
+nothing is removed until **Delete design** is pressed, and Cancel, a tap
+outside or back keeps it. `DesignStore.remove` then takes that design's
+record and its line of the index and nothing more — no customer record, no
+customer index, no other design — and **Undo** on the notice puts it back
+whole. Deleting every design a customer has leaves the customer, with *No
+designs yet*. There is no way here to delete a customer.
+`test/app/deleting_a_design_test.dart` holds it on Adam's four designs —
+Basement Door deleted, the device's storage compared key by key before
+and after, his three others and his record byte for byte, and so after a
+reload.
+
 **A customer's information is edited on their page, and only there.**
 **Edit**, beside *Customer information* (`CustomerScreen.editButton`), opens
 the form a customer is made with — `NewCustomerScreen(editing:)` — filled

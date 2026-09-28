@@ -8,6 +8,7 @@ import '../../infrastructure/design_store.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'customers_screen.dart';
+import 'delete_design.dart';
 import 'design_information_screen.dart';
 import 'design_name_screen.dart';
 import 'designs_screen.dart';
@@ -220,6 +221,38 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
     ref.read(designsRevisionProvider.notifier).changed();
   }
 
+  /// The **⋮** on a design's card: open it, edit its information, or
+  /// delete it. Deleting is that one design, asked about first by its name
+  /// — see `deleteDesign` — and never the customer, whose page this is and
+  /// who stays with their other designs.
+  Future<void> _moreFor(DesignSummary summary) async {
+    final chosen = await showModalBottomSheet<DesignAction>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: context.palette.surface,
+      builder: (context) => DesignActionsSheet(
+        summary: summary,
+        actions: const {
+          DesignAction.open,
+          DesignAction.information,
+          DesignAction.delete,
+        },
+      ),
+    );
+    if (chosen == null || !mounted) return;
+    switch (chosen) {
+      case DesignAction.open:
+        await _open(summary);
+      case DesignAction.information:
+        await _editInformation(summary);
+      case DesignAction.delete:
+        await deleteDesign(context, ref, summary);
+      case DesignAction.rename || DesignAction.duplicate:
+        break;
+    }
+  }
+
   /// Whether a design is being opened, so a second tap on a card while the
   /// first is still on its way does not open the design twice over.
   bool _opening = false;
@@ -359,6 +392,7 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
                           width: room.maxWidth - across * 2,
                           onOpen: _open,
                           onEdit: _editInformation,
+                          onMore: _moreFor,
                           onNearEnd: () => WidgetsBinding.instance
                               .addPostFrameCallback((_) => _more()),
                         ),
@@ -813,6 +847,7 @@ class _Cards extends StatelessWidget {
   final double width;
   final ValueChanged<DesignSummary> onOpen;
   final ValueChanged<DesignSummary> onEdit;
+  final ValueChanged<DesignSummary> onMore;
 
   /// Called as the last few cards read so far are built, so the next page
   /// is read before the list runs out.
@@ -823,6 +858,7 @@ class _Cards extends StatelessWidget {
     required this.width,
     required this.onOpen,
     required this.onEdit,
+    required this.onMore,
     required this.onNearEnd,
   });
 
@@ -838,6 +874,7 @@ class _Cards extends StatelessWidget {
         now: now,
         onOpen: () => onOpen(design),
         onEdit: () => onEdit(design),
+        onMore: () => onMore(design),
       );
     }
 
@@ -901,8 +938,11 @@ class CustomerDesignCard extends StatelessWidget {
   /// **Edit information** — the design's name — where it can be edited.
   final VoidCallback? onEdit;
 
+  /// The **⋮** beside the name: Open, Edit information and Delete.
+  final VoidCallback? onMore;
+
   /// How tall a card is, in the list and in the grid alike.
-  static const height = 318.0;
+  static const height = 328.0;
 
   /// How tall its picture is.
   static const pictureHeight = 156.0;
@@ -913,10 +953,14 @@ class CustomerDesignCard extends StatelessWidget {
     required this.now,
     required this.onOpen,
     this.onEdit,
+    this.onMore,
   });
 
   /// The **Open** on the card of the design [id].
   static ValueKey<String> openKey(String id) => ValueKey('open-design-$id');
+
+  /// The **⋮** on the card of the design [id].
+  static ValueKey<String> moreKey(String id) => ValueKey('card-more-$id');
 
   /// The **Edit information** on the card of the design [id].
   static ValueKey<String> editKey(String id) => ValueKey('edit-design-$id');
@@ -962,21 +1006,40 @@ class CustomerDesignCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  design.shownName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: p.ink,
-                  ),
+                padding: const EdgeInsetsDirectional.only(start: 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        design.shownName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: p.ink,
+                        ),
+                      ),
+                    ),
+                    if (onMore != null)
+                      IconButton(
+                        key: moreKey(design.id),
+                        tooltip: 'More options',
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 36,
+                          minHeight: 36,
+                        ),
+                        onPressed: onMore,
+                        icon: Icon(Icons.more_vert, size: 20, color: p.muted),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 2),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Row(

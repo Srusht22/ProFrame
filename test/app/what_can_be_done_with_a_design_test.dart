@@ -77,7 +77,7 @@ void main() {
       await screen.openTheApp(tester);
       await actionsFor(tester, designs.first);
       await choose(tester, DesignAction.delete);
-      expect(find.text('Delete Karwan?'), findsOneWidget);
+      expect(find.text('Delete ${designs.first.name}?'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       expect(await kept(tester), hasLength(3));
@@ -96,7 +96,7 @@ void main() {
       final left = await kept(tester);
       expect(left.map((d) => d.customer), unorderedEquals(['Ahmed', 'Sara']));
       expect(find.byType(DesignCard), findsNWidgets(2));
-      expect(find.text('Karwan deleted'), findsOneWidget);
+      expect(find.text('${designs.first.name} deleted'), findsOneWidget);
       // The other two are exactly as they were.
       for (final design in designs.skip(1)) {
         final now = left.firstWhere((d) => d.id == design.id);

@@ -9,6 +9,7 @@ import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'appearance_button.dart';
 import 'customers_screen.dart';
+import 'delete_design.dart';
 import 'design_information_screen.dart';
 import 'new_design_screen.dart';
 import 'workspace_screen.dart';
@@ -253,35 +254,11 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen> {
     );
   }
 
-  /// Deleting is asked about first, because it cannot be seen being done —
-  /// the card simply goes — and then it can still be undone for a moment:
-  /// the design is kept in hand until the notice has gone.
-  Future<void> _delete(DesignSummary summary) async {
-    final sure = await showDialog<bool>(
-      context: context,
-      builder: (context) => _DeleteDialog(title: summary.title),
-    );
-    if (sure != true || !mounted) return;
-    final design = await _store.load(summary.id);
-    await _store.remove(summary.id);
-    if (!mounted) return;
-    _changed();
-    final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text('${summary.title} deleted'),
-        action: design == null
-            ? null
-            : SnackBarAction(
-                label: 'Undo',
-                onPressed: () async {
-                  await _store.save(design);
-                  if (mounted) _changed();
-                },
-              ),
-      ),
-    );
-  }
+  /// Deleting is asked about first, by the design's name, because it
+  /// cannot be seen being done — the card simply goes — and then it can
+  /// still be undone for a moment. See `deleteDesign`.
+  Future<void> _delete(DesignSummary summary) =>
+      deleteDesign(context, ref, summary);
 
   @override
   Widget build(BuildContext context) {
@@ -1123,7 +1100,14 @@ enum DesignAction { open, information, rename, duplicate, delete }
 class DesignActionsSheet extends StatelessWidget {
   final DesignSummary summary;
 
-  const DesignActionsSheet({super.key, required this.summary});
+  /// Which of the things are offered — all of them unless said.
+  final Set<DesignAction> actions;
+
+  const DesignActionsSheet({
+    super.key,
+    required this.summary,
+    this.actions = const {...DesignAction.values},
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1135,16 +1119,24 @@ class DesignActionsSheet extends StatelessWidget {
       String label,
       String detail, {
       Color? colour,
-    }) => ListTile(
-      key: ValueKey('design-action-${action.name}'),
-      leading: Icon(icon, color: colour ?? p.primary),
-      title: Text(
-        label,
-        style: TextStyle(fontWeight: FontWeight.w600, color: colour ?? p.ink),
-      ),
-      subtitle: Text(detail, style: TextStyle(color: p.muted, fontSize: 12.5)),
-      onTap: () => Navigator.of(context).pop(action),
-    );
+    }) => !actions.contains(action)
+        ? const SizedBox.shrink()
+        : ListTile(
+            key: ValueKey('design-action-${action.name}'),
+            leading: Icon(icon, color: colour ?? p.primary),
+            title: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: colour ?? p.ink,
+              ),
+            ),
+            subtitle: Text(
+              detail,
+              style: TextStyle(color: p.muted, fontSize: 12.5),
+            ),
+            onTap: () => Navigator.of(context).pop(action),
+          );
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -1157,11 +1149,24 @@ class DesignActionsSheet extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      summary.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          summary.shownName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        if (summary.customer?.trim() case final who?
+                            when who.isNotEmpty)
+                          Text(
+                            who,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 13, color: p.muted),
+                          ),
+                      ],
                     ),
                   ),
                   Text(
@@ -1252,39 +1257,6 @@ class _RenameDialogState extends State<_RenameDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(onPressed: ok ? save : null, child: const Text('Save')),
-      ],
-    );
-  }
-}
-
-class _DeleteDialog extends StatelessWidget {
-  final String title;
-  const _DeleteDialog({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    final danger = Theme.of(context).colorScheme.error;
-    return AlertDialog(
-      icon: Icon(Icons.delete_outline, color: danger),
-      title: Text('Delete $title?'),
-      content: const Text(
-        'The design will be removed from this device. You can undo it '
-        'straight afterwards.',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          key: const ValueKey('confirm-delete'),
-          style: FilledButton.styleFrom(
-            backgroundColor: danger,
-            foregroundColor: Theme.of(context).colorScheme.onError,
-          ),
-          onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Delete'),
-        ),
       ],
     );
   }
