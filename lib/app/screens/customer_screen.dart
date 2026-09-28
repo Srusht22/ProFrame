@@ -37,6 +37,17 @@ class CustomerScreen extends ConsumerStatefulWidget {
   /// and notes, in a form of their own.
   static const editButton = ValueKey('customer-edit');
 
+  /// The search across the customer's designs, by what they are called.
+  static const searchField = ValueKey('customer-search');
+
+  /// The chip that shows only designs of [kind] — or, for null, all of
+  /// them.
+  static ValueKey<String> filterKey(DesignKind? kind) =>
+      ValueKey('customer-filter-${kind?.name ?? 'all'}');
+
+  /// **Show all designs**, where a search or a filter finds none.
+  static const clearButton = ValueKey('customer-design-clear');
+
   /// The row of the design [id] in the customer's designs.
   static ValueKey<String> designKey(String id) =>
       ValueKey('customer-design-$id');
@@ -59,8 +70,24 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
   static const pageSize = CustomerScreen.pageSize;
 
   Customer? _customer;
+
+  /// The designs the search and the filter find, read so far, and how many
+  /// they find in all.
   final _designs = <DesignSummary>[];
   int _total = 0;
+
+  /// How many of the customer's designs there are of each category — all
+  /// of them, whatever is being searched for.
+  Map<DesignKind, int> _kinds = const {};
+  int get _all => _kinds.values.fold(0, (sum, n) => sum + n);
+
+  /// What the designs are being searched for, and the category they are
+  /// filtered to — null for all. Both are only a way of looking: they
+  /// choose which designs are shown and change none of them.
+  final _search = TextEditingController();
+  String _query = '';
+  DesignKind? _kind;
+  bool get _narrowed => _query.trim().isNotEmpty || _kind != null;
   bool _loaded = false;
   bool _fetching = false;
   int _asked = 0;
@@ -73,21 +100,55 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _searchFor(String query) {
+    _query = query;
+    _load();
+  }
+
+  void _filterTo(DesignKind? kind) {
+    if (kind == _kind) return;
+    _kind = kind;
+    _load();
+  }
+
+  /// Back to every design: the search emptied and the filter on All.
+  void _showAll() {
+    _search.clear();
+    _query = '';
+    _kind = null;
+    _load();
+  }
+
   Future<void> _load() async {
     final ask = ++_asked;
     _fetching = false;
     Customer? customer;
     DesignPage page;
+    Map<DesignKind, int> kinds;
     try {
       customer = await ref.read(customerStoreProvider).load(widget.customerId);
-      page = await _store.page(customerId: widget.customerId, limit: pageSize);
+      kinds = await _store.kindsOf(widget.customerId);
+      page = await _store.page(
+        customerId: widget.customerId,
+        query: _query,
+        kind: _kind,
+        limit: pageSize,
+      );
     } on Object {
       customer = null;
+      kinds = const {};
       page = const DesignPage([], 0);
     }
     if (!mounted || ask != _asked) return;
     setState(() {
       _customer = customer;
+      _kinds = kinds;
       _designs
         ..clear()
         ..addAll(page.items);
@@ -104,6 +165,8 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
     try {
       page = await _store.page(
         customerId: widget.customerId,
+        query: _query,
+        kind: _kind,
         offset: _designs.length,
         limit: pageSize,
       );
@@ -207,7 +270,7 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
       // begin the forty-first without scrolling back to the top. Where they
       // have none, the empty state carries it instead, in the middle of the
       // page.
-      floatingActionButton: customer == null || _total == 0
+      floatingActionButton: customer == null || _all == 0
           ? null
           : FloatingActionButton.extended(
               key: CustomerScreen.newDesignButton,
@@ -239,7 +302,7 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
                       sliver: SliverToBoxAdapter(
                         child: _Person(
                           customer: customer,
-                          designs: _total,
+                          designs: _all,
                           onEdit: () => _edit(customer),
                         ),
                       ),
@@ -247,16 +310,44 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
                     SliverPadding(
                       padding: EdgeInsets.fromLTRB(across, 28, across, 12),
                       sliver: SliverToBoxAdapter(
-                        child: _DesignsHeading(count: _total),
+                        child: _DesignsHeading(
+                          count: _all,
+                          found: _narrowed ? _total : null,
+                        ),
                       ),
                     ),
-                    if (_total == 0)
+                    if (_all > 0)
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(across, 0, across, 16),
+                        sliver: SliverToBoxAdapter(
+                          child: _Finder(
+                            search: _search,
+                            onSearch: _searchFor,
+                            kinds: _kinds,
+                            all: _all,
+                            chosen: _kind,
+                            onFilter: _filterTo,
+                          ),
+                        ),
+                      ),
+                    if (_all == 0)
                       SliverPadding(
                         padding: EdgeInsets.symmetric(horizontal: across),
                         sliver: SliverToBoxAdapter(
                           child: _NoDesigns(
                             name: customer.name,
                             onNewDesign: () => _newDesign(customer),
+                          ),
+                        ),
+                      )
+                    else if (_total == 0)
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(horizontal: across),
+                        sliver: SliverToBoxAdapter(
+                          child: _NoMatch(
+                            query: _query.trim(),
+                            kind: _kind,
+                            onShowAll: _showAll,
                           ),
                         ),
                       )
@@ -439,11 +530,16 @@ class _Person extends StatelessWidget {
   }
 }
 
-/// **Designs**, and how many.
+/// **Designs**, and how many — and, while a search or a filter is
+/// narrowing them, how many of those are shown.
 class _DesignsHeading extends StatelessWidget {
   final int count;
 
-  const _DesignsHeading({required this.count});
+  /// How many the search and the filter find, or null when nothing is
+  /// narrowing the list.
+  final int? found;
+
+  const _DesignsHeading({required this.count, this.found});
 
   @override
   Widget build(BuildContext context) {
@@ -466,7 +562,7 @@ class _DesignsHeading extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
-            '$count',
+            found == null ? '$count' : '$found of $count',
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
@@ -475,6 +571,189 @@ class _DesignsHeading extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Finding one design among many: a search by what it is called, and a
+/// chip a category — **All**, then Door, Window, Sliding and Door & window
+/// in the order a design is begun as — each with how many there are. A
+/// category the customer has none of is left off, so the chips are only
+/// ever a way to somewhere; the one chosen stays whatever its count.
+///
+/// Both only choose what is shown. Nothing here begins a design, and
+/// nothing here changes one.
+class _Finder extends StatelessWidget {
+  final TextEditingController search;
+  final ValueChanged<String> onSearch;
+  final Map<DesignKind, int> kinds;
+  final int all;
+  final DesignKind? chosen;
+  final ValueChanged<DesignKind?> onFilter;
+
+  const _Finder({
+    required this.search,
+    required this.onSearch,
+    required this.kinds,
+    required this.all,
+    required this.chosen,
+    required this.onFilter,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    Widget chip(DesignKind? kind, String label, int count) {
+      final on = kind == chosen;
+      return Padding(
+        padding: const EdgeInsetsDirectional.only(end: 8),
+        child: ChoiceChip(
+          key: CustomerScreen.filterKey(kind),
+          selected: on,
+          showCheckmark: false,
+          avatar: kind == null
+              ? null
+              : Icon(
+                  CustomerDesignCard.iconOf(kind),
+                  size: 16,
+                  color: on ? AppTheme.accent : p.primary,
+                ),
+          label: Text('$label  $count'),
+          labelStyle: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: on ? AppTheme.accent : p.ink,
+          ),
+          selectedColor: p.band,
+          backgroundColor: p.surface,
+          side: BorderSide(color: on ? p.band : p.hairline),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(999),
+          ),
+          onSelected: (_) => onFilter(kind),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          key: CustomerScreen.searchField,
+          controller: search,
+          onChanged: onSearch,
+          textInputAction: TextInputAction.search,
+          style: TextStyle(fontSize: 15, color: p.ink),
+          decoration: InputDecoration(
+            hintText: 'Search designs by name...',
+            hintStyle: TextStyle(color: p.muted),
+            filled: true,
+            fillColor: p.surface,
+            prefixIcon: Icon(Icons.search, color: p.muted),
+            suffixIcon: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: search,
+              builder: (context, value, _) => value.text.isEmpty
+                  ? const SizedBox.shrink()
+                  : IconButton(
+                      tooltip: 'Clear search',
+                      icon: Icon(Icons.close, color: p.muted),
+                      onPressed: () {
+                        search.clear();
+                        onSearch('');
+                      },
+                    ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: p.hairline),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: p.primary, width: 1.6),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              chip(null, 'All', all),
+              for (final kind in _order)
+                if ((kinds[kind] ?? 0) > 0 || kind == chosen)
+                  chip(kind, kind.label, kinds[kind] ?? 0),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// The categories in the order a design is begun as.
+  static const _order = [
+    DesignKind.door,
+    DesignKind.window,
+    DesignKind.sliding,
+    DesignKind.both,
+  ];
+}
+
+/// A search or a filter that finds none of the customer's designs: say
+/// what was looked for, and offer the way back to all of them — not a new
+/// design, which is a different thing altogether.
+class _NoMatch extends StatelessWidget {
+  final String query;
+  final DesignKind? kind;
+  final VoidCallback onShowAll;
+
+  const _NoMatch({
+    required this.query,
+    required this.kind,
+    required this.onShowAll,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final what = [
+      if (query.isNotEmpty) '“$query”',
+      if (kind != null) 'in ${kind!.label}',
+    ].join(' ');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: p.hairline),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.search_off, size: 36, color: p.muted),
+          const SizedBox(height: 10),
+          Text(
+            'No designs match $what',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: p.ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Search by the design\'s name, or choose another category.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13.5, color: p.muted),
+          ),
+          const SizedBox(height: 14),
+          OutlinedButton(
+            key: CustomerScreen.clearButton,
+            onPressed: onShowAll,
+            child: const Text('Show all designs'),
+          ),
+        ],
+      ),
     );
   }
 }

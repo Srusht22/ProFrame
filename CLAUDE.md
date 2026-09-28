@@ -1327,6 +1327,25 @@ too, because keeping a design can bring a customer with it.
 `test/app/customers_screen_test.dart` holds all of it on the real app,
 from a phone to a laptop.
 
+**A customer with many designs finds one by name or by category.** Above
+the cards on the customer's page stand a search (`CustomerScreen.searchField`)
+and a chip a category (`CustomerScreen.filterKey`): **All**, then Door,
+Window, Sliding and Door & window in the order a design is begun as, each
+with how many there are — `DesignStore.kindsOf`, one pass over the index — and
+a category the customer has none of left off. The search is by what a design
+is called — *Basement*, *Kitchen*, *Third Floor*, whatever the case — and,
+within one customer, never by the customer's own name, which is in every one
+of their designs and would tell none apart; `DesignSummary.matches(byCustomer:)`
+says so and `DesignStore.page(customerId:, kind:, query:)` does both, a page at
+a time. The heading says *12 of 36* while either is narrowing the list, the
+customer's own count stays the whole, and finding nothing says what was
+looked for and offers **Show all designs** — never New Design. Both are only
+a way of looking: nothing kept changes, nothing is begun, and New Design with
+Window chosen still asks the category afresh.
+`test/app/finding_a_customer_s_designs_test.dart` holds it on Adam's 36
+designs — 15 doors, 12 windows, 6 sliding, 3 door & window — beside Sara's
+kitchen window, which his page never shows.
+
 **A customer's information is edited on their page, and only there.**
 **Edit**, beside *Customer information* (`CustomerScreen.editButton`), opens
 the form a customer is made with — `NewCustomerScreen(editing:)` — filled

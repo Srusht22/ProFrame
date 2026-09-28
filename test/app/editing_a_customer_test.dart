@@ -270,7 +270,11 @@ void main() {
 
     // Opened from his page, Basement Door is exactly the design it was.
     final open = find.byKey(CustomerDesignCard.openKey('adam-0')).hitTestable();
-    await tester.scrollUntilVisible(open, 100);
+    await tester.scrollUntilVisible(
+      open,
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(open);
     await tester.pumpAndSettle();
     expect(find.byType(WorkspaceScreen), findsOneWidget);

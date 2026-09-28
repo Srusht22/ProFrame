@@ -135,7 +135,11 @@ Future<void> onlyTheNameChanged(
 
 Future<void> editOnAdamsPage(WidgetTester tester, String id) async {
   final edit = find.byKey(CustomerDesignCard.editKey(id));
-  await tester.scrollUntilVisible(edit.hitTestable(), 100);
+  await tester.scrollUntilVisible(
+    edit.hitTestable(),
+    100,
+    scrollable: find.byType(Scrollable).first,
+  );
   await tester.pumpAndSettle();
   await tester.tap(edit.hitTestable());
   await tester.pumpAndSettle();
@@ -224,7 +228,11 @@ void main() {
     final open = find
         .byKey(CustomerDesignCard.openKey('basement-door'))
         .hitTestable();
-    await tester.scrollUntilVisible(open, 100);
+    await tester.scrollUntilVisible(
+      open,
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(open);
     await tester.pumpAndSettle();
     expect(find.byType(WorkspaceScreen), findsOneWidget);
@@ -323,7 +331,11 @@ void main() {
     final open = find
         .byKey(CustomerDesignCard.openKey('basement-door'))
         .hitTestable();
-    await tester.scrollUntilVisible(open, 100);
+    await tester.scrollUntilVisible(
+      open,
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(open);
     await tester.pumpAndSettle();
     // Sizes are all given, so nothing stands over the drawing.

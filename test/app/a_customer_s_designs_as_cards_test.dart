@@ -105,6 +105,7 @@ void main() {
       await tester.scrollUntilVisible(
         find.byKey(CustomerScreen.designKey(id)),
         100,
+        scrollable: find.byType(Scrollable).first,
       );
       expect(inCard(id, find.text(name)), findsOneWidget);
       expect(inCard(id, find.text(category)), findsOneWidget);
@@ -140,6 +141,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.byKey(CustomerScreen.designKey(drawn!.id)),
       100,
+      scrollable: find.byType(Scrollable).first,
     );
 
     // The drawn design's card draws that design, as it was kept.
@@ -160,6 +162,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.byKey(CustomerScreen.designKey('adam-0')),
       100,
+      scrollable: find.byType(Scrollable).first,
     );
     expect(inCard('adam-0', find.text('Nothing drawn yet')), findsOneWidget);
     expect(
@@ -232,6 +235,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.byKey(CustomerDesignCard.openKey('adam-2')),
       100,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.tap(find.byKey(CustomerDesignCard.openKey('adam-2')));
     await tester.pumpAndSettle();
@@ -253,6 +257,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.byKey(CustomerScreen.designKey('adam-0')),
       200,
+      scrollable: find.byType(Scrollable).first,
     );
     expect(
       find.byKey(CustomerScreen.newDesignButton).hitTestable(),

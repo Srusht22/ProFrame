@@ -159,7 +159,11 @@ Future<void> toAdam(
 /// and presses it.
 Future<void> pressOpen(WidgetTester tester, String id) async {
   final open = find.byKey(CustomerDesignCard.openKey(id)).hitTestable();
-  await tester.scrollUntilVisible(open, 100);
+  await tester.scrollUntilVisible(
+    open,
+    100,
+    scrollable: find.byType(Scrollable).first,
+  );
   await tester.tap(open);
 }
 
@@ -250,7 +254,11 @@ void main() {
       tester.element(find.byType(CustomerScreen)),
     );
     final name = find.text('Kitchen Window').hitTestable();
-    await tester.scrollUntilVisible(name, 100);
+    await tester.scrollUntilVisible(
+      name,
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(name);
     await tester.pumpAndSettle();
     expect(find.byType(WorkspaceScreen), findsOneWidget);

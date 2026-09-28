@@ -216,6 +216,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.byKey(CustomerScreen.designKey(made.id)),
       100,
+      scrollable: find.byType(Scrollable).first,
     );
     expect(
       find.descendant(

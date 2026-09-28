@@ -162,7 +162,11 @@ void main() {
     await page.openCustomer(tester, 'Adam');
     // adam-3 is Adam's Third Floor Sliding.
     final open = find.byKey(CustomerDesignCard.openKey('adam-3')).hitTestable();
-    await tester.scrollUntilVisible(open, 100);
+    await tester.scrollUntilVisible(
+      open,
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(open);
     await tester.pumpAndSettle();
     expect(find.byType(WorkspaceScreen), findsOneWidget);

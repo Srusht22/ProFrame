@@ -92,7 +92,11 @@ void main() {
       'Kitchen Window',
       'Third Floor Sliding',
     ]) {
-      await tester.scrollUntilVisible(find.text(name), 100);
+      await tester.scrollUntilVisible(
+        find.text(name),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text(name), findsOneWidget);
       seen.addAll(rows(tester));
     }

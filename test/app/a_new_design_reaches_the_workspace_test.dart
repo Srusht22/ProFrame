@@ -145,7 +145,11 @@ void main() {
     final open = find
         .byKey(CustomerDesignCard.openKey(identity.id))
         .hitTestable();
-    await tester.scrollUntilVisible(open, 100);
+    await tester.scrollUntilVisible(
+      open,
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(open);
     await tester.pumpAndSettle();
     expect(c.read(workspaceProvider).design.identity, identity);

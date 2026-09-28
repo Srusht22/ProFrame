@@ -114,11 +114,15 @@ class DesignSummary {
 
   /// Whether a search for [query] finds it: its customer, its name, its id
   /// or its number holding what was typed, whatever the case.
-  bool matches(String query) {
+  ///
+  /// Without [byCustomer] the customer's name is not searched — among one
+  /// customer's own designs it is in every one of them, so it would find
+  /// them all and tell none apart.
+  bool matches(String query, {bool byCustomer = true}) {
     final wanted = query.trim().toLowerCase();
     if (wanted.isEmpty) return true;
     return [
-      customer ?? '',
+      if (byCustomer) customer ?? '',
       name,
       id,
       number,
@@ -374,10 +378,13 @@ class DesignStore {
 
   /// The designs a search for [query] finds, most recently edited first:
   /// [limit] of them from [offset], and how many it found in all. With
-  /// [customerId], only that customer's designs.
+  /// [customerId], only that customer's designs, searched by what they are
+  /// called rather than by whose they are; with [kind], only those of that
+  /// category. Reading a page changes nothing that is kept.
   Future<DesignPage> page({
     String query = '',
     String? customerId,
+    DesignKind? kind,
     int offset = 0,
     int limit = 40,
   }) async {
@@ -390,12 +397,13 @@ class DesignStore {
     final index = [
       for (final s in await _read(prefs)) s.under(names[s.customerId]),
     ];
-    final found = query.trim().isEmpty && customerId == null
+    final found = query.trim().isEmpty && customerId == null && kind == null
         ? index
         : [
             for (final s in index)
               if ((customerId == null || s.customerId == customerId) &&
-                  s.matches(query))
+                  (kind == null || s.kind == kind) &&
+                  s.matches(query, byCustomer: customerId == null))
                 s,
           ];
     final start = offset.clamp(0, found.length);
@@ -412,6 +420,19 @@ class DesignStore {
     for (final s in await _read(prefs)) {
       final owner = s.customerId;
       if (owner != null) counts[owner] = (counts[owner] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  /// How many of customer [customerId]'s designs there are of each
+  /// category, read from the index in one pass. A category they have none
+  /// of is not in it.
+  Future<Map<DesignKind, int>> kindsOf(String customerId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final counts = <DesignKind, int>{};
+    for (final s in await _read(prefs)) {
+      if (s.customerId != customerId) continue;
+      counts[s.kind] = (counts[s.kind] ?? 0) + 1;
     }
     return counts;
   }
