@@ -1107,11 +1107,26 @@ Designs  →  New Design  →  who it is for  →  Design name
   grid and handles left off — and a design not read yet as its own strokes.
   Nothing on the screen is a picture of doors in general
   (`no_stock_content_test.dart` still holds), and a design with nothing
-  drawn says *Nothing drawn yet*. Each card carries who it is for, its
-  kind, its size where it has a frame, when it was last edited and its
-  number (`shortIdOf`: the moment it was made, to the millisecond, in eight
-  letters and figures — the web's clock stops at the millisecond, so the
-  last six digits of an id are always `000` there).
+  drawn says *Nothing drawn yet*. Each card carries its size where it has
+  a frame and its number (`shortIdOf`: the moment it was made, to the
+  millisecond, in eight letters and figures — the web's clock stops at the
+  millisecond, so the last six digits of an id are always `000` there).
+- **Recent Designs are designs, not customers.** The list is the designs
+  kept, the most recently edited first, and every card says the four
+  things that tell one from another: **who it is for** (the customer's
+  name as it is now), **what it is called** (the design's own name, the
+  headline), **its category** and **when it was last edited** — so Adam's
+  Basement Door and Adam's Kitchen Window are two cards that say so. A tap
+  on a card, or its **Open** (`DesignCard.openKey`), opens that design as
+  kept: no New Design, no name, no category asked. A second tap while it
+  opens does nothing, and a design removed since the list was read says it
+  could not be opened and begins nothing. With nothing kept the screen says
+  *No recent designs yet* and offers New Design — no design is made up to
+  fill it. `test/app/recent_designs_test.dart` holds it on real kept
+  designs: the empty state, the four facts on each card at a phone and a
+  laptop, the order, the edited time as kept, opening exactly the design
+  kept, an edited design returning to the top, a removed one, and long
+  names fitting.
 - **Who a design is for is `Design.customer`; what it is called is
   `Design.name`, and the two are never the same field.** Who it is for is
   metadata, nothing to do with the geometry, written to the file only when

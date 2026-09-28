@@ -24,7 +24,7 @@ final start = DateTime(2026, 1, 1);
 /// one, a few hundred samples.
 Design numbered(int i) => Design(
   id: 'design-${1767225600000 + i}-$i',
-  name: 'Customer $i',
+  name: 'Design $i',
   customer: 'Customer $i',
   kind: i.isEven ? DesignKind.door : DesignKind.window,
   createdAt: start.add(Duration(minutes: i)),

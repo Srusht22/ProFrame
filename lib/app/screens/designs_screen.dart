@@ -157,13 +157,35 @@ class _DesignsScreenState extends ConsumerState<DesignsScreen> {
 
   /// Opens the design exactly as it was saved — its sketch, its geometry,
   /// its openings, its materials — to carry on where it was left.
+  ///
+  /// Nothing is asked on the way — no category, no name, no New Design —
+  /// because all of that was said when the design was begun and is kept in
+  /// it. A second tap while it is opening does nothing, and a design
+  /// removed since the list was read says so rather than beginning one.
   Future<void> _open(DesignSummary summary) async {
-    final design = await _store.load(summary.id);
-    if (design == null || !mounted) return;
-    ref.read(workspaceProvider.notifier).openDesign(design);
-    await Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: (_) => const WorkspaceScreen()));
+    if (_opening) return;
+    _opening = true;
+    try {
+      final design = await _store.load(summary.id);
+      if (!mounted) return;
+      if (design == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${summary.shownName} could not be opened.')),
+        );
+        await _reload();
+        return;
+      }
+      ref.read(workspaceProvider.notifier).openDesign(design);
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const WorkspaceScreen()));
+    } finally {
+      _opening = false;
+    }
   }
+
+  /// Whether a design is being opened.
+  bool _opening = false;
 
   /// Everything else that can be done with a design, from its card: open,
   /// rename, duplicate, delete. A sheet from the foot of the screen, one
@@ -656,8 +678,14 @@ class _Designs extends StatelessWidget {
   }
 }
 
-/// One design: a picture of it, who it is for, its number, how big it is,
-/// what kind, when it was last edited, and the way into it.
+/// One recent design: a picture of it, then the four things that tell it
+/// from every other — **who it is for**, **what it is called**, **its
+/// category** and **when it was last edited** — its number and size, and
+/// the way into it.
+///
+/// Who it is for is the customer's name as it is kept now; what it is
+/// called is the design's own name, so Adam's Basement Door and Adam's
+/// Kitchen Window are two cards that say so.
 ///
 /// [wide] lays it out as a row — the picture beside the words — for a
 /// phone, where a column of tall cards would be a long way to scroll.
@@ -677,7 +705,7 @@ class DesignCard extends StatefulWidget {
   /// How tall a card in the grid is: the picture, and room under it for the
   /// words to run to two lines of tags and still leave the way in — and for
   /// the ⋮ beside the name, which is a thumb's target tall.
-  static const gridHeight = previewHeight + 184;
+  static const gridHeight = previewHeight + 216;
 
   const DesignCard({
     super.key,
@@ -690,6 +718,9 @@ class DesignCard extends StatefulWidget {
 
   /// The key of the **⋮** on the card of the design [id].
   static ValueKey<String> moreKey(String id) => ValueKey('design-more-$id');
+
+  /// The key of **Open** on the card of the design [id].
+  static ValueKey<String> openKey(String id) => ValueKey('design-open-$id');
 
   @override
   State<DesignCard> createState() => _DesignCardState();
@@ -719,21 +750,28 @@ class _DesignCardState extends State<DesignCard> {
       ),
     );
 
+    final who = design.customer?.trim() ?? '';
+    final muted = context.palette.muted;
     final words = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Who it is for, its number, and what else can be done with it.
         Row(
           children: [
+            if (who.isNotEmpty) ...[
+              Icon(Icons.person_outline, size: 15, color: muted),
+              const SizedBox(width: 4),
+            ],
             Expanded(
               child: Text(
-                design.title,
+                who,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: context.palette.ink,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: muted,
                 ),
               ),
             ),
@@ -744,7 +782,7 @@ class _DesignCardState extends State<DesignCard> {
               style: TextStyle(
                 fontSize: 11.5,
                 letterSpacing: 0.4,
-                color: context.palette.muted,
+                color: muted,
               ),
             ),
             if (widget.onMore != null)
@@ -755,13 +793,21 @@ class _DesignCardState extends State<DesignCard> {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                 onPressed: widget.onMore,
-                icon: Icon(
-                  Icons.more_vert,
-                  size: 20,
-                  color: context.palette.muted,
-                ),
+                icon: Icon(Icons.more_vert, size: 20, color: muted),
               ),
           ],
+        ),
+        // What it is called.
+        Text(
+          design.shownName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 16.5,
+            fontWeight: FontWeight.w700,
+            height: 1.25,
+            color: context.palette.ink,
+          ),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -787,15 +833,18 @@ class _DesignCardState extends State<DesignCard> {
 
     final foot = Row(
       children: [
+        Icon(Icons.schedule, size: 14, color: muted),
+        const SizedBox(width: 4),
         Expanded(
           child: Text(
             editedAgo(design.updatedAt, widget.now),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, color: context.palette.muted),
+            style: TextStyle(fontSize: 12, color: muted),
           ),
         ),
         TextButton(
+          key: DesignCard.openKey(design.id),
           onPressed: widget.onOpen,
           style: TextButton.styleFrom(
             foregroundColor: context.palette.primary,

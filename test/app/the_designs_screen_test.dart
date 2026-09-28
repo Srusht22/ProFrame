@@ -40,8 +40,9 @@ Design drawn({
 }) {
   final c = ProviderContainer();
   addTearDown(c.dispose);
-  final controller = c.read(workspaceProvider.notifier)
-    ..startDesign(kind, name: customer, customer: customer);
+  final controller = c.read(
+    workspaceProvider.notifier,
+  )..startDesign(kind, name: '${kind.label} for $customer', customer: customer);
   controller.state = controller.state.copyWith(
     design: controller.state.design.copyWith(
       sketch: Sketch(
