@@ -920,14 +920,17 @@ class _DesignCardState extends State<DesignCard> {
   }
 }
 
-/// The picture on a card: the design itself, read from the store when the
-/// card is built — so only the designs on the screen are ever read — and
-/// read again only when it has been edited since.
 /// The picture of a kept design: the design itself, read from the store
-/// when the picture is built and drawn by `DesignPreview` from its own
-/// geometry — or, while it is being read or where there is nothing kept, the
-/// empty sheet, never anything standing in for it. The designs list and a
+/// by its id when the picture is built — so only the designs on the screen
+/// are ever read — and drawn by `DesignPreview` from its own saved geometry,
+/// read again only when it has been edited since. The designs list and a
 /// customer's page both show a design by this.
+///
+/// While it is being read the card shows the empty sheet; a design with
+/// nothing drawn says *Nothing drawn yet*; one that cannot be read says
+/// *Preview unavailable* rather than looking empty. None of them is ever
+/// anything standing in for the design. The picture is only a picture:
+/// opening the card reads the design afresh from the store.
 class DesignPicture extends ConsumerStatefulWidget {
   final DesignSummary summary;
 
@@ -960,11 +963,13 @@ class _DesignPictureState extends ConsumerState<DesignPicture> {
   @override
   Widget build(BuildContext context) => FutureBuilder<Design?>(
     future: _design,
-    builder: (context, read) => switch (read.data) {
-      final design? => DesignPreview(design: design),
-      // Still being read, or not there: the sheet, and nothing on it
-      // pretending to be the design.
-      null => ColoredBox(color: context.palette.canvas),
+    builder: (context, read) => switch ((read.connectionState, read.data)) {
+      (_, final design?) => DesignPreview(design: design),
+      // Read, and nothing there to draw from.
+      (ConnectionState.done, null) => const PreviewPlaceholder.unavailable(),
+      // Still being read: the sheet, and nothing on it pretending to be
+      // the design.
+      _ => ColoredBox(color: context.palette.cad.sheet),
     },
   );
 }

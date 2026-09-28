@@ -18,33 +18,104 @@ import 'view_transform.dart';
 /// figures, the grid and the handles left off, because at this size they
 /// are noise. A design not read yet is its own sketch, the user's strokes
 /// as they drew them. Nothing here is ever a picture of a door or a window
-/// in general: a design with nothing drawn in it says so.
+/// in general: a design with nothing drawn in it says so, with
+/// [PreviewPlaceholder], and no geometry is made up to fill the space.
 class DesignPreview extends StatelessWidget {
   final Design design;
 
   const DesignPreview({super.key, required this.design});
 
-  /// True when the design has anything to draw.
+  /// True when the design has anything to draw: a frame read from its
+  /// sheet, or at least one stroke that goes somewhere. A tap that left a
+  /// dot, or a stroke with no length, draws nothing, so it does not count.
   static bool shows(Design design) =>
       design.frame != null ||
-      design.sketch.strokes.any((stroke) => !stroke.isEmpty);
+      design.sketch.strokes.any(
+        (stroke) => !stroke.isEmpty && stroke.pathLength > 0,
+      );
 
   @override
   Widget build(BuildContext context) {
     if (!shows(design)) {
-      return ColoredBox(
-        color: context.palette.cad.sheet,
-        child: Center(
-          child: Text(
-            'Nothing drawn yet',
-            style: TextStyle(fontSize: 12, color: context.palette.muted),
-          ),
-        ),
-      );
+      return const PreviewPlaceholder.nothingDrawn();
     }
-    return CustomPaint(
-      painter: DesignPreviewPainter(design, palette: context.palette),
-      child: const SizedBox.expand(),
+    return Semantics(
+      image: true,
+      label: 'Drawing of ${design.shownName}',
+      child: CustomPaint(
+        painter: DesignPreviewPainter(design, palette: context.palette),
+        child: const SizedBox.expand(),
+      ),
+    );
+  }
+}
+
+/// Where there is no drawing of a design to show: the empty sheet, a mark
+/// that says why, and the reason in words — never a picture standing in
+/// for the design, and never any geometry of its own.
+///
+/// [nothingDrawn] is a design kept with nothing drawn in it yet;
+/// [unavailable] is one that could not be read, which must not look like
+/// an empty design.
+class PreviewPlaceholder extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const PreviewPlaceholder.nothingDrawn({super.key})
+    : icon = Icons.edit_outlined,
+      label = nothingDrawnLabel;
+
+  const PreviewPlaceholder.unavailable({super.key})
+    : icon = Icons.visibility_off_outlined,
+      label = unavailableLabel;
+
+  static const nothingDrawnLabel = 'Nothing drawn yet';
+  static const unavailableLabel = 'Preview unavailable';
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return ColoredBox(
+      color: p.cad.sheet,
+      child: LayoutBuilder(
+        builder: (context, room) {
+          // The mark only where there is room for it beside the words.
+          final withMark = room.maxHeight >= 88 && room.maxWidth >= 80;
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (withMark) ...[
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: p.primary.withValues(alpha: 0.07),
+                      ),
+                      child: Icon(icon, size: 18, color: p.muted),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: p.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -88,7 +159,7 @@ class DesignPreviewPainter extends CustomPainter {
   void _sketch(Canvas canvas, Size size) {
     final strokes = [
       for (final stroke in design.sketch.strokes)
-        if (!stroke.isEmpty) stroke,
+        if (!stroke.isEmpty && stroke.pathLength > 0) stroke,
     ];
     if (strokes.isEmpty) return;
     var left = double.infinity;

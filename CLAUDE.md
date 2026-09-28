@@ -1107,7 +1107,17 @@ Designs  →  New Design  →  who it is for  →  Design name
   grid and handles left off — and a design not read yet as its own strokes.
   Nothing on the screen is a picture of doors in general
   (`no_stock_content_test.dart` still holds), and a design with nothing
-  drawn says *Nothing drawn yet*. Each card carries its size where it has
+  drawn — nothing read and no stroke that goes anywhere, so a dot does not
+  count — says *Nothing drawn yet* (`PreviewPlaceholder`); one whose
+  record cannot be read says *Preview unavailable*, so a spoiled design
+  never passes for an empty one, and while a design is being read the card
+  shows the bare sheet. No geometry is made up for any of them. The
+  picture is only a picture: `DesignPicture` reads the design by its id,
+  redraws it when it is edited, and opening the card reads the design
+  afresh. `test/app/real_design_previews_test.dart` holds it on the
+  pixels — the Basement Door card is exactly the preview painter drawing
+  the saved Basement Door, on the designs list and on the customer's page —
+  and on every fallback. Each card carries its size where it has
   a frame and its number (`shortIdOf`: the moment it was made, to the
   millisecond, in eight letters and figures — the web's clock stops at the
   millisecond, so the last six digits of an id are always `000` there).
