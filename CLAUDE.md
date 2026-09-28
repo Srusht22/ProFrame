@@ -1364,6 +1364,25 @@ Basement Door deleted, the device's storage compared key by key before
 and after, his three others and his record byte for byte, and so after a
 reload.
 
+**A customer cannot be deleted, and that is deliberate.** The user's
+rule is to offer deleting a customer only where the application already
+has administrative deletion — somebody entitled to remove a person and
+everything drawn for them — and to protect it heavily when it is offered.
+This application has no administrator, no roles and no permissions, so it
+is not offered: `CustomerStore` has no way to remove a customer, no screen
+says *delete* about one, and pressing and holding a customer only opens
+them. Whatever else changes, three operations stay apart: deleting a design
+never deletes its customer (deleting all of them leaves the customer with
+*No designs yet*), editing a customer never deletes a design, and nothing
+deletes a customer silently.
+`test/app/customers_are_never_deleted_test.dart` keeps it so: it reads
+every line under `lib/` that takes something off the device and allows only
+a design's record and the list of designs kept before customers existed,
+and holds each separation on the stores and the screens. When customer
+deletion comes, it comes with an administrator, and with the customer's
+name, how many designs are theirs and what goes with them, confirmed on
+purpose — and that test changes with it, not before.
+
 **A customer's information is edited on their page, and only there.**
 **Edit**, beside *Customer information* (`CustomerScreen.editButton`), opens
 the form a customer is made with — `NewCustomerScreen(editing:)` — filled
