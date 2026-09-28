@@ -1451,6 +1451,23 @@ facet for facet, every other design byte for byte, the name through a
 reload and the design opening as itself, an empty name refused, and the
 form fitting a phone, a tablet and a laptop.
 
+**The whole workflow is held end to end.**
+`test/app/the_whole_customer_workflow_test.dart` does everything above the
+way the user does it, through the screens and nothing put into storage by
+hand: Adam made with his phone, address and notes; Basement Door and
+Front Entrance Door (Door), Kitchen Window (Window) and Third Floor Sliding
+(Sliding) each named, begun, drawn and saved; the app closed and opened
+again; and then the eight checks in order on that one set of data — Adam's
+page with his information, all four cards and New Design; Basement Door
+and Kitchen Window each opening directly with no category asked; Garage
+Door made as a fifth design of Adam's replacing none; Sara made and seeing
+none of his; Adam's phone edited with every design byte for byte; Basement
+Door renamed with its geometry unchanged; Kitchen Window deleted with every
+other design and Adam kept — and all of it again after another reload, at a
+phone's width and a laptop's. A design whose sizes are not yet given has
+them asked for over the drawing whenever it is opened; that is a question
+about the design, not a new one, and the test puts it away as a user would.
+
 **Nothing kept is lost to something else being kept at the same
 moment.** Each store keeps a record a key and an index beside them, so
 keeping is a read of the index and a write of it back — and a read, then
