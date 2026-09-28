@@ -200,16 +200,32 @@ class DesignStore {
 
   static String _designKey(String id) => '$designKeyPrefix$id';
 
+  /// The index, with anything kept by an older version brought over first.
   Future<List<DesignSummary>> _read(SharedPreferences prefs) async {
     await _moveLegacy(prefs);
+    return _withCustomers(prefs, _indexNow(prefs));
+  }
+
+  /// The index as the device holds it at this moment, read without
+  /// waiting for anything.
+  ///
+  /// **Changing the index is a read and a write with nothing waited on in
+  /// between**, and that is what keeps two changes made at once from losing
+  /// one another. Storage takes a value the moment it is set, so an index
+  /// read here and written back before anything is awaited cannot have been
+  /// changed in between — by this store or any other instance of it, which
+  /// all keep designs in the same place. Reading, then waiting, then
+  /// writing is how four designs saved at once came back as one in the
+  /// list, the other three kept on the device with nothing pointing at
+  /// them.
+  List<DesignSummary> _indexNow(SharedPreferences prefs) {
     final text = prefs.getString(indexKey);
     if (text == null) {
+      _indexText = null;
       _byId = const {};
       return _index = const [];
     }
-    if (identical(text, _indexText) || text == _indexText) {
-      return _withCustomers(prefs, _index);
-    }
+    if (identical(text, _indexText) || text == _indexText) return _index;
     final list = <DesignSummary>[];
     try {
       for (final entry in jsonDecode(text) as List<Object?>) {
@@ -226,8 +242,7 @@ class DesignStore {
     list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     _indexText = text;
     _byId = {for (final s in list) s.id: s};
-    _index = list;
-    return _withCustomers(prefs, list);
+    return _index = list;
   }
 
   /// [index], with every design in it that has no customer yet given one.
@@ -290,19 +305,22 @@ class DesignStore {
       _recent.remove(s.id);
       adopted.add(DesignSummary.of(owned));
     }
-    await _write(prefs, adopted);
-    return adopted;
+    // Into the index as it is now, not as it was read before the waiting
+    // above: anything kept meanwhile stays.
+    final given = {for (final s in adopted) s.id: s};
+    final merged = [for (final s in _indexNow(prefs)) given[s.id] ?? s];
+    await _write(prefs, merged);
+    return merged;
   }
 
-  Future<void> _write(
-    SharedPreferences prefs,
-    List<DesignSummary> index,
-  ) async {
+  /// Sets the index to [index] now, and answers when the device has it.
+  Future<bool> _write(SharedPreferences prefs, List<DesignSummary> index) {
     final text = jsonEncode([for (final s in index) s.toJson()]);
-    await prefs.setString(indexKey, text);
+    final done = prefs.setString(indexKey, text);
     _indexText = text;
     _index = index;
     _byId = {for (final s in index) s.id: s};
+    return done;
   }
 
   /// Designs kept by an earlier version of the app, in one list, moved to
@@ -317,19 +335,24 @@ class DesignStore {
           DesignSummary.fromJson(entry! as Map<String, Object?>),
     ];
     final known = {for (final s in index) s.id};
+    // Nothing is waited on until all of it is written, so a second read
+    // arriving meanwhile finds the move done rather than doing it again.
+    final writes = <Future<bool>>[];
     for (final entry in legacy) {
       try {
         final design = Design.fromJson(jsonDecode(entry));
         if (known.contains(design.id)) continue;
-        await prefs.setString(_designKey(design.id), entry);
+        writes.add(prefs.setString(_designKey(design.id), entry));
         index.add(DesignSummary.of(design));
       } on Object {
         continue;
       }
     }
     index.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    await _write(prefs, index);
-    await prefs.remove(legacyKey);
+    writes
+      ..add(_write(prefs, index))
+      ..add(prefs.remove(legacyKey));
+    await Future.wait(writes);
   }
 
   /// The designs a search for [query] finds, most recently edited first:
@@ -405,11 +428,16 @@ class DesignStore {
   Future<Design> save(Design unowned) async {
     final prefs = await SharedPreferences.getInstance();
     final design = await _owned(unowned);
+    await _read(prefs);
+    // From here to the writes nothing is waited on: see [_indexNow].
     final index = [
-      for (final s in await _read(prefs))
+      for (final s in _indexNow(prefs))
         if (s.id != design.id) s,
     ];
-    await prefs.setString(_designKey(design.id), jsonEncode(design.toJson()));
+    final file = prefs.setString(
+      _designKey(design.id),
+      jsonEncode(design.toJson()),
+    );
     final summary = DesignSummary.of(design);
     // In its place by when it was last edited, which for a design just
     // edited is the top.
@@ -419,20 +447,24 @@ class DesignStore {
       at++;
     }
     index.insert(at, summary);
-    await _write(prefs, index);
+    final written = _write(prefs, index);
     _remember(design);
+    await Future.wait([file, written]);
     return design;
   }
 
   Future<void> remove(String designId) async {
     final prefs = await SharedPreferences.getInstance();
+    await _read(prefs);
+    // From here to the writes nothing is waited on: see [_indexNow].
     final index = [
-      for (final s in await _read(prefs))
+      for (final s in _indexNow(prefs))
         if (s.id != designId) s,
     ];
-    await prefs.remove(_designKey(designId));
-    await _write(prefs, index);
+    final file = prefs.remove(_designKey(designId));
+    final written = _write(prefs, index);
     _recent.remove(designId);
+    await Future.wait([file, written]);
   }
 
   /// A copy of the design kept as [id], made now under an id and a number

@@ -86,14 +86,27 @@ class CustomerStore {
   String? _indexText;
   List<CustomerSummary> _index = const [];
 
-  int _made = 0;
+  /// Shared by every instance, so two stores making a customer in the same
+  /// moment — the web's clock stops at the millisecond — still give them
+  /// two ids rather than one that the second overwrites.
+  static int _made = 0;
 
   /// A new customer's id: the moment it was made, and a count, so two made
   /// in the same moment are still two.
   String _newId(DateTime at) =>
       'customer-${at.microsecondsSinceEpoch}-${_made++}';
 
-  Future<List<CustomerSummary>> _read(SharedPreferences prefs) async {
+  /// The index as the device holds it at this moment, read without
+  /// waiting for anything.
+  ///
+  /// **Changing the index is a read and a write with nothing waited on in
+  /// between**, and that is what keeps two changes made at once from losing
+  /// one another. Storage takes a value the moment it is set, so an index
+  /// read here and written back before anything is awaited cannot have been
+  /// changed in between by anybody — every other change either finished
+  /// before this read or starts after this write. Reading, then waiting,
+  /// then writing is how four customers saved at once came back as one.
+  List<CustomerSummary> _indexNow(SharedPreferences prefs) {
     final text = prefs.getString(indexKey);
     if (text == null) return _index = const [];
     if (text == _indexText) return _index;
@@ -115,14 +128,74 @@ class CustomerStore {
     return _index = list;
   }
 
-  Future<void> _write(
-    SharedPreferences prefs,
-    List<CustomerSummary> index,
-  ) async {
+  /// Sets the index to [index] now, and answers when the device has it.
+  Future<bool> _write(SharedPreferences prefs, List<CustomerSummary> index) {
     final text = jsonEncode([for (final s in index) s.toJson()]);
-    await prefs.setString(indexKey, text);
+    final done = prefs.setString(indexKey, text);
     _indexText = text;
     _index = index;
+    return done;
+  }
+
+  /// Keeps [customer] — its record and its line in the index — without
+  /// waiting on anything between reading the index and writing it back.
+  Future<void> _keepNow(SharedPreferences prefs, Customer customer) {
+    final index = [
+      for (final s in _indexNow(prefs))
+        if (s.id != customer.id) s,
+    ];
+    final record = prefs.setString(
+      _customerKey(customer.id),
+      jsonEncode(customer.toJson()),
+    );
+    final summary = CustomerSummary.of(customer);
+    var at = 0;
+    while (at < index.length &&
+        !index[at].updatedAt.isBefore(summary.updatedAt)) {
+      at++;
+    }
+    index.insert(at, summary);
+    return Future.wait([record, _write(prefs, index)]);
+  }
+
+  /// The customer kept as [id], read now, or null where there is none.
+  Customer? _loadNow(SharedPreferences prefs, String id) {
+    final text = prefs.getString(_customerKey(id));
+    if (text == null) return null;
+    try {
+      return Customer.fromJson(jsonDecode(text) as Map<String, Object?>);
+    } on Object {
+      return null;
+    }
+  }
+
+  /// The customer called [name], found now — see [named].
+  Customer? _namedNow(SharedPreferences prefs, String name) {
+    final wanted = Customer.keyOf(name);
+    if (wanted.isEmpty) return null;
+    for (final s in _indexNow(prefs)) {
+      if (Customer.keyOf(s.name) == wanted) return _loadNow(prefs, s.id);
+    }
+    return null;
+  }
+
+  Customer _newCustomer({
+    required String name,
+    String phone = '',
+    String address = '',
+    String notes = '',
+    DateTime? now,
+  }) {
+    final at = now ?? DateTime.now();
+    return Customer(
+      id: _newId(at),
+      name: name.trim(),
+      phone: phone.trim(),
+      address: address.trim(),
+      notes: notes.trim(),
+      createdAt: at,
+      updatedAt: at,
+    );
   }
 
   /// The customers a search for [query] finds — by name or phone —
@@ -134,7 +207,7 @@ class CustomerStore {
     int limit = 40,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final index = await _read(prefs);
+    final index = _indexNow(prefs);
     final found = query.trim().isEmpty
         ? index
         : [
@@ -149,40 +222,16 @@ class CustomerStore {
   /// How many customers are kept.
   Future<int> count() async {
     final prefs = await SharedPreferences.getInstance();
-    return (await _read(prefs)).length;
+    return _indexNow(prefs).length;
   }
 
   /// The customer kept as [id], or null where there is none.
-  Future<Customer?> load(String id) async {
-    final prefs = await SharedPreferences.getInstance();
-    final text = prefs.getString(_customerKey(id));
-    if (text == null) return null;
-    try {
-      return Customer.fromJson(jsonDecode(text) as Map<String, Object?>);
-    } on Object {
-      return null;
-    }
-  }
+  Future<Customer?> load(String id) async =>
+      _loadNow(await SharedPreferences.getInstance(), id);
 
   /// Keeps [customer], new or changed, and returns it as kept.
   Future<Customer> save(Customer customer) async {
-    final prefs = await SharedPreferences.getInstance();
-    final index = [
-      for (final s in await _read(prefs))
-        if (s.id != customer.id) s,
-    ];
-    await prefs.setString(
-      _customerKey(customer.id),
-      jsonEncode(customer.toJson()),
-    );
-    final summary = CustomerSummary.of(customer);
-    var at = 0;
-    while (at < index.length &&
-        !index[at].updatedAt.isBefore(summary.updatedAt)) {
-      at++;
-    }
-    index.insert(at, summary);
-    await _write(prefs, index);
+    await _keepNow(await SharedPreferences.getInstance(), customer);
     return customer;
   }
 
@@ -193,33 +242,21 @@ class CustomerStore {
     String address = '',
     String notes = '',
     DateTime? now,
-  }) {
-    final at = now ?? DateTime.now();
-    return save(
-      Customer(
-        id: _newId(at),
-        name: name.trim(),
-        phone: phone.trim(),
-        address: address.trim(),
-        notes: notes.trim(),
-        createdAt: at,
-        updatedAt: at,
-      ),
-    );
-  }
+  }) => save(
+    _newCustomer(
+      name: name,
+      phone: phone,
+      address: address,
+      notes: notes,
+      now: now,
+    ),
+  );
 
   /// The customer called [name] — however it is spaced or capitalised — or
   /// null where there is none. Where more than one has that name, the one
   /// changed most recently.
-  Future<Customer?> named(String name) async {
-    final prefs = await SharedPreferences.getInstance();
-    final wanted = Customer.keyOf(name);
-    if (wanted.isEmpty) return null;
-    for (final s in await _read(prefs)) {
-      if (Customer.keyOf(s.name) == wanted) return load(s.id);
-    }
-    return null;
-  }
+  Future<Customer?> named(String name) async =>
+      _namedNow(await SharedPreferences.getInstance(), name);
 
   /// The customer a design typed as being for [name] belongs to: the one
   /// already called that, or a new one made for it at [at].
@@ -228,6 +265,16 @@ class CustomerStore {
   /// their name, the name is how they are recognised — which is what the
   /// list of designs already did, and what the designs kept before
   /// customers existed are brought over by.
-  Future<Customer> obtain(String name, {DateTime? at}) async =>
-      await named(name) ?? await create(name: name, now: at);
+  ///
+  /// Looking and making are one step with nothing waited on between them,
+  /// so two designs kept at once for somebody nobody has made yet make one
+  /// customer between them, not two.
+  Future<Customer> obtain(String name, {DateTime? at}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final found = _namedNow(prefs, name);
+    if (found != null) return found;
+    final made = _newCustomer(name: name, now: at);
+    await _keepNow(prefs, made);
+    return made;
+  }
 }

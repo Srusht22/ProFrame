@@ -1312,6 +1312,33 @@ too, because keeping a design can bring a customer with it.
 `test/app/customers_screen_test.dart` holds all of it on the real app,
 from a phone to a laptop.
 
+**Nothing kept is lost to something else being kept at the same
+moment.** Each store keeps a record a key and an index beside them, so
+keeping is a read of the index and a write of it back — and a read, then
+a wait, then a write let two keepings each read the index as it was
+before either wrote: **four designs saved at once came back as one** in
+every list, the other three on the device with nothing pointing at them.
+`DesignStore._indexNow` and `CustomerStore._indexNow` read the index as the
+device holds it at that moment, and every change writes it back **with
+nothing awaited in between**; storage takes a value the moment it is set,
+so nothing can come between the two, from this instance or any other.
+`CustomerStore.obtain` finds and makes in the same step, so two designs
+kept at once for somebody nobody has made yet make one customer, not
+two, and a new customer's id counter is shared by every instance, so two
+made in the same millisecond are still two. A queue of promises was
+tried first and is not to come back: every operation waited on the one
+before it, so one that never finished stopped all the rest — which a
+test's own clock did at once.
+`test/app/designs_are_kept_for_their_customer_test.dart` holds it on the
+real app — Adam made, Basement Door drawn and saved, Adam left and
+reopened, the app closed and opened again from nothing but what the
+device kept, three more designs and all four his in the list and in
+every design's own file, and a second customer who sees none of them —
+and holds the stores themselves: twelve designs saved at once all kept,
+two stores saving at once, one design saved twice at once still one,
+two designs for a new person making one customer, and customers made at
+once all kept.
+
 `Design.customer` — the name typed when the design was begun — is still
 what the designs list shows; the customer record is what is true of the
 person.
