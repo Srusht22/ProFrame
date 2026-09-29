@@ -619,9 +619,15 @@ class ModelPainter extends CustomPainter {
     List<ProjectedFacet> cast,
     List<ProjectedFacet> beneath,
   ) {
+    // What the shadow takes away is the key light's share of what that face
+    // is lit by — the same light `Shading.of` lights it with — and no more.
     final environment = Environment.daylight;
-    final key = environment.key * cast.first.shadowFacing;
-    final kept = environment.ambient / (environment.ambient + key);
+    final onto = cast.first.shadowNormal ?? const Vec3(0, 0, 1);
+    final up = cast.first.skyward;
+    final all = environment.lightOn(onto, up: up);
+    final kept = all <= 0
+        ? 1.0
+        : environment.lightOn(onto, up: up, shadowed: 1) / all;
     final g = (kept * 255).round().clamp(0, 255);
     // Soft by the size of the light: a shadow cast close is crisp, one cast
     // far spreads and fades, because the key light is a window of sky and
@@ -630,10 +636,11 @@ class ModelPainter extends CustomPainter {
     for (final face in cast) {
       reach += face.shadowReach / cast.length;
     }
-    final soft = (_scale * (_penumbra + reach * _lightSize / 2)).clamp(
-      0.6,
-      24.0,
-    );
+    final soft =
+        (_scale * (_penumbra + reach * environment.keySize / 2)).clamp(
+          0.6,
+          24.0,
+        );
 
     // The facets of a round part face both ways once flattened, so their
     // shadows are drawn one by one, opaque, into a layer of their own —
@@ -720,10 +727,6 @@ class ModelPainter extends CustomPainter {
   /// millimetres of the model.
   static const _penumbra = 0.8;
 
-  /// How wide the key light is, as an angle in radians: a window's width of
-  /// sky seen from a few metres off. A shadow cast [ProjectedFacet.shadowReach]
-  /// away has an edge this much of that distance wide.
-  static const _lightSize = 0.1;
 
   /// A face's edges, as its material shows them: hard and dark on an
   /// extrusion or a metal, barely there on glass, which is seen through.

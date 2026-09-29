@@ -374,13 +374,56 @@ void main() {
         final panel = picture.at(_middle(_face(picture, ids.first)));
         final pane = picture.at(_middle(_face(picture, ids.last)));
         expect(glass.apart(panel, pane), greaterThan(20));
-        final frameFace = picture.faces.firstWhere(
-          (f) => f.elementId == d.frame!.id && !f.source.isSide,
-        );
-        final onFrame = picture.at(
-          _middle([for (final p in frameFace.corners) picture.place(p)]),
-        );
-        expect(glass.apart(panel, onFrame), greaterThan(4));
+        // The frame and a panel of the same colour, turned the same way to
+        // the same light, are the same colour on their faces — as two grey
+        // surfaces are — and a lighting that made them otherwise would be
+        // inventing a difference. They are told apart by their form: across
+        // a member of the frame the light changes, face to sightline to
+        // reveal — its profile — where across the middle of the panel it is
+        // one even face.
+        // Where a corner of the frame is on the screen: the one nearest the
+        // viewer at that point of the drawing.
+        Offset corner(Vec2 at) {
+          Offset? best;
+          var front = -double.infinity;
+          for (final f in picture.faces) {
+            if (f.elementId != d.frame!.id) continue;
+            for (var k = 0; k < f.corners.length; k++) {
+              final c = f.source.corners[k];
+              if ((c.x - at.x).abs() < 1e-6 &&
+                  (c.y - at.y).abs() < 1e-6 &&
+                  c.z > front) {
+                front = c.z;
+                best = picture.place(f.corners[k]);
+              }
+            }
+          }
+          return best!;
+        }
+
+        final outline = d.frame!.outline, inner = d.frame!.innerOutline;
+        // Half way up the left jamb, from its outer edge to the daylight.
+        final from = Offset.lerp(
+          corner(Vec2(outline.left, outline.top)),
+          corner(Vec2(outline.left, outline.bottom)),
+          0.5,
+        )!;
+        final to = Offset.lerp(
+          corner(Vec2(inner.left, inner.top)),
+          corner(Vec2(inner.left, inner.bottom)),
+          0.5,
+        )!;
+        final across = [
+          for (var t = 0.08; t <= 0.92; t += 0.06)
+            picture.brightness(Offset.lerp(from, to, t)!),
+        ];
+        expect(glass.spread(across), greaterThan(8), reason: '$across');
+        final panelFace = _face(picture, ids.first);
+        final even = [
+          for (var t = 0.35; t <= 0.65; t += 0.05)
+            picture.brightness(Offset.lerp(panelFace[0], panelFace[2], t)!),
+        ];
+        expect(glass.spread(even), lessThan(4), reason: '$even');
       },
     );
   });

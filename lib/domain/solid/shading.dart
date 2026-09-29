@@ -51,35 +51,71 @@ class Rgb {
   }
 }
 
-/// What the model stands in: one key light, and the sky and ground a
-/// surface reflects.
+/// What the model stands in: a product photographer's studio, lit to be
+/// read rather than to be dramatic.
+///
+/// - **A key light**, a large soft box over the viewer's left shoulder
+///   ([light], [key], [keySize]): the light that models the form. It lights
+///   only what is turned towards it, so the two reveals of an opening, the
+///   top and the underside of a sill, a panel's step and a frame's profile
+///   are told apart by how they face.
+/// - **A fill** from the other side and a little below ([fill],
+///   [fillStrength]), weaker, so a face turned from the key is in shade and
+///   never in darkness: every part of the design stays readable.
+/// - **Light from all round** — the sky above brighter than what the floor
+///   gives back below ([ambient], [ambientSpread]) — so what faces up is a
+///   little lighter than what faces down, as it is in any room.
+/// - **Strip lights** either side of the camera, seen only in what reflects
+///   them: the sheen across glass and along polished metal.
+///
+/// White and neutral throughout — nothing here is a colour chosen for an
+/// effect, so every finish is shown as the colour it is. A white face
+/// turned to the viewer comes out white.
 class Environment {
-  /// Towards the light, in eye space.
+  /// Towards the key light, in eye space.
   final Vec3 light;
 
   final Rgb sky;
   final Rgb horizon;
   final Rgb ground;
 
-  /// How much light reaches a face turned away from the key: what the sky
-  /// fills in.
+  /// How much light reaches every face from all round: what the room fills
+  /// in, on average.
   final double ambient;
 
-  /// How strong the key light is. With [ambient], a white face square to
-  /// the viewer comes out white — the exposure a photograph of the thing
-  /// would be taken at — and a reveal turned from the light about half
-  /// that.
+  /// How much brighter that is from above than from below, either way of
+  /// [ambient]: a face turned straight up gets `1 + ambientSpread` of it,
+  /// straight down `1 − ambientSpread`.
+  final double ambientSpread;
+
+  /// How strong the key light is. With [ambient] and [fillStrength], a white
+  /// face square to the viewer comes out white — the exposure a photograph
+  /// of the thing would be taken at.
   final double key;
 
-  /// The studio's strip lights: a tall, narrow soft light either side of
+  /// How wide the key light is, as an angle in radians: a soft box, not a
+  /// bulb. A highlight is the light seen in a surface, so it is never
+  /// smaller than this; and a shadow cast a distance away is soft by this
+  /// much of it.
+  final double keySize;
+
+  /// Towards the fill light, in eye space, and how strong it is.
+  final Vec3 fill;
+  final double fillStrength;
+
+  /// The studio's strip lights: tall, narrow soft lights either side of
   /// the camera, as glass is photographed — travelling with the camera, as
   /// a photographer's lights do. [stripsAt] is how far round from the
-  /// camera each stands, in degrees either side; [stripHalfWidth] how wide
+  /// camera each pair stands, in degrees either side. There are two pairs:
+  /// the nearer where a pane facing the design's front mirrors in the view
+  /// a design is first shown from (`Camera.presentation`), the further a
+  /// little beyond, so the glass carries a sheen over the whole range of
+  /// angles the model is turned through to be looked at, not at one; [stripHalfWidth] how wide
   /// each is, and [stripEdge] how soft its edges, in degrees; [stripRadiance]
   /// how much brighter than a surface it lights. A strip seen in a pane is
   /// the sheen across it — the one thing that says glass at a glance, as it
   /// does in every photograph of a window — and it moves as the view turns.
-  final double stripsAt;
+  final List<double> stripsAt;
   final double stripHalfWidth;
   final double stripEdge;
   final double stripRadiance;
@@ -89,13 +125,17 @@ class Environment {
     required this.sky,
     required this.horizon,
     required this.ground,
-    this.ambient = 0.45,
-    this.key = 0.75,
+    this.fill = const Vec3(0.55, 0.3, 0.8),
+    this.ambient = 0.34,
+    this.ambientSpread = 0.3,
+    this.key = 0.66,
+    this.keySize = 0.3,
+    this.fillStrength = 0.22,
     this.skyRadiance = 1.6,
-    this.stripsAt = 67.5,
-    this.stripHalfWidth = 1.2,
-    this.stripEdge = 1.0,
-    this.stripRadiance = 2.6,
+    this.stripsAt = const [57, 67],
+    this.stripHalfWidth = 0.4,
+    this.stripEdge = 2.6,
+    this.stripRadiance = 1.7,
   });
 
   /// Over the viewer's left shoulder, where a window is usually
@@ -108,6 +148,7 @@ class Environment {
   /// seen, as it does outdoors, and glass shows the sky moving across it.
   static final daylight = Environment(
     light: keyLight.normalised,
+    fill: const Vec3(0.55, 0.3, 0.8).normalised,
     sky: Rgb.of(0xFF94B4CF),
     horizon: Rgb.of(0xFFF1F4F4),
     ground: Rgb.of(0xFF77746D),
@@ -174,12 +215,16 @@ class Environment {
   double stripAt(Vec3 d, double up, {double blur = 0}) {
     if (up < -0.25 || up > 0.85) return 0;
     final round = (math.atan2(d.x, d.z) * 180 / math.pi).abs();
-    final off = (round - stripsAt).abs() - stripHalfWidth;
     final edge = stripEdge + blur;
-    if (off <= 0) return 1;
-    if (off >= edge) return 0;
-    final t = 1 - off / edge;
-    return t * t * (3 - 2 * t);
+    var seen = 0.0;
+    for (final at in stripsAt) {
+      final off = (round - at).abs() - stripHalfWidth;
+      if (off <= 0) return 1;
+      if (off >= edge) continue;
+      final t = 1 - off / edge;
+      seen = math.max(seen, t * t * (3 - 2 * t));
+    }
+    return seen;
   }
 
   /// The average of all of it: what a rough surface reflects, since it
@@ -194,6 +239,30 @@ class Environment {
   /// sky. Glass reflects a few per cent of whatever is there, so it is the
   /// metals, which mirror most of it, that this is for.
   static const studioColour = Rgb(0.62, 0.63, 0.64);
+
+  /// How much light a face turned along [normal] gets, before its colour —
+  /// with [up] the way up in the world, [occlusion] how much of the room
+  /// round it is hidden, and [shadowed] how much of the key is.
+  double lightOn(
+    Vec3 normal, {
+    Vec3 up = const Vec3(0, -1, 0),
+    double occlusion = 0,
+    double shadowed = 0,
+  }) {
+    final n = normal.normalised;
+    final open = 1 - occlusion.clamp(0.0, 1.0);
+    final above = n.dot(up).clamp(-1.0, 1.0);
+    return ambient * (1 + ambientSpread * above) * open +
+        key * math.max(0.0, n.dot(light)) * (1 - shadowed.clamp(0.0, 1.0)) +
+        fillStrength * math.max(0.0, n.dot(fill)) * open;
+  }
+
+  /// The tightest a highlight of the key light can be, as a Blinn-Phong
+  /// exponent: its lobe is at least as wide as the light is.
+  double get sharpestHighlight {
+    final half = math.cos(keySize / 4);
+    return math.log(0.5) / math.log(half);
+  }
 }
 
 /// How a point of a face set [depth] below what stands beside it, [away]
@@ -303,16 +372,22 @@ abstract final class Shading {
     final light = environment.light;
 
     final facingView = n.dot(view).clamp(0.0, 1.0);
-    // Lit on either side, as `Camera.project` has it: a face turned from
-    // the key is the inside of a reveal, which is lit by the room, not black.
-    final facingLight = n.dot(light).abs();
-    // [occlusion] is how much of the sky the surroundings hide from this
+    // **Lit as it faces.** [n] is the face as it is seen — its outward side,
+    // turned to the viewer — so the key lights it only where it is turned
+    // towards the key, and a face turned away is in the fill's and the
+    // room's light: the two reveals of an opening are not lit alike, and
+    // that difference is what the depth is read by. (Both sides used to be
+    // lit alike, which flattened every reveal into its neighbour.)
+    // [occlusion] is how much of the room the surroundings hide from this
     // point, [shadowed] whether the key light is blocked on its way here:
     // both are what a recess does to a face set in it.
     final open = 1 - occlusion.clamp(0.0, 1.0);
-    final lit =
-        environment.ambient * open +
-        environment.key * facingLight * (1 - shadowed.clamp(0.0, 1.0));
+    final lit = environment.lightOn(
+      n,
+      up: skyward,
+      occlusion: occlusion,
+      shadowed: shadowed,
+    );
 
     final rough = surface.roughness.clamp(0.04, 1.0);
     // Schlick's Fresnel, with the glancing reflection a rough surface can
@@ -333,7 +408,12 @@ abstract final class Shading {
 
     // The key light, seen in the surface.
     final half = (light + view).normalised;
-    final shininess = (2 / math.pow(rough, 4) - 2).clamp(2.0, 4000.0);
+    // A highlight is the key light seen in the surface, so it is never
+    // tighter than the light is wide: soft, as a soft box makes it.
+    final shininess = (2 / math.pow(rough, 4) - 2).clamp(
+      2.0,
+      environment.sharpestHighlight,
+    );
     final highlight =
         math.pow(math.max(0.0, n.dot(half)), shininess) * (1 - rough);
 

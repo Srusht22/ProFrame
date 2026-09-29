@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -194,18 +195,40 @@ void main() {
 
   group('in 3D, glass is glass', () {
     test('each glass is a different picture', () async {
+      // Compared where the pane is seen through — its darkest point, clear
+      // of the strip lights' sheen — because what makes two glasses two
+      // pictures is what they let through: a reflection is added in white
+      // over it, and inside one, two tints come together, as they do on
+      // real glass. And by how far apart the two colours are in all three
+      // channels, since two tints of the same depth — the grey-green and the
+      // blue-grey — differ in their hue, which is all three at once.
+      final clear = glazed(GlassLook.clear);
+      final clearPicture = await render(clear);
+      final across = clearPicture.across(wideLight(clear));
+      var through = 0;
+      for (var i = 1; i < across.length; i++) {
+        if (clearPicture.brightness(across[i]) <
+            clearPicture.brightness(across[through])) {
+          through = i;
+        }
+      }
       final seen = <String, List<int>>{};
       for (final look in GlassLook.values) {
         final d = glazed(look);
         final picture = await render(d);
         final points = picture.across(wideLight(d));
-        seen[look.label] = picture.at(points[3]);
+        seen[look.label] = picture.at(points[through]);
       }
+      double distance(List<int> a, List<int> b) => math.sqrt(
+        [for (var i = 0; i < 3; i++) (a[i] - b[i]) * (a[i] - b[i])]
+            .reduce((x, y) => x + y)
+            .toDouble(),
+      );
       final looks = seen.keys.toList();
       for (var i = 0; i < looks.length; i++) {
         for (var j = i + 1; j < looks.length; j++) {
           expect(
-            apart(seen[looks[i]]!, seen[looks[j]]!),
+            distance(seen[looks[i]]!, seen[looks[j]]!),
             greaterThan(6),
             reason: '${looks[i]} and ${looks[j]}',
           );
@@ -310,8 +333,7 @@ void main() {
       final mesh = MeshBuilder.build(d);
       final pane = mesh.facets
           .where(
-            (f) =>
-                f.elementId == wideLight(d) && f.role == FacetRole.glazing,
+            (f) => f.elementId == wideLight(d) && f.role == FacetRole.glazing,
           )
           .toList();
       final faces = pane.where((f) => !f.isSide).toList();
@@ -459,33 +481,36 @@ void main() {
       },
     );
 
-    test('the lines of the drawing are where they were, whatever the glass', () async {
-      final (clear, view) = await cad(glazed(GlassLook.clear));
-      final d = glazed(GlassLook.frosted);
-      final (frosted, _) = await cad(d);
-      final geometry = DesignGeometry.of(d);
-      final fills = [
-        for (final s in d.sections)
-          if (d.childSectionsOf(s.id).isEmpty) geometry.fillOf(s),
-      ];
-      var differ = 0;
-      final w = _size.width.round();
-      for (var i = 0; i < clear.length; i += 4) {
-        if (clear[i] == frosted[i] &&
-            clear[i + 1] == frosted[i + 1] &&
-            clear[i + 2] == frosted[i + 2]) {
-          continue;
+    test(
+      'the lines of the drawing are where they were, whatever the glass',
+      () async {
+        final (clear, view) = await cad(glazed(GlassLook.clear));
+        final d = glazed(GlassLook.frosted);
+        final (frosted, _) = await cad(d);
+        final geometry = DesignGeometry.of(d);
+        final fills = [
+          for (final s in d.sections)
+            if (d.childSectionsOf(s.id).isEmpty) geometry.fillOf(s),
+        ];
+        var differ = 0;
+        final w = _size.width.round();
+        for (var i = 0; i < clear.length; i += 4) {
+          if (clear[i] == frosted[i] &&
+              clear[i + 1] == frosted[i + 1] &&
+              clear[i + 2] == frosted[i + 2]) {
+            continue;
+          }
+          final p = view.toSheet(
+            Offset(((i ~/ 4) % w).toDouble(), ((i ~/ 4) ~/ w).toDouble()),
+          );
+          // Inside a pane, or on its very edge, where a dot is cut off.
+          final inAPane = fills.any(
+            (f) => f.contains(p) || f.awayFrom(p) <= view.lengthToSheet(1.5),
+          );
+          if (!inAPane) differ++;
         }
-        final p = view.toSheet(
-          Offset(((i ~/ 4) % w).toDouble(), ((i ~/ 4) ~/ w).toDouble()),
-        );
-        // Inside a pane, or on its very edge, where a dot is cut off.
-        final inAPane = fills.any(
-          (f) => f.contains(p) || f.awayFrom(p) <= view.lengthToSheet(1.5),
-        );
-        if (!inAPane) differ++;
-      }
-      expect(differ, 0);
-    });
+        expect(differ, 0);
+      },
+    );
   });
 }

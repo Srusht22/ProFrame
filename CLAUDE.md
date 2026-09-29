@@ -3888,6 +3888,74 @@ changes size; and after every one of those, the design as it was to the
 byte, nothing to undo, and the same solid built. Converting the pan without
 the zoom again, or not fitting on opening, fails it.
 
+### The studio lights
+
+The user's words: *lighting that lets the user tell glass, panel, frame,
+metal, rubber, depth and edges apart; controlled, not random colours; soft
+highlights, readable shadows, material reflections and depth perception;
+glass reflections visible without the glass going opaque; the frame's depth
+and profile revealed; the panel shown to be solid; nothing cinematic —
+clarity over effect.*
+
+`Environment` (`lib/domain/solid/shading.dart`) is a product
+photographer's studio, and every face is lit by it through one function,
+`Environment.lightOn`, which `Shading.of` and the painter's cast shadows both
+read:
+
+- **A key light** — a large soft box over the viewer's left shoulder
+  (`light`, `key`, `keySize`) — that lights **only what is turned towards
+  it**. It used to light both sides of a face alike (`abs(n·l)`), so the two
+  reveals of an opening were the same shade and the frame's depth was read
+  only from its drawn edges.
+- **A fill** from the other side and a little below (`fill`,
+  `fillStrength`), weaker, so what is turned from the key is in shade and
+  never in darkness.
+- **Light from all round**, a little stronger from above than what the
+  floor gives back (`ambient`, `ambientSpread`), so a sill's top reads
+  lighter than a head's underside.
+- **Strip lights** either side of the camera, seen only in what reflects
+  them — two pairs (`stripsAt`), the nearer where a pane facing the design's
+  front mirrors in the view a design is shown from, the further a little
+  beyond, so the glass keeps a sheen as the model is turned. They were a
+  single hard-edged pair placed for the old camera: in the presentation
+  view no pane caught them, and a pane that did went white. Now each is a
+  narrow core with long soft edges (`stripHalfWidth`, `stripEdge`) and less
+  intense (`stripRadiance`): a gradient across the glass that never burns
+  it out, with what is behind still showing through.
+- **One size for the key light.** A highlight is the key seen in a surface,
+  so it is never tighter than the light is wide
+  (`Environment.sharpestHighlight`); and a shadow cast a distance away is
+  soft by the same figure. The painter's cast shadows take away exactly the
+  key's share of what the face they fall on is lit by
+  (`ProjectedFacet.shadowNormal`).
+
+All of it white: a grey surface is grey whichever way it faces, and a white
+face turned to the viewer is white — exposed exactly as before, so every
+finish reads as the colour it is.
+
+`test/app/the_studio_lights_test.dart` holds it: the light neutral; a white
+panel square on white; nothing below a quarter of white and nothing burnt
+out, brightest to darkest within 3.5 : 1; towards the key lighter than away
+and up lighter than down; a face turned from the key lit by the fill and the
+room alone; highlights as soft as the light is large; on the model the
+frame's faces turned to the key lighter than those turned from it, and its
+tops than its undersides; glass in the presentation view carrying a sheen,
+no point of it burnt out, and what is behind it showing through at the
+brightest; and panel, PVC, metal and rubber in one grey told apart by the
+light. Lighting both sides of a face again, or the old strips, fails it.
+
+Two older tests were measuring something the old light happened to give.
+`glass_looks_like_glass_test` compared the glasses at a point that lay in the
+old saturating sheen: it now compares them where the pane is seen through,
+by their distance in all three channels, because the grey-green and the
+blue-grey tints differ in hue — they are six levels apart there in the
+largest channel, before this change and after. And
+`panels_look_like_panels_test` told the frame from a panel of the same
+colour at the middle of whichever frame face was painted first; two grey
+surfaces turned alike to the same light are, rightly, alike, so it now holds
+that the frame is told apart by its form — the light changes across a member
+from face to sightline to reveal — while the panel's middle is one even face.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the

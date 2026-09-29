@@ -278,3 +278,17 @@ middle button; the wheel zooms towards the pointer (`Camera.zoomedToward`);
 Fit and Reset sit with zoom in and out along the foot; Perspective |
 Orthographic is named and always shown. The camera is the workspace's and
 never the design's. Held by `test/app/the_camera_test.dart`.
+
+## 14. Since the audit — the studio lights (Phase 10)
+
+`Environment` is a product studio lit to be read: a soft key light over the
+left shoulder lighting only what faces it (it had lit both sides alike, which
+flattened every reveal), a weaker fill from the other side and below, light
+from all round a little stronger from above, and two pairs of soft strip
+lights seen only in reflections — the nearer placed for the presentation
+view, the further so the sheen stays as the model turns — with a narrow core
+and long soft edges so a pane shows a gradient and never burns out.
+`Environment.lightOn` is the one answer for how much light reaches a face;
+the key light's size (`keySize`) bounds how tight a highlight can be and how
+sharp a cast shadow is. All white; a white face square on is exposed as
+before. Held by `test/app/the_studio_lights_test.dart`.

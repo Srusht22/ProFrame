@@ -70,6 +70,10 @@ class ProjectedFacet {
   /// millimetres — what decides how soft the shadow's edge is.
   final double shadowReach;
 
+  /// Which way the face [shadow] falls on faces, in the eye's space — what
+  /// decides how much light the shadow takes from it.
+  final Vec3? shadowNormal;
+
   const ProjectedFacet({
     required this.corners,
     required this.depth,
@@ -83,6 +87,7 @@ class ProjectedFacet {
     this.shadow,
     this.shadowFacing = 0,
     this.shadowReach = 0,
+    this.shadowNormal,
   });
 
   /// The way to the eye from corner [k]: different at every corner in a
@@ -411,6 +416,7 @@ class Camera {
       List<Vec2>? shadow;
       var shadowFacing = 0.0;
       var shadowReach = 0.0;
+      Vec3? shadowNormal;
       double? level;
       var seenFromAbove = true;
       if (facet.mountAt case final at?) {
@@ -436,6 +442,7 @@ class Camera {
             shadow = cast;
             shadowFacing = towards;
             shadowReach = reach;
+            shadowNormal = n;
           }
         }
       }
@@ -456,6 +463,7 @@ class Camera {
           shadow: shadow,
           shadowFacing: shadowFacing,
           shadowReach: shadowReach,
+          shadowNormal: shadowNormal,
         ),
         inEye,
         level: level,
