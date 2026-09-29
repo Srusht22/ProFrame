@@ -186,17 +186,33 @@ void main() {
       // they go: the handle is at the middle of its edge on every leaf. The
       // design itself is not the kind's business: the frame, the bars, the
       // sections and their panes are the same either way, facet for facet.
+      //
+      // The glazing beads are the one other thing on a side: a bead is
+      // fixed from the room, and the kind says which face of the drawing
+      // the room is on — exactly as it does for the hinges. So a bead is
+      // the same bead either way, on the same ground of the face, and only
+      // which side of the glass it is on differs.
       String fingerprint(Design design) {
         final ironmongery = {for (final p in design.hardware) p.id};
         return [
           for (final facet in MeshBuilder.build(design).facets)
-            if (!ironmongery.contains(facet.elementId))
+            if (!ironmongery.contains(facet.elementId) &&
+                facet.role != FacetRole.bead)
               '${facet.elementId}:${facet.corners.join(',')}',
         ].join('|');
       }
 
       expect(fingerprint(leaf(DesignKind.door)),
           fingerprint(leaf(DesignKind.window)));
+
+      List<String> beadsOnTheFace(Design design) => [
+        for (final facet in MeshBuilder.build(design).facets)
+          if (facet.role == FacetRole.bead)
+            for (final c in facet.corners)
+              '${c.x.toStringAsFixed(6)},${c.y.toStringAsFixed(6)}',
+      ]..sort();
+      expect(beadsOnTheFace(leaf(DesignKind.door)),
+          beadsOnTheFace(leaf(DesignKind.window)));
     });
 
     test('the handle is at the middle of the leaf, whatever the kind', () {

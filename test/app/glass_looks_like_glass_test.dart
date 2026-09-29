@@ -303,18 +303,33 @@ void main() {
     });
 
     test('a pane has thickness, and its edge is the green of the glass', () {
+      // A sealed unit: two sheets of glass a few millimetres thick with a
+      // sealed cavity between them — as thick as a unit is, and no block of
+      // glass that thick.
       final d = glazed(GlassLook.clear);
       final mesh = MeshBuilder.build(d);
       final pane = mesh.facets
-          .where((f) => f.elementId == wideLight(d))
+          .where(
+            (f) =>
+                f.elementId == wideLight(d) && f.role == FacetRole.glazing,
+          )
           .toList();
       final faces = pane.where((f) => !f.isSide).toList();
-      expect(faces, hasLength(2));
-      final thickness = (faces[0].corners.first.z - faces[1].corners.first.z)
-          .abs();
-      expect(thickness, greaterThan(10));
-      final sides = pane.where((f) => f.isSide).toList();
+      expect(faces, hasLength(4));
+      final zs = [for (final f in faces) f.corners.first.z]..sort();
+      expect(zs.last - zs.first, greaterThan(10), reason: 'the unit');
+      expect(zs[1] - zs[0], inInclusiveRange(2, 6), reason: 'a sheet');
+      expect(zs[3] - zs[2], inInclusiveRange(2, 6), reason: 'a sheet');
+      expect(zs[2] - zs[1], greaterThan(6), reason: 'the cavity');
+      final sides = pane
+          .where((f) => f.isSide && f.surface.isTransparent)
+          .toList();
       expect(sides, isNotEmpty);
+      // The cavity is sealed round its edge, by something that is not glass.
+      expect(
+        pane.where((f) => f.isSide && !f.surface.isTransparent),
+        isNotEmpty,
+      );
       // Edge on, it is not seen through: it is the glass's body, green.
       final edge = Shading.of(
         surface: Surfaces.clearGlass,

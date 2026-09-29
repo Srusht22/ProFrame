@@ -58,13 +58,30 @@ class Rendered {
   /// The screen point of the middle of the nearest face of [id] that faces
   /// the viewer.
   Offset middleOf(String id, {bool Function(Facet)? which}) {
+    // A glass section also holds the bead that stands on its edge and the
+    // seal round its cavity; its middle is its glass.
     final candidates = faces.where(
       (f) =>
           f.elementId == id &&
           !f.source.isSide &&
+          f.source.role != FacetRole.bead &&
           (which == null || which(f.source)),
     );
-    final face = candidates.reduce((a, b) => a.depth < b.depth ? a : b);
+    // Its main face — the largest on the screen, not an arris or a rim
+    // round it — and of those, the nearest.
+    double area(ProjectedFacet f) {
+      var a = 0.0;
+      for (var i = 0; i < f.corners.length; i++) {
+        final p = f.corners[i], q = f.corners[(i + 1) % f.corners.length];
+        a += p.x * q.y - q.x * p.y;
+      }
+      return a.abs() / 2;
+    }
+
+    final biggest = candidates.map(area).reduce((a, b) => a > b ? a : b);
+    final face = candidates
+        .where((f) => area(f) > biggest * 0.9)
+        .reduce((a, b) => a.depth < b.depth ? a : b);
     var x = 0.0, y = 0.0;
     for (final c in face.corners) {
       x += c.x;

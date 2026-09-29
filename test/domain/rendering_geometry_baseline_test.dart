@@ -201,21 +201,31 @@ void main() {
   // the shapes the drawings draw. Before that the solids were: door
   // 926fa8e9b336512a / 870c6b3cd760cbcf, window 4e543030cc8b4b5f /
   // 8818175eaf4a47fd, sliding 27a71776216ea173 / 6741b95707a4e4d3.
+  //
+  // Then when depth was given one layout (Phase 8, depth_is_consistent_test
+  // .dart): glass built as the sealed unit it is — two sheets, a cavity, an
+  // edge seal — held by a glazing bead on the room side; the bars and panes
+  // inside a sash standing in the sash's depth rather than against the
+  // frame's; one rule for how thick glass and a panel are. Every point the
+  // solids had on the face is still there, and the only new ones are the
+  // beads' lines on the glass; the designs' own fingerprints did not move. Before that the solids were: door
+  // 8d14e9dad135c003 / 4d07d3ee035bbfbf, window 6522b314a64d229f /
+  // 2aa8882908f50747, sliding 69ec0b3f0d12b02d / 97efb4a8b4f5b30f.
   const pinned = <String, Map<String, String>>{
     'door': {
       'design': 'ae3cfe6089559a06',
-      'shut': '8d14e9dad135c003',
-      'open': '4d07d3ee035bbfbf',
+      'shut': '71a9140f78d40c09',
+      'open': 'c6e142a513e43739',
     },
     'window': {
       'design': '4f27d2f58f42a604',
-      'shut': '6522b314a64d229f',
-      'open': '2aa8882908f50747',
+      'shut': 'e21c512d074e62cb',
+      'open': '45dee86148b7ac59',
     },
     'sliding': {
       'design': '9253e5c841c1026c',
-      'shut': '69ec0b3f0d12b02d',
-      'open': '97efb4a8b4f5b30f',
+      'shut': '65e6a07d082ef5ab',
+      'open': 'c51a25dc85c614b3',
     },
   };
 

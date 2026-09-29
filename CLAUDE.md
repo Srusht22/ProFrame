@@ -3752,6 +3752,79 @@ on glass, and black, grey and silver in that order — with the drawing's
 keyhole solid and its plate one flat colour. Flat shading, no shadow, or
 the old ring frames each fail it.
 
+### One space, and a depth for everything
+
+The user's words: *the 3D model must stop looking like a collection of flat
+planes; depth must be consistent and controlled; the front-facing design
+dimensions remain the source of truth; define one coordinate system and use
+it across the whole renderer.* So:
+
+- **One coordinate system**, written down once at the head of
+  `lib/domain/solid/depth_layout.dart`: **X** across and **Y** down the
+  elevation — exactly the drawing's own, so every figure the user drew or
+  typed goes into the solid unchanged — and **Z** out of the face the
+  drawing is of, towards whoever is looking at it; the frame's drawn face is
+  Z = 0 and the design runs back to Z = −`Design.depthMm`. Y runs down as
+  the drawing's does rather than being turned up for the solid, because a
+  second convention for one design is how two views come to disagree; the
+  camera's eye space has the same turn of hand. Every part — frame, sash,
+  bars, glass, panels, beads, ironmongery — is placed in it; none has a
+  convention of its own.
+- **One description of depth**, `DepthLayout`, and every figure in it a
+  share of what holds the part: the frame's whole depth; the design's bars
+  set back a tenth from both faces; a leaf set back from the face of
+  whatever holds it and two thirds of its depth; **the bars and panes drawn
+  inside a leaf standing in that leaf the way the design's own stand in the
+  frame**; glass and panels centred in what holds them, as thick as they are
+  made; the bead; the faces the ironmongery stands out of; a sliding panel's
+  track. `MeshBuilder` hands a `DepthBand` down the tree — the frame's to a
+  main division, a leaf's to its panes — where it used to hand the frame's
+  depth to everything. That was a real fault: a glazing bar inside a sash
+  was measured against the frame, so it stood proud of the sash, and the
+  panes of a divided sash sat off its middle; the sliding tracks borrowed a
+  made-up depth to get their leaves the right size. Glass and panels also
+  had two rules each, one for a fixed light and one for a leaf; there is one.
+- **Depth never moves a point on the face.** Every point the solid has on
+  the face is where the drawing puts it at every depth; a panel's eased edge
+  is a size (`panelArrisOf`), not a share of how thick the panel is, which
+  it had been — the one place depth reached the face.
+- **Glass is as thick as glass is**: a sealed unit of two 4 mm sheets with
+  a cavity between them (`DepthLayout.litesOf`), each sheet green on its
+  edge, the cavity closed round the edge by a dark seal — not a block of
+  glass as deep as the unit. A unit too thin for a cavity (a narrow sliding
+  track) is one sheet. A line of sight crosses four faces, and each takes
+  its share of what the glass lets through and reflects
+  (`Facet.glassFaces`, `Shading.of(glassFaces:)`), so the unit is exactly
+  the glass the user chose — letting through and reflecting what a sheet of
+  it does, not washing out white for having more faces.
+- **A glazing bead holds every unit, from the room.** It is the frame's
+  material (`FrameProfile.bead`, `FacetRole.bead`), runs from the unit's face
+  to a little short of the frame's or the sash's, and covers the glass's
+  edge by `beadWidthOf` the frame's profile — `DesignGeometry.beadAround`,
+  the one line the solid and the drawing both use. The room is on the face
+  the drawing is of for a design seen from inside, so a window's
+  elevation draws the bead's line (`beadLineOf`) and a door's does not. Like
+  the hinges, the side it is on is the one other thing the kind decides:
+  `the_face_we_are_looking_at_test`, `the_kind_does_not_touch_the_inside_test`
+  and `the_drawing_is_of_one_face_test` say so and require its footprint on
+  the face to be identical either way, and the drawings' difference to lie
+  on its line and nowhere else.
+
+`test/domain/depth_is_consistent_test.dart` holds it: every corner within
+the outline and every part but the ironmongery within the frame's depth;
+the face identical at 60, 70 and 110 mm and the frame exactly as deep as
+asked; the design's bars, the sash, a bar inside the sash and the sash's
+panes each in their own band, and a fixed light's glass centred in the
+frame; the sliding panels on two tracks that do not overlap; each unit two
+sheets, a cavity and a seal, with four faces of glass; the bead on the
+glass, on the room side, between the glass's edge and its line; the lever
+out of both faces of a door and its hinges behind, the window's handle out
+of the face you stand at; and turned, the frame's side as wide on the
+screen as the frame is deep — twice as deep, twice as wide. Placing a
+sash's bars against the frame again, or glass as one block, fails it. The
+pinned solids moved on purpose; the designs' fingerprints did not, and
+every point the solids had on the face is still there.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the

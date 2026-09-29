@@ -217,7 +217,8 @@ void main() {
       final glass = panes.reduce((a, b) => a.outline.top < b.outline.top ? a : b);
       final panel = panes.reduce((a, b) => a.outline.top > b.outline.top ? a : b);
 
-      expect(roles[glass.id], {FacetRole.glazing});
+      // A sealed unit, and the glazing bead that holds it in.
+      expect(roles[glass.id], {FacetRole.glazing, FacetRole.bead});
       expect(roles[panel.id], {FacetRole.panel});
       expect(roles['inner'], {FacetRole.bar});
       expect(roles[openingId], {FacetRole.sash});

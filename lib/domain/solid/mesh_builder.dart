@@ -12,6 +12,7 @@ import '../model/frame_profile.dart';
 import '../model/materials.dart';
 import '../model/opening_leaf.dart';
 import '../model/surface.dart';
+import 'depth_layout.dart';
 import 'mesh.dart';
 import 'turned.dart';
 
@@ -33,6 +34,9 @@ abstract final class MeshBuilder {
     if (frame == null) return Mesh.empty;
 
     final depth = design.depthMm;
+    // Where along Z every part stands, in the one coordinate system the
+    // whole solid is built in — see [DepthLayout].
+    final layout = DepthLayout.of(design);
     final facets = <Facet>[];
 
     // The design's own hierarchy, read once. The elevation walks this same
@@ -57,7 +61,7 @@ abstract final class MeshBuilder {
       // middle, and not a post standing in the frame for one of them to run
       // into.
       if (divider != null && tracks == null) {
-        _addBar(facets, design, divider, depth);
+        _addBar(facets, design, divider, layout.barsIn(layout.frame));
       }
     }
 
@@ -71,7 +75,16 @@ abstract final class MeshBuilder {
         tracks.addPanel(facets, branch, section, openFraction);
         continue;
       }
-      _addSection(facets, design, branch, section, frame, depth, openFraction);
+      _addSection(
+        facets,
+        design,
+        branch,
+        section,
+        frame,
+        layout,
+        layout.frame,
+        openFraction,
+      );
     }
 
     // Hardware the user placed themselves sits on the design where they put
@@ -79,7 +92,7 @@ abstract final class MeshBuilder {
     // they swing with it rather than staying behind on the frame.
     for (final piece in design.hardware) {
       if (piece.isOpeningHardware) continue;
-      _addHardware(facets, piece, design, depth);
+      _addHardware(facets, piece, design, layout);
     }
 
     // What an opening has fixed to the frame — a screen's cassette at its
@@ -160,6 +173,7 @@ abstract final class MeshBuilder {
     FacetRole role,
     Vec3 Function(Vec3) place, {
     bool Function(int edge)? hasMember,
+    double facing = 1,
   }) {
     final n = outer.corners.length;
     final section = profile.section;
@@ -170,7 +184,7 @@ abstract final class MeshBuilder {
       return place(Vec3(
         o.x + (i.x - o.x) * t,
         o.y + (i.y - o.y) * t,
-        frontZ - p.back,
+        frontZ - facing * p.back,
       ));
     }
 
@@ -207,19 +221,18 @@ abstract final class MeshBuilder {
     List<Facet> out,
     Design design,
     DividerElement divider,
-    double depth,
+    DepthBand band,
   ) {
     final face = DesignGeometry.of(design).barBody(divider);
     if (face.isEmpty) return;
 
-    // Bars sit a little back from the face of the frame, as they do in the
-    // real thing.
-    const setback = 0.1;
+    // Bars sit a little back from both faces of the frame, as they do in the
+    // real thing: [DepthLayout.barsIn].
     _barSlab(
       out,
       face,
-      -depth * setback,
-      depth * (1 - setback * 2),
+      band.front,
+      band.depth,
       barArrisOf(divider.finish.material, divider.widthMm),
       divider.id,
       divider.finish,
@@ -294,10 +307,14 @@ abstract final class MeshBuilder {
     TreeSection branch,
     SectionElement section,
     FrameElement frame,
-    double depth,
+    DepthLayout layout,
+    DepthBand holder,
     double openFraction, {
     Vec3 Function(Vec3)? place,
   }) {
+    // [holder] is the depth of what the section is set in: the frame, for a
+    // main division; its leaf, for a pane of a sash.
+    //
     // The one place that decides what a section is built as, at every level
     // of the tree. A section the user marked is a leaf, wherever it sits: a
     // pane of a sash they marked as well is a leaf inside a leaf, and it
@@ -315,7 +332,8 @@ abstract final class MeshBuilder {
         section,
         opening,
         frame,
-        depth,
+        layout,
+        layout.leafIn(holder),
         openFraction,
         place: place,
       );
@@ -323,7 +341,8 @@ abstract final class MeshBuilder {
     }
 
     if (branch.isLeaf) {
-      _addFixedInfill(out, design, section, depth, place: place);
+      _addFixedInfill(out, design, section, frame, layout, holder,
+          place: place);
       return;
     }
 
@@ -331,7 +350,7 @@ abstract final class MeshBuilder {
     // turn have lines inside it. Each bar stops where the fill of this
     // section stops, so a bar inside a sash runs between the sash's faces
     // rather than across them.
-    _addBarsInside(out, design, branch, depth, place: place);
+    _addBarsInside(out, design, branch, layout.barsIn(holder), place: place);
     for (final pane in branch.panes) {
       final child = design.sectionById(pane.sectionId);
       if (child != null) {
@@ -341,7 +360,8 @@ abstract final class MeshBuilder {
           pane,
           child,
           frame,
-          depth,
+          layout,
+          holder,
           openFraction,
           place: place,
         );
@@ -356,13 +376,13 @@ abstract final class MeshBuilder {
     List<Facet> out,
     Design design,
     TreeSection branch,
-    double depth, {
+    DepthBand band, {
     Vec3 Function(Vec3)? place,
   }) {
     for (final id in branch.barIds) {
       final bar = design.dividerById(id);
       if (bar != null) {
-        _addInternalBar(out, design, bar, depth, place: place);
+        _addInternalBar(out, design, bar, band, place: place);
       }
     }
   }
@@ -373,18 +393,20 @@ abstract final class MeshBuilder {
     List<Facet> out,
     Design design,
     DividerElement divider,
-    double depth, {
+    DepthBand band, {
     Vec3 Function(Vec3)? place,
   }) {
     final face = DesignGeometry.of(design).barBody(divider);
     if (face.isEmpty) return;
 
-    const setback = 0.1;
+    // Set back in the leaf it is drawn in as the design's own bars are in the
+    // frame — never measured against the frame's depth, which stood a glazing
+    // bar proud of its sash.
     _barSlab(
       out,
       face,
-      -depth * setback,
-      depth * (1 - setback * 2),
+      band.front,
+      band.depth,
       barArrisOf(divider.finish.material, divider.widthMm),
       divider.id,
       divider.finish,
@@ -402,31 +424,122 @@ abstract final class MeshBuilder {
     List<Facet> out,
     Design design,
     SectionElement section,
-    double depth, {
+    FrameElement frame,
+    DepthLayout layout,
+    DepthBand holder, {
     Vec3 Function(Vec3)? place,
   }) {
     final fill = OpeningLeaf.fillOf(design, section);
     if (fill.isEmpty) return;
-    final thickness = section.finish.material.isGlazing
-        ? math.min(28.0, depth * 0.4)
-        : math.min(depth * 0.55, 40.0);
-    final front = -(depth - thickness) / 2;
     if (section.finish.material.isGlazing) {
-      _slabBetween(out, fill, front, thickness, section.id, section.finish,
-          FacetRole.glazing, place ?? (p) => p);
+      _glazing(out, design, section, fill, frame, layout, holder,
+          place ?? (p) => p);
       return;
     }
+    final band = layout.panelIn(holder);
     _panel(
       out,
       fill,
-      front,
-      thickness,
+      band.front,
+      band.depth,
       section.id,
       section.finish,
       place ?? (p) => p,
-      recesses: _stepsAround(design, section, fill, front, depth),
+      recesses: _stepsAround(design, section, fill, band.front, layout, holder),
     );
   }
+
+  /// A sealed glazing unit filling [fill], centred in [holder], and the
+  /// glazing bead that holds it on the room side.
+  ///
+  /// **Glass is as thick as glass is.** A unit is two panes a few
+  /// millimetres thick with a sealed cavity between them
+  /// ([DepthLayout.litesOf]), not a block of glass as deep as the unit: each
+  /// pane is a slab of its own, with the green edge of float glass, and the
+  /// cavity is closed round its edge by the dark seal that holds the two
+  /// together. Seen through, a line of sight crosses all four faces, and
+  /// each lets through its share of what the glass lets through
+  /// ([Facet.glassFaces]), so the unit as a whole is exactly the glass the
+  /// user chose.
+  ///
+  /// **The bead** runs round the glass on the room side, from the unit's
+  /// face to a little short of the frame's or the sash's own, and covers
+  /// the edge of the glass by its own width ([DesignGeometry.beadAround]) —
+  /// the same line the technical drawing draws where that face is the one
+  /// it is of. It is the frame's material, because it is part of the frame.
+  static void _glazing(
+    List<Facet> out,
+    Design design,
+    SectionElement section,
+    Polygon fill,
+    FrameElement frame,
+    DepthLayout layout,
+    DepthBand holder,
+    Vec3 Function(Vec3) place,
+  ) {
+    final unit = layout.glazingIn(holder);
+    final lites = layout.litesOf(unit);
+    final from = out.length;
+    for (final lite in lites) {
+      _slabBetween(out, fill, lite.front, lite.depth, section.id,
+          section.finish, FacetRole.glazing, place);
+    }
+    final faces = lites.length * 2;
+    for (var i = from; i < out.length; i++) {
+      out[i] = out[i].throughFaces(faces);
+    }
+
+    if (lites.length == 2) {
+      // The edge seal, closing the cavity all round between the two panes.
+      final n = fill.corners.length;
+      for (var i = 0; i < n; i++) {
+        final a = fill.corners[i], b = fill.corners[(i + 1) % n];
+        _quad(
+          out,
+          [
+            place(_at(a, lites[1].front)),
+            place(_at(b, lites[1].front)),
+            place(_at(b, lites[0].back)),
+            place(_at(a, lites[0].back)),
+          ],
+          section.id,
+          _edgeSeal,
+          FacetRole.glazing,
+          side: true,
+        );
+      }
+    }
+
+    final geometry = DesignGeometry.of(design);
+    final inner = geometry.beadAround(fill);
+    final bead = layout.beadIn(holder, unit);
+    if (inner == null || bead == null) return;
+    final profile = FrameProfile.bead(
+      frame.finish.material,
+      width: geometry.beadWidth,
+      depth: bead.depth,
+    );
+    if (profile.isEmpty) return;
+    _sweepProfile(
+      out,
+      fill,
+      inner,
+      profile,
+      layout.roomInFront ? bead.front : bead.back,
+      section.id,
+      frame.finish,
+      FacetRole.bead,
+      place,
+      facing: layout.roomInFront ? 1 : -1,
+    );
+  }
+
+  /// What closes a sealed unit's cavity round its edge: a dark butyl seal,
+  /// the same in every unit whatever the glass, because it is not the glass.
+  static const _edgeSeal = Finish(
+    colour: 0xFF26282A,
+    material: MaterialKind.rubber,
+  );
 
   /// A panel: a slab of [shape], [thickness] deep from [frontZ], its faces'
   /// edges eased by its arris ([panelArrisOf]) — inside the shape and the
@@ -491,14 +604,15 @@ abstract final class MeshBuilder {
     SectionElement section,
     Polygon fill,
     double front,
-    double depth,
+    DepthLayout layout,
+    DepthBand holder,
   ) {
     final geometry = DesignGeometry.of(design);
     final ring = geometry.surroundOf(section);
-    final ringFront = geometry.isInLeaf(section)
-        ? leafFront(design.depthMm)
-        : 0.0;
-    final barFront = -depth * 0.1;
+    // What holds it stands at the face of [holder] — the frame's, or the
+    // leaf's — and its bars where [DepthLayout.barsIn] stands them.
+    final ringFront = holder.front;
+    final barFront = layout.barsIn(holder).front;
     final n = fill.corners.length;
     return [
       for (var i = 0; i < n; i++)
@@ -523,10 +637,14 @@ abstract final class MeshBuilder {
     SectionElement section,
     OpeningElement opening,
     FrameElement frame,
-    double depth,
+    DepthLayout layout,
+    DepthBand leaf,
     double openFraction, {
     Vec3 Function(Vec3)? place,
   }) {
+    // [leaf] is the depth the leaf stands in: [DepthLayout.leafIn] whatever
+    // holds it, or its share of a track.
+    //
     // The same leaf the drawing shows, described in one place so the
     // elevation and the solid cannot disagree about where it is — a panel
     // on a track reaching the middle of the line it meets its neighbour at.
@@ -537,13 +655,13 @@ abstract final class MeshBuilder {
     // Its own swing, then whatever its parent is doing. A leaf inside a leaf
     // swings within the one it hangs in; a leaf hanging in the frame has no
     // parent movement and this is its swing alone.
-    final swing = _swingFor(design, opening, section, depth, openFraction);
+    final swing = _swingFor(design, opening, section, leaf, openFraction);
     final outer = place;
     Vec3 move(Vec3 point) =>
         outer == null ? swing(point) : outer(swing(point));
 
-    _addLeafHardware(out, design, section, depth, move);
-    _addSash(out, design, branch, section, frame, depth, openFraction,
+    _addLeafHardware(out, design, section, leaf, move);
+    _addSash(out, design, branch, section, frame, layout, leaf, openFraction,
         sashOuter, sashInner, move);
   }
 
@@ -555,21 +673,20 @@ abstract final class MeshBuilder {
     TreeSection branch,
     SectionElement section,
     FrameElement frame,
-    double depth,
+    DepthLayout layout,
+    DepthBand leaf,
     double openFraction,
     Polygon sashOuter,
     Polygon sashInner,
     Vec3 Function(Vec3) move,
   ) {
-    final leafFront = MeshBuilder.leafFront(depth);
-    final leafDepth = _leafDepth(depth);
 
     // The sash is a frame of its own, in the frame's material: the same
     // profile at the sash's width and the leaf's depth, swung with it.
     final profile = FrameProfile.of(
       frame.finish.material,
       width: OpeningLeaf.profileFor(frame),
-      depth: leafDepth,
+      depth: leaf.depth,
     );
     if (!sashInner.isEmpty &&
         sashInner.corners.length == sashOuter.corners.length &&
@@ -579,7 +696,7 @@ abstract final class MeshBuilder {
         sashOuter,
         sashInner,
         profile,
-        leafFront,
+        leaf.front,
         section.id,
         frame.finish,
         FacetRole.sash,
@@ -593,30 +710,26 @@ abstract final class MeshBuilder {
     final glazed = sashInner.isEmpty ? sashOuter : sashInner;
 
     if (branch.isLeaf) {
-      final thickness = section.finish.material.isGlazing
-          ? math.min(26.0, leafDepth * 0.4)
-          : math.min(leafDepth * 0.6, 38.0);
-      final front = leafFront - (leafDepth - thickness) / 2;
       if (section.finish.material.isGlazing) {
-        _slabBetween(out, glazed, front, thickness, section.id,
-            section.finish, FacetRole.glazing, move);
+        _glazing(out, design, section, glazed, frame, layout, leaf, move);
       } else {
+        final band = layout.panelIn(leaf);
         _panel(
           out,
           glazed,
-          front,
-          thickness,
+          band.front,
+          band.depth,
           section.id,
           section.finish,
           move,
           // A panel filling the leaf is set in the sash all round.
-          recesses: [for (final _ in glazed.corners) leafFront - front],
+          recesses: [for (final _ in glazed.corners) leaf.front - band.front],
         );
       }
       return;
     }
 
-    _addBarsInside(out, design, branch, leafDepth, place: move);
+    _addBarsInside(out, design, branch, layout.barsIn(leaf), place: move);
     for (final pane in branch.panes) {
       final child = design.sectionById(pane.sectionId);
       if (child != null) {
@@ -626,7 +739,8 @@ abstract final class MeshBuilder {
           pane,
           child,
           frame,
-          leafDepth,
+          layout,
+          leaf,
           openFraction,
           place: move,
         );
@@ -639,7 +753,7 @@ abstract final class MeshBuilder {
     List<Facet> out,
     Design design,
     SectionElement section,
-    double depth,
+    DepthBand leaf,
     Vec3 Function(Vec3) place,
   ) {
     // Asked of the model rather than compared by hand: a parent may name the
@@ -651,7 +765,8 @@ abstract final class MeshBuilder {
     for (final piece in design.hardware) {
       if (design.sectionHolding(piece.parentId) != section.id) continue;
       if (piece.kind.staysOnFrame) continue;
-      _addHardware(out, piece, design, depth, place: place);
+      _addHardware(out, piece, design, DepthLayout.of(design),
+          leaf: leaf, place: place);
     }
   }
 
@@ -661,13 +776,10 @@ abstract final class MeshBuilder {
   /// Public because the ironmongery is measured from it, and a test asking
   /// whether a handle stands off the leaf has to ask of the leaf's face and
   /// not of a figure it believes the leaf is at.
-  static double leafFront(double depth) => -depth * 0.08;
+  static double leafFront(double depth) => DepthLayout(depth).leaf.front;
 
   /// Where a leaf's far face stands — the one a door's hinges are on.
-  static double leafBack(double depth) => leafFront(depth) - _leafDepth(depth);
-
-  /// How thick a leaf is, within the frame's depth.
-  static double _leafDepth(double depth) => depth * 0.66;
+  static double leafBack(double depth) => DepthLayout(depth).leaf.back;
 
   /// Swings a point about the hinge edge of [opening].
   /// Whether [opening] swings towards the viewer — out of the face the
@@ -691,11 +803,11 @@ abstract final class MeshBuilder {
     Design design,
     OpeningElement opening,
     SectionElement section,
-    double depth,
+    DepthBand leaf,
     double openFraction,
   ) {
     if (opening.mechanism.slideEdge case final leads?) {
-      return _slideFor(design, opening, section, leads, depth, openFraction);
+      return _slideFor(design, opening, section, leads, openFraction);
     }
     final edge = opening.mechanism.hingeEdge;
     if (edge == null || openFraction <= 0) return (p) => p;
@@ -711,7 +823,7 @@ abstract final class MeshBuilder {
 
     // It turns about the face it swings towards — the face its hinges are
     // screwed to — so it comes out of the frame rather than through it.
-    final pivot = toward ? leafFront(depth) : leafBack(depth);
+    final pivot = toward ? leaf.front : leaf.back;
 
     // A turn about the hinge, not a squash towards it. The leaf has depth,
     // so its far face has to come round with its near face: rotating the
@@ -778,7 +890,6 @@ abstract final class MeshBuilder {
     OpeningElement opening,
     SectionElement section,
     OpeningEdge leads,
-    double depth,
     double openFraction,
   ) {
     if (openFraction <= 0) return (p) => p;
@@ -811,7 +922,8 @@ abstract final class MeshBuilder {
     List<Facet> out,
     HardwareElement piece,
     Design design,
-    double depth, {
+    DepthLayout layout, {
+    DepthBand? leaf,
     Vec3 Function(Vec3)? place,
   }) {
     // **Ironmongery is built as ironmongery.** A lever on a backplate, an
@@ -826,9 +938,9 @@ abstract final class MeshBuilder {
     // opposite its handle.
     final from = out.length;
     if (Furniture.of(design, piece) case final furniture?) {
-      _addFurniture(out, furniture, design, depth, place);
+      _addFurniture(out, furniture, design, leaf ?? layout.leaf, place);
     } else {
-      _addPlainPiece(out, piece, design, depth, place);
+      _addPlainPiece(out, piece, design, layout.depth, place);
     }
 
     // **What a piece is made of is what that piece is made of.** A handle is
@@ -991,7 +1103,7 @@ abstract final class MeshBuilder {
     List<Facet> out,
     Furniture f,
     Design design,
-    double depth,
+    DepthBand leaf,
     Vec3 Function(Vec3)? place,
   ) {
     final put = place ?? (Vec3 p) => p;
@@ -1011,7 +1123,7 @@ abstract final class MeshBuilder {
     // round the back, were built into the front of the leaf — which is
     // where the user saw them, on a design seen from outside.
     final concealed = design.isConcealed(piece);
-    final face = concealed ? leafBack(depth) : leafFront(depth);
+    final face = concealed ? leaf.back : leaf.front;
     final outward = concealed ? -1.0 : 1.0;
 
     // Back across the leaf, from the stile the handle is on towards the
@@ -1035,7 +1147,7 @@ abstract final class MeshBuilder {
     // the leaf is comes from `Design.kindOf`, the user's own answer.
     final bothFaces = !piece.kind.onTheInsideFace &&
         design.kindOf(opening) == DesignKind.door;
-    final through = MeshBuilder.leafFront(depth) + MeshBuilder.leafBack(depth);
+    final through = leaf.front + leaf.back;
     Vec3 otherFace(Vec3 p) => put(Vec3(p.x, p.y, through - p.z));
 
     _Raised? build(Vec3 Function(Vec3) put) => switch (piece.kind) {
@@ -1757,14 +1869,11 @@ class _Tracks {
     double openFraction,
   ) {
     final each = depth / count;
-    // The depth the leaf builders are given so that the leaf they build is
-    // as thick as its share of the track, and the shift that stands it
-    // there.
-    final asBuilt = each * _fills / MeshBuilder._leafDepth(1);
-    final shift = _frontOf(trackOf(section.id)) -
-        each * (1 - _fills) / 2 -
-        MeshBuilder.leafFront(asBuilt);
-    Vec3 onTrack(Vec3 p) => Vec3(p.x, p.y, p.z + shift);
+    // Its track, and the leaf standing in it — as deep as its share of the
+    // track, centred in it.
+    final front = _frontOf(trackOf(section.id));
+    final leaf = DepthBand(front, front - each).centred(each * _fills);
+    final layout = DepthLayout.of(design);
 
     final outline = DesignGeometry.of(design).leafOuter(section);
     final opening =
@@ -1777,9 +1886,9 @@ class _Tracks {
         section,
         opening,
         frame,
-        asBuilt,
+        layout,
+        leaf,
         openFraction,
-        place: onTrack,
       );
       return;
     }
@@ -1789,11 +1898,12 @@ class _Tracks {
       branch,
       section,
       frame,
-      asBuilt,
+      layout,
+      leaf,
       openFraction,
       outline,
       DesignGeometry.of(design).leafInner(section) ?? const Polygon([]),
-      onTrack,
+      (p) => p,
     );
   }
 }

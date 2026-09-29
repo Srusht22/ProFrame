@@ -221,9 +221,22 @@ void main() {
       final panel = mesh.facets.where((f) => f.elementId == lower.id);
       expect(glass, isNotEmpty);
       expect(panel, isNotEmpty);
-      expect(glass.every((f) => f.role == FacetRole.glazing), isTrue);
+      // The glass is a sealed unit and the bead that holds it in; every face
+      // of the unit's sheets is seen through.
+      expect(
+        glass.every(
+          (f) => f.role == FacetRole.glazing || f.role == FacetRole.bead,
+        ),
+        isTrue,
+      );
+      expect(glass.where((f) => f.role == FacetRole.bead), isNotEmpty);
       expect(panel.every((f) => f.role == FacetRole.panel), isTrue);
-      expect(glass.every((f) => f.transparency > 0), isTrue);
+      expect(
+        glass
+            .where((f) => f.role == FacetRole.glazing && !f.isSide)
+            .every((f) => f.transparency > 0),
+        isTrue,
+      );
       expect(panel.every((f) => f.transparency == 0), isTrue);
       // The panel is built in the brown chosen — shaded by the light, never
       // another colour: the face towards the light is the colour itself.

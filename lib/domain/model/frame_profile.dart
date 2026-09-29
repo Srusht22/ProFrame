@@ -233,6 +233,47 @@ class FrameProfile {
     );
   }
 
+  /// A glazing bead's section: [width] across, from the edge of the glass
+  /// it is clipped in at towards the middle of the glass, and [depth] from
+  /// its exposed face back to the glass.
+  ///
+  /// Square where it meets the frame or the sash and flat on the glass; on
+  /// the face towards the glass it falls away as its material is made — a
+  /// PVC bead in a curve, an aluminium one in a chamfer, a timber one in a
+  /// rounded ovolo — so the edge of the glass is held under a slope rather
+  /// than a step. [width] is on the face and [depth] in the depth, and
+  /// neither reads the other.
+  factory FrameProfile.bead(
+    MaterialKind material, {
+    required double width,
+    required double depth,
+  }) {
+    final style = ProfileStyle.of(material);
+    if (width <= 0 || depth <= 0) {
+      return FrameProfile._(width, depth, style, const [], const []);
+    }
+    final flat = width * 0.35;
+    final low = depth * 0.8;
+    final face = switch (style) {
+      ProfileStyle.extruded => [
+        ProfilePoint(flat, 0),
+        ProfilePoint(width, low),
+      ],
+      _ => _round(
+        ProfilePoint(flat, low),
+        ProfilePoint(flat, 0),
+        ProfilePoint(width, low),
+        style == ProfileStyle.moulded ? 5 : 4,
+      ),
+    };
+    return FrameProfile._(width, depth, style, [
+      const ProfilePoint(0, 0),
+      ...face,
+      ProfilePoint(width, depth),
+      ProfilePoint(0, depth),
+    ], [width]);
+  }
+
   bool get isEmpty => section.length < 3;
 }
 
@@ -248,6 +289,12 @@ double barArrisOf(MaterialKind material, double barWidth) =>
 
 /// How the edges of a panel's faces are eased: the small arris a painted or
 /// foiled panel is finished with, so it reads as a slab with edges that take
-/// the light and not as a sheet. Never more than two millimetres, and never
-/// more than a small share of its thickness; always inside its outline.
-double panelArrisOf(double thickness) => math.min(2.0, thickness * 0.08);
+/// the light and not as a sheet. Two millimetres — a size, not a share of
+/// how thick the panel is, so a panel made deeper or shallower keeps the
+/// same edge on its face; only a panel too thin for it (under a fifth of
+/// its thickness) has less. Always inside its outline.
+double panelArrisOf(double thickness) => math.min(2.0, thickness * 0.2);
+
+/// How wide a glazing bead is on the face, from the frame's own profile
+/// width: a share of it, never wider than a bead is made.
+double beadWidthOf(double profileMm) => math.min(14.0, profileMm * 0.2);

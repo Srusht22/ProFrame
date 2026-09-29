@@ -196,10 +196,40 @@ class DesignGeometry {
       OpeningLeaf.daylightAround(design, section.id) ??
       design.frame?.innerOutline;
 
-  /// Whether [section] is inside a leaf — a pane of one — rather than a
-  /// main division set in the frame.
-  bool isInLeaf(SectionElement section) =>
-      OpeningLeaf.daylightAround(design, section.id) != null;
+  /// How wide a glazing bead is on the face: [beadWidthOf] the frame's
+  /// profile. Nothing without a frame.
+  double get beadWidth =>
+      design.frame == null ? 0 : beadWidthOf(design.frame!.profileMm);
+
+  /// Where the glazing bead round [glass] stops on the glass: [glass] drawn
+  /// in by [beadWidth]. Null where there is no bead — no frame, or a shape
+  /// that cannot be drawn in cleanly.
+  ///
+  /// The one answer for the solid, which runs the bead from [glass] to this
+  /// line, and the technical drawing, which draws this line where the bead
+  /// is on the face it is of ([beadsSeen]).
+  Polygon? beadAround(Polygon glass) {
+    final width = beadWidth;
+    if (width <= 0 || glass.isEmpty || !glass.isConvex) return null;
+    final inner = glass.inset(width);
+    if (inner.corners.length != glass.corners.length || inner.area <= 0) {
+      return null;
+    }
+    return inner;
+  }
+
+  /// Whether the glazing beads are on the face the drawing is of. A bead is
+  /// fixed from the room, so it is seen on a design drawn from inside.
+  bool get beadsSeen => design.seenFrom == Face.inside;
+
+  /// The line the glazing bead stops at on [section]'s glass, where [glass]
+  /// is what the drawing fills it to — only where the section is glazed and
+  /// its bead is on the face the drawing is of. What an elevation draws of
+  /// the bead.
+  Polygon? beadLineOf(SectionElement section, Polygon glass) =>
+      beadsSeen && section.finish.material.isGlazing
+      ? beadAround(glass)
+      : null;
 
   /// The outside of the leaf filling [section]: the section's own outline
   /// and nothing wider — or, for a panel on a track, [slidingPanelOf].

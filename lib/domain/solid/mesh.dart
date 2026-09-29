@@ -110,6 +110,12 @@ class Facet {
   final Vec3? mountAt;
   final Vec3? mountNormal;
 
+  /// For a face of glass, how many faces of glass a line of sight through
+  /// the whole unit crosses — two for a single sheet, four for a sealed
+  /// unit of two panes — so each lets through its share of what the glass
+  /// lets through and the unit as a whole is the glass the user chose.
+  final int glassFaces;
+
   const Facet({
     required this.corners,
     required this.elementId,
@@ -124,6 +130,7 @@ class Facet {
     this.normals = const [],
     this.mountAt,
     this.mountNormal,
+    this.glassFaces = 2,
   });
 
   /// The same face, said to be [part] of its element.
@@ -141,6 +148,7 @@ class Facet {
         normals: normals,
         mountAt: mountAt,
         mountNormal: mountNormal,
+        glassFaces: glassFaces,
       );
 
   /// The same face, fixed to the face of a leaf at [at], facing [normal].
@@ -158,6 +166,25 @@ class Facet {
         normals: normals,
         mountAt: at,
         mountNormal: normal,
+        glassFaces: glassFaces,
+      );
+
+  /// The same face, one of [faces] faces of glass a line of sight crosses.
+  Facet throughFaces(int faces) => Facet(
+        corners: corners,
+        elementId: elementId,
+        colour: colour,
+        surface: surface,
+        isSide: isSide,
+        recesses: recesses,
+        transparency: transparency,
+        gloss: gloss,
+        role: role,
+        part: part,
+        normals: normals,
+        mountAt: mountAt,
+        mountNormal: mountNormal,
+        glassFaces: faces,
       );
 
   /// The same face, made of [surface]: the same corners and colour.
@@ -175,6 +202,7 @@ class Facet {
         normals: normals,
         mountAt: mountAt,
         mountNormal: mountNormal,
+        glassFaces: glassFaces,
       );
 
   Vec3 get centre {
@@ -192,7 +220,18 @@ class Facet {
   }
 }
 
-enum FacetRole { frame, bar, sash, glazing, panel, hardware }
+enum FacetRole {
+  frame,
+  bar,
+  sash,
+  glazing,
+  panel,
+  hardware,
+
+  /// A glazing bead: the strip of the frame's material that holds a sealed
+  /// unit in, round the glass on the room side.
+  bead,
+}
 
 /// The whole model: every face of it, and where it sits.
 class Mesh {

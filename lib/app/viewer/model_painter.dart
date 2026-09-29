@@ -201,6 +201,7 @@ class ModelPainter extends CustomPainter {
       skyward: face.skyward,
       occlusion: occlusion,
       shadowed: shadowed,
+      glassFaces: source.glassFaces,
     );
   }
 

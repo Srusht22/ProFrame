@@ -294,6 +294,7 @@ abstract final class Shading {
     Vec3 skyward = const Vec3(0, -1, 0),
     double occlusion = 0,
     double shadowed = 0,
+    int glassFaces = 2,
   }) {
     final base = Rgb.of(colour);
     var n = normal.normalised;
@@ -350,6 +351,7 @@ abstract final class Shading {
         environment.diffuse,
         highlight.toDouble(),
         side,
+        glassFaces,
       );
     }
 
@@ -413,6 +415,7 @@ abstract final class Shading {
     Rgb average,
     double highlight,
     bool side,
+    int faces,
   ) {
     if (side) {
       final edge = surface.edge.sideTint == null
@@ -421,8 +424,21 @@ abstract final class Shading {
       return Shaded((edge * lit).argb, 0.9);
     }
 
-    final share = math.sqrt(surface.transmission.clamp(0.0, 1.0));
-    final filter = Rgb.white.mixedWith(base, 0.5) * (share * (1 - fresnel));
+    // Each of the [faces] faces a line of sight crosses takes its share of
+    // what the glass lets through and of its colour: the square root of
+    // each for a single sheet's two faces, the fourth root for a sealed
+    // unit's four.
+    final each = math.max(1, faces);
+    final share = math.pow(
+      surface.transmission.clamp(0.0, 1.0),
+      1 / each,
+    ).toDouble();
+    // What the faces reflect away is taken from what passes — shared among
+    // them as the reflection itself is (below), so a sealed unit of four
+    // faces is the same glass as a sheet of two, letting through and
+    // reflecting what it does.
+    final passes = (1 - fresnel * (2 / each)).clamp(0.0, 1.0);
+    final filter = Rgb.white.mixedWith(base, 1 / each) * (share * passes);
 
     // Frosting catches the light that passes and spreads it, so a frosted
     // pane glows with the light rather than showing what is behind it.
@@ -440,7 +456,12 @@ abstract final class Shading {
       average,
       math.min(1, rough * 1.25),
     );
-    final reflection = reflected * fresnel + Rgb.white * (highlight * 0.9);
+    // What the glass reflects is shared among its faces as what it lets
+    // through is: [Surface.reflectivity] is the glass as glazed, so a sealed
+    // unit is the same glass whether a line of sight meets two faces of it
+    // or four, and does not wash out white for having more of them.
+    final reflection =
+        (reflected * fresnel + Rgb.white * (highlight * 0.9)) * (2 / each);
     return Shaded(
       glow.argb,
       scattered.clamp(0.0, 1.0),

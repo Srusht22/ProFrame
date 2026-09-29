@@ -7,9 +7,12 @@ import 'package:proframe/app/canvas/cad_layers.dart';
 import 'package:proframe/app/canvas/cad_painter.dart';
 import 'package:proframe/app/canvas/design_painter.dart';
 import 'package:proframe/app/canvas/view_transform.dart';
+import 'package:proframe/domain/geometry/segment.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
+import 'package:proframe/domain/model/design_geometry.dart';
 import 'package:proframe/domain/model/elements.dart';
+import 'package:proframe/domain/model/opening_leaf.dart';
 import 'package:proframe/domain/recognition/interpreter.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 
@@ -116,10 +119,47 @@ void main() {
     // depending on it, this is where it would show.
     Design bare(Design design) => design.copyWith(hardware: const []);
 
-    expect(
-      await pixels(bare(leaf(DesignKind.door))),
-      await pixels(bare(leaf(DesignKind.window))),
+    // The one other thing on a side is the glazing bead: it is fixed from
+    // the room, so a window — drawn from inside — shows the line it stops at
+    // on the glass, and a door — drawn from outside — does not. So the two
+    // bare drawings differ there and nowhere else: every pixel that is not
+    // the same lies on the window's bead line.
+    final door = await pixels(bare(leaf(DesignKind.door)));
+    final window = await pixels(bare(leaf(DesignKind.window)));
+    final design = bare(leaf(DesignKind.window));
+    final geometry = DesignGeometry.of(design);
+    final view = ViewTransform.fit(
+      design.frame!.outline,
+      _size,
+      padding: const EdgeInsets.all(40),
     );
+    final lines = <Segment>[
+      for (final section in design.sections)
+        if (geometry.beadLineOf(section, OpeningLeaf.fillOf(design, section))
+            case final bead?)
+          for (final edge in bead.edges)
+            () {
+              final a = view.toScreen(edge.a), b = view.toScreen(edge.b);
+              return Segment(Vec2(a.dx, a.dy), Vec2(b.dx, b.dy));
+            }(),
+    ];
+    expect(lines, isNotEmpty, reason: 'a window shows its beads');
+    var differing = 0, elsewhere = 0;
+    for (var i = 0; i < door.length; i += 4) {
+      if (door[i] == window[i] &&
+          door[i + 1] == window[i + 1] &&
+          door[i + 2] == window[i + 2]) {
+        continue;
+      }
+      differing++;
+      final at = Vec2(
+        ((i ~/ 4) % _size.width.round()).toDouble(),
+        ((i ~/ 4) ~/ _size.width.round()).toDouble(),
+      );
+      if (!lines.any((line) => line.distanceTo(at) < 2.5)) elsewhere++;
+    }
+    expect(differing, greaterThan(0));
+    expect(elsewhere, 0, reason: 'nothing but the bead line differs');
   });
 
   test('a door’s hinges are not seen: it is drawn from outside', () async {

@@ -242,3 +242,24 @@ softened by distance, clipped to what can take a shadow — never glass.
 Pieces are painted plate first, then what stands on it. CAD fills a
 keyhole solid (`Furniture.bores`). Only ironmongery moved; the pinned
 solids moved on purpose. Held by `test/app/ironmongery_is_metal_test.dart`.
+
+## 12. Since the audit — consistent depth (Phase 8)
+
+The solid is built in one coordinate system — X across and Y down the
+elevation, exactly the drawing's own, and Z out of the face the drawing is
+of, the frame's face at Z = 0 and the design running back to Z = -depth —
+and `DepthLayout` (`lib/domain/solid/depth_layout.dart`) is the one
+description of where along Z each part stands, every figure a share of what
+holds it: the frame, the design's bars, a leaf in whatever holds it, the
+bars and panes inside a leaf in that leaf, glass and panels centred in their
+holder, a glazing bead on the room side, the faces ironmongery is fixed to,
+and a sliding panel's track. MeshBuilder passes a band down the tree rather
+than a frame depth, which fixed a glazing bar standing proud of its sash and
+the panes of a divided sash sitting off its middle, and replaced the sliding
+tracks' borrowed depth. Glass is a sealed unit — two 4 mm sheets, a cavity,
+an edge seal — whose four faces share what the glass lets through and
+reflects (`Facet.glassFaces`), so it is the same glass as a sheet. A glazing
+bead (`FrameProfile.bead`, `FacetRole.bead`) holds each unit from the room;
+the elevation draws its line where that face is the one drawn
+(`DesignGeometry.beadLineOf`). Depth never moves a point on the face. Held by
+`test/domain/depth_is_consistent_test.dart`.

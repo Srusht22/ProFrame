@@ -467,7 +467,13 @@ void main() {
           if (facet.elementId == glass.id) facet,
       ];
       expect(facets, isNotEmpty);
-      expect(facets.every((f) => f.role == FacetRole.glazing), isTrue);
+      // The sealed unit, and the glazing bead holding it in.
+      expect(
+        facets.every(
+          (f) => f.role == FacetRole.glazing || f.role == FacetRole.bead,
+        ),
+        isTrue,
+      );
 
       var left = double.infinity;
       var right = -double.infinity;

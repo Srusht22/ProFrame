@@ -170,7 +170,8 @@ void main() {
         for (final pane in opening.panes)
           design.sectionById(pane.sectionId)!,
       ]..sort((a, b) => a.outline.top.compareTo(b.outline.top));
-      expect(roles[panes.first.id], {FacetRole.glazing});
+      // A sealed unit, and the glazing bead that holds it in.
+      expect(roles[panes.first.id], {FacetRole.glazing, FacetRole.bead});
       expect(roles[panes.last.id], {FacetRole.panel});
     });
 

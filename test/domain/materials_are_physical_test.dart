@@ -348,9 +348,31 @@ void main() {
       expect(of(door.frame!.id).map((f) => f.surface).toSet(), {Surfaces.pvc});
       final panes = door.childSectionsOf(door.openings.single.sectionId)
         ..sort((a, b) => a.outline.top.compareTo(b.outline.top));
-      expect(of(panes.first.id).map((f) => f.surface).toSet(), {
-        Surfaces.frostedGlass,
-      });
+      // A sealed unit: its sheets are the glass, the seal closing its
+      // cavity round the edge is rubber, and the bead holding it in is the
+      // frame's own material.
+      final unit = of(panes.first.id);
+      expect(
+        unit
+            .where((f) => f.role == FacetRole.glazing && !f.isSide)
+            .map((f) => f.surface)
+            .toSet(),
+        {Surfaces.frostedGlass},
+      );
+      expect(
+        unit
+            .where((f) => f.role == FacetRole.glazing && f.isSide)
+            .map((f) => f.surface)
+            .toSet(),
+        {Surfaces.frostedGlass, Surfaces.rubber},
+      );
+      expect(
+        unit
+            .where((f) => f.role == FacetRole.bead)
+            .map((f) => f.surface)
+            .toSet(),
+        {Surfaces.pvc},
+      );
       expect(of(panes.last.id).map((f) => f.surface).toSet(), {Surfaces.panel});
       for (final piece in door.hardware) {
         final expected = switch (piece.kind) {
@@ -392,13 +414,15 @@ void main() {
     test('the thin sides of the glass are known to be sides', () {
       final glass = mesh.facets.where((f) => f.role == FacetRole.glazing);
       expect(glass.where((f) => f.isSide), isNotEmpty);
-      // Each pane has two faces, front and back; the rest are its sides.
+      // Each pane is a sealed unit of two sheets, so it has four faces —
+      // front and back of each — and every one of them is known to be one of
+      // four; the rest are sides: the sheets' edges and the seal between.
       for (final id in glass.map((f) => f.elementId).toSet()) {
-        expect(
-          glass.where((f) => f.elementId == id && !f.isSide),
-          hasLength(2),
-          reason: id,
-        );
+        final faces = glass.where((f) => f.elementId == id && !f.isSide);
+        expect(faces, hasLength(4), reason: id);
+        for (final f in faces) {
+          expect(f.glassFaces, 4, reason: id);
+        }
       }
     });
 
@@ -413,8 +437,13 @@ void main() {
 
       for (final facet in mesh.facets) {
         if (facet.role == FacetRole.hardware) continue;
-        // A sash is the frame's profile, in the frame's finish.
-        final expected = facet.role == FacetRole.sash
+        // The seal closing a sealed unit's cavity is the seal's, not a part
+        // the user coloured.
+        if (facet.surface == Surfaces.rubber) continue;
+        // A sash and a glazing bead are the frame's profile, in the frame's
+        // finish.
+        final expected =
+            facet.role == FacetRole.sash || facet.role == FacetRole.bead
             ? door.frame!.finish.colour
             : colourOf(facet.elementId);
         expect(facet.colour, expected, reason: facet.role.name);
@@ -534,12 +563,15 @@ void main() {
         ),
       );
       expect(base.designGeometry(aluminium), shape);
-      // Everything but the frame and the sash — which is made of the
-      // frame's material — is built exactly as before…
+      // Everything but the frame, the sash and the glazing beads — which
+      // are made of the frame's material — is built exactly as before…
       String without(Design d) => base.meshGeometry(
         Mesh([
           for (final f in MeshBuilder.build(d).facets)
-            if (f.role != FacetRole.frame && f.role != FacetRole.sash) f,
+            if (f.role != FacetRole.frame &&
+                f.role != FacetRole.sash &&
+                f.role != FacetRole.bead)
+              f,
         ]),
       );
       expect(without(aluminium), without(door));

@@ -9,6 +9,7 @@ import 'package:proframe/domain/model/materials.dart';
 import 'package:proframe/domain/recognition/interpreter.dart';
 import 'package:proframe/domain/sections/section_builder.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
+import 'package:proframe/domain/solid/mesh.dart';
 import 'package:proframe/domain/solid/mesh_builder.dart';
 
 // What a leaf *is* says nothing about what is inside it.
@@ -309,15 +310,27 @@ void main() {
         for (final design in [before, after])
           for (final piece in design.hardware) piece.id,
       };
+      // The glazing beads are fixed from the room, and saying what the
+      // leaves are says which face of the drawing the room is on — so, as
+      // with the hinges, which side of the glass they are on may change, and
+      // nothing else about them.
       String everythingElse(Design design) => [
             for (final facet in MeshBuilder.build(design).facets)
-              if (!ironmongery.contains(facet.elementId))
+              if (!ironmongery.contains(facet.elementId) &&
+                  facet.role != FacetRole.bead)
                 '${facet.elementId}:${facet.corners.join(',')}',
           ].join('|');
+      List<String> beadsOnTheFace(Design design) => [
+            for (final facet in MeshBuilder.build(design).facets)
+              if (facet.role == FacetRole.bead)
+                for (final c in facet.corners)
+                  '${c.x.toStringAsFixed(6)},${c.y.toStringAsFixed(6)}',
+          ]..sort();
 
       expect(everythingElse(after), everythingElse(before),
           reason: 'the glass, the panel, the line and the leaf are the same');
       expect(everythingElse(before), isNotEmpty);
+      expect(beadsOnTheFace(after), beadsOnTheFace(before));
     });
   });
 

@@ -207,6 +207,15 @@ class CadPainter extends CustomPainter {
       }
 
       canvas.drawPath(path, Cad.stroke(ink.medium, Cad.detail));
+
+      // The glazing bead, where it is on the face this is a drawing of: the
+      // line it stops at on the glass, from the one answer the solid runs
+      // its bead to. A fine line, because it is an edge of a strip of the
+      // frame, not an outline.
+      final bead = DesignGeometry.of(design).beadLineOf(section, outline);
+      if (bead != null) {
+        canvas.drawPath(view.pathOf(bead), Cad.stroke(ink.light, Cad.hairline));
+      }
     }
   }
 
