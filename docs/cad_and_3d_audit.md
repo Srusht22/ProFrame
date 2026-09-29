@@ -263,3 +263,18 @@ bead (`FrameProfile.bead`, `FacetRole.bead`) holds each unit from the room;
 the elevation draws its line where that face is the one drawn
 (`DesignGeometry.beadLineOf`). Depth never moves a point on the face. Held by
 `test/domain/depth_is_consistent_test.dart`.
+
+## 13. Since the audit — the camera (Phase 9)
+
+`Camera.presentation` is the first view and the one Reset returns to: turned
+28°, 10° above, through a long lens (five model sizes away) so a door does
+not lean. `Camera.framing` fits the model to the viewport's own shape,
+centred between the controls over the top and the foot of the view, changing
+only the target and the zoom; the model view does it when it opens, when it
+is resized and when the design's size changes, and never over a view the
+user set (`WorkspaceState.framedFor`). Pan follows the pointer at every zoom
+(it had been converted without the zoom), with two fingers, Shift or the
+middle button; the wheel zooms towards the pointer (`Camera.zoomedToward`);
+Fit and Reset sit with zoom in and out along the foot; Perspective |
+Orthographic is named and always shown. The camera is the workspace's and
+never the design's. Held by `test/app/the_camera_test.dart`.

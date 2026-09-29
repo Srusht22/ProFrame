@@ -45,6 +45,12 @@ Set<String> partsOfOpening(Design design, String? selectedId) {
 class ModelView extends ConsumerStatefulWidget {
   const ModelView({super.key});
 
+  /// How much of the top of the view the projection switch lies over, and
+  /// of the foot the view's buttons: the model is fitted between them, so
+  /// no part of it is ever under a control.
+  static const double controlsTop = 52;
+  static const double controlsBottom = 60;
+
   @override
   ConsumerState<ModelView> createState() => _ModelViewState();
 }
@@ -55,6 +61,25 @@ class _ModelViewState extends ConsumerState<ModelView> {
   Offset? _from;
   _Drag _mode = _Drag.orbit;
   double _mmPerPixel = 1;
+
+  /// The size of the view the model was last laid out in, for the controls
+  /// outside it that frame the model — a named view.
+  Size _size = Size.zero;
+
+  /// What the camera is framed for: this design, at its own size, in a view
+  /// this size. When any of it changes the model is fitted to the view
+  /// again; a view the user has turned, zoomed or panned is theirs until
+  /// then.
+  static String framingOf(Design design, Size size) {
+    final frame = design.frame!;
+    return [
+      design.id,
+      frame.outline.toJson(),
+      design.depthMm,
+      size.width.round(),
+      size.height.round(),
+    ].join('|');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +92,16 @@ class _ModelViewState extends ConsumerState<ModelView> {
       state.design,
       openFraction: state.openFraction,
     );
-    final faces = state.camera.project(mesh);
+
+    /// [camera] framing the model in the view as it was last laid out,
+    /// between the controls over its top and its foot.
+    Camera framed(Camera camera) => camera.framing(
+      mesh,
+      width: _size.width,
+      height: _size.height,
+      top: ModelView.controlsTop,
+      bottom: ModelView.controlsBottom,
+    );
 
     // Simple unless the user asked for everything: the model and how far
     // its leaves are open; the camera's views, the display styles and the
@@ -85,13 +119,10 @@ class _ModelViewState extends ConsumerState<ModelView> {
           // A named view frames the model from that side, because a window
           // seen from the side is seventy millimetres deep and would
           // otherwise arrive as a sliver in the middle of an empty screen.
-          onLook: (view) {
-            final looking = state.camera.lookingFrom(view);
-            controller.lookFrom(
-              view,
-              zoom: looking.zoomToFit(mesh),
-            );
-          },
+          onLook: (view) => controller.frame(
+            framed(state.camera.lookingFrom(view)),
+            what: framingOf(state.design, _size),
+          ),
         ),
         const Divider(height: 1),
         ],
@@ -108,6 +139,24 @@ class _ModelViewState extends ConsumerState<ModelView> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final size = Size(constraints.maxWidth, constraints.maxHeight);
+              _size = size;
+
+              // **The model is fitted to the view without being asked**:
+              // when the view first opens on this design, when the view
+              // changes size, and when the design's own size does. It is
+              // painted framed at once, and the framing then kept, so the
+              // user never has to go looking for it.
+              final what = framingOf(state.design, size);
+              var camera = state.camera;
+              if (state.framedFor != what && size.shortestSide > 0) {
+                camera = framed(camera);
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  if (ref.read(workspaceProvider).framedFor == what) return;
+                  controller.frame(camera, what: what);
+                });
+              }
+              final faces = camera.project(mesh);
               final painter = ModelPainter(
                 faces: faces,
                 size: size,
@@ -118,13 +167,34 @@ class _ModelViewState extends ConsumerState<ModelView> {
                 highlighted: partsOfOpening(state.design, state.selectedId),
                 palette: context.palette,
               );
-              _mmPerPixel = painter.millimetresPerPixel;
+              // Millimetres of model a pixel covers at the target, as the
+              // view is zoomed now — so a drag moves the model exactly as far
+              // as the pointer, at every zoom.
+              _mmPerPixel = painter.millimetresPerPixel / camera.zoom;
+              Offset fromMiddle(Offset at) =>
+                  (at - size.center(Offset.zero)) * _mmPerPixel;
 
               return Listener(
                 onPointerSignal: (event) {
                   if (event is PointerScrollEvent) {
-                    controller.zoomCamera(
+                    // Towards the pointer: what is under it stays under it.
+                    final off = fromMiddle(event.localPosition);
+                    controller.zoomCameraToward(
                       event.scrollDelta.dy > 0 ? 0.9 : 1.1,
+                      acrossMm: off.dx,
+                      downMm: off.dy,
+                    );
+                  }
+                },
+                // The middle button pans, as it does in every modelling
+                // program — it never reaches the gestures below, which
+                // answer the primary button and fingers.
+                onPointerMove: (event) {
+                  if (event.kind == PointerDeviceKind.mouse &&
+                      event.buttons & kMiddleMouseButton != 0) {
+                    controller.panCamera(
+                      event.delta.dx * _mmPerPixel,
+                      event.delta.dy * _mmPerPixel,
                     );
                   }
                 },
@@ -134,9 +204,12 @@ class _ModelViewState extends ConsumerState<ModelView> {
                     _from = details.localFocalPoint;
                     // Two fingers pan and zoom, one orbits — the same
                     // division the drawing sheet uses, so the hands do not
-                    // have to learn two habits.
-                    _mode =
-                        details.pointerCount >= 2 ? _Drag.pan : _Drag.orbit;
+                    // have to learn two habits. With a mouse, holding Shift
+                    // pans.
+                    _mode = details.pointerCount >= 2 ||
+                            HardwareKeyboard.instance.isShiftPressed
+                        ? _Drag.pan
+                        : _Drag.orbit;
                   },
                   onScaleUpdate: (details) {
                     final from = _from ?? details.localFocalPoint;
@@ -173,13 +246,33 @@ class _ModelViewState extends ConsumerState<ModelView> {
                         child: CustomPaint(size: size, painter: painter),
                       ),
                       Positioned(
+                        top: 10,
+                        right: 12,
+                        child: _ProjectionSwitch(
+                          projection: camera.projection,
+                          onChanged: controller.setProjection,
+                        ),
+                      ),
+                      Positioned(
                         right: 12,
                         bottom: 12,
                         child: _Navigation(
                           onIn: () => controller.zoomCamera(1.25),
                           onOut: () => controller.zoomCamera(0.8),
-                          onExtents: () =>
-                              controller.zoomToFit(state.camera.zoomToFit(mesh)),
+                          onFit: () => controller.frame(
+                            framed(camera),
+                            what: what,
+                          ),
+                          // The view the design was first shown from, in the
+                          // projection the user has chosen, framed.
+                          onReset: () => controller.frame(
+                            framed(
+                              Camera.presentation.copyWith(
+                                projection: camera.projection,
+                              ),
+                            ),
+                            what: what,
+                          ),
                         ),
                       ),
                       if (everything)
@@ -547,23 +640,32 @@ class _Chip extends StatelessWidget {
   }
 }
 
+/// The buttons over the model: closer, further, the whole model, and the
+/// view it was first shown from.
 class _Navigation extends StatelessWidget {
+  // A row along the foot of the view rather than a column up its side, so
+  // the band it lies over is one the model is fitted clear of.
   final VoidCallback onIn;
   final VoidCallback onOut;
-  final VoidCallback onExtents;
+  final VoidCallback onFit;
+  final VoidCallback onReset;
 
   const _Navigation({
     required this.onIn,
     required this.onOut,
-    required this.onExtents,
+    required this.onFit,
+    required this.onReset,
   });
+
+  static const fitKey = ValueKey('camera-fit');
+  static const resetKey = ValueKey('camera-reset');
 
   @override
   Widget build(BuildContext context) => Material(
         color: context.palette.surface,
         elevation: 1,
         borderRadius: BorderRadius.circular(10),
-        child: Column(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
@@ -581,13 +683,84 @@ class _Navigation extends StatelessWidget {
               visualDensity: VisualDensity.compact,
             ),
             IconButton(
-              onPressed: onExtents,
+              key: fitKey,
+              onPressed: onFit,
               icon: const Icon(Icons.fit_screen_outlined),
-              tooltip: 'Zoom extents',
+              tooltip: 'Fit the model to the view',
+              color: context.palette.primary,
+              visualDensity: VisualDensity.compact,
+            ),
+            IconButton(
+              key: resetKey,
+              onPressed: onReset,
+              icon: const Icon(Icons.restart_alt_rounded),
+              tooltip: 'Reset the view',
               color: context.palette.primary,
               visualDensity: VisualDensity.compact,
             ),
           ],
+        ),
+      );
+}
+
+/// Perspective or orthographic: the two ways of looking through the
+/// camera, side by side and named, always on the view.
+///
+/// Perspective is how the thing looks; orthographic keeps parallel edges
+/// parallel, so sizes can be compared across the model — for inspecting it.
+/// Only a way of looking: it changes nothing in the design.
+class _ProjectionSwitch extends StatelessWidget {
+  final Projection projection;
+  final ValueChanged<Projection> onChanged;
+
+  const _ProjectionSwitch({required this.projection, required this.onChanged});
+
+  static Key keyOf(Projection p) => ValueKey('camera-${p.name}');
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: context.palette.surface,
+        elevation: 1,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.all(3),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final p in Projection.values)
+                InkWell(
+                  key: keyOf(p),
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: p == projection ? null : () => onChanged(p),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: p == projection
+                          ? context.palette.primary.withValues(alpha: 0.12)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      p.label,
+                      style: TextStyle(
+                        fontFamily: AppTheme.fontFamily,
+                        fontSize: 12,
+                        fontWeight: p == projection
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: p == projection
+                            ? context.palette.primary
+                            : context.palette.muted,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       );
 }

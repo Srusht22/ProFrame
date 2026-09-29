@@ -10,8 +10,8 @@ enum Projection {
   perspective('Perspective'),
 
   /// What a drawing uses: parallel edges stay parallel, so sizes can be
-  /// compared across the model.
-  parallel('Parallel');
+  /// compared across the model — an orthographic view, for inspecting it.
+  parallel('Orthographic');
 
   const Projection(this.label);
   final String label;
@@ -146,6 +146,34 @@ class Camera {
   /// The three-quarter view a model is usually shown in.
   static const Camera isometric = Camera(yawDegrees: 35, pitchDegrees: 25);
 
+  /// **The view a design is first shown from, and the one Reset returns
+  /// to**: as a door or a window is photographed for a catalogue.
+  ///
+  /// - **Turned a little under a third of the way round** (28°), so its
+  ///   depth — the frame's side, the sash set back in it, the handle
+  ///   standing off the leaf — is seen, while its face, which is the design,
+  ///   is still read square enough to take in whole.
+  /// - **From a little above its middle** (10°), as someone stands in front
+  ///   of it, and not from above looking down on it.
+  /// - **Through a long lens**: the eye five times the model's size away, so
+  ///   the near jamb is barely taller than the far one. A short lens makes
+  ///   a door lean out of the picture — what the user called distortion —
+  ///   and a long one keeps it upright while still being a perspective.
+  static const Camera presentation = Camera(
+    yawDegrees: 28,
+    pitchDegrees: 10,
+    distanceInSpans: 5,
+  );
+
+  /// How much of the viewport's shorter side one [viewSpan] of the model
+  /// covers at zoom 1 — the painter's scale, and what [framing] fits by.
+  static const double spanShare = 0.92;
+
+  /// How much of the viewport a framed model fills, in whichever direction
+  /// is tighter: enough to see it whole with room round it, and the handle
+  /// clear of the edge.
+  static const double framedShare = 0.86;
+
   Camera copyWith({
     double? yawDegrees,
     double? pitchDegrees,
@@ -182,6 +210,81 @@ class Camera {
 
   Camera zoomedBy(double factor) =>
       copyWith(zoom: (zoom * factor).clamp(0.05, 60.0));
+
+  /// Zooms by [factor] towards a point [acrossMm] right of and [downMm]
+  /// below the middle of the view, in millimetres of model as the view is
+  /// now — so what is under the pointer stays under it, as zooming does in
+  /// any modelling program, rather than sliding away to the middle.
+  Camera zoomedToward(
+    double factor, {
+    required double acrossMm,
+    required double downMm,
+  }) {
+    final zoomed = zoomedBy(factor);
+    // What the zoom actually was, once held to its limits.
+    final by = zoomed.zoom / zoom;
+    if ((by - 1).abs() < 1e-12) return zoomed;
+    final keep = -(by - 1) / by;
+    return zoomed.pannedBy(acrossMm * keep, downMm * keep);
+  }
+
+  /// This camera framing [mesh] in a viewport [width] by [height] pixels:
+  /// centred on the model as it is seen from here, and as close as lets it
+  /// fill [fill] of the view in whichever direction is tighter.
+  ///
+  /// **Only where it points and how close it is change** — its target and
+  /// its zoom. Where it looks from and how it projects are the user's and
+  /// are kept, so framing a model seen from the side frames it from the
+  /// side. It is fitted to the viewport's own shape rather than to a square:
+  /// a door on a phone held upright fills the height it has, and a wide
+  /// window on a laptop the width.
+  ///
+  /// The model's own geometry is only read.
+  ///
+  /// [top] and [bottom] are bands of the view, in pixels, that controls lie
+  /// over: the model is fitted between them and centred there, so nothing
+  /// the user needs is under a button.
+  Camera framing(
+    Mesh mesh, {
+    required double width,
+    required double height,
+    double top = 0,
+    double bottom = 0,
+    double fill = framedShare,
+  }) {
+    final free = height - top - bottom;
+    if (mesh.isEmpty || width <= 0 || free <= 0) return this;
+    final base = math.min(width, height) * spanShare / viewSpan(mesh);
+    var camera = this;
+    // Centring moves the eye with the target, so in perspective what is
+    // seen shifts a little as it is centred: a few rounds settle it.
+    for (var round = 0; round < 4; round++) {
+      final faces = camera.copyWith(zoom: 1).project(mesh);
+      if (faces.isEmpty) return camera;
+      var left = double.infinity, right = -double.infinity;
+      var high = double.infinity, low = -double.infinity;
+      for (final face in faces) {
+        for (final c in face.corners) {
+          left = math.min(left, c.x);
+          right = math.max(right, c.x);
+          high = math.min(high, c.y);
+          low = math.max(low, c.y);
+        }
+      }
+      final wide = math.max(right - left, 1e-9);
+      final tall = math.max(low - high, 1e-9);
+      final zoom = math
+          .min(fill * width / (wide * base), fill * free / (tall * base))
+          .clamp(0.05, 60.0);
+      // The middle of what is seen, brought to the middle of the room the
+      // controls leave — in millimetres of model, at the new zoom.
+      final lower = (top - bottom) / 2 / (base * zoom);
+      camera = camera
+          .pannedBy(-(left + right) / 2, lower - (high + low) / 2)
+          .copyWith(zoom: zoom);
+    }
+    return camera;
+  }
 
   /// Takes a named view and keeps the zoom, the pan and the projection.
   Camera lookingFrom(Camera view) => view.copyWith(
@@ -525,7 +628,7 @@ class Camera {
     }
     final extent = math.max(right - left, bottom - top);
     if (extent <= 0) return zoom;
-    return (viewSpan(mesh) / extent * fraction / 0.92).clamp(0.05, 60.0);
+    return (viewSpan(mesh) / extent * fraction / spanShare).clamp(0.05, 60.0);
   }
 
   static double _wrap(double degrees) {

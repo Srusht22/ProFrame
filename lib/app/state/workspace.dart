@@ -233,7 +233,15 @@ class WorkspaceState {
   /// Whether the user's own ink is shown over the geometry.
   final bool showSketch;
 
+  /// Where the model is being looked at from — a way of looking at the
+  /// design and no part of it: nothing here is ever written into the
+  /// design, saved with it or undone with it.
   final Camera camera;
+
+  /// What [camera] was last framed for — the design's own size and the
+  /// view's — so the model is fitted to the view whenever either changes,
+  /// and not over a view the user has set. Null until it first is.
+  final String? framedFor;
 
   /// How far the openings are swung in the model view, 0 to 1.
   final double openFraction;
@@ -261,7 +269,8 @@ class WorkspaceState {
     this.questions = const [],
     this.needsReading = false,
     this.showSketch = true,
-    this.camera = const Camera(),
+    this.camera = Camera.presentation,
+    this.framedFor,
     this.openFraction = 0,
     this.penColour = 0xFF013E37,
     this.layers = const CadLayers(),
@@ -284,6 +293,7 @@ class WorkspaceState {
     bool? needsReading,
     bool? showSketch,
     Camera? camera,
+    String? framedFor,
     double? openFraction,
     int? penColour,
     CadLayers? layers,
@@ -300,6 +310,7 @@ class WorkspaceState {
     needsReading: needsReading ?? this.needsReading,
     showSketch: showSketch ?? this.showSketch,
     camera: camera ?? this.camera,
+    framedFor: framedFor ?? this.framedFor,
     openFraction: openFraction ?? this.openFraction,
     penColour: penColour ?? this.penColour,
     layers: layers ?? this.layers,
@@ -446,6 +457,26 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
   /// Back to the whole model, centred.
   void zoomExtents() => state = state.copyWith(camera: state.camera.reset());
+
+  /// Looks through [camera], framed for [what] — the design's size and the
+  /// view's — as the model view works it out. Only the view changes.
+  void frame(Camera camera, {required String what}) =>
+      state = state.copyWith(camera: camera, framedFor: what);
+
+  /// Zooms by [factor] towards a point of the view, in millimetres of model
+  /// right of and below its middle, so what is under the pointer stays
+  /// under it.
+  void zoomCameraToward(
+    double factor, {
+    required double acrossMm,
+    required double downMm,
+  }) => state = state.copyWith(
+    camera: state.camera.zoomedToward(
+      factor,
+      acrossMm: acrossMm,
+      downMm: downMm,
+    ),
+  );
 
   void setDisplayStyle(DisplayStyle style) =>
       state = state.copyWith(displayStyle: style);

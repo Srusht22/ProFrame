@@ -954,7 +954,7 @@ the rest; it reads **Less** while they are shown.
 | Back, the design's name, **Sizes**, Undo, Save | Redo, Show my drawing, Read again, Parts, Details |
 | Draw / CAD / 3D | The technical drawing's layers, the strip of tools inside an opening, the status bar |
 | Select, Freehand, Straight line, Rectangle, Eraser (`ToolBar.simple`) | Polyline, Dimension, Arrow, Note, the pen's colour |
-| The model, and **Open** and Play where there is a leaf | The camera's views and display styles, Depth, Profile, the readout |
+| The model, **Open** and Play where there is a leaf, and the camera's own controls — Perspective \| Orthographic, zoom, **Fit**, **Reset** | The named views and display styles, Depth, Profile, the readout |
 
 **Nothing is taken away.** Every control is one tap off; the drawing still
 reads itself, a line drawn inside an opening still joins it, and a
@@ -3824,6 +3824,69 @@ screen as the frame is deep — twice as deep, twice as wide. Placing a
 sash's bars against the frame again, or glass as one block, fails it. The
 pinned solids moved on purpose; the designs' fingerprints did not, and
 every point the solids had on the face is still there.
+
+### The camera
+
+The user's words: *the model may be correct, but presentation also
+matters: orbit, zoom, pan, reset and fit; a default view that presents the
+design attractively and clearly, without an extreme perspective; an
+orthographic option for technical inspection; the model fitted to the
+viewport without the user zooming to find it; and camera movement never
+modifying the design.*
+
+- **The first view is a product photograph** — `Camera.presentation`:
+  turned 28°, so the depth is seen while the face is still read whole;
+  10° above the middle, as somebody stands in front of it; and a long lens,
+  the eye five times the model's size away, so the near jamb of a door is
+  barely taller than the far one. A short lens is what makes a door lean
+  out of the picture. **Reset** returns to it, in whichever projection the
+  user has chosen.
+- **The model is fitted to the view without being asked**, by
+  `Camera.framing`: centred on the model as it is seen, and as close as lets
+  it fill `Camera.framedShare` of the view in whichever direction is
+  tighter — of the view's own shape, not a square, so a door fills an
+  upright phone's height and a wide window a laptop's width — and fitted
+  between the controls over the top and the foot of the view
+  (`ModelView.controlsTop`, `controlsBottom`), so nothing is ever under a
+  button. Only the camera's target and zoom change: where it looks from and
+  how it projects are kept. It happens when the view opens on a design,
+  when the view changes size, and when the design's own size does
+  (`WorkspaceState.framedFor`) — and never over a view the user has turned,
+  zoomed or panned, which is theirs until one of those changes, including
+  across a trip to the drawing and back. **Fit** does it on demand from
+  wherever they are looking.
+- **The controls**: a drag turns it; two fingers, **Shift** and a drag, or
+  the middle mouse button pan it — at the pointer's own speed at every zoom
+  (the pan was converted without the zoom, so zoomed in five times the
+  model ran five times faster than the finger); the wheel and a pinch zoom,
+  the wheel **towards the pointer** (`Camera.zoomedToward`) so what is under
+  it stays under it; and a row along the foot of the view — zoom in, zoom
+  out, **Fit**, **Reset**. The named views stay under **More**.
+- **Perspective | Orthographic** are side by side and named in the top
+  corner of the view, always shown. Orthographic keeps parallel edges
+  parallel, so sizes can be compared across the model; `Projection.parallel`
+  is labelled so.
+- **The camera is not the design.** It is the workspace's
+  (`WorkspaceState.camera`), never written into the design, saved with it
+  or undone with it, and the solid is built from the design alone.
+
+`test/app/the_camera_test.dart` holds it: the first view turned a little,
+from a little above, and a door's jambs within 8% of each other on the
+screen; a door and a window framed — centred, filling the tighter
+direction, inside the view — in a phone's, a laptop's and a square view,
+in both projections, from a view turned and zoomed away, with the view's
+direction and projection kept; framed clear of the control bands; parallel
+edges parallel orthographically and not in perspective; a point zoomed
+towards staying put, exactly orthographically and within a few per cent in
+perspective. And on the real view: fitted the moment it opens on a phone
+and a laptop; a drag turning it; Shift and the middle button panning it by
+exactly the pointer's distance, zoomed and not; the wheel growing it about
+the pointer; **Fit** keeping the direction and **Reset** returning to the
+first view, both fitted; the projection one named tap away; a view the user
+set surviving a trip away and refitted, from their side, when the window
+changes size; and after every one of those, the design as it was to the
+byte, nothing to undo, and the same solid built. Converting the pan without
+the zoom again, or not fitting on opening, fails it.
 
 ## Working on this repository
 

@@ -56,7 +56,7 @@ class ModelPainter extends CustomPainter {
   double get _scale {
     final fit = math.min(size.width, size.height);
     if (viewSpan <= 0 || fit <= 0) return 1;
-    return fit * 0.92 / viewSpan;
+    return fit * Camera.spanShare / viewSpan;
   }
 
   Offset get _centre => Offset(size.width / 2, size.height / 2);
