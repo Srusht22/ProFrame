@@ -36,13 +36,38 @@ class ProjectedFacet {
 
   final Facet source;
 
+  /// The corners in the eye's own space, in the order of [corners] — where
+  /// each actually is, so that a surface whose look depends on the angle it
+  /// is seen at can be worked out at every corner rather than once.
+  final List<Vec3> eyeCorners;
+
+  /// Where the eye is, in the same space; null for a parallel view, which
+  /// looks along the same direction everywhere.
+  final Vec3? viewer;
+
+  /// Which way is up in the world — towards the sky — in the eye's space.
+  /// The sky stays overhead however the model is turned, so what a pane
+  /// reflects of it changes as the view does.
+  final Vec3 skyward;
+
   const ProjectedFacet({
     required this.corners,
     required this.depth,
     required this.light,
     required this.source,
     this.normal = const Vec3(0, 0, 1),
+    this.eyeCorners = const [],
+    this.viewer,
+    this.skyward = const Vec3(0, -1, 0),
   });
+
+  /// The way to the eye from corner [k]: different at every corner in a
+  /// perspective view, which is why a pane's reflection changes across it.
+  Vec3 towardsEyeFrom(int k) {
+    final eye = viewer;
+    if (eye == null || k >= eyeCorners.length) return const Vec3(0, 0, 1);
+    return (eye - eyeCorners[k]).normalised;
+  }
 
   String get elementId => source.elementId;
 }
@@ -192,6 +217,10 @@ class Camera {
       return Vec3(x, y, zz);
     }
 
+    // Up in the model is towards -y; turned as everything else is.
+    final skyward = (toEye(centre + const Vec3(0, -1, 0)) - toEye(centre))
+        .normalised;
+
     final projected = <_Seen>[];
     for (final facet in mesh.facets) {
       if (facet.corners.length < 3) continue;
@@ -233,6 +262,11 @@ class Camera {
           light: shade,
           normal: facing,
           source: facet,
+          eyeCorners: inEye,
+          viewer: projection == Projection.perspective
+              ? Vec3(0, 0, eyeDistance)
+              : null,
+          skyward: skyward,
         ),
         inEye,
       ));

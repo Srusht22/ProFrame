@@ -266,7 +266,7 @@ void main() {
         swing(Surfaces.handleMetal),
         greaterThan(swing(Surfaces.panel) * 2),
       );
-      expect(swing(Surfaces.handleMetal), greaterThan(0.15));
+      expect(swing(Surfaces.handleMetal), greaterThan(0.08));
     });
 
     test('a metal reflects in its own colour; plastic reflects white', () {

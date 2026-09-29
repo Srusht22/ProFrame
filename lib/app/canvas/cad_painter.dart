@@ -198,10 +198,13 @@ class CadPainter extends CustomPainter {
         Cad.fill(
           cad.ownColour
               ? Color(section.finish.colour).withValues(alpha: cad.tint)
-              : ink.glass,
+              : Color.lerp(ink.glass, Color(section.finish.colour), cad.shade)!,
         ),
       );
-      if (layers.hatching) _indicate(canvas, outline, path, cad.hatch);
+      if (layers.hatching) {
+        if (cad.stipple) _stipple(canvas, outline);
+        _indicate(canvas, outline, path, cad.hatch);
+      }
 
       canvas.drawPath(path, Cad.stroke(ink.medium, Cad.detail));
     }
@@ -267,6 +270,28 @@ class CadPainter extends CustomPainter {
       case CadHatch.none:
         break;
     }
+  }
+
+  /// Fine dots across a part: the drawing's mark for obscured glass, which
+  /// lets light through and no view. Light enough that every line drawn
+  /// over the part still reads.
+  void _stipple(Canvas canvas, Polygon outline) {
+    final path = view.pathOf(outline);
+    final bounds = path.getBounds();
+    if (bounds.width < 6 || bounds.height < 6) return;
+    canvas.save();
+    canvas.clipPath(path);
+    final dot = Paint()..color = ink.glassLine.withValues(alpha: 0.55);
+    const spacing = 7.0;
+    var row = 0;
+    for (var y = bounds.top + spacing / 2; y < bounds.bottom; y += spacing) {
+      final offset = row.isEven ? 0.0 : spacing / 2;
+      for (var x = bounds.left + offset; x < bounds.right; x += spacing) {
+        canvas.drawCircle(Offset(x, y), 0.7, dot);
+      }
+      row++;
+    }
+    canvas.restore();
   }
 
   /// The two parallel strokes across a corner that mean glass on an

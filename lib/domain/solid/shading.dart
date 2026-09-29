@@ -71,6 +71,19 @@ class Environment {
   /// that.
   final double key;
 
+  /// The studio's strip lights: a tall, narrow soft light either side of
+  /// the camera, as glass is photographed — travelling with the camera, as
+  /// a photographer's lights do. [stripsAt] is how far round from the
+  /// camera each stands, in degrees either side; [stripHalfWidth] how wide
+  /// each is, and [stripEdge] how soft its edges, in degrees; [stripRadiance]
+  /// how much brighter than a surface it lights. A strip seen in a pane is
+  /// the sheen across it — the one thing that says glass at a glance, as it
+  /// does in every photograph of a window — and it moves as the view turns.
+  final double stripsAt;
+  final double stripHalfWidth;
+  final double stripEdge;
+  final double stripRadiance;
+
   const Environment({
     required this.light,
     required this.sky,
@@ -78,26 +91,72 @@ class Environment {
     required this.ground,
     this.ambient = 0.45,
     this.key = 0.75,
+    this.skyRadiance = 1.6,
+    this.stripsAt = 67.5,
+    this.stripHalfWidth = 1.2,
+    this.stripEdge = 1.0,
+    this.stripRadiance = 2.6,
   });
 
   /// Over the viewer's left shoulder, where a window is usually
   /// photographed from — the same light `Camera.project` has always used.
   static const keyLight = Vec3(-0.45, -0.7, 1);
 
-  /// A bright overcast day: the light the model is shown in by default.
+  /// A bright day: the light the model is shown in by default. A clear
+  /// sky, bluer overhead than at the hazy horizon, over paving — so what a
+  /// surface reflects depends on which way it faces and from where it is
+  /// seen, as it does outdoors, and glass shows the sky moving across it.
   static final daylight = Environment(
     light: keyLight.normalised,
-    sky: Rgb.of(0xFFE9EEF0),
-    horizon: Rgb.of(0xFFF7F8F6),
-    ground: Rgb.of(0xFF8F8D86),
+    sky: Rgb.of(0xFF94B4CF),
+    horizon: Rgb.of(0xFFF1F4F4),
+    ground: Rgb.of(0xFF77746D),
   );
 
   /// What is seen looking along [direction]: sky above the horizon, ground
   /// below it. y runs down the screen, so up is negative y.
-  Rgb seen(Vec3 direction) {
-    final up = -direction.normalised.y;
+  Rgb seen(Vec3 direction) => seenAt(-direction.normalised.y);
+
+  /// What is seen looking [up] — the sine of how far above the horizon —
+  /// from -1 straight down to 1 straight up. The horizon is an edge: the
+  /// ground is darker than the sky even where the two meet, which is the
+  /// line a pane of glass shows the day by.
+  Rgb seenAt(double up) {
     if (up >= 0) return horizon.mixedWith(sky, math.min(1, up * 1.4));
-    return horizon.mixedWith(ground, math.min(1, -up * 2.2));
+    return horizon.mixedWith(ground, 0.6 + 0.4 * math.min(1, -up * 2.2));
+  }
+
+  /// How much brighter the sky is than a surface it lights: it is the
+  /// light, so what reflects it shows it brighter than anything lit by it.
+  final double skyRadiance;
+
+  /// The light arriving from [up]: the sky at its own brightness, the
+  /// ground at what it gives back. What a mirror-smooth surface reflects,
+  /// before Fresnel says how much of it.
+  Rgb radianceAt(double up) =>
+      up >= 0 ? seenAt(up) * skyRadiance : seenAt(up);
+
+  /// The light arriving along [direction], in the eye's space, with
+  /// [skyward] the way up in the world: the sky or the ground there, and a
+  /// strip light where the direction meets one — fading over its edge, as a
+  /// diffused light does.
+  Rgb radianceToward(Vec3 direction, Vec3 skyward) {
+    final d = direction.normalised;
+    final up = d.dot(skyward);
+    return radianceAt(up) + Rgb.white * (stripRadiance * stripAt(d, up));
+  }
+
+  /// How much of a strip light is seen looking along [d] — 1 inside one, 0
+  /// clear of both — [up] being how far above the horizon it points. The
+  /// strips stand from a little below eye level to well above it.
+  double stripAt(Vec3 d, double up) {
+    if (up < -0.25 || up > 0.85) return 0;
+    final round = (math.atan2(d.x, d.z) * 180 / math.pi).abs();
+    final off = (round - stripsAt).abs() - stripHalfWidth;
+    if (off <= 0) return 1;
+    if (off >= stripEdge) return 0;
+    final t = 1 - off / stripEdge;
+    return t * t * (3 - 2 * t);
   }
 
   /// The average of all of it: what a rough surface reflects, since it
@@ -130,6 +189,7 @@ class Shaded {
   final int? filter;
 
   /// 0xAARRGGBB, added over the top; null when nothing is reflected.
+  ///
   final int? reflection;
 
   const Shaded(this.colour, this.opacity, {this.filter, this.reflection});
@@ -137,7 +197,10 @@ class Shaded {
 
 abstract final class Shading {
   /// How [surface] in [colour], facing along [normal], looks in
-  /// [environment]. [side] is the thin side of a sheet.
+  /// [environment]. [side] is the thin side of a sheet; [view] is the way
+  /// to the eye from the point being shaded — straight out of the screen
+  /// for a parallel view, and different at every point of a perspective
+  /// one, which is what makes a reflection move across a pane.
   ///
   /// Four things are worked out, each from the material's own figures:
   ///
@@ -160,15 +223,16 @@ abstract final class Shading {
     required Vec3 normal,
     required Environment environment,
     bool side = false,
+    Vec3 view = const Vec3(0, 0, 1),
+    Vec3 skyward = const Vec3(0, -1, 0),
   }) {
     final base = Rgb.of(colour);
     var n = normal.normalised;
     // The side of the face the viewer is on.
-    if (n.z < 0) n = n * -1;
-    const view = Vec3(0, 0, 1);
+    if (n.dot(view) < 0) n = n * -1;
     final light = environment.light;
 
-    final facingView = n.z.clamp(0.0, 1.0);
+    final facingView = n.dot(view).clamp(0.0, 1.0);
     // Lit on either side, as `Camera.project` has it: a face turned from
     // the key is the inside of a reveal, which is lit by the room, not black.
     final facingLight = n.dot(light).abs();
@@ -185,8 +249,9 @@ abstract final class Shading {
     // What the surface reflects: the environment in the mirror direction,
     // blurred towards its average as the surface roughens.
     final mirror = n * (2 * facingView) - view;
+    final mirrorUp = mirror.normalised.dot(skyward);
     final reflected = environment
-        .seen(mirror)
+        .seenAt(mirrorUp)
         .mixedWith(environment.diffuse, math.min(1, rough * 1.25));
 
     // The key light, seen in the surface.
@@ -205,7 +270,8 @@ abstract final class Shading {
         base,
         lit,
         fresnel.toDouble(),
-        reflected,
+        environment.radianceToward(mirror, skyward),
+        environment.diffuse,
         highlight.toDouble(),
         side,
       );
@@ -237,7 +303,8 @@ abstract final class Shading {
     Rgb base,
     double lit,
     double fresnel,
-    Rgb reflected,
+    Rgb arriving,
+    Rgb average,
     double highlight,
     bool side,
   ) {
@@ -258,6 +325,15 @@ abstract final class Shading {
         base.mixedWith(Rgb.white, surface.scatter * 0.4) *
         (0.82 + 0.18 * lit);
 
+    // What the surface reflects: the light arriving from the mirror
+    // direction — the sky, the ground, the studio's softbox — at its own
+    // brightness, blurred towards the average as the surface roughens, and
+    // as much of it as Fresnel says.
+    final rough = surface.roughness.clamp(0.04, 1.0);
+    final reflected = arriving.mixedWith(
+      average,
+      math.min(1, rough * 1.25),
+    );
     final reflection = reflected * fresnel + Rgb.white * (highlight * 0.9);
     return Shaded(
       glow.argb,

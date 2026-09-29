@@ -74,10 +74,21 @@ class CadIndication {
   /// How strongly that tint is laid on, 0 to 1.
   final double tint;
 
+  /// For glass shown in the sheet's glass tint: how much of its own colour
+  /// that tint takes, 0 to 1 — a controlled shade, so tinted glass reads
+  /// darker than clear on the drawing without hiding the lines over it.
+  final double shade;
+
+  /// Whether it is stippled: the fine dots a drawing marks obscured —
+  /// frosted — glass with, over the glazing mark.
+  final bool stipple;
+
   const CadIndication({
     required this.hatch,
     this.ownColour = true,
     this.tint = 0.32,
+    this.shade = 0,
+    this.stipple = false,
   });
 }
 
@@ -186,7 +197,11 @@ abstract final class Surfaces {
     roughness: 0.02,
     reflectivity: 0.07,
     edge: EdgeLook(darkness: 0.2, sideTint: 0xFF566E66),
-    cad: CadIndication(hatch: CadHatch.glazing, ownColour: false),
+    cad: CadIndication(
+      hatch: CadHatch.glazing,
+      ownColour: false,
+      shade: 0.3,
+    ),
   );
 
   /// Acid-etched or sandblasted glass: light comes through, a view does
@@ -200,7 +215,11 @@ abstract final class Surfaces {
     reflectivity: 0.05,
     edge: EdgeLook(darkness: 0.15, sideTint: 0xFF9DB8AE),
     texture: SurfaceTexture.frosted,
-    cad: CadIndication(hatch: CadHatch.glazing, ownColour: false),
+    cad: CadIndication(
+      hatch: CadHatch.glazing,
+      ownColour: false,
+      stipple: true,
+    ),
   );
 
   /// An infill panel: opaque, matte, painted or foiled.

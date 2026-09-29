@@ -194,3 +194,15 @@ ironmongery against faces it actually meets on screen, with soft
 constraints for planes that only nick a piece. Held by
 `test/domain/the_frame_is_a_real_profile_test.dart` and
 `test/app/cad_draws_the_frame_as_a_drawing_test.dart`.
+
+## 9. Since the audit — glass (Phase 5)
+
+Panes are shaded point by point across their faces (`ModelPainter._pane`,
+`drawVertices` over a 10 × 10 grid) along the eye's own ray to each point,
+in a studio environment — a sky with a horizon, a sky brighter than what it
+lights, and strip lights either side of the camera — so a sheen lies across
+the glass where it truly falls and moves with the view. The glass filters
+what is behind it, frosting scatters, reflection is added; the thin side is
+green. CAD: tinted glass shaded, frosted stippled, lines unchanged. Glass
+choices never change geometry. Held by
+`test/app/glass_looks_like_glass_test.dart`.

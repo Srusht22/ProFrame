@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/geometry/vec2.dart';
 import '../../domain/solid/camera.dart';
+import '../../domain/solid/mesh.dart';
 import '../../domain/solid/shading.dart';
 import '../theme/app_theme.dart';
 import 'display_style.dart';
@@ -153,7 +154,10 @@ class ModelPainter extends CustomPainter {
   ///
   /// The light is the same in either appearance: the backdrop darkens with
   /// the app, the design's own finishes do not.
-  Shaded shadeOf(ProjectedFacet face) {
+  ///
+  /// [corner] shades the face as seen at that corner, along the eye's own
+  /// ray to it; without it, the face is shaded as seen at its middle.
+  Shaded shadeOf(ProjectedFacet face, {int? corner, Vec3? view}) {
     final source = face.source;
     return Shading.of(
       surface: style.usesFinishes
@@ -163,8 +167,31 @@ class ModelPainter extends CustomPainter {
       normal: face.normal,
       environment: Environment.daylight,
       side: source.isSide,
+      view:
+          view ??
+          (corner == null ? _towardsEye(face) : face.towardsEyeFrom(corner)),
+      skyward: face.skyward,
     );
   }
+
+  /// The way to the eye from the middle of [face].
+  static Vec3 _towardsEye(ProjectedFacet face) {
+    final n = face.eyeCorners.length;
+    if (n == 0) return const Vec3(0, 0, 1);
+    var sum = Vec3.zero;
+    for (var k = 0; k < n; k++) {
+      sum = sum + face.towardsEyeFrom(k);
+    }
+    return sum.normalised;
+  }
+
+  /// Whether [face] is seen through — the face of a pane, not its thin side
+  /// — and so is shaded at every corner rather than once.
+  static bool _seenThrough(ProjectedFacet face) =>
+      face.source.surface.isTransparent &&
+      !face.source.isSide &&
+      face.eyeCorners.length == face.corners.length &&
+      face.corners.length >= 3;
 
   /// The one colour a monochrome view is in.
   static const _clay = 0xFFDCE0DE;
@@ -173,6 +200,10 @@ class ModelPainter extends CustomPainter {
   /// multiplies what is behind it, what it shows of itself is laid over,
   /// and what it reflects is added.
   void _face(Canvas canvas, Path path, ProjectedFacet face) {
+    if (_seenThrough(face)) {
+      _pane(canvas, face);
+      return;
+    }
     final shaded = shadeOf(face);
     if (shaded.filter case final filter?) {
       canvas.drawPath(
@@ -201,6 +232,101 @@ class ModelPainter extends CustomPainter {
       );
     }
   }
+
+  /// A face of a pane, shaded point by point.
+  ///
+  /// Glass is the one surface whose look changes across a single flat face.
+  /// In a perspective view the eye meets each point of it at its own angle,
+  /// so what it reflects — the studio's softbox as a sheen, the sky, the
+  /// ground — lies across the pane where it really falls, and moves as the
+  /// view turns; and how much it reflects rather than lets through, more at
+  /// a glance than square on, changes from one side of it to the other.
+  /// Shaded once, a pane is a flat tinted card.
+  ///
+  /// So a four-sided face is shaded at every point of a fine grid across it
+  /// and blended between them — in the same three layers as every face
+  /// (`Shaded`): what it lets through multiplies what is behind, what it
+  /// scatters is laid over, what it reflects is added.
+  void _pane(Canvas canvas, ProjectedFacet face) {
+    final n = face.corners.length;
+    final at = [for (final c in face.corners) _place(c)];
+    final List<Offset> points;
+    final List<Shaded> shades;
+    final List<int> triangles;
+    if (n == 4) {
+      points = [];
+      shades = [];
+      final eye = face.viewer;
+      final e = face.eyeCorners;
+      for (var j = 0; j <= _grid; j++) {
+        for (var i = 0; i <= _grid; i++) {
+          final u = i / _grid, v = j / _grid;
+          Offset flat(List<Offset> c) =>
+              (c[0] * (1 - u) + c[1] * u) * (1 - v) +
+              (c[3] * (1 - u) + c[2] * u) * v;
+          points.add(flat(at));
+          final where =
+              e[0] * ((1 - u) * (1 - v)) +
+              e[1] * (u * (1 - v)) +
+              e[2] * (u * v) +
+              e[3] * ((1 - u) * v);
+          shades.add(
+            shadeOf(
+              face,
+              view: eye == null
+                  ? const Vec3(0, 0, 1)
+                  : (eye - where).normalised,
+            ),
+          );
+        }
+      }
+      triangles = [
+        for (var j = 0; j < _grid; j++)
+          for (var i = 0; i < _grid; i++) ...[
+            j * (_grid + 1) + i,
+            j * (_grid + 1) + i + 1,
+            (j + 1) * (_grid + 1) + i + 1,
+            j * (_grid + 1) + i,
+            (j + 1) * (_grid + 1) + i + 1,
+            (j + 1) * (_grid + 1) + i,
+          ],
+      ];
+    } else {
+      points = at;
+      shades = [for (var k = 0; k < n; k++) shadeOf(face, corner: k)];
+      triangles = [
+        for (var k = 1; k + 1 < n; k++) ...[0, k, k + 1],
+      ];
+    }
+
+    void layer(List<Color> colours, BlendMode mode) => canvas.drawVertices(
+      ui.Vertices(
+        ui.VertexMode.triangles,
+        points,
+        colors: colours,
+        indices: triangles,
+      ),
+      // The vertices' own colours, laid on the canvas by [mode].
+      BlendMode.dst,
+      Paint()..blendMode = mode,
+    );
+
+    if (shades.every((s) => s.filter != null)) {
+      layer([for (final s in shades) Color(s.filter!)], BlendMode.multiply);
+    }
+    if (shades.any((s) => s.opacity > 0)) {
+      layer([
+        for (final s in shades) Color(s.colour).withValues(alpha: s.opacity),
+      ], BlendMode.srcOver);
+    }
+    if (shades.every((s) => s.reflection != null)) {
+      layer([for (final s in shades) Color(s.reflection!)], BlendMode.plus);
+    }
+  }
+
+  /// How finely a pane is shaded across: a point every tenth of the way,
+  /// enough for a sheen to have a shape and too few to cost anything.
+  static const _grid = 10;
 
   /// A face's edges, as its material shows them: hard and dark on an
   /// extrusion or a metal, barely there on glass, which is seen through.

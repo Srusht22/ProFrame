@@ -3581,6 +3581,65 @@ elevation's sightline standing on the solid's mitre.
 between the outline and the daylight the sightline and nothing else, and
 the frame's material changing only the frame on the sheet.
 
+### Glass looks like glass
+
+A pane was shaded once, as one colour over whatever was behind it: a flat
+tinted card. Three things make it glass now, each physical rather than a
+colour chosen to look glassy.
+
+- **It is shaded where it is.** Glass is the one surface whose look changes
+  across a single flat face: in a perspective view the eye meets each point
+  at its own angle, so what it reflects and how much — more at a glance than
+  square on — change from one side of the pane to the other.
+  `ModelPainter._pane` shades each four-sided face of a pane at every point
+  of a ten-by-ten grid, along the eye's own ray to that point
+  (`ProjectedFacet.eyeCorners`, `viewer`, `towardsEyeFrom`), and draws the
+  grid with `drawVertices`, blending between the points. Other faces are lit
+  once, from the true direction to their middle.
+- **It has something bright to reflect.** At ordinary viewing angles glass
+  reflects six to ten per cent, so a smooth sky shows nothing on it: what
+  says *glass* in every photograph of a window is a bright light's
+  reflection lying across it. `Environment.daylight` is a studio as glass
+  is photographed in: a clear sky whose horizon is an edge, a sky brighter
+  than what it lights (`skyRadiance`), and two tall strip lights either
+  side of the camera (`stripsAt` 67.5°), travelling with it as a
+  photographer's lights do. A strip seen in a pane is the sheen across it —
+  where it falls on the pane is worked out point by point, it moves as the
+  view turns, and glass square on to the eye, which reflects neither strip,
+  is simply transparent, as it is. The strip lights are only what glass
+  reflects (`radianceToward`); nothing else is lit by them.
+- **It lets through what is behind it.** The pane multiplies whatever is
+  behind it on the screen — the backdrop, and the model's own parts behind
+  it — by its filter, lays what frosting scatters over it, and adds what it
+  reflects. A "room behind the glass" was tried and taken out: what shows
+  through a pane is what is actually behind it.
+
+**Each glass is its own material, and only a material.** Clear lets most
+through with a faint cool cast; tinted, dark and blue-grey let through less
+and take their colour; frosted scatters, so it glows with the light, hides
+what is behind it and spreads the sheen soft. The pane has thickness, and
+its thin side is not seen through: it is the green of the iron in the
+glass. Changing one glass for another changes no width, height, position,
+opening, divider or dimension — nothing but how it looks.
+
+**On the technical drawing glass stays a drawing**: the sheet's light glass
+tint, the two strokes across a corner, the part's name, and its own outline
+drawn over the tint. Tinted glass takes a controlled share of its own colour
+(`CadIndication.shade`), so it reads darker than clear without hiding a
+line; frosted glass is stippled (`CadIndication.stipple`), the drawing's
+mark for obscured glass. No line of the drawing moves with the glass.
+
+`test/app/glass_looks_like_glass_test.dart` holds it on the pictures: every
+glass choice is the same geometry — design, both solids, every fill, every
+bar and every dimension; each glass is a different picture; clear glass
+changes with what is behind it and frosted hardly does; tinted is darker
+than clear and dark darkest; a pane is not a flat rectangle where a panel
+in the same place is one even face; the sheen moves as the view turns;
+frosted spreads it; the pane has thickness and a green edge; and on the
+drawing the tint is never so dark or so pale that the lines go, tinted is
+shaded, frosted is stippled, and outside the panes not a pixel changes.
+Drawing the glass flat again fails four of those tests.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the
