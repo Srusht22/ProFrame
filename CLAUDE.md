@@ -3375,6 +3375,26 @@ nothing else moves at all.
 `test/domain/editable_dimensions_test.dart` and
 `test/app/editable_figures_test.dart` hold all of this.
 
+## The look of CAD and 3D
+
+`docs/cad_and_3d_audit.md` is the audit written before the visual work on
+the technical drawing and the model began: where every piece of geometry,
+material and depth lives, how `CadPainter` and `MeshBuilder` → `Camera` →
+`ModelPainter` draw it, what limits the look today (flat colour × one light
+number, shading baked into facets and then applied again, glass as a
+translucent box, no seals or rubber, every piece of ironmongery the one
+`FacetRole.hardware`, handle sizes worked out differently by CAD and 3D),
+and where the look can be improved without moving geometry.
+
+**Appearance may change; geometry may not.**
+`test/domain/rendering_geometry_baseline_test.dart` pins the geometry both
+views are built from — the design's own shapes and every facet's corners,
+part and role, never its colour, transparency or gloss — for a door, a
+window and a sliding pair, shut and open. A visual change leaves every
+fingerprint as it was. One that moves them has moved geometry: where that is
+the point (a seal that is now real material), update the figure on purpose
+and say so; where it is not, the change is wrong.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the
