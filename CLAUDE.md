@@ -3684,6 +3684,74 @@ and the frame in one colour three different pictures. Switching the
 recessed shading off, or the arris, fails it. The technical drawing is
 unchanged: a panel is still hatched.
 
+### Ironmongery is metal
+
+The ironmongery was already geometry — see *Ironmongery is built as
+ironmongery* — but it was lit a flat facet at a time, so a round lever was
+a prism with a stripe on each flat, its plates were sharp-edged card, a
+hinge's leaf stood a few millimetres off the face it is screwed to, and
+nothing sat on the door because nothing cast a shadow. It is shaded and
+built now as the metal pieces it is. Where it goes, and which piece a door
+or a window gets, did not change: a door still has its lever and lock, a
+window its espagnolette and no lock, and every piece is still placed from
+its opening's own outline by `OpeningHardware` and goes where the opening
+goes.
+
+- **Round is round to the light.** A facet of a round part carries the way
+  the surface faces at each of its corners (`Facet.normals`), turned with
+  the model by `Camera.project` (`ProjectedFacet.cornerNormals`), and
+  `ModelPainter._smooth` lights it point by point from them — so a
+  highlight runs along a lever instead of lighting one flat of it. The
+  normals are only light: they move nothing, and a flat face has none.
+- **A metal mirrors its studio, in its own colour.** `Shading.of` gives a
+  metal the sky at its own brightness and the strip lights either side of
+  the camera, spread by its roughness (`radianceToward(blur:)`), and a
+  dimmer studio on the camera's side (`Environment.studioColour`), so a
+  plate facing the lens shows its own colour and not a white mirror of the
+  sky. **A metal's colour is what it reflects**: its reflectivity figure
+  says how polished it is, and multiplying the colour by it as well, as it
+  once did, turned a grey handle near black. Paint and plastic reflect the
+  same sky at the same brightness, in white.
+- **Built as the pieces they are**, in `Furniture`, which the solid and
+  both drawings read: the lever is one bent tube out of its rose, across
+  the leaf and round towards the door, closed in a dome (`leverArm`); the
+  rose, the boss and the knuckle are turned, their edges rounded
+  (`rose`, `boss`, `knuckle`, with a groove where a hinge's two halves
+  meet); a pull's bar has rounded ends; and every plate — backplate,
+  base, rose, escutcheon, hinge leaf — is pressed, its edge rounded over,
+  and lies flat on its face (`MeshBuilder._plate`). Everything is within
+  the outline the drawings draw, so the two views still draw one piece.
+- **A tube is not twisted at its bends.** `tubeRings` carries each ring's
+  turn on from the one before, where it used to choose each afresh from a
+  fixed reference that swapped at every bend of a lever and joined each
+  point to one a third of the way round.
+- **Every piece is fixed to a face and casts its shadow there.** Each
+  facet records the face it is fixed to (`Facet.mountAt`, `mountNormal`):
+  the leaf's face for a plate, the plate's top for what stands on it.
+  `Camera.project` carries every corner along the key light onto that
+  face (`ProjectedFacet.shadow`), and the painter lays it down just
+  before the piece — taking away the key light's share and no more, soft
+  by the size of the light and the distance cast, and only on what can
+  take a shadow: never glass, which lets the light through. A piece is
+  painted plate first and what stands on it after, seen from the side it
+  stands out towards.
+- **The technical drawing stays a drawing**: the same simplified shapes in
+  line and the sheet's colour, and a keyhole filled solid, as a hole is
+  drawn (`Furniture.bores`, `DesignGeometry.boresOf`).
+
+The pinned solids in `rendering_geometry_baseline_test.dart` moved on
+purpose, and only their ironmongery: every other facet was checked
+unchanged, shut and open. `test/app/ironmongery_is_metal_test.dart` holds
+it: a door's lever and lock and a window's espagnolette, two different
+objects; each placed from its opening and following it when a bar moves
+and when the design is resized, every piece naming its opening and
+swinging with it; each lying on its face and standing out of it; round
+parts carrying unit normals on the side they face; and on the pictures a
+lever lit smoothly with a highlight, casting a shadow on its door and none
+on glass, and black, grey and silver in that order — with the drawing's
+keyhole solid and its plate one flat colour. Flat shading, no shadow, or
+the old ring frames each fail it.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the

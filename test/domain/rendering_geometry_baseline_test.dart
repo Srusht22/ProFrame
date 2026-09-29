@@ -191,21 +191,31 @@ void main() {
   // every new corner inside the pane's fill and its thickness, and only the
   // door — the one design here with a panel — moved. Before that the door
   // was 1eaebb46c455cad2 / 28e1f7f336edbf2f.
+  //
+  // Then when the ironmongery was built as the pieces it is (Phase 7: the
+  // lever one bent piece closed in a dome, the rose, boss and knuckle
+  // turned, plates pressed with a rounded edge, a hinge's leaf lying on the
+  // face it is screwed to rather than off it): every design's solid moved,
+  // and only its ironmongery — every facet that is not ironmongery was
+  // checked unchanged, shut and open, and each piece still covers exactly
+  // the shapes the drawings draw. Before that the solids were: door
+  // 926fa8e9b336512a / 870c6b3cd760cbcf, window 4e543030cc8b4b5f /
+  // 8818175eaf4a47fd, sliding 27a71776216ea173 / 6741b95707a4e4d3.
   const pinned = <String, Map<String, String>>{
     'door': {
       'design': 'ae3cfe6089559a06',
-      'shut': '926fa8e9b336512a',
-      'open': '870c6b3cd760cbcf',
+      'shut': '8d14e9dad135c003',
+      'open': '4d07d3ee035bbfbf',
     },
     'window': {
       'design': '4f27d2f58f42a604',
-      'shut': '4e543030cc8b4b5f',
-      'open': '8818175eaf4a47fd',
+      'shut': '6522b314a64d229f',
+      'open': '2aa8882908f50747',
     },
     'sliding': {
       'design': '9253e5c841c1026c',
-      'shut': '27a71776216ea173',
-      'open': '6741b95707a4e4d3',
+      'shut': '69ec0b3f0d12b02d',
+      'open': '97efb4a8b4f5b30f',
     },
   };
 

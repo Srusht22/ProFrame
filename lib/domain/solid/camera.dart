@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import '../geometry/vec2.dart';
 import 'mesh.dart';
+import 'shading.dart';
 
 /// How the model is flattened onto the screen.
 enum Projection {
@@ -50,6 +51,25 @@ class ProjectedFacet {
   /// reflects of it changes as the view does.
   final Vec3 skyward;
 
+  /// Which way the surface faces at each corner, in the eye's space and in
+  /// the order of [corners] — `Facet.normals`, turned with the model. Empty
+  /// for a flat face, which faces along [normal] everywhere.
+  final List<Vec3> cornerNormals;
+
+  /// Where this face's shadow falls on the face of the leaf its piece is
+  /// fixed to, in view units as [corners] are — the face's corners carried
+  /// along the key light onto that plane. Null for a face fixed to nothing,
+  /// or one the light does not reach past.
+  final List<Vec2>? shadow;
+
+  /// How square the key light meets the face [shadow] falls on, 0 to 1:
+  /// how much of that face's light the shadow takes away.
+  final double shadowFacing;
+
+  /// How far, on average, the light runs from this face to its [shadow], in
+  /// millimetres — what decides how soft the shadow's edge is.
+  final double shadowReach;
+
   const ProjectedFacet({
     required this.corners,
     required this.depth,
@@ -59,6 +79,10 @@ class ProjectedFacet {
     this.eyeCorners = const [],
     this.viewer,
     this.skyward = const Vec3(0, -1, 0),
+    this.cornerNormals = const [],
+    this.shadow,
+    this.shadowFacing = 0,
+    this.shadowReach = 0,
   });
 
   /// The way to the eye from corner [k]: different at every corner in a
@@ -221,6 +245,21 @@ class Camera {
     final skyward = (toEye(centre + const Vec3(0, -1, 0)) - toEye(centre))
         .normalised;
 
+    Vec2? onScreen(Vec3 eye) {
+      final away = eyeDistance - eye.z;
+      if (projection == Projection.perspective && away <= span * 0.02) {
+        return null;
+      }
+      final scale = projection == Projection.perspective
+          ? eyeDistance / away
+          : 1.0;
+      return Vec2(eye.x * scale * zoom, eye.y * scale * zoom);
+    }
+
+    // The key light, in the eye's space: the one `Shading.of` lights by,
+    // so a shadow falls where that light says it does.
+    final key = Environment.keyLight.normalised;
+
     final projected = <_Seen>[];
     for (final facet in mesh.facets) {
       if (facet.corners.length < 3) continue;
@@ -255,6 +294,49 @@ class Camera {
       final lambert = facing.dot(light).abs();
       final shade = (0.32 + 0.68 * lambert).clamp(0.0, 1.0);
 
+      final normals = facet.normals.length == facet.corners.length
+          ? [
+              for (final n in facet.normals)
+                (toEye(n + centre) - toEye(centre)).normalised,
+            ]
+          : const <Vec3>[];
+
+      // Its shadow on the face it is fixed to: every corner carried along
+      // the light onto that plane. Only where the light falls on the plane
+      // from the side the piece is on — otherwise the plane is in its own
+      // shade and nothing is cast on it.
+      List<Vec2>? shadow;
+      var shadowFacing = 0.0;
+      var shadowReach = 0.0;
+      double? level;
+      var seenFromAbove = true;
+      if (facet.mountAt case final at?) {
+        final o = toEye(at);
+        final n = (toEye(facet.mountNormal! + centre) - toEye(centre))
+            .normalised;
+        level = at.dot(facet.mountNormal!);
+        seenFromAbove = projection == Projection.perspective
+            ? n.dot(Vec3(0, 0, eyeDistance) - o) > 0
+            : n.z > 0;
+        final towards = key.dot(n);
+        if (towards > 0.05) {
+          final cast = <Vec2>[];
+          var reach = 0.0;
+          for (final p in inEye) {
+            final run = math.max(0.0, (p - o).dot(n)) / towards;
+            final on = onScreen(p - key * run);
+            if (on == null) break;
+            cast.add(on);
+            reach += run / inEye.length;
+          }
+          if (cast.length == inEye.length) {
+            shadow = cast;
+            shadowFacing = towards;
+            shadowReach = reach;
+          }
+        }
+      }
+
       projected.add(_Seen(
         ProjectedFacet(
           corners: corners,
@@ -267,8 +349,14 @@ class Camera {
               ? Vec3(0, 0, eyeDistance)
               : null,
           skyward: skyward,
+          cornerNormals: normals,
+          shadow: shadow,
+          shadowFacing: shadowFacing,
+          shadowReach: shadowReach,
         ),
         inEye,
+        level: level,
+        seenFromAbove: seenFromAbove,
       ));
     }
 
@@ -312,10 +400,27 @@ class Camera {
     };
 
     for (final id in pieces) {
-      final members = [
+      var members = [
         for (final seen in order)
           if (pieceOf(seen) == id) seen,
       ];
+      // **What stands on a plate is in front of the plate**, seen from the
+      // side it stands out towards — a rose, a lever, a knuckle — however
+      // the depths of their middles happen to compare. A rose's far side is
+      // deeper than the middle of the long plate it stands on, and painted
+      // by depth alone the plate went over it. So a piece is painted plate
+      // first and what stands on it after — or, seen from behind, the other
+      // way round — and by depth within each.
+      if (members.every((m) => m.level != null)) {
+        final upward = members.first.seenFromAbove;
+        final ranked = [for (var k = 0; k < members.length; k++) k];
+        ranked.sort((a, b) {
+          final byLevel = members[a].level!.compareTo(members[b].level!);
+          if (byLevel != 0) return upward ? byLevel : -byLevel;
+          return a.compareTo(b);
+        });
+        members = [for (final k in ranked) members[k]];
+      }
       final others = [
         for (final seen in order)
           if (pieceOf(seen) != id) seen,
@@ -438,7 +543,17 @@ class _Seen {
   final List<Vec3> eye;
   final _Box box;
 
-  _Seen(this.facet, this.eye) : box = _Box.of(facet.corners);
+  /// For a piece of ironmongery, how far out along its face the plane it
+  /// casts its shadow on stands: the leaf's face for a plate, the plate's
+  /// top for what stands on it.
+  final double? level;
+
+  /// Whether the eye is on the side of that plane the piece stands out
+  /// towards.
+  final bool seenFromAbove;
+
+  _Seen(this.facet, this.eye, {this.level, this.seenFromAbove = true})
+      : box = _Box.of(facet.corners);
 
   /// Where [points] lie against this face's plane, as seen [from] the eye —
   /// null for a parallel view, looking along -z.

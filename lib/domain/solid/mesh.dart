@@ -93,6 +93,23 @@ class Facet {
   /// behind it are, taken together, neither in front of nor behind anything.
   final String? part;
 
+  /// Which way the surface itself faces at each corner, in the order of
+  /// [corners] — for a face that is one facet of something round, a lever or
+  /// a knuckle, whose surface curves on across it. Empty for a face that is
+  /// flat, which is every face that is not ironmongery. The renderer lights
+  /// the face by these, blending between them, so a round bar reads as round
+  /// and polished metal carries its highlight along it rather than lighting
+  /// in steps, facet by facet. It moves nothing.
+  final List<Vec3> normals;
+
+  /// The face of the leaf this face's piece is fixed to — a point on it, and
+  /// the way out of it towards the piece — or null for anything not fixed to
+  /// a face. What the renderer casts the piece's shadow onto, so a handle
+  /// reads as mounted on its door rather than floating in front of it. It
+  /// moves nothing.
+  final Vec3? mountAt;
+  final Vec3? mountNormal;
+
   const Facet({
     required this.corners,
     required this.elementId,
@@ -104,6 +121,9 @@ class Facet {
     this.gloss = 0.3,
     this.role = FacetRole.frame,
     this.part,
+    this.normals = const [],
+    this.mountAt,
+    this.mountNormal,
   });
 
   /// The same face, said to be [part] of its element.
@@ -118,6 +138,26 @@ class Facet {
         gloss: gloss,
         role: role,
         part: part,
+        normals: normals,
+        mountAt: mountAt,
+        mountNormal: mountNormal,
+      );
+
+  /// The same face, fixed to the face of a leaf at [at], facing [normal].
+  Facet mountedOn(Vec3 at, Vec3 normal) => Facet(
+        corners: corners,
+        elementId: elementId,
+        colour: colour,
+        surface: surface,
+        isSide: isSide,
+        recesses: recesses,
+        transparency: transparency,
+        gloss: gloss,
+        role: role,
+        part: part,
+        normals: normals,
+        mountAt: at,
+        mountNormal: normal,
       );
 
   /// The same face, made of [surface]: the same corners and colour.
@@ -132,6 +172,9 @@ class Facet {
         gloss: 1 - surface.roughness,
         role: role,
         part: part,
+        normals: normals,
+        mountAt: mountAt,
+        mountNormal: mountNormal,
       );
 
   Vec3 get centre {

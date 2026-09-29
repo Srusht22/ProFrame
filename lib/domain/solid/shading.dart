@@ -140,28 +140,60 @@ class Environment {
   /// [skyward] the way up in the world: the sky or the ground there, and a
   /// strip light where the direction meets one — fading over its edge, as a
   /// diffused light does.
-  Rgb radianceToward(Vec3 direction, Vec3 skyward) {
+  ///
+  /// [blur], in degrees, is how far a rough surface spreads what it
+  /// reflects: a strip light seen in brushed metal is a broad soft band, not
+  /// a line. The light it spreads is the same light, so the band is fainter
+  /// the wider it is — never brighter than the strip itself.
+  ///
+  /// [studio] asks for the room on the camera's side as well: looking back
+  /// towards the viewer, what is seen is the studio the photograph is taken
+  /// in, dimmer than the open sky the design faces — see [studioColour].
+  Rgb radianceToward(
+    Vec3 direction,
+    Vec3 skyward, {
+    double blur = 0,
+    bool studio = false,
+  }) {
     final d = direction.normalised;
     final up = d.dot(skyward);
-    return radianceAt(up) + Rgb.white * (stripRadiance * stripAt(d, up));
+    final spread = (stripHalfWidth + stripEdge) /
+        (stripHalfWidth + stripEdge + blur);
+    var around = radianceAt(up);
+    if (studio) {
+      final t = ((d.z - 0.3) / 0.5).clamp(0.0, 1.0);
+      around = around.mixedWith(studioColour, t * t * (3 - 2 * t));
+    }
+    return around +
+        Rgb.white * (stripRadiance * spread * stripAt(d, up, blur: blur));
   }
 
   /// How much of a strip light is seen looking along [d] — 1 inside one, 0
   /// clear of both — [up] being how far above the horizon it points. The
   /// strips stand from a little below eye level to well above it.
-  double stripAt(Vec3 d, double up) {
+  double stripAt(Vec3 d, double up, {double blur = 0}) {
     if (up < -0.25 || up > 0.85) return 0;
     final round = (math.atan2(d.x, d.z) * 180 / math.pi).abs();
     final off = (round - stripsAt).abs() - stripHalfWidth;
+    final edge = stripEdge + blur;
     if (off <= 0) return 1;
-    if (off >= stripEdge) return 0;
-    final t = 1 - off / stripEdge;
+    if (off >= edge) return 0;
+    final t = 1 - off / edge;
     return t * t * (3 - 2 * t);
   }
 
   /// The average of all of it: what a rough surface reflects, since it
   /// blurs every direction together.
   Rgb get diffuse => sky * 0.4 + horizon * 0.35 + ground * 0.25;
+
+  /// The studio on the camera's side, as a metal sees it mirrored.
+  ///
+  /// Metal is photographed with the room behind the camera kept dim — so
+  /// that a polished plate facing the lens shows its own colour darkened,
+  /// with the lights along its edges, and not a flat white mirror of an open
+  /// sky. Glass reflects a few per cent of whatever is there, so it is the
+  /// metals, which mirror most of it, that this is for.
+  static const studioColour = Rgb(0.62, 0.63, 0.64);
 }
 
 /// How a point of a face set [depth] below what stands beside it, [away]
@@ -289,12 +321,13 @@ abstract final class Shading {
     final fresnel =
         f0 + (math.max(1 - rough, f0) - f0) * math.pow(1 - facingView, 5);
 
-    // What the surface reflects: the environment in the mirror direction,
-    // blurred towards its average as the surface roughens.
+    // What the surface reflects: the environment in the mirror direction —
+    // the sky at its own brightness, as glass and metal see it — blurred
+    // towards its average as the surface roughens.
     final mirror = n * (2 * facingView) - view;
     final mirrorUp = mirror.normalised.dot(skyward);
     final reflected = environment
-        .seenAt(mirrorUp)
+        .radianceAt(mirrorUp)
         .mixedWith(environment.diffuse, math.min(1, rough * 1.25));
 
     // The key light, seen in the surface.
@@ -320,10 +353,40 @@ abstract final class Shading {
       );
     }
 
+    // **A metal mirrors the studio it stands in**: the sky at its own
+    // brightness and the strip lights either side of the camera, spread by
+    // its roughness — a polished lever carries a bright streak along it,
+    // a satin hinge a soft band. That is what says *metal* at a glance, and
+    // the same studio glass reflects. Anything that is not a metal keeps
+    // the blurred sky and ground it always reflected.
+    final mirrored = metal <= 0
+        ? reflected
+        : reflected.mixedWith(
+            environment
+                .radianceToward(
+                  mirror,
+                  skyward,
+                  blur: rough * 30,
+                  studio: true,
+                )
+                .mixedWith(environment.diffuse, math.min(1, rough * 2.2)),
+            metal,
+          );
+
+    // **A metal's colour is what it reflects.** Paint and plastic reflect a
+    // few per cent, in white, over their own colour; a metal has no colour
+    // underneath — its colour is the share of each light it gives back. So
+    // the more metallic a surface is, the more of its look is what it
+    // reflects, tinted by its colour, and its reflectivity figure only says
+    // how polished it is — the same share its highlight is taken at.
+    // Multiplying the colour by the whole figure again, as it once did,
+    // counted the colour twice and turned a grey handle near black.
+    final polish = 0.35 + 0.65 * surface.reflectivity;
+    final reflects = fresnel.toDouble() * (1 - metal) + metal * polish;
     final diffuse = base * (lit * (1 - metal * 0.85));
-    final reflection = reflected.tinting(tint) * (fresnel.toDouble() * open);
-    final shine = tint * (highlight * (0.35 + 0.65 * surface.reflectivity));
-    final result = diffuse * (1 - fresnel.toDouble()) + reflection + shine;
+    final reflection = mirrored.tinting(tint) * (reflects * open);
+    final shine = tint * (highlight * polish);
+    final result = diffuse * (1 - reflects) + reflection + shine;
     return Shaded(result.argb, 1);
   }
 

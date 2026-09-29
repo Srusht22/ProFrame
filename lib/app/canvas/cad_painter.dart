@@ -615,9 +615,16 @@ class CadPainter extends CustomPainter {
       // fixed to the frame and drawn as their footprints.
       final onFrame = OpeningHardware.footprintOf(design, piece) != null;
       final shapes = geometry.hardwareOf(piece);
+      final bores = geometry.boresOf(piece);
       for (final shape in shapes) {
         if (shape.isEmpty) continue;
         final path = view.pathOf(shape);
+        if (!concealed && bores.contains(shape)) {
+          // A hole through the piece — a keyhole — is drawn solid, as a
+          // hole is on a drawing.
+          canvas.drawPath(path, Cad.fill(ink.heavy));
+          continue;
+        }
         if (concealed) {
           canvas.drawPath(
             Cad.dashed(path, dash: 6, gap: 4),

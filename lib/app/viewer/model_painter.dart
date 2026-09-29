@@ -83,10 +83,31 @@ class ModelPainter extends CustomPainter {
     if (groundPlane) _ground(canvas, size);
 
     final lit = {...highlighted, ?selectedId};
-    for (final face in faces) {
+    // Each piece of ironmongery's shadow, gathered by what it falls on —
+    // the leaf, for a plate; the plate, for what stands on it — and laid
+    // down just before the first of what casts it is painted: after what it
+    // falls on, and under what casts it.
+    final shadows = <String, List<ProjectedFacet>>{};
+    if (style.usesFinishes && style.drawsFaces) {
+      for (final face in faces) {
+        if (face.shadow != null) {
+          (shadows[_castOnto(face)] ??= []).add(face);
+        }
+      }
+    }
+    for (var i = 0; i < faces.length; i++) {
+      final face = faces[i];
       final path = _pathOf(face);
+      if (face.shadow != null) {
+        if (shadows.remove(_castOnto(face)) case final cast?) {
+          _shadow(canvas, cast, faces.sublist(0, i));
+        }
+      }
       if (style.drawsFaces) _face(canvas, path, face);
-      if (style.drawsEdges) _edges(canvas, path, face);
+      if (style.drawsEdges && !_isSmooth(face)) _edges(canvas, path, face);
+      if (style == DisplayStyle.wireframe && _isSmooth(face)) {
+        _edges(canvas, path, face);
+      }
       if (lit.contains(face.elementId)) {
         canvas.drawPath(
           path,
@@ -161,6 +182,7 @@ class ModelPainter extends CustomPainter {
     ProjectedFacet face, {
     int? corner,
     Vec3? view,
+    Vec3? normal,
     double occlusion = 0,
     double shadowed = 0,
   }) {
@@ -170,7 +192,7 @@ class ModelPainter extends CustomPainter {
           ? source.surface
           : Shading.clay(source.surface),
       colour: style.usesFinishes ? source.colour : _clay,
-      normal: face.normal,
+      normal: normal ?? face.normal,
       environment: Environment.daylight,
       side: source.isSide,
       view:
@@ -214,6 +236,10 @@ class ModelPainter extends CustomPainter {
     }
     if (_setIn(face)) {
       _recessed(canvas, face);
+      return;
+    }
+    if (_isSmooth(face)) {
+      _smooth(canvas, face);
       return;
     }
     final shaded = shadeOf(face);
@@ -457,6 +483,246 @@ class ModelPainter extends CustomPainter {
   /// How finely a pane is shaded across: a point every tenth of the way,
   /// enough for a sheen to have a shape and too few to cost anything.
   static const _grid = 10;
+
+  /// Which piece of ironmongery [face] is part of — the part, where a piece
+  /// is built on both faces of its leaf — and what it casts its shadow on.
+  static String _castOnto(ProjectedFacet face) {
+    final on = face.source.mountAt;
+    return '${face.elementId}|${face.source.part ?? ''}|'
+        '${on?.x},${on?.y},${on?.z}';
+  }
+
+  /// Whether [face] is one facet of a curved surface — it carries the way
+  /// the surface faces at each of its corners, and they differ — and so is
+  /// shaded across by them rather than once.
+  static bool _isSmooth(ProjectedFacet face) {
+    final normals = face.cornerNormals;
+    if (normals.length != face.corners.length ||
+        face.corners.length < 3 ||
+        face.eyeCorners.length != face.corners.length ||
+        face.source.surface.isTransparent) {
+      return false;
+    }
+    for (final n in normals) {
+      if (n.dot(normals.first) < 0.9999) return true;
+    }
+    return false;
+  }
+
+  /// One facet of a curved surface — a lever, a knuckle, the rounded rim of
+  /// a plate — shaded point by point from the way the surface faces there.
+  ///
+  /// The surface is round; the facet only stands in for part of it. Lit once,
+  /// a lever is a prism with a stripe on each flat, and a polished one never
+  /// shows the one thing that says it is polished: a highlight running along
+  /// it where the light and the eye meet. So the way the surface faces is
+  /// blended across the facet from its corners, and every point is lit by
+  /// `Shading.of` as it faces — including what it mirrors of the studio.
+  void _smooth(Canvas canvas, ProjectedFacet face) {
+    final n = face.corners.length;
+    final at = [for (final c in face.corners) _place(c)];
+    final normals = face.cornerNormals;
+    final e = face.eyeCorners;
+    final eye = face.viewer;
+
+    Shaded shadeAt(Vec3 where, Vec3 facing) {
+      final view = eye == null
+          ? const Vec3(0, 0, 1)
+          : (eye - where).normalised;
+      // At the silhouette the surface turns away from the eye; what is seen
+      // there is the surface edge on, not its far side lit from behind.
+      var normal = facing.normalised;
+      final towards = normal.dot(view);
+      if (towards < 0.02) normal = (normal + view * (0.02 - towards)).normalised;
+      return shadeOf(face, view: view, normal: normal);
+    }
+
+    final List<Offset> points;
+    final List<Shaded> shades;
+    final List<int> triangles;
+    if (n == 4) {
+      const steps = _smoothSteps;
+      points = [];
+      shades = [];
+      for (var j = 0; j <= steps; j++) {
+        for (var i = 0; i <= steps; i++) {
+          final u = i / steps, v = j / steps;
+          final w = [(1 - u) * (1 - v), u * (1 - v), u * v, (1 - u) * v];
+          var where = Vec3.zero, facing = Vec3.zero;
+          var flat = Offset.zero;
+          for (var k = 0; k < 4; k++) {
+            where = where + e[k] * w[k];
+            facing = facing + normals[k] * w[k];
+            flat = flat + at[k] * w[k];
+          }
+          points.add(flat);
+          shades.add(shadeAt(where, facing));
+        }
+      }
+      triangles = [
+        for (var j = 0; j < steps; j++)
+          for (var i = 0; i < steps; i++) ...[
+            j * (steps + 1) + i,
+            j * (steps + 1) + i + 1,
+            (j + 1) * (steps + 1) + i + 1,
+            j * (steps + 1) + i,
+            (j + 1) * (steps + 1) + i + 1,
+            (j + 1) * (steps + 1) + i,
+          ],
+      ];
+    } else {
+      // A fan from the middle, so a many-sided face is shaded from its
+      // centre out.
+      var middle = Vec3.zero, facing = Vec3.zero;
+      var flat = Offset.zero;
+      for (var k = 0; k < n; k++) {
+        middle = middle + e[k] * (1 / n);
+        facing = facing + normals[k];
+        flat = flat + at[k] / n.toDouble();
+      }
+      points = [flat, ...at];
+      shades = [
+        shadeAt(middle, facing),
+        for (var k = 0; k < n; k++) shadeAt(e[k], normals[k]),
+      ];
+      triangles = [
+        for (var k = 0; k < n; k++) ...[0, k + 1, (k + 1) % n + 1],
+      ];
+    }
+    canvas.drawVertices(
+      ui.Vertices(
+        ui.VertexMode.triangles,
+        points,
+        colors: [for (final s in shades) Color(s.colour)],
+        indices: triangles,
+      ),
+      BlendMode.dst,
+      Paint(),
+    );
+  }
+
+  /// How finely a curved facet is shaded across, each way: enough that a
+  /// highlight a few degrees wide lands between its corners and is seen.
+  static const _smoothSteps = 6;
+
+  /// A piece of ironmongery's shadow on the face of the leaf it is fixed to.
+  ///
+  /// Where the key light is stopped by the piece, the leaf behind it gets
+  /// only the light the rest of the sky gives it — so the shadow takes away
+  /// the key light's share of what that face is lit by, and no more: a
+  /// multiply, never a painted black. Its edge is soft by the size of the
+  /// light, and a piece fixed to a face the light does not reach casts none
+  /// (`Camera.project` leaves its shadow out).
+  void _shadow(
+    Canvas canvas,
+    List<ProjectedFacet> cast,
+    List<ProjectedFacet> beneath,
+  ) {
+    final environment = Environment.daylight;
+    final key = environment.key * cast.first.shadowFacing;
+    final kept = environment.ambient / (environment.ambient + key);
+    final g = (kept * 255).round().clamp(0, 255);
+    // Soft by the size of the light: a shadow cast close is crisp, one cast
+    // far spreads and fades, because the key light is a window of sky and
+    // not a point.
+    var reach = 0.0;
+    for (final face in cast) {
+      reach += face.shadowReach / cast.length;
+    }
+    final soft = (_scale * (_penumbra + reach * _lightSize / 2)).clamp(
+      0.6,
+      24.0,
+    );
+
+    // The facets of a round part face both ways once flattened, so their
+    // shadows are drawn one by one, opaque, into a layer of their own —
+    // which makes them one shadow, never two overlapping ones or a hole
+    // where a front and a back cancel — and the layer is then laid on the
+    // leaf softened, by multiplying.
+    var left = double.infinity, top = double.infinity;
+    var right = -double.infinity, bottom = -double.infinity;
+    final paths = <Path>[];
+    for (final face in cast) {
+      final path = Path();
+      final corners = face.shadow!;
+      final first = _place(corners.first);
+      path.moveTo(first.dx, first.dy);
+      for (final c in corners) {
+        final at = _place(c);
+        path.lineTo(at.dx, at.dy);
+        left = math.min(left, at.dx);
+        top = math.min(top, at.dy);
+        right = math.max(right, at.dx);
+        bottom = math.max(bottom, at.dy);
+      }
+      path.close();
+      paths.add(path);
+    }
+    if (!left.isFinite) return;
+    final bounds = Rect.fromLTRB(left, top, right, bottom).inflate(soft * 3);
+
+    // **A shadow falls only on what can take one.** Light passes through
+    // clear glass, so a pane takes no shadow, and what is seen through it
+    // is not in the shadow either. So the shadow is kept to the solid faces
+    // already painted where it falls, less any glass painted over them.
+    Path? takes;
+    for (final face in beneath) {
+      if (!_overlaps(face, bounds)) continue;
+      final path = _pathOf(face);
+      if (face.source.surface.isTransparent && !face.source.isSide) {
+        if (takes != null) {
+          takes = Path.combine(PathOperation.difference, takes, path);
+        }
+      } else {
+        takes = takes == null
+            ? path
+            : Path.combine(PathOperation.union, takes, path);
+      }
+    }
+    if (takes == null) return;
+
+    canvas.save();
+    canvas.clipPath(takes);
+    canvas.saveLayer(
+      bounds,
+      Paint()
+        ..blendMode = BlendMode.multiply
+        ..imageFilter = ui.ImageFilter.blur(sigmaX: soft, sigmaY: soft),
+    );
+    canvas.drawRect(bounds, Paint()..color = Colors.white);
+    final dark = Paint()..color = Color.fromARGB(255, g, g, g);
+    for (final path in paths) {
+      canvas.drawPath(path, dark);
+    }
+    canvas.restore();
+    canvas.restore();
+  }
+
+  /// Whether [face] lands anywhere within [bounds] on the screen.
+  bool _overlaps(ProjectedFacet face, Rect bounds) {
+    var left = double.infinity, top = double.infinity;
+    var right = -double.infinity, bottom = -double.infinity;
+    for (final c in face.corners) {
+      final at = _place(c);
+      left = math.min(left, at.dx);
+      top = math.min(top, at.dy);
+      right = math.max(right, at.dx);
+      bottom = math.max(bottom, at.dy);
+    }
+    return left < bounds.right &&
+        bounds.left < right &&
+        top < bounds.bottom &&
+        bounds.top < bottom;
+  }
+
+  /// How soft a shadow's edge is where it touches what casts it, in
+  /// millimetres of the model.
+  static const _penumbra = 0.8;
+
+  /// How wide the key light is, as an angle in radians: a window's width of
+  /// sky seen from a few metres off. A shadow cast [ProjectedFacet.shadowReach]
+  /// away has an edge this much of that distance wide.
+  static const _lightSize = 0.1;
 
   /// A face's edges, as its material shows them: hard and dark on an
   /// extrusion or a metal, barely there on glass, which is seen through.

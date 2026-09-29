@@ -942,6 +942,7 @@ abstract final class MeshBuilder {
     FacetRole role, {
     bool side = false,
     List<double> recesses = const [],
+    List<Vec3> normals = const [],
   }) {
     if (corners.length < 3) return;
     // The user's colour and the material it is, as they are: how the face
@@ -953,6 +954,7 @@ abstract final class MeshBuilder {
       surface: finish.material.surface,
       isSide: side,
       recesses: recesses,
+      normals: normals,
       transparency: finish.material.transparency,
       gloss: finish.material.gloss,
       role: role,
@@ -1036,42 +1038,59 @@ abstract final class MeshBuilder {
     final through = MeshBuilder.leafFront(depth) + MeshBuilder.leafBack(depth);
     Vec3 otherFace(Vec3 p) => put(Vec3(p.x, p.y, through - p.z));
 
-    void build(Vec3 Function(Vec3) put) {
-      switch (piece.kind) {
-        case HardwareKind.hinge:
-          _addButtHinge(out, f, face, outward, put);
-        case HardwareKind.lock:
-          _addEscutcheon(out, f, face, put);
-        case HardwareKind.lever:
-          _addLeverOnBackplate(out, f, inward, face, put);
-        case HardwareKind.handle:
-          _addWindowHandle(out, f, inward, face, put);
-        case HardwareKind.knob:
-          _addKnob(out, f, face, put);
-        case HardwareKind.pull:
-          _addPull(out, f, face, put);
-        default:
-          break;
+    _Raised? build(Vec3 Function(Vec3) put) => switch (piece.kind) {
+      HardwareKind.hinge => _addButtHinge(out, f, face, outward, put),
+      HardwareKind.lock => _addEscutcheon(out, f, face, put),
+      HardwareKind.lever => _addLeverOnBackplate(out, f, inward, face, put),
+      HardwareKind.handle => _addWindowHandle(out, f, inward, face, put),
+      HardwareKind.knob => _addKnob(out, f, face, put),
+      HardwareKind.pull => _addPull(out, f, face, put),
+      _ => null,
+    };
+
+    // **Every piece is fixed to the face of its leaf**, and says so: the
+    // renderer casts its shadow there, which is what makes a handle read as
+    // mounted on its door rather than floating in front of it.
+    // What stands on a plate — a rose, a lever, a boss, a knuckle — casts
+    // its shadow on the plate; the plate casts its own on the leaf.
+    void mount(int from, _Raised? raised, Vec3 Function(Vec3) put) {
+      final normal = _turned(put, Vec3(piece.at.x, piece.at.y, face),
+          Vec3(0, 0, outward));
+      final onFace = put(Vec3(piece.at.x, piece.at.y, face));
+      final onPlate = raised == null
+          ? onFace
+          : put(Vec3(piece.at.x, piece.at.y, raised.top));
+      for (var i = from; i < out.length; i++) {
+        final above = raised != null && i >= raised.from;
+        out[i] = out[i].mountedOn(above ? onPlate : onFace, normal);
       }
     }
 
-    build(put);
+    final first = out.length;
+    mount(first, build(put), put);
     if (bothFaces) {
       final from = out.length;
-      build(otherFace);
+      mount(from, build(otherFace), otherFace);
       for (var i = from; i < out.length; i++) {
         out[i] = out[i].inPart('the other face');
       }
     }
   }
 
-  /// A lever on a long backplate: plate, rose, neck, lever, return.
+  /// Which way [normal] at [at] faces once [put] has placed it: a leaf's
+  /// swing turns the way its surfaces face as well as where they are.
+  static Vec3 _turned(Vec3 Function(Vec3) put, Vec3 at, Vec3 normal) =>
+      (put(at + normal) - put(at)).normalised;
+
+  /// A lever on a long backplate: plate, rose, and the lever itself.
   ///
   /// The lever comes *out of* the leaf and then turns across it, which is
   /// what a lever does and what a flat tab cannot show. It points away from
   /// the stile it is on — towards the hinges — because that is the way a
-  /// hand closes on it.
-  static void _addLeverOnBackplate(
+  /// hand closes on it. It is one piece, round in section, bent where it
+  /// turns and closed in a dome at its end, as a lever is cast; the plate it
+  /// stands on is pressed, its edge rounded over, and lies flat on the leaf.
+  static _Raised? _addLeverOnBackplate(
     List<Facet> out,
     Furniture f,
     Vec3 inward,
@@ -1079,53 +1098,21 @@ abstract final class MeshBuilder {
     Vec3 Function(Vec3) put,
   ) {
     final piece = f.piece;
-    final scale = f.scale;
     final finish = piece.finish;
     final id = piece.id;
 
     // The plate runs up the leaf on a side-hung door and across it on a top
     // or bottom hung one: along the stile it is fixed to, either way.
-    final plate = f.leverPlate;
-    _slabBetween(out, plate, face + 4 * scale, 4 * scale, id, finish,
-        FacetRole.hardware, put);
+    _plate(out, f.leverPlate, face, 1, 4 * f.scale, id, finish, put);
+    final raised = (from: out.length, top: face + 4 * f.scale);
 
     // The rose the lever turns in, standing off the plate.
-    final roseAt = Vec3(piece.at.x, piece.at.y, face + 4 * scale);
-    final rose = _ring(roseAt, const Vec3(1, 0, 0), const Vec3(0, 1, 0),
-        f.leverRose);
-    _sweep(out, rose, Vec3(0, 0, 14 * scale), id, finish, put,
-        capStart: false);
+    final (rose, roseRadii) = f.rose(face);
+    _tube(out, rose, roseRadii, id, finish, put, sides: 12, capStart: false);
 
-    // Out of the door, then across it, then a short return towards it —
-    // the three runs a lever is made of.
-    final neckFrom = Vec3(piece.at.x, piece.at.y, face + 18 * scale);
-    final thickness = f.leverRadius;
-    final acrossPlane = _ring(neckFrom, const Vec3(1, 0, 0),
-        const Vec3(0, 1, 0), thickness);
-    _sweep(out, acrossPlane, Vec3(0, 0, 26 * scale), id, finish, put,
-        capStart: false);
-
-    final elbow = Vec3(neckFrom.x, neckFrom.y, neckFrom.z + 26 * scale);
-    final armLength = f.leverReach;
-    // The lever's own cross-section stands square to the way it runs.
-    final armRing = _ring(elbow, const Vec3(0, 0, 1),
-        Vec3(-inward.y, inward.x, 0), thickness);
-    _sweep(
-      out,
-      armRing,
-      Vec3(inward.x * armLength, inward.y * armLength, 0),
-      id,
-      finish,
-      put,
-      capEnd: false,
-    );
-
-    final tip = Vec3(elbow.x + inward.x * armLength,
-        elbow.y + inward.y * armLength, elbow.z);
-    final tipRing = _ring(tip, const Vec3(1, 0, 0), const Vec3(0, 1, 0),
-        thickness);
-    _sweep(out, tipRing, Vec3(0, 0, -20 * scale), id, finish, put,
-        capStart: false);
+    final (arm, armRadii) = f.leverArm(face);
+    _tube(out, arm, armRadii, id, finish, put, capStart: false);
+    return raised;
   }
 
   /// A window's espagnolette handle: base, boss, and an arm that sweeps
@@ -1137,7 +1124,7 @@ abstract final class MeshBuilder {
   /// curves away from the face and hangs down, swelling towards its end
   /// where a hand takes it. It rests down because that is where the handle
   /// of a shut window sits.
-  static void _addWindowHandle(
+  static _Raised? _addWindowHandle(
     List<Facet> out,
     Furniture f,
     Vec3 inward,
@@ -1151,27 +1138,19 @@ abstract final class MeshBuilder {
 
     // A short base along the stile it is screwed to — nothing like the long
     // plate a mortice lock needs.
-    final base = f.handleBase;
-    _slabBetween(out, base, face + 4 * scale, 4 * scale, id, finish,
-        FacetRole.hardware, put);
+    _plate(out, f.handleBase, face, 1, 4 * scale, id, finish, put);
+    final raised = (from: out.length, top: face + 4 * scale);
 
     // The boss the spindle turns in, standing off the base.
-    final bossAt = Vec3(piece.at.x, piece.at.y, face + 4 * scale);
-    _sweep(
-      out,
-      _ring(bossAt, const Vec3(1, 0, 0), const Vec3(0, 1, 0), f.handleBoss),
-      Vec3(0, 0, 11 * scale),
-      id,
-      finish,
-      put,
-      capStart: false,
-    );
+    final (boss, bossRadii) = f.boss(face);
+    _tube(out, boss, bossRadii, id, finish, put, sides: 12, capStart: false);
 
     // The arm. Out of the sash, then round and down, as a cast lever does.
     // Down the leaf for a side-hung sash; for a top or bottom hung one it
     // still hangs, because hanging is what a shut handle does.
     final (path, radii) = f.handleArm(face);
     _tube(out, path, radii, id, finish, put);
+    return raised;
   }
 
   /// A sliding panel's pull: an upright bar held off the stile on two
@@ -1181,20 +1160,18 @@ abstract final class MeshBuilder {
   /// or a turned fastener would be the handle of a leaf that swings. It is
   /// centred on the stile rather than on the stile's outer edge, so it is on
   /// the panel's own material and not over the frame it closes against.
-  static void _addPull(
+  static _Raised? _addPull(
     List<Facet> out,
     Furniture f,
     double face,
     Vec3 Function(Vec3) put,
   ) {
     final piece = f.piece;
-    final scale = f.scale;
     final id = piece.id;
     final finish = piece.finish;
-    final length = f.pullLength;
     final x = f.pullAt.x;
     final y = f.pullAt.y;
-    final stand = 34 * scale;
+    final stand = f.pullStand;
 
     // The two posts, out of the face.
     for (final end in [-1.0, 1.0]) {
@@ -1210,16 +1187,11 @@ abstract final class MeshBuilder {
       );
     }
 
-    // The bar, upright between them, standing off the face by the posts.
-    final foot = Vec3(x, y + length / 2, face + stand);
-    _sweep(
-      out,
-      _ring(foot, const Vec3(1, 0, 0), const Vec3(0, 0, 1), f.pullRadius),
-      Vec3(0, -length, 0),
-      id,
-      finish,
-      put,
-    );
+    // The bar, upright between them, standing off the face by the posts,
+    // its ends rounded.
+    final (bar, barRadii) = f.pullBar(face + stand);
+    _tube(out, bar, barRadii, id, finish, put);
+    return null;
   }
 
   /// How near flat a fold of a screen lies when the screen is fully out:
@@ -1321,7 +1293,7 @@ abstract final class MeshBuilder {
   }
 
   /// A knob on its rose: a stem out of the leaf and a ball on the end.
-  static void _addKnob(
+  static _Raised? _addKnob(
     List<Facet> out,
     Furniture f,
     double face,
@@ -1332,9 +1304,8 @@ abstract final class MeshBuilder {
     final id = piece.id;
     final finish = piece.finish;
 
-    final rose = f.knobRose;
-    _slabBetween(out, rose, face + 4 * scale, 4 * scale, id, finish,
-        FacetRole.hardware, put);
+    _plate(out, f.knobRose, face, 1, 4 * scale, id, finish, put);
+    final raised = (from: out.length, top: face + 4 * scale);
 
     // The stem, and then the knob itself: rings swelling and closing again,
     // which is a turned ball rather than a cylinder with a lid.
@@ -1347,10 +1318,11 @@ abstract final class MeshBuilder {
       radii.add(f.knobRadius(t));
     }
     _tube(out, path, radii, id, finish, put);
+    return raised;
   }
 
   /// The escutcheon below the lever: a plate with the keyhole through it.
-  static void _addEscutcheon(
+  static _Raised? _addEscutcheon(
     List<Facet> out,
     Furniture f,
     double face,
@@ -1358,9 +1330,8 @@ abstract final class MeshBuilder {
   ) {
     final piece = f.piece;
     final scale = f.scale;
-    final plate = f.escutcheon;
-    _slabBetween(out, plate, face + 4 * scale, 4 * scale, piece.id,
-        piece.finish, FacetRole.hardware, put);
+    _plate(out, f.escutcheon, face, 1, 4 * scale, piece.id, piece.finish,
+        put);
 
     // The keyhole is a hole, so it is built as one: a short bore sunk into
     // the plate, dark because nothing in it catches the light.
@@ -1381,6 +1352,7 @@ abstract final class MeshBuilder {
     final ward = f.keyWard;
     _slabBetween(out, ward, face + 4 * scale, 2 * scale, piece.id, dark,
         FacetRole.hardware, put);
+    return null;
   }
 
   /// A butt hinge: the leaf screwed to the stile, and the knuckle it turns
@@ -1388,7 +1360,7 @@ abstract final class MeshBuilder {
   ///
   /// The knuckle is the part you see on a closed door from the hinge side,
   /// and on a door drawn from outside it is the only part you see at all.
-  static void _addButtHinge(
+  static _Raised? _addButtHinge(
     List<Facet> out,
     Furniture f,
     double face,
@@ -1397,29 +1369,18 @@ abstract final class MeshBuilder {
   ) {
     final piece = f.piece;
     final scale = f.scale;
-    final sideHung = f.sideHung;
-    final knuckleLength = f.knuckleLength;
 
-    final leaf = f.hingeLeaf;
-    _slabBetween(out, leaf, face + outward * 6 * scale, 3 * scale, piece.id,
-        piece.finish, FacetRole.hardware, put);
+    // The leaf lies flat on the face it is screwed to — on it, not a
+    // hand's breadth off it.
+    _plate(out, f.hingeLeaf, face, outward, f.hingeLeafThickness, piece.id,
+        piece.finish, put);
+    final raised =
+        (from: out.length, top: face + outward * f.hingeLeafThickness);
 
-    // The barrel, lying along the hinge line.
-    final axis = sideHung ? const Vec3(0, 1, 0) : const Vec3(1, 0, 0);
-    final u = sideHung ? const Vec3(1, 0, 0) : const Vec3(0, 1, 0);
-    final start = Vec3(
-      piece.at.x - axis.x * knuckleLength / 2,
-      piece.at.y - axis.y * knuckleLength / 2,
-      face + outward * 6 * scale,
-    );
-    _sweep(
-      out,
-      _ring(start, u, const Vec3(0, 0, 1), f.knuckleRadius),
-      Vec3(axis.x * knuckleLength, axis.y * knuckleLength, 0),
-      piece.id,
-      piece.finish,
-      put,
-    );
+    // The barrel, lying along the hinge line, standing proud of the face.
+    final (barrel, radii) = f.knuckle(face + outward * 6 * scale);
+    _tube(out, barrel, radii, piece.id, piece.finish, put, sides: 12);
+    return raised;
   }
 
   // ------------------------------------------------------- solid primitives
@@ -1465,16 +1426,25 @@ abstract final class MeshBuilder {
       _quad(out, [for (final p in far) place(p)], elementId, finish,
           FacetRole.hardware);
     }
+    var middle = Vec3.zero;
+    for (final p in ring) {
+      middle = middle + p * (1 / ring.length);
+    }
     for (var i = 0; i < ring.length; i++) {
       final j = (i + 1) % ring.length;
-      // Each facet round it faces a different way, so the renderer lights
-      // each differently: that is what makes it read as a cylinder.
-      _quad(out, [
-        place(ring[i]),
-        place(ring[j]),
-        place(far[j]),
-        place(far[i]),
-      ], elementId, finish, FacetRole.hardware);
+      // Each facet round it faces a different way, and the surface it stands
+      // in for is round: it carries the way the cylinder faces at each of its
+      // corners, so the renderer lights it as a cylinder and not a prism.
+      final ni = _turned(place, ring[i], (ring[i] - middle).normalised);
+      final nj = _turned(place, ring[j], (ring[j] - middle).normalised);
+      _quad(
+        out,
+        [place(ring[i]), place(ring[j]), place(far[j]), place(far[i])],
+        elementId,
+        finish,
+        FacetRole.hardware,
+        normals: [ni, nj, nj, ni],
+      );
     }
   }
 
@@ -1493,26 +1463,169 @@ abstract final class MeshBuilder {
     Finish finish,
     Vec3 Function(Vec3) put, {
     int sides = 10,
+    bool capStart = true,
   }) {
     if (path.length < 2 || radii.length != path.length) return;
 
     final rings = tubeRings(path, radii, sides: sides);
 
-    _quad(out, [for (final p in rings.first.reversed) put(p)], elementId,
-        finish, FacetRole.hardware);
+    // Which way the surface faces at each point of each ring: straight out
+    // from the path, tipped towards the way the tube narrows — so a dome
+    // faces along the tube at its end, and a swelling grip faces a little
+    // back along it.
+    final normals = <List<Vec3>>[];
+    for (var i = 0; i < rings.length; i++) {
+      final before = i == 0 ? 0 : i - 1;
+      final after = i == rings.length - 1 ? i : i + 1;
+      final run = path[after] - path[before];
+      final along = run.normalised;
+      final slope =
+          run.length < 1e-9 ? 0.0 : (radii[after] - radii[before]) / run.length;
+      normals.add([
+        for (final p in rings[i])
+          _turned(
+            put,
+            p,
+            ((p - path[i]).normalised - along * slope).normalised,
+          ),
+      ]);
+    }
+
+    if (capStart) {
+      _quad(out, [for (final p in rings.first.reversed) put(p)], elementId,
+          finish, FacetRole.hardware);
+    }
     _quad(out, [for (final p in rings.last) put(p)], elementId, finish,
         FacetRole.hardware);
 
     for (var i = 0; i + 1 < rings.length; i++) {
       for (var j = 0; j < sides; j++) {
         final k = (j + 1) % sides;
-        _quad(out, [
-          put(rings[i][j]),
-          put(rings[i][k]),
-          put(rings[i + 1][k]),
-          put(rings[i + 1][j]),
-        ], elementId, finish, FacetRole.hardware);
+        _quad(
+          out,
+          [
+            put(rings[i][j]),
+            put(rings[i][k]),
+            put(rings[i + 1][k]),
+            put(rings[i + 1][j]),
+          ],
+          elementId,
+          finish,
+          FacetRole.hardware,
+          normals: [
+            normals[i][j],
+            normals[i][k],
+            normals[i + 1][k],
+            normals[i + 1][j],
+          ],
+        );
       }
+    }
+  }
+
+  /// A pressed plate: [shape] lying on the face at [on], standing [up]
+  /// (+1 or -1 along z) by [thickness], its top edge rounded over.
+  ///
+  /// Backplates, roses, escutcheons and hinge leaves are pressed or cast
+  /// with their edges eased, and that eased edge is what catches the light
+  /// and says *metal plate* rather than *a shape cut from card*. So the top
+  /// is [shape] drawn in by the rounding, a rim runs down and out from it to
+  /// the edge, and the sides drop to the face — all within [shape], so the
+  /// plate covers exactly what the drawings draw. The rim and the sides
+  /// carry the way the surface faces at each corner, rounded across the
+  /// plate's curved ends and square along its straight sides.
+  static void _plate(
+    List<Facet> out,
+    Polygon shape,
+    double on,
+    double up,
+    double thickness,
+    String id,
+    Finish finish,
+    Vec3 Function(Vec3) put,
+  ) {
+    final n = shape.corners.length;
+    final round = thickness * 0.5;
+    final top = shape.isConvex ? shape.inset(round) : shape;
+    if (n < 3 || top.corners.length != n || top.area <= 0) {
+      _slabBetween(out, shape, math.max(on, on + up * thickness), thickness,
+          id, finish, FacetRole.hardware, put);
+      return;
+    }
+    final crown = on + up * thickness;
+    final shoulder = on + up * (thickness - round * 0.8);
+    final z = Vec3(0, 0, up);
+
+    // The way out of each edge, square to it and away from the middle.
+    final c = shape.centroid;
+    final outs = <Vec3>[];
+    for (var i = 0; i < n; i++) {
+      final a = shape.corners[i], b = shape.corners[(i + 1) % n];
+      var o = Vec3(b.y - a.y, a.x - b.x, 0).normalised;
+      if (o.dot(Vec3(a.x - c.x, a.y - c.y, 0)) < 0) o = o * -1;
+      outs.add(o);
+    }
+    // At a corner, the way out of the edge [edge], rounded with its
+    // neighbour where the two turn gently — a curve, not a corner.
+    Vec3 outAt(int corner, int edge) {
+      final other = corner == edge ? (edge - 1 + n) % n : (edge + 1) % n;
+      return outs[edge].dot(outs[other]) > 0.7
+          ? (outs[edge] + outs[other]).normalised
+          : outs[edge];
+    }
+
+    Vec3 at(Vec2 p, double h) => Vec3(p.x, p.y, h);
+
+    // The top, flat.
+    _quad(out, [for (final p in top.corners) put(at(p, crown))], id, finish,
+        FacetRole.hardware);
+    // The face it lies on, unseen, closing the solid.
+    _quad(out, [for (final p in shape.corners.reversed) put(at(p, on))], id,
+        finish, FacetRole.hardware);
+
+    for (var i = 0; i < n; i++) {
+      final j = (i + 1) % n;
+      final oi = outAt(i, i), oj = outAt(j, i);
+      final ti = top.corners[i], tj = top.corners[j];
+      final si = shape.corners[i], sj = shape.corners[j];
+      // The rounded rim, from the top down and out to the edge.
+      _quad(
+        out,
+        [
+          put(at(ti, crown)),
+          put(at(tj, crown)),
+          put(at(sj, shoulder)),
+          put(at(si, shoulder)),
+        ],
+        id,
+        finish,
+        FacetRole.hardware,
+        normals: [
+          _turned(put, at(ti, crown), (oi * 0.35 + z).normalised),
+          _turned(put, at(tj, crown), (oj * 0.35 + z).normalised),
+          _turned(put, at(sj, shoulder), (oj + z * 0.35).normalised),
+          _turned(put, at(si, shoulder), (oi + z * 0.35).normalised),
+        ],
+      );
+      // The side, down to the face.
+      _quad(
+        out,
+        [
+          put(at(si, shoulder)),
+          put(at(sj, shoulder)),
+          put(at(sj, on)),
+          put(at(si, on)),
+        ],
+        id,
+        finish,
+        FacetRole.hardware,
+        normals: [
+          _turned(put, at(si, shoulder), oi),
+          _turned(put, at(sj, shoulder), oj),
+          _turned(put, at(sj, on), oj),
+          _turned(put, at(si, on), oi),
+        ],
+      );
     }
   }
 }
@@ -1684,3 +1797,7 @@ class _Tracks {
     );
   }
 }
+
+/// Where a piece's raised parts begin among its facets, and how high the
+/// plate they stand on is: what they cast their shadow onto.
+typedef _Raised = ({int from, double top});

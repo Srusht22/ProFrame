@@ -113,6 +113,65 @@ class Furniture {
   /// How far the lever reaches back across the leaf.
   double get leverReach => 108 * scale;
 
+  /// How far off the leaf's face the lever's own line runs.
+  double get leverStand => 44 * scale;
+
+  /// The rose, turned: a disc off the plate with its top edge rounded over,
+  /// as a pressed rose is — its path out of the face from [face] and its
+  /// radius at each point.
+  (List<Vec3>, List<double>) rose(double face) => _turned(
+    face + 4 * scale,
+    leverRose,
+    [(0, 1), (9, 1), (12.5, 0.93), (14, 0.72)],
+  );
+
+  /// The lever's path, and its thickness at each point, for a leaf whose
+  /// face is at [face]: out of the rose, round a bend and back across the
+  /// leaf towards the hinges, then round again towards the door at its end,
+  /// which is closed in a dome — one piece, as a lever is cast, rather than
+  /// three rods butted together.
+  (List<Vec3>, List<double>) leverArm(double face) {
+    final r = leverRadius;
+    final line = face + leverStand;
+    final bend = 16 * scale;
+    final turn = 12 * scale;
+    final i = Vec3(inward.x, inward.y, 0);
+    final path = <Vec3>[];
+    final radii = <double>[];
+    void add(Vec3 p, double radius) {
+      path.add(p);
+      radii.add(radius);
+    }
+
+    final foot = Vec3(at.x, at.y, face + 12 * scale);
+    add(foot, r * 0.9);
+    // Round the first bend: from straight out of the face to across it.
+    final first = Vec3(at.x, at.y, line - bend) + i * bend;
+    for (var k = 0; k <= _bendSteps; k++) {
+      final a = k / _bendSteps * math.pi / 2;
+      add(
+        first - i * (bend * math.cos(a)) + Vec3(0, 0, bend * math.sin(a)),
+        r * (0.9 + 0.05 * k / _bendSteps),
+      );
+    }
+    // Across the leaf, swelling a little towards the grip.
+    final tip = Vec3(at.x, at.y, line) + i * leverReach;
+    final second = tip - i * turn + Vec3(0, 0, -turn);
+    add(tip - i * (leverReach * 0.55), r);
+    // Round the end, towards the door.
+    for (var k = 0; k <= _bendSteps; k++) {
+      final a = k / _bendSteps * math.pi / 2;
+      add(
+        second + i * (turn * math.sin(a)) + Vec3(0, 0, turn * math.cos(a)),
+        r,
+      );
+    }
+    _dome(path, radii, const Vec3(0, 0, -1), r, 4 * scale);
+    return (path, radii);
+  }
+
+  static const _bendSteps = 5;
+
   // ----------------------------------------------------- a window's handle
 
   /// A window handle's short base, nothing like a lock's long plate.
@@ -121,6 +180,13 @@ class Furniture {
 
   /// The boss the spindle turns in.
   double get handleBoss => 15 * scale;
+
+  /// The boss, turned: its top edge rounded over.
+  (List<Vec3>, List<double>) boss(double face) => _turned(
+    face + 4 * scale,
+    handleBoss,
+    [(0, 1), (7, 1), (10, 0.9), (11, 0.7)],
+  );
 
   /// The way the arm hangs: down a side-hung sash, and back across a top or
   /// bottom hung one.
@@ -166,6 +232,9 @@ class Furniture {
       );
       radii.add(handleRadius(t));
     }
+    // Its end is rounded, as a cast grip is, not sawn off.
+    final last = path.last - path[path.length - 2];
+    _dome(path, radii, last * (1 / last.length), radii.last, 0);
     return (path, radii);
   }
 
@@ -208,6 +277,35 @@ class Furniture {
   Polygon get hingeLeaf =>
       Polygon.stadium(at, alongStile, knuckleLength, 34 * scale);
 
+  /// How thick the hinge's leaf is.
+  double get hingeLeafThickness => 3 * scale;
+
+  /// The knuckle, turned along the hinge line at [z] off the leaf: a barrel
+  /// with a fine groove where its two halves meet — one on the leaf, one on
+  /// the frame — and its ends rounded over the pin, all within its length.
+  (List<Vec3>, List<double>) knuckle(double z) {
+    final axis = sideHung ? const Vec3(0, 1, 0) : const Vec3(1, 0, 0);
+    final half = knuckleLength / 2;
+    final r = knuckleRadius;
+    final end = math.min(r * 0.6, half * 0.3);
+    final groove = math.min(0.8 * scale, half * 0.05);
+    final along = [
+      (-half, 0.62),
+      (-half + end * 0.35, 0.86),
+      (-half + end, 1.0),
+      (-groove, 1.0),
+      (0.0, 0.9),
+      (groove, 1.0),
+      (half - end, 1.0),
+      (half - end * 0.35, 0.86),
+      (half, 0.62),
+    ];
+    return (
+      [for (final (d, _) in along) Vec3(at.x, at.y, z) + axis * d],
+      [for (final (_, k) in along) r * k],
+    );
+  }
+
   // ----------------------------------------------------------------- a pull
 
   /// A pull is centred on its stile rather than on the stile's outer edge,
@@ -221,6 +319,67 @@ class Furniture {
   /// Where each post stands, from the pull's middle.
   double get postFromMiddle => pullLength / 2 - 28 * scale;
 
+  /// How far a pull stands off the face.
+  double get pullStand => 34 * scale;
+
+  /// The pull's bar, upright at [z] off the face, its ends rounded within
+  /// its length.
+  (List<Vec3>, List<double>) pullBar(double z) {
+    final c = pullAt;
+    final half = pullLength / 2;
+    final r = pullRadius;
+    final end = math.min(r, half * 0.3);
+    final along = [
+      (-half, 0.5),
+      (-half + end * 0.3, 0.82),
+      (-half + end, 1.0),
+      (half - end, 1.0),
+      (half - end * 0.3, 0.82),
+      (half, 0.5),
+    ];
+    return (
+      [for (final (d, _) in along) Vec3(c.x, c.y + d, z)],
+      [for (final (_, k) in along) r * k],
+    );
+  }
+
+  // ------------------------------------------------------------- turning
+
+  /// A part turned about the line out of the face at [at]: [profile] is how
+  /// far out (in [scale]d millimetres) and what share of [radius] at each
+  /// step, from the foot on the face to its top.
+  (List<Vec3>, List<double>) _turned(
+    double from,
+    double radius,
+    List<(double, double)> profile,
+  ) => (
+    [for (final (out, _) in profile) Vec3(at.x, at.y, from + out * scale)],
+    [for (final (_, k) in profile) radius * k],
+  );
+
+  /// Closes the end of a tube in a dome of [radius] running on along
+  /// [towards], after a short straight [run]: rings narrowing as a quarter
+  /// round does, so the end of a lever or a grip is rounded and not cut.
+  static void _dome(
+    List<Vec3> path,
+    List<double> radii,
+    Vec3 towards,
+    double radius,
+    double run,
+  ) {
+    var from = path.last;
+    if (run > 0) {
+      from = from + towards * run;
+      path.add(from);
+      radii.add(radius);
+    }
+    for (final degrees in const [30.0, 55.0, 75.0, 88.0]) {
+      final a = degrees * math.pi / 180;
+      path.add(from + towards * (radius * math.sin(a) * 0.85));
+      radii.add(radius * math.cos(a));
+    }
+  }
+
   // --------------------------------------------------------------- outline
 
   /// Everything the piece covers, seen square on — the shapes the drawings
@@ -228,13 +387,16 @@ class Furniture {
   List<Polygon> get outline {
     switch (piece.kind) {
       case HardwareKind.lever:
-        final tip = at + inward * leverReach;
-        final side = inward.perpendicular * leverRadius;
+        // The arm is what its rings cover, seen square on, as a window
+        // handle's is.
+        final (path, radii) = leverArm(0);
         return [
           leverPlate,
           Polygon.circle(at, leverRose),
-          Polygon([at + side, tip + side, tip - side, at - side]),
-          Polygon.circle(tip, leverRadius),
+          Polygon.hullOf([
+            for (final ring in tubeRings(path, radii))
+              for (final p in ring) Vec2(p.x, p.y),
+          ]),
         ];
       case HardwareKind.handle:
         // The arm is what its rings cover, seen square on.
@@ -283,6 +445,13 @@ class Furniture {
         return const [];
     }
   }
+
+  /// The holes through the piece, seen square on — a lock's keyhole — which
+  /// a drawing fills solid, as a hole is drawn, rather than outlining it as
+  /// though it were another plate. Each is one of [outline]'s shapes too.
+  List<Polygon> get bores => piece.kind == HardwareKind.lock
+      ? [Polygon.circle(keyholeAt, keyholeRadius), keyWard]
+      : const [];
 
   /// A piece with no built form — one the user placed by hand, or a kind
   /// nothing is built for — as a plain plate at the point it was put,

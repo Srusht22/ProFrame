@@ -247,4 +247,9 @@ class DesignGeometry {
   /// Every shape [piece] covers, seen square on: [Furniture.outlineOf].
   List<Polygon> hardwareOf(HardwareElement piece) =>
       _hardware[piece] ??= Furniture.outlineOf(design, piece);
+
+  /// The holes through [piece] — a keyhole — among [hardwareOf]'s shapes:
+  /// [Furniture.bores].
+  List<Polygon> boresOf(HardwareElement piece) =>
+      Furniture.of(design, piece)?.bores ?? const [];
 }

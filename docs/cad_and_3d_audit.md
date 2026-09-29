@@ -222,3 +222,23 @@ on every facet is the user's exactly; nothing is textured. CAD unchanged.
 Colour changes never change geometry; the door's pinned solid fingerprints
 moved once, on purpose, for the arris. Held by
 `test/app/panels_look_like_panels_test.dart`.
+
+## 11. Since the audit — ironmongery (Phase 7)
+
+Round parts carry the way their surface faces at every corner
+(`Facet.normals`, turned by `Camera.project` into `cornerNormals`), and
+`ModelPainter._smooth` lights each facet point by point from them, so a
+lever is round to the light and a highlight runs along it. Metals mirror
+the studio in their own colour — the sky at its own brightness, the strip
+lights blurred by roughness, a dimmer studio on the camera's side — and a
+metal's colour is what it reflects rather than a colour under a
+reflection. The lever is one bent tube closed in a dome; the rose, boss and
+knuckle are turned; plates are pressed with a rounded rim (`_plate`); a
+hinge's leaf lies on its face. `tubeRings` now carries each ring's turn on
+from the last, which removed a twist at every bend. Every piece records the
+face it is fixed to (`Facet.mountAt`/`mountNormal`); the camera casts its
+shadow along the key light onto that face and the painter lays it down
+softened by distance, clipped to what can take a shadow — never glass.
+Pieces are painted plate first, then what stands on it. CAD fills a
+keyhole solid (`Furniture.bores`). Only ironmongery moved; the pinned
+solids moved on purpose. Held by `test/app/ironmongery_is_metal_test.dart`.
