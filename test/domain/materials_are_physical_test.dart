@@ -440,11 +440,11 @@ void main() {
       'the glass made tinted': Infill.fill(door, {
         panes.first.id: GlassLook.dark.finish,
       }),
-      'the frame made aluminium in black': door.copyWith(
+      'the frame made black': door.copyWith(
         frame: door.frame!.copyWith(
           finish: const Finish(
             colour: 0xFF1E1F1F,
-            material: MaterialKind.aluminium,
+            material: MaterialKind.upvc,
           ),
         ),
       ),
@@ -512,6 +512,45 @@ void main() {
       expect(across(glazed), across(door));
     });
 
+    test('the frame made aluminium: every size and line where it was, and '
+        'only the frame\'s own section an extrusion\'s', () {
+      final aluminium = door.copyWith(
+        frame: door.frame!.copyWith(
+          finish: const Finish(
+            colour: 0xFF1E1F1F,
+            material: MaterialKind.aluminium,
+          ),
+        ),
+      );
+      expect(base.designGeometry(aluminium), shape);
+      // Everything but the frame and the sash — which is made of the
+      // frame's material — is built exactly as before…
+      String without(Design d) => base.meshGeometry(
+        Mesh([
+          for (final f in MeshBuilder.build(d).facets)
+            if (f.role != FacetRole.frame && f.role != FacetRole.sash) f,
+        ]),
+      );
+      expect(without(aluminium), without(door));
+      // …and the frame stands on the same outline to the millimetre.
+      List<double> extent(Design d) {
+        final xs = <double>[], ys = <double>[], zs = <double>[];
+        for (final f in MeshBuilder.build(d).facets) {
+          if (f.role != FacetRole.frame) continue;
+          for (final c in f.corners) {
+            xs.add(c.x);
+            ys.add(c.y);
+            zs.add(c.z);
+          }
+        }
+        double lo(List<double> v) => v.reduce((a, b) => a < b ? a : b);
+        double hi(List<double> v) => v.reduce((a, b) => a > b ? a : b);
+        return [lo(xs), hi(xs), lo(ys), hi(ys), lo(zs), hi(zs)];
+      }
+
+      expect(extent(aluminium), extent(door));
+    });
+
     test('and the look does change: it is appearance that moved', () {
       final recoloured = MeshBuilder.build(changes['the panel recoloured']!);
       final panel = recoloured.facets.firstWhere(
@@ -519,7 +558,14 @@ void main() {
       );
       expect(panel.colour, PanelColour.white.colour);
       final aluminium = MeshBuilder.build(
-        changes['the frame made aluminium in black']!,
+        door.copyWith(
+          frame: door.frame!.copyWith(
+            finish: const Finish(
+              colour: 0xFF1E1F1F,
+              material: MaterialKind.aluminium,
+            ),
+          ),
+        ),
       );
       expect(
         aluminium.facets

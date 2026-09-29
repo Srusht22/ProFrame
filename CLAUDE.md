@@ -3511,6 +3511,76 @@ rubber solid.
 seal in the geometry; adding one is new material in the solid, which moves
 the pinned fingerprints on purpose.
 
+### The frame is a real frame
+
+The frame used to be a flat ring pushed back to the design's depth — square
+everywhere, the same slab whatever it was made of. It is now its profile
+(`FrameProfile`, `lib/domain/model/frame_profile.dart`) swept round the
+outline: a front face, the arrises and sightline its material is made with,
+a reveal facing into the opening, an outside and a back, each member meeting
+the next on its mitre.
+
+- **The shape comes from what it is made of.** `ProfileStyle.of`: a uPVC
+  chamber profile is *sculptured* — soft 3 mm arrises and a sightline that
+  falls away to the glass in a curve; an aluminium or steel extrusion is
+  *extruded* — millimetre arrises and a shadow step down to the glazing
+  lip; timber is *moulded* — rounded arrises and an ovolo. The sash is the
+  same profile at the sash's width and the leaf's depth, and a bar's long
+  front edges are eased by its material's arris (`barArrisOf`), its ends
+  left square to butt against what they meet.
+- **Its size comes from the frame, never from the design's size.** Every
+  figure across the section is a share of the member's own profile width
+  (`FrameElement.profileMm`), and the depth is the design's
+  (`Design.depthMm`); the depth only limits how far back a curve runs. The
+  same profile on a hatch and on a shop front is the same section.
+- **It lives wholly inside the ring the plain frame occupied.** It reaches
+  the outline and the daylight, the front face and the back, and nothing
+  of it goes outside the one or inside the other: a 100 × 200 cm design is
+  still 100 × 200 cm, its daylight is its daylight, and the design itself
+  is not touched — the profile is worked out when it is drawn and stored
+  nowhere. A side left open has no member; the members either side end in
+  their section, cut square.
+- **A colour is not a profile; a material is.** Recolouring the frame moves
+  nothing. Making it aluminium changes the frame's and the sash's section
+  inside the same outline, daylight and depth, because an extrusion is not
+  shaped like a PVC chamber — construction, like a sealed unit's thickness
+  beside a panel's, and stated rather than hidden in
+  `materials_are_physical_test.dart` and `rendering_geometry_baseline_test`.
+- **CAD stays a drawing.** `DesignGeometry.frameProfile` and
+  `frameSightlines` are what both views read: the elevation keeps its heavy
+  outline and lighter daylight and adds only the line where the face turns
+  into the sightline, as a hairline at exactly the solid's mitre — no
+  shading, no render.
+
+**The renderer had to learn where ironmongery is against a curved face.**
+The model is painted far to near, and a piece of ironmongery is placed by
+the planes of the faces it overlaps. Two things the flat frame never
+exposed went wrong: a long, thin face — a sill's sightline running the
+width of the frame — has a screen box far bigger than itself, and gave a
+hinge a constraint from a face it never touched; and a hinge's knuckle
+stands proud of the stile it is screwed to (it is meant to, see
+`the_face_we_are_looking_at_test`), so a stile's plane runs through the
+edge of it. `Camera.project` now takes constraints only from faces a piece
+actually meets on the screen, treats a plane that only nicks the piece
+(four fifths of it on one side) as a softer constraint, and puts the piece
+where it breaks the fewest — which, where nothing disagrees, is exactly the
+old answer. A hinge moved out of the stile it hangs in was tried first and
+refused: the knuckle breaking the inside face is the rule.
+
+`test/domain/the_frame_is_a_real_profile_test.dart` sweeps five sizes from
+a 45 × 35 cm hatch to a 3 × 2.4 m shop front in PVC, aluminium and timber,
+a 40 mm profile 90 mm deep, a divided window with a leaf, a gable and a
+door with no sill: the design back as drawn before and after it is built,
+the frame on the outline to the millimetre and exactly the design's depth,
+nothing in the daylight or past the outline, the reveal on the daylight,
+a front, an outside, a reveal, a back and the arrises between them present,
+the same section at every size, a wider or deeper profile a wider or deeper
+section, each material its own, a colour changing nothing, and the
+elevation's sightline standing on the solid's mitre.
+`test/app/cad_draws_the_frame_as_a_drawing_test.dart` holds the drawing:
+between the outline and the daylight the sightline and nothing else, and
+the frame's material changing only the frame on the sheet.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the

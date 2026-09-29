@@ -295,24 +295,58 @@ class Camera {
 
       final bounds = _Box.around(members);
       final corners = [for (final m in members) ...m.eye];
-      var before = others.length; // the earliest face it must precede
-      var after = -1; // the latest face it must follow
+      // Faces the piece is wholly behind or in front of — which it must be
+      // painted before or after — and faces whose plane only nicks the edge
+      // of it, which it should be.
+      final mustPrecede = <int>[], mustFollow = <int>[];
+      final shouldPrecede = <int>[], shouldFollow = <int>[];
       for (var i = 0; i < others.length; i++) {
         final face = others[i];
-        if (!bounds.overlaps(face.box)) continue;
+        // Only a face the piece actually meets on the screen can hide it or
+        // be hidden by it. Boxes are the quick answer; a long, thin face —
+        // a sill's sightline running the width of the frame — has a box
+        // far bigger than itself, and a constraint from a face the piece
+        // never touches can only get in the way of the ones that matter.
+        if (!bounds.overlaps(face.box) || !face.meets(members)) continue;
         switch (face.sideOf(corners, eye)) {
           case _Side.behind:
-            if (i < before) before = i;
+            mustPrecede.add(i);
           case _Side.inFront:
-            after = i;
+            mustFollow.add(i);
           case _Side.across:
-            break;
+            // A hinge's knuckle stands proud of the face it is screwed to,
+            // so the plane of the stile it hangs on runs through the edge
+            // of it. Mostly behind that plane is behind it.
+            switch (face.leaningOf(corners, eye)) {
+              case _Side.behind:
+                shouldPrecede.add(i);
+              case _Side.inFront:
+                shouldFollow.add(i);
+              case _Side.across:
+                break;
+            }
         }
       }
-      if (after < before) {
-        if (place > before) place = before;
-        if (place <= after) place = after + 1;
+
+      // Where it breaks the fewest of what it must do, then the fewest of
+      // what it should, as near as that allows to where the sort put it.
+      // Where nothing disagrees this is the one place everything is met.
+      int broken(List<int> precede, List<int> follow, int at) =>
+          precede.where((i) => i < at).length +
+          follow.where((i) => i >= at).length;
+      var best = place;
+      var bestCost = double.infinity;
+      for (var at = 0; at <= others.length; at++) {
+        final cost =
+            broken(mustPrecede, mustFollow, at) * 1000.0 +
+            broken(shouldPrecede, shouldFollow, at);
+        if (cost < bestCost ||
+            (cost == bestCost && (at - place).abs() < (best - place).abs())) {
+          best = at;
+          bestCost = cost;
+        }
       }
+      place = best;
 
       order
         ..clear()
@@ -395,6 +429,77 @@ class _Seen {
       if (!allBehind && !allInFront) return _Side.across;
     }
     return allBehind ? _Side.behind : _Side.inFront;
+  }
+
+  /// Which side of this face's plane nearly all of [points] are on, or
+  /// [_Side.across] when the plane truly divides them.
+  _Side leaningOf(List<Vec3> points, Vec3? from) {
+    if (eye.length < 3) return _Side.across;
+    final normal = (eye[1] - eye[0]).cross(eye[2] - eye[0]);
+    final size = normal.length;
+    if (size == 0) return _Side.across;
+    final n = normal * (1 / size);
+    final toEye = from == null ? n.z : n.dot(from - eye[0]);
+    if (toEye.abs() < _onIt) return _Side.across;
+    final facing = toEye > 0 ? 1.0 : -1.0;
+    var behind = 0, inFront = 0;
+    for (final p in points) {
+      final d = n.dot(p - eye[0]) * facing;
+      if (d < -_onIt) behind++;
+      if (d > _onIt) inFront++;
+    }
+    final decided = behind + inFront;
+    if (decided == 0) return _Side.across;
+    if (behind >= decided * _mostly) return _Side.behind;
+    if (inFront >= decided * _mostly) return _Side.inFront;
+    return _Side.across;
+  }
+
+  /// How much of a piece must be on one side of a plane to lean that way.
+  static const _mostly = 0.8;
+
+  /// Whether this face and any of [piece] overlap on the screen: an edge of
+  /// one crossing an edge of the other, or a corner of one inside the other.
+  bool meets(List<_Seen> piece) {
+    final mine = facet.corners;
+    for (final part in piece) {
+      if (!part.box.overlaps(box)) continue;
+      final theirs = part.facet.corners;
+      if (_inside(theirs.first, mine) || _inside(mine.first, theirs)) {
+        return true;
+      }
+      for (var i = 0; i < mine.length; i++) {
+        final a = mine[i], b = mine[(i + 1) % mine.length];
+        for (var j = 0; j < theirs.length; j++) {
+          if (_cross(a, b, theirs[j], theirs[(j + 1) % theirs.length])) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Whether segment [a]–[b] crosses segment [c]–[d].
+  static bool _cross(Vec2 a, Vec2 b, Vec2 c, Vec2 d) {
+    double turn(Vec2 o, Vec2 p, Vec2 q) =>
+        (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
+    final d1 = turn(c, d, a), d2 = turn(c, d, b);
+    final d3 = turn(a, b, c), d4 = turn(a, b, d);
+    return ((d1 > 0) != (d2 > 0)) && ((d3 > 0) != (d4 > 0));
+  }
+
+  /// Whether [point] is inside [polygon], strictly.
+  static bool _inside(Vec2 point, List<Vec2> polygon) {
+    var inside = false;
+    for (var i = 0; i < polygon.length; i++) {
+      final a = polygon[i], b = polygon[(i + 1) % polygon.length];
+      if ((a.y > point.y) != (b.y > point.y) &&
+          point.x < a.x + (point.y - a.y) / (b.y - a.y) * (b.x - a.x)) {
+        inside = !inside;
+      }
+    }
+    return inside;
   }
 
   /// A hundredth of a millimetre: a point closer than this to a plane is on

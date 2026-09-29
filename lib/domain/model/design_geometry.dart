@@ -4,6 +4,7 @@ import '../geometry/vec2.dart';
 import '../hardware/furniture.dart';
 import 'design.dart';
 import 'elements.dart';
+import 'frame_profile.dart';
 import 'opening_leaf.dart';
 
 /// The design's geometry as every view draws it: the one answer to where
@@ -48,6 +49,53 @@ class DesignGeometry {
   final _hardware = Map<HardwareElement, List<Polygon>>.identity();
 
   FrameElement? get frame => design.frame;
+
+  // ----------------------------------------------------------------- frame
+
+  /// The frame's cross-section: its own profile width and the design's
+  /// depth, shaped by what it is made of. See [FrameProfile].
+  late final FrameProfile? frameProfile = design.frame == null
+      ? null
+      : FrameProfile.of(
+          design.frame!.finish.material,
+          width: design.frame!.profileMm,
+          depth: design.depthMm,
+        );
+
+  /// Where [across] millimetres in from the outline falls on every member
+  /// of the frame: the line between each outer corner and its inner one, at
+  /// that share of the way — the mitre the solid sweeps the profile along.
+  /// A side with no member has no line.
+  List<Segment> frameLineAt(double across) {
+    final frame = design.frame;
+    final outer = frame?.outline;
+    final inner = frame?.innerOutline;
+    if (frame == null ||
+        inner == null ||
+        outer == null ||
+        inner.corners.length != outer.corners.length ||
+        frame.profileMm <= 0) {
+      return const [];
+    }
+    final t = across / frame.profileMm;
+    Vec2 at(int j) {
+      final o = outer.corners[j], i = inner.corners[j];
+      return o + (i - o) * t;
+    }
+
+    final n = outer.corners.length;
+    return [
+      for (var e = 0; e < n; e++)
+        if (frame.hasMember(e)) Segment(at(e), at((e + 1) % n)),
+    ];
+  }
+
+  /// The lines an elevation sees on the frame's face between the outline
+  /// and the daylight: where its front face turns into the sightline.
+  List<Segment> get frameSightlines => [
+    for (final across in frameProfile?.sightlines ?? const <double>[])
+      ...frameLineAt(across),
+  ];
 
   // ------------------------------------------------------------------ bars
 

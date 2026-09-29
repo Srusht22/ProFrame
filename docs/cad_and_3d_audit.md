@@ -180,3 +180,17 @@ rubber exists as a material, but nothing is built of it yet. Held by
 `test/domain/materials_are_physical_test.dart` and
 `test/app/materials_can_be_told_apart_test.dart`; the pinned geometry
 fingerprints are unchanged.
+
+## 8. Since the audit — the frame as a physical profile (Phase 4)
+
+The frame and the sash are `FrameProfile` sections swept round their rings
+(`lib/domain/model/frame_profile.dart`), shaped by material — sculptured
+uPVC, extruded aluminium and steel, moulded timber — from the profile width
+and the design's depth only, inside the outline, daylight and depth the
+plain ring had. Bars have eased long edges. CAD adds only the sightline, as
+a hairline from the same profile. The pinned solid fingerprints moved once,
+on purpose; the designs' fingerprints did not. `Camera.project` orders
+ironmongery against faces it actually meets on screen, with soft
+constraints for planes that only nick a piece. Held by
+`test/domain/the_frame_is_a_real_profile_test.dart` and
+`test/app/cad_draws_the_frame_as_a_drawing_test.dart`.

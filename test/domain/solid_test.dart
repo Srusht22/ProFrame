@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/domain/geometry/polygon.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
+import 'package:proframe/domain/model/design_geometry.dart';
 import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/model/materials.dart';
 import 'package:proframe/domain/sections/section_builder.dart';
@@ -68,10 +69,12 @@ void main() {
       Vec2(0, 2000),
     ]);
     final mesh = MeshBuilder.build(design);
-    // Five edges, four faces each: the shape is followed, not squared off.
+    // Five edges, each the frame's profile swept along it: the shape is
+    // followed, not squared off.
     final frameFacets =
         mesh.facets.where((f) => f.role == FacetRole.frame).length;
-    expect(frameFacets, 20);
+    final section = DesignGeometry.of(design).frameProfile!.section.length;
+    expect(frameFacets, 5 * section);
   });
 
   test('a diagonal bar is modelled at its own angle', () {

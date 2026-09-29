@@ -15,6 +15,8 @@ import 'package:proframe/domain/hardware/opening_hardware.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/design_geometry.dart';
 import 'package:proframe/domain/model/elements.dart';
+import 'package:proframe/domain/model/frame_profile.dart';
+import 'package:proframe/domain/model/opening_leaf.dart';
 import 'package:proframe/domain/solid/mesh.dart';
 import 'package:proframe/domain/solid/mesh_builder.dart';
 
@@ -216,9 +218,16 @@ void main() {
           if (sliding) continue;
           final body = geometry.barBody(bar);
           expect(body.isEmpty, isFalse, reason: bar.id);
+          // The body, and — where the bar is a plain four-sided member —
+          // its front with the long edges eased by its material's arris,
+          // which stays inside the body.
+          final arris = barArrisOf(bar.finish.material, bar.widthMm);
+          final eased = body.corners.length == 4
+              ? body.insetEach([arris, 0, arris, 0])
+              : body;
           expect(
             seenSquareOn(facets),
-            cornersOf([body]),
+            cornersOf([body, eased]),
             reason: '${bar.id}: the solid and the drawings show one bar',
           );
         }
@@ -306,13 +315,25 @@ void main() {
             (f) => f.elementId == section.id && f.role == FacetRole.sash,
           );
           expect(sash, isNotEmpty);
-          expect(
-            seenSquareOn(sash),
-            cornersOf([
-              geometry.leafOuter(section),
-              geometry.leafInner(section)!,
-            ]),
+          // The sash's profile swept between the leaf's outside and its
+          // daylight: every point of its section on the mitre between the
+          // two, and nothing outside the one or inside the other.
+          final outer = geometry.leafOuter(section);
+          final inner = geometry.leafInner(section)!;
+          final profile = FrameProfile.of(
+            design.frame!.finish.material,
+            width: OpeningLeaf.profileFor(design.frame!),
+            depth: 1000,
           );
+          expect(seenSquareOn(sash), {
+            for (var j = 0; j < outer.corners.length; j++)
+              for (final p in profile.section)
+                () {
+                  final o = outer.corners[j], i = inner.corners[j];
+                  final t = p.across / profile.width;
+                  return _key(o.x + (i.x - o.x) * t, o.y + (i.y - o.y) * t);
+                }(),
+          });
         }
       });
 

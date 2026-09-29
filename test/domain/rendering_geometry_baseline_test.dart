@@ -173,23 +173,33 @@ void main() {
     expect(designs['sliding']!.openings, hasLength(1));
   });
 
-  // The fingerprints as the geometry stood when the CAD and 3D audit was
-  // written. Keyed by design, then by what was fingerprinted.
+  // The fingerprints of the geometry. Keyed by design, then by what was
+  // fingerprinted.
+  //
+  // The designs' own fingerprints are as they were when the CAD and 3D
+  // audit was written, and have never moved. The solid's moved once, on
+  // purpose: when the frame and the sash became their profile swept round
+  // the ring and the bars' long front edges were eased (the frame is a real
+  // profile, see the_frame_is_a_real_profile_test.dart) — every one of
+  // those new corners inside the outline, the daylight and the depth the
+  // plain ring had. Before that the solid was: door f0c6fb11c2c3f44a /
+  // d5ef2ef09699c719, window 98fce4023f819c2b / d7da8fe47c3965a5, sliding
+  // 8253ab439ee87dbf / cee840fe27ca12f7.
   const pinned = <String, Map<String, String>>{
     'door': {
       'design': 'ae3cfe6089559a06',
-      'shut': 'f0c6fb11c2c3f44a',
-      'open': 'd5ef2ef09699c719',
+      'shut': '1eaebb46c455cad2',
+      'open': '28e1f7f336edbf2f',
     },
     'window': {
       'design': '4f27d2f58f42a604',
-      'shut': '98fce4023f819c2b',
-      'open': 'd7da8fe47c3965a5',
+      'shut': '4e543030cc8b4b5f',
+      'open': '8818175eaf4a47fd',
     },
     'sliding': {
       'design': '9253e5c841c1026c',
-      'shut': '8253ab439ee87dbf',
-      'open': 'cee840fe27ca12f7',
+      'shut': '27a71776216ea173',
+      'open': '6741b95707a4e4d3',
     },
   };
 
@@ -206,18 +216,24 @@ void main() {
 
   test('the fingerprints see geometry and nothing else', () {
     final design = designs['door']!;
+    // The frame recoloured, and the ironmongery made of another metal. (A
+    // frame made of another material is another profile — an extrusion is
+    // not shaped like a PVC chamber — which the frame tests hold.)
     final repainted = design.copyWith(
       frame: design.frame!.copyWith(
-        finish: const Finish(
-          colour: 0xFF222222,
-          material: MaterialKind.aluminium,
-        ),
+        finish: design.frame!.finish.copyWith(colour: 0xFF222222),
       ),
+      hardware: [
+        for (final p in design.hardware)
+          p.copyWith(
+            finish: p.finish.copyWith(material: MaterialKind.aluminium),
+          ),
+      ],
     );
     expect(
       meshGeometry(MeshBuilder.build(repainted)),
       meshGeometry(MeshBuilder.build(design)),
-      reason: 'a colour and a material are not geometry',
+      reason: 'a colour and a finish are not geometry',
     );
     expect(designGeometry(repainted), designGeometry(design));
     final moved = design.copyWith(depthMm: design.depthMm + 10);

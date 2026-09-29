@@ -329,6 +329,19 @@ class CadPainter extends CustomPainter {
       for (final edge in lines.daylight) {
         canvas.drawLine(view.toScreen(edge.a), view.toScreen(edge.b), medium);
       }
+      // What a joiner's elevation shows of the profile between the two: the
+      // line where the frame's face turns into its sightline — the slope of
+      // a PVC profile, an extrusion's shadow step. Fine lines, because they
+      // are edges of the face and not its outline; from the same profile the
+      // solid is swept along, so the two show one frame.
+      final sightline = Cad.stroke(ink.light, Cad.hairline);
+      for (final edge in DesignGeometry.of(design).frameSightlines) {
+        canvas.drawLine(
+          view.toScreen(edge.a),
+          view.toScreen(edge.b),
+          sightline,
+        );
+      }
       // A section through the profile, indicated as its material is.
       if (layers.hatching &&
           frame.finish.material.surface.cad.hatch == CadHatch.diagonal) {

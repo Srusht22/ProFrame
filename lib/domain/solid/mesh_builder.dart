@@ -8,6 +8,7 @@ import '../model/design.dart';
 import '../model/design_geometry.dart';
 import '../model/design_tree.dart';
 import '../model/elements.dart';
+import '../model/frame_profile.dart';
 import '../model/materials.dart';
 import '../model/opening_leaf.dart';
 import '../model/surface.dart';
@@ -38,7 +39,7 @@ abstract final class MeshBuilder {
     // tree, so the two views cannot disagree about what is inside what.
     final tree = DesignTree.of(design);
 
-    _addFrame(facets, frame, depth);
+    _addFrame(facets, frame, DesignGeometry.of(design).frameProfile!, depth);
 
     // A sliding design is panels standing on tracks in the frame, and the
     // lines between them are where the panels meet — see [_Tracks].
@@ -98,75 +99,106 @@ abstract final class MeshBuilder {
     return Mesh(facets);
   }
 
-  /// The frame: a ring following the outline, through the full depth.
-  static void _addFrame(List<Facet> out, FrameElement frame, double depth) {
+  /// The frame, as the profile it is made of, swept round the outline.
+  ///
+  /// Its section is [FrameProfile] — the frame's own width and the design's
+  /// depth, shaped by what it is made of — so the frame has a front face,
+  /// the arrises and sightline its material is made with, a reveal facing
+  /// into the opening and an outside, and it stands exactly on the outline
+  /// and the daylight the drawing has: nothing is wider, narrower, deeper or
+  /// shallower than the plain ring it replaces.
+  static void _addFrame(
+    List<Facet> out,
+    FrameElement frame,
+    FrameProfile profile,
+    double depth,
+  ) {
     final outer = frame.outline;
     final inner = frame.innerOutline;
-    if (inner.isEmpty || outer.corners.length != inner.corners.length) {
+    if (inner.isEmpty ||
+        outer.corners.length != inner.corners.length ||
+        profile.isEmpty) {
       // A profile too thick for the opening leaves no daylight. Show it as
       // the solid thing it would be rather than failing quietly.
       _addSlab(out, outer, 0, depth, frame.id, frame.finish, FacetRole.frame);
       return;
     }
+    _sweepProfile(
+      out,
+      outer,
+      inner,
+      profile,
+      0,
+      frame.id,
+      frame.finish,
+      FacetRole.frame,
+      (p) => p,
+      hasMember: frame.hasMember,
+    );
+  }
 
+  /// [profile]'s section swept round the ring between [outer] and [inner],
+  /// its front face at [frontZ].
+  ///
+  /// A point of the section [across] of the way in is at that share of the
+  /// way from each outer corner to its inner one — the mitre — so every
+  /// member meets the next on its mitre, as a joiner cuts them, and the
+  /// outermost and innermost points of the section lie exactly on [outer]
+  /// and [inner].
+  ///
+  /// A side with no member ([hasMember] false) is not built; the members
+  /// either side stop there, each with its cut end — the section itself,
+  /// standing on the floor at the foot of a door with no sill.
+  static void _sweepProfile(
+    List<Facet> out,
+    Polygon outer,
+    Polygon inner,
+    FrameProfile profile,
+    double frontZ,
+    String elementId,
+    Finish finish,
+    FacetRole role,
+    Vec3 Function(Vec3) place, {
+    bool Function(int edge)? hasMember,
+  }) {
     final n = outer.corners.length;
-    for (var i = 0; i < n; i++) {
-      final j = (i + 1) % n;
-      final o1 = outer.corners[i], o2 = outer.corners[j];
-      final i1 = inner.corners[i], i2 = inner.corners[j];
+    final section = profile.section;
+    final m = section.length;
+    Vec3 at(int corner, ProfilePoint p) {
+      final o = outer.corners[corner % n], i = inner.corners[corner % n];
+      final t = p.across / profile.width;
+      return place(Vec3(
+        o.x + (i.x - o.x) * t,
+        o.y + (i.y - o.y) * t,
+        frontZ - p.back,
+      ));
+    }
 
-      // A side the user left open has no member to build. The members
-      // either side of it stop there, so each is given its cut end — the
-      // face that stands on the floor at the foot of a door with no sill.
-      if (!frame.hasMember(i)) {
-        if (o1.distanceTo(i1) > 0) {
-          _quad(out, [
-            _at(o1, 0),
-            _at(i1, 0),
-            _at(i1, -depth),
-            _at(o1, -depth),
-          ], frame.id, frame.finish, FacetRole.frame);
-        }
-        if (o2.distanceTo(i2) > 0) {
-          _quad(out, [
-            _at(i2, 0),
-            _at(o2, 0),
-            _at(o2, -depth),
-            _at(i2, -depth),
-          ], frame.id, frame.finish, FacetRole.frame);
-        }
+    void end(int corner) {
+      final o = outer.corners[corner % n], i = inner.corners[corner % n];
+      if (o.distanceTo(i) <= 0) return;
+      _quad(out, [for (final p in section) at(corner, p)], elementId, finish,
+          role, side: true);
+    }
+
+    for (var e = 0; e < n; e++) {
+      if (hasMember != null && !hasMember(e)) {
+        end(e);
+        end(e + 1);
         continue;
       }
-
-      // The face you see from the front, and its twin at the back.
-      _quad(out, [
-        _at(o1, 0),
-        _at(o2, 0),
-        _at(i2, 0),
-        _at(i1, 0),
-      ], frame.id, frame.finish, FacetRole.frame);
-      _quad(out, [
-        _at(i1, -depth),
-        _at(i2, -depth),
-        _at(o2, -depth),
-        _at(o1, -depth),
-      ], frame.id, frame.finish, FacetRole.frame);
-
-      // The outside edge, and the reveal facing into the opening.
-      _quad(out, [
-        _at(o1, -depth),
-        _at(o2, -depth),
-        _at(o2, 0),
-        _at(o1, 0),
-      ], frame.id, frame.finish, FacetRole.frame);
-      _quad(out, [
-        _at(i1, 0),
-        _at(i2, 0),
-        _at(i2, -depth),
-        _at(i1, -depth),
-      ], frame.id, frame.finish, FacetRole.frame);
+      for (var k = 0; k < m; k++) {
+        final p = section[k], q = section[(k + 1) % m];
+        _quad(out, [
+          at(e, p),
+          at(e + 1, p),
+          at(e + 1, q),
+          at(e, q),
+        ], elementId, finish, role);
+      }
     }
   }
+
 
   /// A bar, as wide as the user set it and running exactly where they drew
   /// it — including at an angle, if that is how it was drawn. Its face is
@@ -183,15 +215,74 @@ abstract final class MeshBuilder {
     // Bars sit a little back from the face of the frame, as they do in the
     // real thing.
     const setback = 0.1;
-    _addSlab(
+    _barSlab(
       out,
       face,
       -depth * setback,
       depth * (1 - setback * 2),
+      barArrisOf(divider.finish.material, divider.widthMm),
       divider.id,
       divider.finish,
-      FacetRole.bar,
+      (p) => p,
     );
+  }
+
+  /// A bar's body given thickness, with the long edges of its front eased
+  /// by [arris] — the rounded or cut arris its material is made with — and
+  /// its ends left square, because they butt against the frame or the bar
+  /// they run to. Everything stays inside the bar's own body: the front is
+  /// narrowed by the arris, never the bar.
+  ///
+  /// A body that is not a plain four-sided bar — one cut to a slope at both
+  /// ends by the frame — is built as it is, square.
+  static void _barSlab(
+    List<Facet> out,
+    Polygon face,
+    double frontZ,
+    double thickness,
+    double arris,
+    String elementId,
+    Finish finish,
+    Vec3 Function(Vec3) place,
+  ) {
+    final front = face.corners.length == 4 && arris > 0 && arris < thickness
+        ? face.insetEach([arris, 0, arris, 0])
+        : const Polygon([]);
+    if (front.corners.length != 4 || front.area >= face.area) {
+      _slabBetween(out, face, frontZ, thickness, elementId, finish,
+          FacetRole.bar, place);
+      return;
+    }
+
+    final eased = frontZ - arris;
+    final back = frontZ - thickness;
+    Vec3 at(Vec2 p, double z) => place(_at(p, z));
+    final c = face.corners, f = front.corners;
+
+    _quad(out, [for (final p in f) at(p, frontZ)], elementId, finish,
+        FacetRole.bar);
+    _quad(out, [for (final p in c.reversed) at(p, back)], elementId, finish,
+        FacetRole.bar);
+    for (var i = 0; i < 4; i++) {
+      final j = (i + 1) % 4;
+      if (i.isEven) {
+        // A long edge: the arris, then the side.
+        _quad(out, [at(f[i], frontZ), at(f[j], frontZ), at(c[j], eased),
+            at(c[i], eased)], elementId, finish, FacetRole.bar);
+        _quad(out, [at(c[i], eased), at(c[j], eased), at(c[j], back),
+            at(c[i], back)], elementId, finish, FacetRole.bar, side: true);
+      } else {
+        // An end, square, showing the section of the arrises either side.
+        _quad(out, [
+          at(f[i], frontZ),
+          at(c[i], eased),
+          at(c[i], back),
+          at(c[j], back),
+          at(c[j], eased),
+          at(f[j], frontZ),
+        ], elementId, finish, FacetRole.bar, side: true);
+      }
+    }
   }
 
   /// A section that does not open: either the pane that fills it, or — when
@@ -289,14 +380,14 @@ abstract final class MeshBuilder {
     if (face.isEmpty) return;
 
     const setback = 0.1;
-    _slabBetween(
+    _barSlab(
       out,
       face,
       -depth * setback,
       depth * (1 - setback * 2),
+      barArrisOf(divider.finish.material, divider.widthMm),
       divider.id,
       divider.finish,
-      FacetRole.bar,
       place ?? (p) => p,
     );
   }
@@ -378,42 +469,30 @@ abstract final class MeshBuilder {
     Polygon sashInner,
     Vec3 Function(Vec3) move,
   ) {
-    Vec3 at(Vec2 point, double z) => move(_at(point, z));
     final leafFront = MeshBuilder.leafFront(depth);
     final leafDepth = _leafDepth(depth);
 
+    // The sash is a frame of its own, in the frame's material: the same
+    // profile at the sash's width and the leaf's depth, swung with it.
+    final profile = FrameProfile.of(
+      frame.finish.material,
+      width: OpeningLeaf.profileFor(frame),
+      depth: leafDepth,
+    );
     if (!sashInner.isEmpty &&
-        sashInner.corners.length == sashOuter.corners.length) {
-      final n = sashOuter.corners.length;
-      for (var i = 0; i < n; i++) {
-        final j = (i + 1) % n;
-        final o1 = sashOuter.corners[i], o2 = sashOuter.corners[j];
-        final i1 = sashInner.corners[i], i2 = sashInner.corners[j];
-        _quad(out, [
-          at(o1, leafFront),
-          at(o2, leafFront),
-          at(i2, leafFront),
-          at(i1, leafFront),
-        ], section.id, frame.finish, FacetRole.sash);
-        _quad(out, [
-          at(i1, leafFront - leafDepth),
-          at(i2, leafFront - leafDepth),
-          at(o2, leafFront - leafDepth),
-          at(o1, leafFront - leafDepth),
-        ], section.id, frame.finish, FacetRole.sash);
-        _quad(out, [
-          at(i1, leafFront),
-          at(i2, leafFront),
-          at(i2, leafFront - leafDepth),
-          at(i1, leafFront - leafDepth),
-        ], section.id, frame.finish, FacetRole.sash);
-        _quad(out, [
-          at(o1, leafFront - leafDepth),
-          at(o2, leafFront - leafDepth),
-          at(o2, leafFront),
-          at(o1, leafFront),
-        ], section.id, frame.finish, FacetRole.sash);
-      }
+        sashInner.corners.length == sashOuter.corners.length &&
+        !profile.isEmpty) {
+      _sweepProfile(
+        out,
+        sashOuter,
+        sashInner,
+        profile,
+        leafFront,
+        section.id,
+        frame.finish,
+        FacetRole.sash,
+        move,
+      );
     }
 
     // What fills the leaf, swinging with it. Where the user drew lines
