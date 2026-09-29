@@ -33,8 +33,12 @@ abstract final class OpeningLeaf {
 
   /// The daylight inside the leaf — what the glass or the panel fills — or
   /// null when the leaf is too small to have any.
-  static Polygon? innerOf(SectionElement section, FrameElement frame) {
-    final outer = outerOf(section);
+  static Polygon? innerOf(SectionElement section, FrameElement frame) =>
+      insideOf(outerOf(section), frame);
+
+  /// The daylight inside a leaf whose outside is [outer] — the sash's own
+  /// profile in from it all round — or null when there is none.
+  static Polygon? insideOf(Polygon outer, FrameElement frame) {
     final inner = outer.inset(profileFor(frame));
     if (inner.isEmpty) return null;
     if (inner.corners.length != outer.corners.length) return null;

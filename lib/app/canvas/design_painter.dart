@@ -5,11 +5,10 @@ import 'package:flutter/material.dart';
 
 import '../../domain/dimensions/measurements.dart';
 import '../../domain/dimensions/units.dart';
-import '../../domain/geometry/polygon.dart';
 import '../../domain/geometry/segment.dart';
 import '../../domain/geometry/vec2.dart';
-import '../../domain/hardware/opening_hardware.dart';
 import '../../domain/model/design.dart';
+import '../../domain/model/design_geometry.dart';
 import '../../domain/model/elements.dart';
 import '../theme/app_theme.dart';
 import 'view_transform.dart';
@@ -157,16 +156,14 @@ class DesignPainter extends CustomPainter {
     }
   }
 
+  /// Each bar as the body the other views draw and build —
+  /// [DesignGeometry.barBody], stopped at the frame's inner face or at its
+  /// sash — so the three views show one bar.
   void _paintDividers(Canvas canvas) {
+    final geometry = DesignGeometry.of(design);
     for (final divider in design.dividers) {
-      final half = divider.widthMm / 2;
-      final side = divider.segment.unit.perpendicular * half;
-      final bar = Polygon([
-        divider.a + side,
-        divider.b + side,
-        divider.b - side,
-        divider.a - side,
-      ]);
+      final bar = geometry.barBody(divider);
+      if (bar.isEmpty) continue;
       canvas.drawPath(
         view.pathOf(bar),
         Paint()
@@ -250,6 +247,7 @@ class DesignPainter extends CustomPainter {
   }
 
   void _paintHardware(Canvas canvas) {
+    final geometry = DesignGeometry.of(design);
     for (final piece in design.hardware) {
       // **The drawing is of the face you are standing at**, and a piece on
       // the other face is not something you can see from there. A design
@@ -258,15 +256,12 @@ class DesignPainter extends CustomPainter {
       // the one answer every view reads.
       if (design.isConcealed(piece)) continue;
 
-      // A screen's cassette and a sensor are fixed to the frame, and drawn
-      // as the shapes they are — from the same footprint the solid builds.
-      final footprint = OpeningHardware.footprintOf(design, piece);
-      if (footprint != null) {
-        final path = Path()
-          ..addPolygon(
-            [for (final c in footprint.corners) view.toScreen(c)],
-            true,
-          );
+      // Every piece is drawn as the shapes it is built as — the same ones,
+      // the same size, as the technical drawing draws and the solid stands
+      // off the leaf; a screen's cassette and a sensor as their footprints.
+      for (final shape in geometry.hardwareOf(piece)) {
+        if (shape.isEmpty) continue;
+        final path = view.pathOf(shape);
         canvas.drawPath(path, Paint()..color = Color(piece.finish.colour));
         canvas.drawPath(
           path,
@@ -275,50 +270,7 @@ class DesignPainter extends CustomPainter {
             ..strokeWidth = 1.1
             ..color = AppTheme.ink.withValues(alpha: 0.45),
         );
-        continue;
       }
-      final at = view.toScreen(piece.at);
-      final scale = math.max(design.widthMm, design.heightMm);
-      final length = view.lengthToScreen(
-        (switch (piece.kind) {
-          HardwareKind.lever => scale * 0.07,
-          HardwareKind.handle => scale * 0.09,
-          HardwareKind.letterplate => scale * 0.22,
-          HardwareKind.pull => OpeningHardware.pullLengthOf(design, piece),
-          _ => scale * 0.035,
-        })
-            .clamp(24.0, 420.0),
-      );
-      // A pull is a slender bar, not a plate: its width is a small part of
-      // its length, where a lever's backplate is a good part of it.
-      final width = math.max(
-        3.0,
-        length * (piece.kind == HardwareKind.pull ? 0.06 : 0.26),
-      );
-
-      canvas.save();
-      canvas.translate(at.dx, at.dy);
-      canvas.rotate(piece.rotation * math.pi / 180);
-      final body = RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset.zero,
-          width: length,
-          height: width,
-        ),
-        Radius.circular(width / 2),
-      );
-      canvas.drawRRect(
-        body,
-        Paint()..color = Color(piece.finish.colour),
-      );
-      canvas.drawRRect(
-        body,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.1
-          ..color = AppTheme.ink.withValues(alpha: 0.45),
-      );
-      canvas.restore();
     }
   }
 

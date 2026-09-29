@@ -10,6 +10,7 @@ import '../../domain/geometry/segment.dart';
 import '../../domain/geometry/vec2.dart';
 import '../../domain/hardware/opening_hardware.dart';
 import '../../domain/model/design.dart';
+import '../../domain/model/design_geometry.dart';
 import '../../domain/model/design_tree.dart';
 import '../../domain/model/elements.dart';
 import '../../domain/model/materials.dart';
@@ -373,23 +374,12 @@ class CadPainter extends CustomPainter {
     }
   }
 
-  /// The rectangle a bar occupies, stopped at the sash when it is a bar
-  /// inside an opening — a glazing bar runs between the faces of the sash it
-  /// is in, not over the top of them. The same trim the solid makes, so the
-  /// two show one bar.
-  Polygon _barBody(DividerElement divider) {
-    final side = divider.segment.unit.perpendicular * (divider.widthMm / 2);
-    final body = Polygon([
-      divider.a + side,
-      divider.b + side,
-      divider.b - side,
-      divider.a - side,
-    ]);
-
-    final daylight = OpeningLeaf.daylightAround(design, divider.parentId);
-    if (daylight == null || daylight.isEmpty) return body;
-    return body.clippedTo(daylight);
-  }
+  /// The body a bar occupies: [DesignGeometry.barBody], the one the solid
+  /// builds — stopped at the frame's inner face, or at the sash when it is a
+  /// bar inside an opening, because a glazing bar runs between the faces of
+  /// the sash it is in and not over them.
+  Polygon _barBody(DividerElement divider) =>
+      DesignGeometry.of(design).barBody(divider);
 
   /// The swing lines: the standard elevation symbol, dashed, pointing at the
   /// hinge.
@@ -544,26 +534,8 @@ class CadPainter extends CustomPainter {
   }
 
   void _hardware(Canvas canvas) {
+    final geometry = DesignGeometry.of(design);
     for (final piece in design.hardware) {
-      final at = view.toScreen(piece.at);
-      final scale = math.max(design.widthMm, design.heightMm);
-      final length = view.lengthToScreen(
-        (switch (piece.kind) {
-          HardwareKind.lever => scale * 0.07,
-          HardwareKind.handle => scale * 0.09,
-          HardwareKind.letterplate => scale * 0.22,
-          HardwareKind.pull => OpeningHardware.pullLengthOf(design, piece),
-          _ => scale * 0.035,
-        })
-            .clamp(24.0, 420.0),
-      );
-      // A pull is a slender bar, not a plate: its width is a small part of
-      // its length, where a lever's backplate is a good part of it.
-      final width = math.max(
-        3.0,
-        length * (piece.kind == HardwareKind.pull ? 0.06 : 0.26),
-      );
-
       // **A piece on the face this drawing is not of is hidden detail.** A
       // door is drawn from outside, so its hinges are round the back and
       // cannot be seen standing where this elevation is drawn from — so by
@@ -576,15 +548,16 @@ class CadPainter extends CustomPainter {
       final concealed = design.isConcealed(piece);
       if (concealed && !layers.hiddenDetail) continue;
 
-      // A screen's cassette and a sensor are fixed to the frame, and drawn
-      // as the shapes they are — from the same footprint the solid builds.
-      final footprint = OpeningHardware.footprintOf(design, piece);
-      if (footprint != null) {
-        final path = Path()
-          ..addPolygon(
-            [for (final c in footprint.corners) view.toScreen(c)],
-            true,
-          );
+      // **Drawn as the shapes it is built as**, from the one description
+      // the solid stands off the leaf: a lever's backplate, rose and arm, a
+      // window handle's base, boss and arm, a hinge's leaf and knuckle, each
+      // sized from the leaf it is on. A screen's cassette and a sensor are
+      // fixed to the frame and drawn as their footprints.
+      final onFrame = OpeningHardware.footprintOf(design, piece) != null;
+      final shapes = geometry.hardwareOf(piece);
+      for (final shape in shapes) {
+        if (shape.isEmpty) continue;
+        final path = view.pathOf(shape);
         if (concealed) {
           canvas.drawPath(
             Cad.dashed(path, dash: 6, gap: 4),
@@ -592,30 +565,20 @@ class CadPainter extends CustomPainter {
           );
         } else {
           canvas.drawPath(path, Cad.fill(ink.sheet));
-          canvas.drawPath(path, Cad.stroke(ink.medium, Cad.hairline));
+          canvas.drawPath(
+            path,
+            onFrame
+                ? Cad.stroke(ink.medium, Cad.hairline)
+                : Cad.stroke(ink.heavy, Cad.glazingBar),
+          );
         }
-        continue;
       }
-
-      canvas.save();
-      canvas.translate(at.dx, at.dy);
-      canvas.rotate(piece.rotation * math.pi / 180);
-      final body = RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset.zero, width: length, height: width),
-        Radius.circular(width / 2),
-      );
-      if (concealed) {
-        canvas.drawPath(
-          Cad.dashed(Path()..addRRect(body), dash: 6, gap: 4),
-          Cad.stroke(ink.hidden, Cad.hairline),
-        );
-      } else {
-        canvas.drawRRect(body, Cad.fill(ink.sheet));
-        canvas.drawRRect(body, Cad.stroke(ink.heavy, Cad.bar));
-      }
-      canvas.restore();
-
-      // A cross at the exact point, because that is where it goes.
+      // A cross at the exact point, because that is where it goes — on the
+      // piece. A pull is set in from the point it is placed by, onto the
+      // middle of its stile, and a cross off to its side would mark nothing.
+      if (onFrame || !shapes.any((s) => s.contains(piece.at))) continue;
+      final at = view.toScreen(piece.at);
+      final scale = math.max(design.widthMm, design.heightMm);
       final tick = view.lengthToScreen(math.max(scale * 0.006, 8));
       final paint = Cad.stroke(
           concealed ? ink.hidden : ink.medium, Cad.hairline);

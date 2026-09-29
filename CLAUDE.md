@@ -3395,6 +3395,50 @@ fingerprint as it was. One that moves them has moved geometry: where that is
 the point (a seal that is now real material), update the figure on purpose
 and say so; where it is not, the change is wrong.
 
+### One geometry, drawn three ways
+
+```
+SAVED DESIGN  →  DesignGeometry  →  DesignPainter  (Draw)
+                                 →  CadPainter     (CAD)
+                                 →  MeshBuilder    (3D)
+```
+
+`lib/domain/model/design_geometry.dart` is the one answer to where each part
+is and what shape it has, and every view reads it rather than working any of
+it out for itself. It holds nothing of its own — everything is derived from
+the design, nothing is stored back, and `DesignGeometry.of` gives the same
+object for the same design — and it invents nothing: no division, size or
+position the design does not already have. What it settles is what the
+views used to settle separately, and so could disagree about:
+
+- **Where a bar stops** — `barBody`. A bar of the design runs to the frame's
+  inner face and a bar inside an opening to its sash's daylight, in all
+  three views; square across where that already stays within, and cut flush
+  with the edge where the bar meets it at a slope. The two drawings ran a
+  mullion out to the frame's outside edge while the solid stopped it at the
+  inside.
+- **What a pane is filled to**, and **the leaf** — `fillOf`, `leafOuter`,
+  `leafInner`. A sliding design's panels on their tracks reach the middle
+  of the line they meet at (`slidingPanelOf`), which the solid used to work
+  out by a route of its own.
+- **Ironmongery** — `hardwareOf`, from `Furniture`
+  (`lib/domain/hardware/furniture.dart`): every piece as the shapes it is
+  built as, sized from its leaf — a lever's backplate, rose and arm, a
+  window handle's base, boss and arm (the hull of the very rings it is
+  turned from, `turned.dart`), a hinge's leaf and knuckle, a pull's bar and
+  posts. The drawings used to size a symbol from the whole design, so a
+  lever was one size on the sheet and another in the model.
+
+The pinned fingerprints did not move: for every design they hold, the solid
+builds exactly what it built before, and what changed is the two drawings
+coming to agree with it. `test/app/one_geometry_for_every_view_test.dart`
+holds it facet by facet and pixel by pixel — every bar, pane, sash and piece
+of ironmongery the solid builds is the geometry's shape, both sheets put
+down the same bars and the same ironmongery, a line inside an opening stays
+inside it, and no view file works a bar body or an ironmongery size out for
+itself. Putting back either drawing's old bar or ironmongery rule fails it
+on the pixels.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the

@@ -1,15 +1,17 @@
 import 'dart:math' as math;
 
 import '../geometry/polygon.dart';
-import '../geometry/segment.dart';
 import '../geometry/vec2.dart';
+import '../hardware/furniture.dart';
 import '../hardware/opening_hardware.dart';
 import '../model/design.dart';
+import '../model/design_geometry.dart';
 import '../model/design_tree.dart';
 import '../model/elements.dart';
 import '../model/materials.dart';
 import '../model/opening_leaf.dart';
 import 'mesh.dart';
+import 'turned.dart';
 
 /// Builds the 3D model out of the design itself.
 ///
@@ -53,7 +55,7 @@ abstract final class MeshBuilder {
       // middle, and not a post standing in the frame for one of them to run
       // into.
       if (divider != null && tracks == null) {
-        _addBar(facets, divider, frame, depth);
+        _addBar(facets, design, divider, depth);
       }
     }
 
@@ -166,24 +168,16 @@ abstract final class MeshBuilder {
   }
 
   /// A bar, as wide as the user set it and running exactly where they drew
-  /// it — including at an angle, if that is how it was drawn.
+  /// it — including at an angle, if that is how it was drawn. Its face is
+  /// [DesignGeometry.barBody], the one the drawings draw.
   static void _addBar(
     List<Facet> out,
+    Design design,
     DividerElement divider,
-    FrameElement frame,
     double depth,
   ) {
-    final run = _clip(divider.segment, frame.innerOutline);
-    if (run == null) return;
-
-    final half = divider.widthMm / 2;
-    final side = run.unit.perpendicular * half;
-    final face = Polygon([
-      run.a + side,
-      run.b + side,
-      run.b - side,
-      run.a - side,
-    ]);
+    final face = DesignGeometry.of(design).barBody(divider);
+    if (face.isEmpty) return;
 
     // Bars sit a little back from the face of the frame, as they do in the
     // real thing.
@@ -245,8 +239,7 @@ abstract final class MeshBuilder {
     // turn have lines inside it. Each bar stops where the fill of this
     // section stops, so a bar inside a sash runs between the sash's faces
     // rather than across them.
-    final bounds = OpeningLeaf.fillOf(design, section);
-    _addBarsInside(out, design, branch, bounds, depth, place: place);
+    _addBarsInside(out, design, branch, depth, place: place);
     for (final pane in branch.panes) {
       final child = design.sectionById(pane.sectionId);
       if (child != null) {
@@ -264,42 +257,35 @@ abstract final class MeshBuilder {
     }
   }
 
-  /// The bars the user drew inside one section, trimmed to what fills it.
+  /// The bars the user drew inside one section, trimmed to what fills it —
+  /// so a bar inside a sash runs between the sash's faces rather than
+  /// across them.
   static void _addBarsInside(
     List<Facet> out,
     Design design,
     TreeSection branch,
-    Polygon bounds,
     double depth, {
     Vec3 Function(Vec3)? place,
   }) {
     for (final id in branch.barIds) {
       final bar = design.dividerById(id);
       if (bar != null) {
-        _addInternalBar(out, bar, bounds, depth, place: place);
+        _addInternalBar(out, design, bar, depth, place: place);
       }
     }
   }
 
-  /// A bar the user drew inside a section, trimmed to that section.
+  /// A bar the user drew inside a section, trimmed to that section:
+  /// [DesignGeometry.barBody], the one the drawings draw.
   static void _addInternalBar(
     List<Facet> out,
+    Design design,
     DividerElement divider,
-    Polygon bounds,
     double depth, {
     Vec3 Function(Vec3)? place,
   }) {
-    final run = _clip(divider.segment, bounds);
-    if (run == null) return;
-
-    final half = divider.widthMm / 2;
-    final side = run.unit.perpendicular * half;
-    final face = Polygon([
-      run.a + side,
-      run.b + side,
-      run.b - side,
-      run.a - side,
-    ]);
+    final face = DesignGeometry.of(design).barBody(divider);
+    if (face.isEmpty) return;
 
     const setback = 0.1;
     _slabBetween(
@@ -356,14 +342,13 @@ abstract final class MeshBuilder {
     double depth,
     double openFraction, {
     Vec3 Function(Vec3)? place,
-    Polygon? outline,
   }) {
     // The same leaf the drawing shows, described in one place so the
-    // elevation and the solid cannot disagree about where it is.
-    final sashOuter = outline ?? OpeningLeaf.outerOf(section);
-    final sashInner = outline != null
-        ? _insideOf(outline, frame)
-        : OpeningLeaf.innerOf(section, frame) ?? const Polygon([]);
+    // elevation and the solid cannot disagree about where it is — a panel
+    // on a track reaching the middle of the line it meets its neighbour at.
+    final geometry = DesignGeometry.of(design);
+    final sashOuter = geometry.leafOuter(section);
+    final sashInner = geometry.leafInner(section) ?? const Polygon([]);
 
     // Its own swing, then whatever its parent is doing. A leaf inside a leaf
     // swings within the one it hangs in; a leaf hanging in the frame has no
@@ -376,18 +361,6 @@ abstract final class MeshBuilder {
     _addLeafHardware(out, design, section, depth, move);
     _addSash(out, design, branch, section, frame, depth, openFraction,
         sashOuter, sashInner, move);
-  }
-
-  /// The daylight inside a sash whose outside is [outer].
-  static Polygon _insideOf(Polygon outer, FrameElement frame) {
-    final inner = outer.inset(OpeningLeaf.profileFor(frame));
-    if (inner.isEmpty ||
-        inner.corners.length != outer.corners.length ||
-        inner.area <= 0 ||
-        inner.area >= outer.area) {
-      return const Polygon([]);
-    }
-    return inner;
   }
 
   /// A sash — its ring of material between [sashOuter] and [sashInner], and
@@ -467,7 +440,7 @@ abstract final class MeshBuilder {
       return;
     }
 
-    _addBarsInside(out, design, branch, glazed, leafDepth, place: move);
+    _addBarsInside(out, design, branch, leafDepth, place: move);
     for (final pane in branch.panes) {
       final child = design.sectionById(pane.sectionId);
       if (child != null) {
@@ -665,44 +638,24 @@ abstract final class MeshBuilder {
     double depth, {
     Vec3 Function(Vec3)? place,
   }) {
-    final scale = math.max(design.widthMm, design.heightMm);
-    final length = switch (piece.kind) {
-      HardwareKind.lever => scale * 0.07,
-      HardwareKind.handle => scale * 0.09,
-      HardwareKind.letterplate => scale * 0.22,
-      HardwareKind.closer => scale * 0.12,
-      _ => scale * 0.035,
-    }
-        .clamp(24.0, 420.0);
-    final width = (length * 0.26).clamp(14.0, 90.0);
     final stand = (depth * 0.5).clamp(12.0, 60.0);
-
-    final along = Vec2(math.cos(piece.rotation * math.pi / 180),
-        math.sin(piece.rotation * math.pi / 180));
-    final across = along.perpendicular;
-    final centre = piece.at;
 
     // **Ironmongery is built as ironmongery.** A lever on a backplate, an
     // espagnolette with a curved arm, an escutcheon with a keyhole through
     // it and a butt hinge with a knuckle are all real pieces with a shape,
     // and a flat tab standing on the leaf is a placeholder for one rather
     // than one of them.
-    if (design.openingHolding(piece.parentId) case final opening?) {
-      // A sliding panel has no hinges; the edge it leads with stands where
-      // they would, opposite its handle.
-      final hinge =
-          opening.mechanism.hingeEdge ?? opening.mechanism.slideEdge;
-      if (_addFurniture(out, piece, design, opening, hinge, depth, place)) {
-        return;
-      }
+    //
+    // Where each part of it is, and how big, is [Furniture] — the one
+    // description the drawings read as well — and a sliding panel, which
+    // has no hinges, has the edge it leads with standing where they would,
+    // opposite its handle.
+    if (Furniture.of(design, piece) case final furniture?) {
+      _addFurniture(out, furniture, design, depth, place);
+      return;
     }
 
-    final face = Polygon([
-      centre + along * (length / 2) + across * (width / 2),
-      centre + along * (length / 2) - across * (width / 2),
-      centre - along * (length / 2) - across * (width / 2),
-      centre - along * (length / 2) + across * (width / 2),
-    ]);
+    final face = Furniture.plainPlate(design, piece);
     // **A hinge hangs on the inside face, and which face that is comes from
     // the kind.** A window is met from inside, so its hinges are on the face
     // you are looking at; a door is met from outside, so its hinges are
@@ -825,24 +778,16 @@ abstract final class MeshBuilder {
   ///
   /// Returns false for a piece there is no built form of, which is then
   /// built the plain way.
-  static bool _addFurniture(
+  static void _addFurniture(
     List<Facet> out,
-    HardwareElement piece,
+    Furniture f,
     Design design,
-    OpeningElement opening,
-    OpeningEdge? hinge,
     double depth,
     Vec3 Function(Vec3)? place,
   ) {
     final put = place ?? (Vec3 p) => p;
-    final section = design.sectionById(opening.sectionId);
-    if (section == null || hinge == null) return false;
-    final leaf = section.outline;
-
-    // Everything is sized from the leaf, so a garden gate and a front door
-    // each get ironmongery in proportion to themselves, and nothing is a
-    // number chosen to look right on one drawing.
-    final scale = (math.min(leaf.width, leaf.height) / 900).clamp(0.55, 1.6);
+    final piece = f.piece;
+    final opening = design.openingHolding(piece.parentId)!;
 
     // The face this piece is fixed to, and the way out of the leaf from it.
     // A door's hinges are on the inside face, so theirs is the far one and
@@ -864,12 +809,7 @@ abstract final class MeshBuilder {
     // stile it hangs on. A lever points that way because that is the way a
     // hand closes on it; pointing it the other way runs it off the edge of
     // the door into the frame.
-    final inward = switch (hinge) {
-      OpeningEdge.left => const Vec3(-1, 0, 0),
-      OpeningEdge.right => const Vec3(1, 0, 0),
-      OpeningEdge.top => const Vec3(0, -1, 0),
-      OpeningEdge.bottom => const Vec3(0, 1, 0),
-    };
+    final inward = Vec3(f.inward.x, f.inward.y, 0);
 
     // **The form is the piece's own, not the leaf's.** Which form a leaf
     // gets by default comes from what it is — a door's lever, a window's
@@ -889,45 +829,33 @@ abstract final class MeshBuilder {
     final through = MeshBuilder.leafFront(depth) + MeshBuilder.leafBack(depth);
     Vec3 otherFace(Vec3 p) => put(Vec3(p.x, p.y, through - p.z));
 
-    bool build(Vec3 Function(Vec3) put) {
+    void build(Vec3 Function(Vec3) put) {
       switch (piece.kind) {
         case HardwareKind.hinge:
-          _addButtHinge(out, piece, hinge, face, outward, scale, put);
-          return true;
+          _addButtHinge(out, f, face, outward, put);
         case HardwareKind.lock:
-          _addEscutcheon(out, piece, face, scale, put);
-          return true;
+          _addEscutcheon(out, f, face, put);
         case HardwareKind.lever:
-          _addLeverOnBackplate(
-              out, piece, opening, hinge, inward, face, scale, put);
-          return true;
+          _addLeverOnBackplate(out, f, inward, face, put);
         case HardwareKind.handle:
-          _addWindowHandle(out, piece, hinge, inward, face, scale, put);
-          return true;
+          _addWindowHandle(out, f, inward, face, put);
         case HardwareKind.knob:
-          _addKnob(out, piece, face, scale, put);
-          return true;
+          _addKnob(out, f, face, put);
         case HardwareKind.pull:
-          final stile = design.frame == null
-              ? 0.0
-              : OpeningLeaf.profileFor(design.frame!);
-          _addPull(out, piece, inward, face, scale, stile,
-              OpeningHardware.pullLengthOf(design, piece), put);
-          return true;
+          _addPull(out, f, face, put);
         default:
-          return false;
+          break;
       }
     }
 
-    final built = build(put);
-    if (built && bothFaces) {
+    build(put);
+    if (bothFaces) {
       final from = out.length;
       build(otherFace);
       for (var i = from; i < out.length; i++) {
         out[i] = out[i].inPart('the other face');
       }
     }
-    return built;
   }
 
   /// A lever on a long backplate: plate, rose, neck, lever, return.
@@ -938,43 +866,40 @@ abstract final class MeshBuilder {
   /// hand closes on it.
   static void _addLeverOnBackplate(
     List<Facet> out,
-    HardwareElement piece,
-    OpeningElement opening,
-    OpeningEdge hinge,
+    Furniture f,
     Vec3 inward,
     double face,
-    double scale,
     Vec3 Function(Vec3) put,
   ) {
+    final piece = f.piece;
+    final scale = f.scale;
     final finish = piece.finish;
     final id = piece.id;
-    final sideHung = hinge == OpeningEdge.left || hinge == OpeningEdge.right;
 
     // The plate runs up the leaf on a side-hung door and across it on a top
     // or bottom hung one: along the stile it is fixed to, either way.
-    final plateAlong = sideHung ? const Vec2(0, 1) : const Vec2(1, 0);
-    final plate = _stadium(piece.at, plateAlong, 235 * scale, 48 * scale);
+    final plate = f.leverPlate;
     _slabBetween(out, plate, face + 4 * scale, 4 * scale, id, finish,
         FacetRole.hardware, put);
 
     // The rose the lever turns in, standing off the plate.
     final roseAt = Vec3(piece.at.x, piece.at.y, face + 4 * scale);
     final rose = _ring(roseAt, const Vec3(1, 0, 0), const Vec3(0, 1, 0),
-        27 * scale);
+        f.leverRose);
     _sweep(out, rose, Vec3(0, 0, 14 * scale), id, finish, put,
         capStart: false);
 
     // Out of the door, then across it, then a short return towards it —
     // the three runs a lever is made of.
     final neckFrom = Vec3(piece.at.x, piece.at.y, face + 18 * scale);
-    final thickness = 11 * scale;
+    final thickness = f.leverRadius;
     final acrossPlane = _ring(neckFrom, const Vec3(1, 0, 0),
         const Vec3(0, 1, 0), thickness);
     _sweep(out, acrossPlane, Vec3(0, 0, 26 * scale), id, finish, put,
         capStart: false);
 
     final elbow = Vec3(neckFrom.x, neckFrom.y, neckFrom.z + 26 * scale);
-    final armLength = 108 * scale;
+    final armLength = f.leverReach;
     // The lever's own cross-section stands square to the way it runs.
     final armRing = _ring(elbow, const Vec3(0, 0, 1),
         Vec3(-inward.y, inward.x, 0), thickness);
@@ -1007,21 +932,19 @@ abstract final class MeshBuilder {
   /// of a shut window sits.
   static void _addWindowHandle(
     List<Facet> out,
-    HardwareElement piece,
-    OpeningEdge hinge,
+    Furniture f,
     Vec3 inward,
     double face,
-    double scale,
     Vec3 Function(Vec3) put,
   ) {
+    final piece = f.piece;
+    final scale = f.scale;
     final finish = piece.finish;
     final id = piece.id;
-    final sideHung = hinge == OpeningEdge.left || hinge == OpeningEdge.right;
 
     // A short base along the stile it is screwed to — nothing like the long
     // plate a mortice lock needs.
-    final baseAlong = sideHung ? const Vec2(0, 1) : const Vec2(1, 0);
-    final base = _stadium(piece.at, baseAlong, 104 * scale, 30 * scale);
+    final base = f.handleBase;
     _slabBetween(out, base, face + 4 * scale, 4 * scale, id, finish,
         FacetRole.hardware, put);
 
@@ -1029,7 +952,7 @@ abstract final class MeshBuilder {
     final bossAt = Vec3(piece.at.x, piece.at.y, face + 4 * scale);
     _sweep(
       out,
-      _ring(bossAt, const Vec3(1, 0, 0), const Vec3(0, 1, 0), 15 * scale),
+      _ring(bossAt, const Vec3(1, 0, 0), const Vec3(0, 1, 0), f.handleBoss),
       Vec3(0, 0, 11 * scale),
       id,
       finish,
@@ -1040,27 +963,7 @@ abstract final class MeshBuilder {
     // The arm. Out of the sash, then round and down, as a cast lever does.
     // Down the leaf for a side-hung sash; for a top or bottom hung one it
     // still hangs, because hanging is what a shut handle does.
-    final sweepAway = sideHung ? const Vec2(0, 1) : Vec2(-inward.x, -inward.y);
-    final reach = 86 * scale;
-    final stand = 26 * scale;
-
-    final path = <Vec3>[];
-    final radii = <double>[];
-    const steps = 7;
-    for (var i = 0; i <= steps; i++) {
-      final t = i / steps;
-      // A quarter turn: out of the face first, then over and along the
-      // leaf, so the arm leaves the boss square and finishes lying down it.
-      final outOf = math.sin(t * math.pi / 2);
-      final along = 1 - math.cos(t * math.pi / 2);
-      path.add(Vec3(
-        piece.at.x + sweepAway.x * reach * along,
-        piece.at.y + sweepAway.y * reach * along,
-        face + 11 * scale + stand * outOf,
-      ));
-      // Slim at the boss, swelling towards the end a hand takes.
-      radii.add((7.5 + 2.6 * t) * scale);
-    }
+    final (path, radii) = f.handleArm(face);
     _tube(out, path, radii, id, finish, put);
   }
 
@@ -1073,26 +976,25 @@ abstract final class MeshBuilder {
   /// the panel's own material and not over the frame it closes against.
   static void _addPull(
     List<Facet> out,
-    HardwareElement piece,
-    Vec3 inward,
+    Furniture f,
     double face,
-    double scale,
-    double stile,
-    double length,
     Vec3 Function(Vec3) put,
   ) {
+    final piece = f.piece;
+    final scale = f.scale;
     final id = piece.id;
     final finish = piece.finish;
-    final x = piece.at.x + inward.x * stile / 2;
-    final y = piece.at.y;
+    final length = f.pullLength;
+    final x = f.pullAt.x;
+    final y = f.pullAt.y;
     final stand = 34 * scale;
 
     // The two posts, out of the face.
     for (final end in [-1.0, 1.0]) {
-      final at = Vec3(x, y + end * (length / 2 - 28 * scale), face);
+      final at = Vec3(x, y + end * f.postFromMiddle, face);
       _sweep(
         out,
-        _ring(at, const Vec3(1, 0, 0), const Vec3(0, 1, 0), 8 * scale),
+        _ring(at, const Vec3(1, 0, 0), const Vec3(0, 1, 0), f.postRadius),
         Vec3(0, 0, stand),
         id,
         finish,
@@ -1105,7 +1007,7 @@ abstract final class MeshBuilder {
     final foot = Vec3(x, y + length / 2, face + stand);
     _sweep(
       out,
-      _ring(foot, const Vec3(1, 0, 0), const Vec3(0, 0, 1), 12 * scale),
+      _ring(foot, const Vec3(1, 0, 0), const Vec3(0, 0, 1), f.pullRadius),
       Vec3(0, -length, 0),
       id,
       finish,
@@ -1213,15 +1115,16 @@ abstract final class MeshBuilder {
   /// A knob on its rose: a stem out of the leaf and a ball on the end.
   static void _addKnob(
     List<Facet> out,
-    HardwareElement piece,
+    Furniture f,
     double face,
-    double scale,
     Vec3 Function(Vec3) put,
   ) {
+    final piece = f.piece;
+    final scale = f.scale;
     final id = piece.id;
     final finish = piece.finish;
 
-    final rose = _stadium(piece.at, const Vec2(0, 1), 58 * scale, 52 * scale);
+    final rose = f.knobRose;
     _slabBetween(out, rose, face + 4 * scale, 4 * scale, id, finish,
         FacetRole.hardware, put);
 
@@ -1229,13 +1132,11 @@ abstract final class MeshBuilder {
     // which is a turned ball rather than a cylinder with a lid.
     final path = <Vec3>[];
     final radii = <double>[];
-    const steps = 8;
+    const steps = Furniture.knobSteps;
     for (var i = 0; i <= steps; i++) {
       final t = i / steps;
       path.add(Vec3(piece.at.x, piece.at.y, face + 4 * scale + 52 * scale * t));
-      radii.add(t < 0.45
-          ? 9 * scale
-          : (9 + 17 * math.sin((t - 0.45) / 0.55 * math.pi)) * scale);
+      radii.add(f.knobRadius(t));
     }
     _tube(out, path, radii, id, finish, put);
   }
@@ -1243,13 +1144,13 @@ abstract final class MeshBuilder {
   /// The escutcheon below the lever: a plate with the keyhole through it.
   static void _addEscutcheon(
     List<Facet> out,
-    HardwareElement piece,
+    Furniture f,
     double face,
-    double scale,
     Vec3 Function(Vec3) put,
   ) {
-    final plate = _stadium(piece.at, const Vec2(0, 1), 62 * scale,
-        48 * scale);
+    final piece = f.piece;
+    final scale = f.scale;
+    final plate = f.escutcheon;
     _slabBetween(out, plate, face + 4 * scale, 4 * scale, piece.id,
         piece.finish, FacetRole.hardware, put);
 
@@ -1259,18 +1160,17 @@ abstract final class MeshBuilder {
       colour: _darken(piece.finish.colour, 0.28),
       material: piece.finish.material,
     );
-    final mouth = Vec3(piece.at.x, piece.at.y - 6 * scale, face + 4 * scale);
+    final mouth = Vec3(f.keyholeAt.x, f.keyholeAt.y, face + 4 * scale);
     _sweep(
       out,
-      _ring(mouth, const Vec3(1, 0, 0), const Vec3(0, 1, 0), 7 * scale),
+      _ring(mouth, const Vec3(1, 0, 0), const Vec3(0, 1, 0), f.keyholeRadius),
       Vec3(0, 0, -5 * scale),
       piece.id,
       dark,
       put,
       capStart: false,
     );
-    final ward = _stadium(Vec2(piece.at.x, piece.at.y + 5 * scale),
-        const Vec2(0, 1), 20 * scale, 7 * scale);
+    final ward = f.keyWard;
     _slabBetween(out, ward, face + 4 * scale, 2 * scale, piece.id, dark,
         FacetRole.hardware, put);
   }
@@ -1282,18 +1182,17 @@ abstract final class MeshBuilder {
   /// and on a door drawn from outside it is the only part you see at all.
   static void _addButtHinge(
     List<Facet> out,
-    HardwareElement piece,
-    OpeningEdge hinge,
+    Furniture f,
     double face,
     double outward,
-    double scale,
     Vec3 Function(Vec3) put,
   ) {
-    final sideHung = hinge == OpeningEdge.left || hinge == OpeningEdge.right;
-    final along = sideHung ? const Vec2(0, 1) : const Vec2(1, 0);
-    final knuckleLength = 88 * scale;
+    final piece = f.piece;
+    final scale = f.scale;
+    final sideHung = f.sideHung;
+    final knuckleLength = f.knuckleLength;
 
-    final leaf = _stadium(piece.at, along, knuckleLength, 34 * scale);
+    final leaf = f.hingeLeaf;
     _slabBetween(out, leaf, face + outward * 6 * scale, 3 * scale, piece.id,
         piece.finish, FacetRole.hardware, put);
 
@@ -1307,7 +1206,7 @@ abstract final class MeshBuilder {
     );
     _sweep(
       out,
-      _ring(start, u, const Vec3(0, 0, 1), 9 * scale),
+      _ring(start, u, const Vec3(0, 0, 1), f.knuckleRadius),
       Vec3(axis.x * knuckleLength, axis.y * knuckleLength, 0),
       piece.id,
       piece.finish,
@@ -1329,19 +1228,7 @@ abstract final class MeshBuilder {
     double radius, {
     int sides = 12,
   }) =>
-      [
-        for (var i = 0; i < sides; i++)
-          () {
-            final angle = i / sides * math.pi * 2;
-            final c = math.cos(angle) * radius;
-            final d = math.sin(angle) * radius;
-            return Vec3(
-              centre.x + u.x * c + v.x * d,
-              centre.y + u.y * c + v.y * d,
-              centre.z + u.z * c + v.z * d,
-            );
-          }(),
-      ];
+      ringAround(centre, u, v, radius, sides: sides);
 
   /// [ring] swept along [along]: the ends capped, the sides walled.
   ///
@@ -1403,33 +1290,7 @@ abstract final class MeshBuilder {
   }) {
     if (path.length < 2 || radii.length != path.length) return;
 
-    Vec3 minus(Vec3 a, Vec3 b) => Vec3(a.x - b.x, a.y - b.y, a.z - b.z);
-    Vec3 unit(Vec3 v) {
-      final len = math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-      return len < 1e-9 ? const Vec3(0, 0, 1) : Vec3(v.x / len, v.y / len, v.z / len);
-    }
-
-    Vec3 cross(Vec3 a, Vec3 b) => Vec3(
-          a.y * b.z - a.z * b.y,
-          a.z * b.x - a.x * b.z,
-          a.x * b.y - a.y * b.x,
-        );
-
-    final rings = <List<Vec3>>[];
-    for (var i = 0; i < path.length; i++) {
-      // The way the path is going here: between its neighbours where it has
-      // two, and along the one leg it has at each end.
-      final before = i == 0 ? path[0] : path[i - 1];
-      final after = i == path.length - 1 ? path[i] : path[i + 1];
-      final along = unit(minus(after, before));
-      // Any steady reference that is not along the path gives a frame that
-      // does not spin as the curve turns.
-      final reference =
-          along.z.abs() > 0.9 ? const Vec3(0, 1, 0) : const Vec3(0, 0, 1);
-      final u = unit(cross(along, reference));
-      final v = cross(along, u);
-      rings.add(_ring(path[i], u, v, radii[i], sides: sides));
-    }
+    final rings = tubeRings(path, radii, sides: sides);
 
     _quad(out, [for (final p in rings.first.reversed) put(p)], elementId,
         finish, FacetRole.hardware, shade: 0.7);
@@ -1448,60 +1309,6 @@ abstract final class MeshBuilder {
         ], elementId, finish, FacetRole.hardware, shade: lit);
       }
     }
-  }
-
-  /// A rounded-cornered plate lying on the leaf, as a backplate does.
-  ///
-  /// Real ironmongery has no sharp corners — a pressed plate is radiused all
-  /// round — and a box with four right angles reads as a sticker rather than
-  /// as a piece of metal.
-  static Polygon _stadium(
-    Vec2 centre,
-    Vec2 along,
-    double length,
-    double width, {
-    int corner = 5,
-  }) {
-    final u = along.length < 1e-9 ? const Vec2(1, 0) : along.normalised;
-    final v = u.perpendicular;
-    final radius = width / 2;
-    final straight = math.max(0.0, length / 2 - radius);
-
-    final corners = <Vec2>[];
-    for (final end in [1.0, -1.0]) {
-      final hub = centre + u * (straight * end);
-      for (var i = 0; i <= corner; i++) {
-        final angle = (i / corner - 0.5) * math.pi * end;
-        final c = math.cos(angle) * end;
-        final d = math.sin(angle);
-        corners.add(Vec2(
-          hub.x + u.x * radius * c + v.x * radius * d,
-          hub.y + u.y * radius * c + v.y * radius * d,
-        ));
-      }
-    }
-    return Polygon(corners);
-  }
-
-  /// The part of a bar that is actually inside the opening.
-  static Segment? _clip(Segment line, Polygon bounds) {
-    if (bounds.isEmpty) return line;
-    final aIn = bounds.contains(line.a);
-    final bIn = bounds.contains(line.b);
-    if (aIn && bIn) return line;
-
-    final hits = <double>[];
-    for (final edge in bounds.edges) {
-      final crossing = line.crossing(edge);
-      if (crossing != null) hits.add(crossing.onA);
-    }
-    if (hits.isEmpty) return aIn || bIn ? line : null;
-    hits.sort();
-
-    final from = aIn ? 0.0 : hits.first;
-    final to = bIn ? 1.0 : hits.last;
-    if (to - from < 1e-6) return null;
-    return Segment(line.pointAt(from), line.pointAt(to));
   }
 }
 
@@ -1623,28 +1430,6 @@ class _Tracks {
         : -(count - 1 - k) * each;
   }
 
-  /// [section]'s panel, reaching to the middle of the lines it meets its
-  /// neighbours at.
-  Polygon outlineOf(SectionElement section) {
-    final outline = section.outline;
-    final grow = <double>[];
-    for (final edge in outline.edges) {
-      var by = 0.0;
-      if (edge.direction.length > 1e-9) {
-        for (final bar in design.topLevelDividers) {
-          final line = bar.segment;
-          if (line.direction.length < 1e-9) continue;
-          if (edge.unit.cross(line.unit).abs() > 0.05) continue;
-          if (line.distanceTo(edge.midpoint) <= bar.widthMm / 2 + 1) {
-            by = -bar.widthMm / 2;
-          }
-        }
-      }
-      grow.add(by);
-    }
-    return outline.insetEach(grow);
-  }
-
   /// The panel in [section], on its track: a sliding panel runs along it,
   /// and a fixed one is a sash standing on it.
   void addPanel(
@@ -1663,7 +1448,7 @@ class _Tracks {
         MeshBuilder.leafFront(asBuilt);
     Vec3 onTrack(Vec3 p) => Vec3(p.x, p.y, p.z + shift);
 
-    final outline = outlineOf(section);
+    final outline = DesignGeometry.of(design).leafOuter(section);
     final opening =
         branch.opens ? design.openingById(branch.openingId!) : null;
     if (opening != null) {
@@ -1677,7 +1462,6 @@ class _Tracks {
         asBuilt,
         openFraction,
         place: onTrack,
-        outline: outline,
       );
       return;
     }
@@ -1690,7 +1474,7 @@ class _Tracks {
       asBuilt,
       openFraction,
       outline,
-      MeshBuilder._insideOf(outline, frame),
+      DesignGeometry.of(design).leafInner(section) ?? const Polygon([]),
       onTrack,
     );
   }

@@ -23,7 +23,102 @@ class Polygon {
         Vec2(left, bottom),
       ]);
 
+  /// A plate with radiused ends — a stadium — centred on [centre], running
+  /// [length] along [along] and [width] across it: the shape pressed metal
+  /// is, because it has no sharp corners. [corner] is how many straight
+  /// pieces each rounded end is made of.
+  ///
+  /// It is here rather than with the solid because the elevation and the
+  /// solid both draw the plate a piece of ironmongery stands on, and they
+  /// must draw the same one.
+  factory Polygon.stadium(
+    Vec2 centre,
+    Vec2 along,
+    double length,
+    double width, {
+    int corner = 5,
+  }) {
+    final u = along.length < 1e-9 ? const Vec2(1, 0) : along.normalised;
+    final v = u.perpendicular;
+    final radius = width / 2;
+    final straight = math.max(0.0, length / 2 - radius);
+
+    final corners = <Vec2>[];
+    for (final end in [1.0, -1.0]) {
+      final hub = centre + u * (straight * end);
+      for (var i = 0; i <= corner; i++) {
+        final angle = (i / corner - 0.5) * math.pi * end;
+        final c = math.cos(angle) * end;
+        final d = math.sin(angle);
+        corners.add(Vec2(
+          hub.x + u.x * radius * c + v.x * radius * d,
+          hub.y + u.y * radius * c + v.y * radius * d,
+        ));
+      }
+    }
+    return Polygon(corners);
+  }
+
+  /// A circle of [sides] straight pieces round [centre] — the same corners
+  /// the solid turns a round part from, so a boss, a rose or a keyhole seen
+  /// square on is the shape it is built as.
+  factory Polygon.circle(Vec2 centre, double radius, {int sides = 12}) =>
+      Polygon([
+        for (var i = 0; i < sides; i++)
+          Vec2(
+            centre.x + math.cos(i / sides * math.pi * 2) * radius,
+            centre.y + math.sin(i / sides * math.pi * 2) * radius,
+          ),
+      ]);
+
+  /// The smallest convex shape holding every one of [points] — what a
+  /// round part turned along a path covers, seen square on.
+  factory Polygon.hullOf(Iterable<Vec2> points) {
+    final sorted = points.toList()
+      ..sort((a, b) => a.x != b.x ? a.x.compareTo(b.x) : a.y.compareTo(b.y));
+    if (sorted.length < 3) return Polygon(sorted);
+    double turn(Vec2 o, Vec2 a, Vec2 b) => (a - o).cross(b - o);
+    final lower = <Vec2>[], upper = <Vec2>[];
+    for (final p in sorted) {
+      while (lower.length >= 2 &&
+          turn(lower[lower.length - 2], lower.last, p) <= 0) {
+        lower.removeLast();
+      }
+      lower.add(p);
+    }
+    for (final p in sorted.reversed) {
+      while (upper.length >= 2 &&
+          turn(upper[upper.length - 2], upper.last, p) <= 0) {
+        upper.removeLast();
+      }
+      upper.add(p);
+    }
+    return Polygon([
+      ...lower.sublist(0, lower.length - 1),
+      ...upper.sublist(0, upper.length - 1),
+    ]);
+  }
+
   bool get isEmpty => corners.length < 3;
+
+  /// Whether every corner turns the same way — which is what makes clipping
+  /// to this shape exact (see [clippedTo]).
+  bool get isConvex {
+    if (isEmpty) return false;
+    var sign = 0.0;
+    final n = corners.length;
+    for (var i = 0; i < n; i++) {
+      final a = corners[i], b = corners[(i + 1) % n], c = corners[(i + 2) % n];
+      final turn = (b - a).cross(c - b);
+      if (turn.abs() < 1e-9) continue;
+      if (sign == 0) {
+        sign = turn.sign;
+      } else if (turn.sign != sign) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   List<Segment> get edges => [
         for (var i = 0; i < corners.length; i++)
@@ -216,6 +311,29 @@ class Polygon {
     }
 
     return kept.length >= 3 ? Polygon(kept) : const Polygon([]);
+  }
+
+  /// The part of [line] inside this shape, from where it first comes in to
+  /// where it last goes out — null when none of it is. The line is cut, never
+  /// moved: an end already inside stays exactly where it was.
+  Segment? portionOf(Segment line) {
+    if (isEmpty) return line;
+    final aIn = contains(line.a);
+    final bIn = contains(line.b);
+    if (aIn && bIn) return line;
+
+    final hits = <double>[];
+    for (final edge in edges) {
+      final crossing = line.crossing(edge);
+      if (crossing != null) hits.add(crossing.onA);
+    }
+    if (hits.isEmpty) return aIn || bIn ? line : null;
+    hits.sort();
+
+    final from = aIn ? 0.0 : hits.first;
+    final to = bIn ? 1.0 : hits.last;
+    if (to - from < 1e-6) return null;
+    return Segment(line.pointAt(from), line.pointAt(to));
   }
 
   /// The same shape brought in by [by] millimetres all round.

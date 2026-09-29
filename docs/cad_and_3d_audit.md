@@ -153,3 +153,15 @@ What must not move: `SketchInterpreter`, `SectionBuilder`, `DesignTree`,
 design layers. Every visual phase should end with the geometry tests green —
 `the_rule_test`, `one_design_two_views_test`, `the_solid_is_the_cad_hierarchy_test`,
 `only_the_opening_moves_test` — and a browser check of all three views.
+
+## 6. Since the audit — one geometry source (Phase 2)
+
+`DesignGeometry` (`lib/domain/model/design_geometry.dart`) is now the one
+source the three views read: bar bodies, pane fills, leaves (including a
+sliding panel's reach to the meeting line) and ironmongery shapes, the last
+from `Furniture` (`lib/domain/hardware/furniture.dart`) with the round parts'
+rings in `lib/domain/solid/turned.dart`. §4.4 is closed: the drawings draw
+ironmongery at the solid's leaf-derived size, as the shapes it is built as.
+Top-level bars stop at the frame's inner face on both sheets, as in the
+solid. The pinned mesh fingerprints are unchanged. Held by
+`test/app/one_geometry_for_every_view_test.dart`.
