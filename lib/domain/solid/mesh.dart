@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../geometry/vec2.dart';
+import '../model/surface.dart';
 
 /// A point in space, in millimetres. X across, Y down the elevation, Z out
 /// towards the viewer.
@@ -51,8 +52,20 @@ class Facet {
   /// The element this face belongs to.
   final String elementId;
 
-  /// 0xAARRGGBB, as the user set it.
+  /// 0xAARRGGBB, as the user set it — never darkened or lightened here.
+  /// How it looks under the light is the renderer's business, worked out
+  /// from [surface]; a colour with shading baked into it is no longer the
+  /// user's colour.
   final int colour;
+
+  /// What the face is made of, physically: how it behaves in light. Read
+  /// only by the renderer, never by anything that places a corner.
+  final Surface surface;
+
+  /// Whether this is the thin side of a sheet or a slab — a pane's edge, a
+  /// panel's edge — rather than one of its faces. Float glass seen edge on
+  /// is green; seen face on it is clear.
+  final bool isSide;
 
   /// 0 opaque to 1 clear.
   final double transparency;
@@ -75,6 +88,8 @@ class Facet {
     required this.corners,
     required this.elementId,
     required this.colour,
+    this.surface = Surfaces.pvc,
+    this.isSide = false,
     this.transparency = 0,
     this.gloss = 0.3,
     this.role = FacetRole.frame,
@@ -86,8 +101,23 @@ class Facet {
         corners: corners,
         elementId: elementId,
         colour: colour,
+        surface: surface,
+        isSide: isSide,
         transparency: transparency,
         gloss: gloss,
+        role: role,
+        part: part,
+      );
+
+  /// The same face, made of [surface]: the same corners and colour.
+  Facet madeOf(Surface surface) => Facet(
+        corners: corners,
+        elementId: elementId,
+        colour: colour,
+        surface: surface,
+        isSide: isSide,
+        transparency: surface.transmission,
+        gloss: 1 - surface.roughness,
         role: role,
         part: part,
       );

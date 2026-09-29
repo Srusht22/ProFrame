@@ -29,6 +29,11 @@ class ProjectedFacet {
   /// 0 to 1. How square-on the face is to the light.
   final double light;
 
+  /// Which way the face points, turned into the eye's own space: x across,
+  /// y down the screen, z towards the viewer. What the renderer lights the
+  /// face's material by (see `Shading.of`).
+  final Vec3 normal;
+
   final Facet source;
 
   const ProjectedFacet({
@@ -36,6 +41,7 @@ class ProjectedFacet {
     required this.depth,
     required this.light,
     required this.source,
+    this.normal = const Vec3(0, 0, 1),
   });
 
   String get elementId => source.elementId;
@@ -225,6 +231,7 @@ class Camera {
           corners: corners,
           depth: depthSum / corners.length,
           light: shade,
+          normal: facing,
           source: facet,
         ),
         inEye,

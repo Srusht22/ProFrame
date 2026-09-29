@@ -165,3 +165,18 @@ ironmongery at the solid's leaf-derived size, as the shapes it is built as.
 Top-level bars stop at the frame's inner face on both sheets, as in the
 solid. The pinned mesh fingerprints are unchanged. Held by
 `test/app/one_geometry_for_every_view_test.dart`.
+
+## 7. Since the audit — a real material system (Phase 3)
+
+`Surface` (`lib/domain/model/surface.dart`) describes every material
+physically, and `Shading.of` (`lib/domain/solid/shading.dart`) lights every
+face from it. Of §4: **1** closed — faces are lit from roughness, metallic,
+reflectivity and transmission rather than colour × one number; **2** closed
+— nothing is baked into the stored colour; **3** closed — glass filters,
+scatters and reflects, with a green side; **6** eased — every facet carries
+its material, and handle and hinge metal are their own; **7** closed — one
+description of how a material looks, read by both views. **5** in part:
+rubber exists as a material, but nothing is built of it yet. Held by
+`test/domain/materials_are_physical_test.dart` and
+`test/app/materials_can_be_told_apart_test.dart`; the pinned geometry
+fingerprints are unchanged.

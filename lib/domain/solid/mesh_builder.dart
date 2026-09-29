@@ -10,6 +10,7 @@ import '../model/design_tree.dart';
 import '../model/elements.dart';
 import '../model/materials.dart';
 import '../model/opening_leaf.dart';
+import '../model/surface.dart';
 import 'mesh.dart';
 import 'turned.dart';
 
@@ -124,7 +125,7 @@ abstract final class MeshBuilder {
             _at(i1, 0),
             _at(i1, -depth),
             _at(o1, -depth),
-          ], frame.id, frame.finish, FacetRole.frame, shade: 0.7);
+          ], frame.id, frame.finish, FacetRole.frame);
         }
         if (o2.distanceTo(i2) > 0) {
           _quad(out, [
@@ -132,7 +133,7 @@ abstract final class MeshBuilder {
             _at(o2, 0),
             _at(o2, -depth),
             _at(i2, -depth),
-          ], frame.id, frame.finish, FacetRole.frame, shade: 0.7);
+          ], frame.id, frame.finish, FacetRole.frame);
         }
         continue;
       }
@@ -149,7 +150,7 @@ abstract final class MeshBuilder {
         _at(i2, -depth),
         _at(o2, -depth),
         _at(o1, -depth),
-      ], frame.id, frame.finish, FacetRole.frame, shade: 0.55);
+      ], frame.id, frame.finish, FacetRole.frame);
 
       // The outside edge, and the reveal facing into the opening.
       _quad(out, [
@@ -157,13 +158,13 @@ abstract final class MeshBuilder {
         _at(o2, -depth),
         _at(o2, 0),
         _at(o1, 0),
-      ], frame.id, frame.finish, FacetRole.frame, shade: 0.75);
+      ], frame.id, frame.finish, FacetRole.frame);
       _quad(out, [
         _at(i1, 0),
         _at(i2, 0),
         _at(i2, -depth),
         _at(i1, -depth),
-      ], frame.id, frame.finish, FacetRole.frame, shade: 0.85);
+      ], frame.id, frame.finish, FacetRole.frame);
     }
   }
 
@@ -399,19 +400,19 @@ abstract final class MeshBuilder {
           at(i2, leafFront - leafDepth),
           at(o2, leafFront - leafDepth),
           at(o1, leafFront - leafDepth),
-        ], section.id, frame.finish, FacetRole.sash, shade: 0.55);
+        ], section.id, frame.finish, FacetRole.sash);
         _quad(out, [
           at(i1, leafFront),
           at(i2, leafFront),
           at(i2, leafFront - leafDepth),
           at(i1, leafFront - leafDepth),
-        ], section.id, frame.finish, FacetRole.sash, shade: 0.85);
+        ], section.id, frame.finish, FacetRole.sash);
         _quad(out, [
           at(o1, leafFront - leafDepth),
           at(o2, leafFront - leafDepth),
           at(o2, leafFront),
           at(o1, leafFront),
-        ], section.id, frame.finish, FacetRole.sash, shade: 0.75);
+        ], section.id, frame.finish, FacetRole.sash);
       }
     }
 
@@ -638,8 +639,6 @@ abstract final class MeshBuilder {
     double depth, {
     Vec3 Function(Vec3)? place,
   }) {
-    final stand = (depth * 0.5).clamp(12.0, 60.0);
-
     // **Ironmongery is built as ironmongery.** A lever on a backplate, an
     // espagnolette with a curved arm, an escutcheon with a keyhole through
     // it and a butt hinge with a knuckle are all real pieces with a shape,
@@ -650,10 +649,31 @@ abstract final class MeshBuilder {
     // description the drawings read as well — and a sliding panel, which
     // has no hinges, has the edge it leads with standing where they would,
     // opposite its handle.
+    final from = out.length;
     if (Furniture.of(design, piece) case final furniture?) {
       _addFurniture(out, furniture, design, depth, place);
-      return;
+    } else {
+      _addPlainPiece(out, piece, design, depth, place);
     }
+
+    // **What a piece is made of is what that piece is made of.** A handle is
+    // cast and plated to be held and a hinge pressed from satin steel, in
+    // whichever metal and colour the user chose for it; a piece they say is
+    // plastic or wood is that.
+    final surface = Surfaces.ofHardware(piece.kind, piece.finish.material);
+    for (var i = from; i < out.length; i++) {
+      out[i] = out[i].madeOf(surface);
+    }
+  }
+
+  static void _addPlainPiece(
+    List<Facet> out,
+    HardwareElement piece,
+    Design design,
+    double depth,
+    Vec3 Function(Vec3)? place,
+  ) {
+    final stand = (depth * 0.5).clamp(12.0, 60.0);
 
     final face = Furniture.plainPlate(design, piece);
     // **A hinge hangs on the inside face, and which face that is comes from
@@ -718,7 +738,6 @@ abstract final class MeshBuilder {
       elementId,
       finish,
       role,
-      shade: 0.6,
     );
 
     final n = shape.corners.length;
@@ -729,7 +748,7 @@ abstract final class MeshBuilder {
         place(_at(shape.corners[j], backZ)),
         place(_at(shape.corners[j], frontZ)),
         place(_at(shape.corners[i], frontZ)),
-      ], elementId, finish, role, shade: 0.8);
+      ], elementId, finish, role, side: true);
     }
   }
 
@@ -739,13 +758,17 @@ abstract final class MeshBuilder {
     String elementId,
     Finish finish,
     FacetRole role, {
-    double shade = 1,
+    bool side = false,
   }) {
     if (corners.length < 3) return;
+    // The user's colour and the material it is, as they are: how the face
+    // is lit is worked out by the renderer from the material, once.
     out.add(Facet(
       corners: corners,
       elementId: elementId,
-      colour: shade == 1 ? finish.colour : _darken(finish.colour, shade),
+      colour: finish.colour,
+      surface: finish.material.surface,
+      isSide: side,
       transparency: finish.material.transparency,
       gloss: finish.material.gloss,
       role: role,
@@ -1086,9 +1109,10 @@ abstract final class MeshBuilder {
           Vec3(x0, box.bottom, z0),
         ],
         elementId: piece.id,
-        colour: i.isEven
-            ? piece.finish.colour
-            : _darken(piece.finish.colour, 0.86),
+        // Each fold faces its own way and is lit as it faces: nothing is
+        // darkened here to make it look folded.
+        colour: piece.finish.colour,
+        surface: piece.finish.material.surface,
         transparency: piece.finish.material.transparency,
         gloss: piece.finish.material.gloss,
         role: FacetRole.glazing,
@@ -1251,7 +1275,7 @@ abstract final class MeshBuilder {
 
     if (capStart) {
       _quad(out, [for (final p in ring.reversed) place(p)], elementId, finish,
-          FacetRole.hardware, shade: 0.72);
+          FacetRole.hardware);
     }
     if (capEnd) {
       _quad(out, [for (final p in far) place(p)], elementId, finish,
@@ -1259,16 +1283,14 @@ abstract final class MeshBuilder {
     }
     for (var i = 0; i < ring.length; i++) {
       final j = (i + 1) % ring.length;
-      // Along the round, each facet catches the light a little differently,
-      // which is what makes a cylinder read as a cylinder rather than as a
-      // faceted stick.
-      final lit = 0.72 + 0.28 * (0.5 + 0.5 * math.cos(i / ring.length * math.pi * 2));
+      // Each facet round it faces a different way, so the renderer lights
+      // each differently: that is what makes it read as a cylinder.
       _quad(out, [
         place(ring[i]),
         place(ring[j]),
         place(far[j]),
         place(far[i]),
-      ], elementId, finish, FacetRole.hardware, shade: lit);
+      ], elementId, finish, FacetRole.hardware);
     }
   }
 
@@ -1293,20 +1315,19 @@ abstract final class MeshBuilder {
     final rings = tubeRings(path, radii, sides: sides);
 
     _quad(out, [for (final p in rings.first.reversed) put(p)], elementId,
-        finish, FacetRole.hardware, shade: 0.7);
+        finish, FacetRole.hardware);
     _quad(out, [for (final p in rings.last) put(p)], elementId, finish,
         FacetRole.hardware);
 
     for (var i = 0; i + 1 < rings.length; i++) {
       for (var j = 0; j < sides; j++) {
         final k = (j + 1) % sides;
-        final lit = 0.7 + 0.3 * (0.5 + 0.5 * math.cos(j / sides * math.pi * 2));
         _quad(out, [
           put(rings[i][j]),
           put(rings[i][k]),
           put(rings[i + 1][k]),
           put(rings[i + 1][j]),
-        ], elementId, finish, FacetRole.hardware, shade: lit);
+        ], elementId, finish, FacetRole.hardware);
       }
     }
   }

@@ -15,6 +15,7 @@ import '../../domain/model/design_tree.dart';
 import '../../domain/model/elements.dart';
 import '../../domain/model/materials.dart';
 import '../../domain/model/opening_leaf.dart';
+import '../../domain/model/surface.dart';
 import 'cad_layers.dart';
 import 'cad_style.dart';
 import 'dimension_handles.dart';
@@ -186,18 +187,21 @@ class CadPainter extends CustomPainter {
       final outline = OpeningLeaf.fillOf(design, section);
       if (outline.isEmpty) continue;
       final path = view.pathOf(outline);
-      final material = section.finish.material;
 
-      if (material.isGlazing) {
-        canvas.drawPath(path, Cad.fill(ink.glass));
-        if (layers.hatching) _glazingMark(canvas, outline);
-      } else {
-        canvas.drawPath(
-          path,
-          Cad.fill(Color(section.finish.colour).withValues(alpha: 0.32)),
-        );
-        if (layers.hatching) _hatch(canvas, outline);
-      }
+      // **The material says how it is indicated** — glass by the sheet's
+      // glass tint and the two strokes across a corner, anything solid by
+      // its own colour and hatching — from its [CadIndication], the same
+      // description the solid is shaded from.
+      final cad = section.finish.material.surface.cad;
+      canvas.drawPath(
+        path,
+        Cad.fill(
+          cad.ownColour
+              ? Color(section.finish.colour).withValues(alpha: cad.tint)
+              : ink.glass,
+        ),
+      );
+      if (layers.hatching) _indicate(canvas, outline, path, cad.hatch);
 
       canvas.drawPath(path, Cad.stroke(ink.medium, Cad.detail));
     }
@@ -223,7 +227,7 @@ class CadPainter extends CustomPainter {
 
       final finish = section.finish;
       final look = GlassLook.of(finish);
-      final word = finish.material.isGlazing
+      final word = finish.material.surface.cad.hatch == CadHatch.glazing
           ? (look == null || look == GlassLook.clear
                 ? 'GLASS'
                 : '${look.label.toUpperCase()} GLASS')
@@ -248,6 +252,20 @@ class CadPainter extends CustomPainter {
         canvas,
         Offset(at.dx - text.width / 2, at.dy - text.height / 2),
       );
+    }
+  }
+
+  /// A part's material indicated inside [outline] as a drafting convention.
+  void _indicate(Canvas canvas, Polygon outline, Path path, CadHatch hatch) {
+    switch (hatch) {
+      case CadHatch.glazing:
+        _glazingMark(canvas, outline);
+      case CadHatch.diagonal:
+        _hatch(canvas, outline);
+      case CadHatch.solid:
+        canvas.drawPath(path, Cad.fill(ink.heavy.withValues(alpha: 0.85)));
+      case CadHatch.none:
+        break;
     }
   }
 
@@ -311,7 +329,11 @@ class CadPainter extends CustomPainter {
       for (final edge in lines.daylight) {
         canvas.drawLine(view.toScreen(edge.a), view.toScreen(edge.b), medium);
       }
-      if (layers.hatching) _profileHatch(canvas, frame.outline, inner);
+      // A section through the profile, indicated as its material is.
+      if (layers.hatching &&
+          frame.finish.material.surface.cad.hatch == CadHatch.diagonal) {
+        _profileHatch(canvas, frame.outline, inner);
+      }
     }
   }
 

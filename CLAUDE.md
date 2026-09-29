@@ -3439,6 +3439,78 @@ inside it, and no view file works a bar body or an ironmongery size out for
 itself. Putting back either drawing's old bar or ironmongery rule fails it
 on the pixels.
 
+### What each part is made of
+
+```
+Finish (the user's colour + MaterialKind)  →  Surface  →  Shading.of  →  ModelPainter
+                                                        →  CadIndication →  CadPainter
+```
+
+**A part is made of something, and it is shown as what it is made of — not
+as a flat colour.** `lib/domain/model/surface.dart` describes each material
+physically: how much light it lets through (`transmission`), how much of
+that it scatters (`scatter`, frosting), how rough it is, whether it is a
+metal, how much it reflects square on (`reflectivity`), how its edges read
+(`EdgeLook`, with glass's green side), its `texture`, and how the technical
+drawing indicates it (`CadIndication`). `Surfaces` holds glass (clear,
+tinted, frosted), panel, PVC, aluminium, wood, rubber gasket, metal, handle
+metal, hinge metal and mesh. The colour is never in it: it is the user's,
+on the part's `Finish`, and every material is shown in whatever colour the
+part was given.
+
+- **The solid says what each face is made of, and bakes in nothing else.**
+  Every `Facet` carries its `Surface` and the user's colour exactly — the
+  darkening the builder used to store (`shade:`) is gone, because it was
+  lighting applied twice and it made the stored colour not the user's. A
+  handle, lever, lock or letterplate in a metal is handle metal, a hinge
+  hinge metal; one the user makes plastic is plastic. The thin side of a
+  slab is marked `isSide`.
+- **One function lights every face**: `Shading.of` in
+  `lib/domain/solid/shading.dart`, from the material, the face's direction
+  (`ProjectedFacet.normal`) and an `Environment` of one key light, sky and
+  ground. Diffuse colour lit by the key; the sky and ground reflected, sharp
+  on a smooth surface and blurred on a rough one, more at a glancing angle
+  (Schlick's Fresnel, capped by roughness so rubber does not shine); the key
+  light's highlight; and a metal reflecting in its own colour where
+  plastic, paint and glass reflect white. `ModelPainter` only paints what
+  comes back and chooses no colour; the light is the same in both
+  appearances, because the design's finishes are the design.
+- **Glass is composited as glass**: what is behind it is *multiplied* by its
+  filter (each of a pane's two faces taking the square root of what the
+  whole lets through), frosting's scattered light is laid *over*, and what
+  the surface reflects is *added*. Blending it over the backdrop instead
+  made a white pane and a white panel the same picture on the light
+  backdrop — found by the test below, not by looking.
+- **CAD reads its indication from the material**: glass by the sheet's
+  glass tint and the two strokes across a corner, anything solid by its own
+  colour and hatching, rubber filled solid. The renderers ask a material
+  what it is like and never which one it is, so **a new material is a new
+  `Surface` in `Surfaces` and nothing else**.
+
+**Appearance never reaches geometry.** A surface is read only after every
+corner is placed. `test/domain/materials_are_physical_test.dart` recolours
+the panel, changes the glass, makes the frame black aluminium and the
+ironmongery bronze, and requires the design, both meshes and every bar body
+and fill back unchanged — and the pinned fingerprints did not move. Making a
+panel into glass is the one exception it states rather than hides: the
+region and every line are untouched, but a sealed unit and a panel are built
+to their own thicknesses, which is construction rather than appearance. The
+same file holds the physics: glass seen through where the rest are not, the
+two faces of a pane letting through what the glass does, tinted darker than
+clear, frosted more opaque and lighter, glass reflecting more at a glance
+and green edge on, a metal mirroring sky and ground where a matte panel
+hardly does, a metal reflecting in its own colour, a handle catching the
+light a hinge spreads, and rubber dark and all but unchanging.
+`test/app/materials_can_be_told_apart_test.dart` holds the point on the
+pixels: a door whose frame, glass and panel are all *one colour* still
+shows three different things, the glass changes with the backdrop behind
+it while the panel and the frame do not, and the technical drawing fills
+rubber solid.
+
+**Rubber is a material with nothing yet made of it.** There is no gasket or
+seal in the geometry; adding one is new material in the solid, which moves
+the pinned fingerprints on purpose.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the

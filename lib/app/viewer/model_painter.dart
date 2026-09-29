@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/geometry/vec2.dart';
 import '../../domain/solid/camera.dart';
+import '../../domain/solid/shading.dart';
 import '../theme/app_theme.dart';
 import 'display_style.dart';
 
@@ -146,72 +147,87 @@ class ModelPainter extends CustomPainter {
     );
   }
 
+  /// How [face] looks: its material under the light, from `Shading.of` —
+  /// the one place that decides how glass, panel, frame, metal and rubber
+  /// look. Nothing here chooses a colour.
+  ///
+  /// The light is the same in either appearance: the backdrop darkens with
+  /// the app, the design's own finishes do not.
+  Shaded shadeOf(ProjectedFacet face) {
+    final source = face.source;
+    return Shading.of(
+      surface: style.usesFinishes
+          ? source.surface
+          : Shading.clay(source.surface),
+      colour: style.usesFinishes ? source.colour : _clay,
+      normal: face.normal,
+      environment: Environment.daylight,
+      side: source.isSide,
+    );
+  }
+
+  /// The one colour a monochrome view is in.
+  static const _clay = 0xFFDCE0DE;
+
+  /// A face, in the three layers `Shaded` describes: what it lets through
+  /// multiplies what is behind it, what it shows of itself is laid over,
+  /// and what it reflects is added.
   void _face(Canvas canvas, Path path, ProjectedFacet face) {
-    final base = style.usesFinishes
-        ? Color(face.source.colour)
-        : const Color(0xFFDCE0DE);
-    final lit = Color.from(
-      alpha: base.a,
-      red: (base.r * face.light).clamp(0.0, 1.0),
-      green: (base.g * face.light).clamp(0.0, 1.0),
-      blue: (base.b * face.light).clamp(0.0, 1.0),
-    );
-    final transparency = style.usesFinishes
-        ? face.source.transparency
-        : face.source.transparency * 0.6;
-    final opacity = 1 - transparency;
-
-    canvas.drawPath(
-      path,
-      Paint()
-        ..style = PaintingStyle.fill
-        ..color = lit.withValues(alpha: opacity.clamp(0.12, 1.0)),
-    );
-
-    // Glass is mostly what it reflects. Without this it is a hole showing the
-    // dark inside of the frame, which reads as grey metal rather than a pane.
-    if (transparency > 0.2) {
-      final bounds = path.getBounds();
+    final shaded = shadeOf(face);
+    if (shaded.filter case final filter?) {
       canvas.drawPath(
         path,
         Paint()
           ..style = PaintingStyle.fill
-          ..shader = ui.Gradient.linear(
-            bounds.topLeft,
-            bounds.bottomRight,
-            [
-              const Color(0xFFEAF3F8).withValues(alpha: 0.72 * transparency),
-              const Color(0xFFBFD4DE).withValues(alpha: 0.34 * transparency),
-              const Color(0xFFE8F1F4).withValues(alpha: 0.52 * transparency),
-            ],
-            const [0, 0.55, 1],
-          ),
+          ..blendMode = BlendMode.multiply
+          ..color = Color(filter),
       );
     }
-
-    if (style.usesFinishes && face.source.gloss > 0.4 && face.light > 0.72) {
+    if (shaded.opacity > 0) {
       canvas.drawPath(
         path,
         Paint()
           ..style = PaintingStyle.fill
-          ..color = Colors.white.withValues(
-            alpha: (face.source.gloss - 0.4) * 0.3,
-          ),
+          ..color = Color(shaded.colour).withValues(alpha: shaded.opacity),
+      );
+    }
+    if (shaded.reflection case final reflection?) {
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.fill
+          ..blendMode = BlendMode.plus
+          ..color = Color(reflection),
       );
     }
   }
 
+  /// A face's edges, as its material shows them: hard and dark on an
+  /// extrusion or a metal, barely there on glass, which is seen through.
   void _edges(Canvas canvas, Path path, ProjectedFacet face) {
+    if (style == DisplayStyle.wireframe) {
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0
+          // A wireframe has no faces; its edges are read against the
+          // backdrop.
+          ..color = palette.ink.withValues(alpha: 0.5),
+      );
+      return;
+    }
+    final darkness = face.source.surface.edge.darkness;
+    final own = Color(shadeOf(face).colour);
     canvas.drawPath(
       path,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = style == DisplayStyle.wireframe ? 1.0 : 0.9
+        ..strokeWidth = 0.9
         // Edges between faces are dark in either appearance, because the
-        // faces are the design's own colours; a wireframe has no faces,
-        // and its edges are drawn to be read against the backdrop instead.
-        ..color = (style.drawsFaces ? palette.modelEdge : palette.ink)
-            .withValues(alpha: style == DisplayStyle.wireframe ? 0.5 : 0.62),
+        // faces are the design's own colours.
+        ..color = Color.lerp(own, palette.modelEdge, darkness)!
+            .withValues(alpha: 0.35 + 0.45 * darkness),
     );
   }
 

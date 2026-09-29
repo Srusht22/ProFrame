@@ -1,3 +1,5 @@
+import 'surface.dart';
+
 /// What a part is made of. Affects how it is drawn, how it is rendered in 3D,
 /// and what the maker reads off the summary.
 enum MaterialKind {
@@ -10,7 +12,8 @@ enum MaterialKind {
   tintedGlass('Tinted glass'),
   panel('Solid panel'),
   louvre('Louvre'),
-  mesh('Insect mesh');
+  mesh('Insect mesh'),
+  rubber('Rubber gasket');
 
   const MaterialKind(this.label);
   final String label;
@@ -20,25 +23,15 @@ enum MaterialKind {
   bool get isGlazing =>
       this == clearGlass || this == frostedGlass || this == tintedGlass;
 
-  /// How much light passes, 0 opaque to 1 clear. Used by the renderer only.
-  double get transparency => switch (this) {
-        clearGlass => 0.82,
-        tintedGlass => 0.55,
-        frostedGlass => 0.35,
-        mesh => 0.25,
-        _ => 0,
-      };
+  /// The material, physically — how it looks in light. See [Surface].
+  Surface get surface => Surfaces.of(this);
 
-  /// How shiny, 0 matt to 1 mirror.
-  double get gloss => switch (this) {
-        aluminium => 0.55,
-        steel => 0.6,
-        upvc => 0.32,
-        wood => 0.18,
-        clearGlass || tintedGlass => 0.9,
-        frostedGlass => 0.4,
-        _ => 0.2,
-      };
+  /// How much light passes, 0 opaque to 1 clear: [Surface.transmission].
+  double get transparency => surface.transmission;
+
+  /// How shiny, 0 matt to 1 mirror: the other side of
+  /// [Surface.roughness].
+  double get gloss => 1 - surface.roughness;
 }
 
 /// The colour and material of one part, as the user set it.
