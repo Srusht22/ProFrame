@@ -78,16 +78,30 @@ class Picture {
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
   }
 
-  /// Points along the diagonal of the nearest face of [id], a sixth of the
+  /// Points along the diagonal of the main face of [id] nearest the eye —
+  /// the largest on the screen, not a thin arris round it — a sixth of the
   /// way in from each end.
   List<Offset> across(String id) {
-    final face = faces
+    double area(ProjectedFacet f) {
+      var a = 0.0;
+      for (var i = 0; i < f.corners.length; i++) {
+        final p = f.corners[i], q = f.corners[(i + 1) % f.corners.length];
+        a += p.x * q.y - q.x * p.y;
+      }
+      return a.abs() / 2;
+    }
+
+    final candidates = faces
         .where(
           (f) =>
               f.elementId == id &&
               !f.source.isSide &&
               f.source.role != FacetRole.sash,
         )
+        .toList();
+    final biggest = candidates.map(area).reduce((a, b) => a > b ? a : b);
+    final face = candidates
+        .where((f) => area(f) > biggest * 0.9)
         .reduce((a, b) => a.depth < b.depth ? a : b);
     final c = [for (final p in face.corners) place(p)];
     final from = Offset.lerp(c[0], c[2], 1 / 6)!;

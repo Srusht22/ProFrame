@@ -164,6 +164,39 @@ class Environment {
   Rgb get diffuse => sky * 0.4 + horizon * 0.35 + ground * 0.25;
 }
 
+/// How a point of a face set [depth] below what stands beside it, [away]
+/// from that step, sees the sky and the light.
+///
+/// The step hides part of the sky: for a point on a flat face beside a wall,
+/// the share of the (cosine-weighted) sky the wall hides is half of one less
+/// the sine of the angle up to its top — half at its foot, a sixth a wall's
+/// height away, next to nothing three away. And where the light comes over
+/// the step, the step throws a shadow as wide as it is tall times how low
+/// the light comes in. [out] is the way across the step from the face,
+/// [normal] the way the face looks, [light] the way to the light.
+({double occlusion, double shadowed}) recess({
+  required double depth,
+  required double away,
+  required Vec3 out,
+  required Vec3 normal,
+  required Vec3 light,
+}) {
+  if (depth <= 0) return (occlusion: 0.0, shadowed: 0.0);
+  final d = math.max(0.0, away);
+  final occlusion = 0.5 * (1 - d / math.sqrt(d * d + depth * depth));
+  final down = light.dot(normal);
+  final across = light.dot(out);
+  var shadowed = 0.0;
+  if (down > 1e-6 && across > 0) {
+    final width = depth * across / down;
+    // A soft edge a millimetre either side: the light is not a point.
+    const soft = 1.0;
+    final t = ((width + soft - d) / (2 * soft)).clamp(0.0, 1.0);
+    shadowed = t * t * (3 - 2 * t);
+  }
+  return (occlusion: occlusion, shadowed: shadowed);
+}
+
 /// A face's colour under the light, and how much it hides what is behind
 /// it.
 ///
@@ -197,7 +230,9 @@ class Shaded {
 
 abstract final class Shading {
   /// How [surface] in [colour], facing along [normal], looks in
-  /// [environment]. [side] is the thin side of a sheet; [view] is the way
+  /// [environment]. [occlusion] and [shadowed], 0 to 1, are how much of the
+  /// sky and of the key light what stands round the point hides from it.
+  /// [side] is the thin side of a sheet; [view] is the way
   /// to the eye from the point being shaded — straight out of the screen
   /// for a parallel view, and different at every point of a perspective
   /// one, which is what makes a reflection move across a pane.
@@ -225,6 +260,8 @@ abstract final class Shading {
     bool side = false,
     Vec3 view = const Vec3(0, 0, 1),
     Vec3 skyward = const Vec3(0, -1, 0),
+    double occlusion = 0,
+    double shadowed = 0,
   }) {
     final base = Rgb.of(colour);
     var n = normal.normalised;
@@ -236,7 +273,13 @@ abstract final class Shading {
     // Lit on either side, as `Camera.project` has it: a face turned from
     // the key is the inside of a reveal, which is lit by the room, not black.
     final facingLight = n.dot(light).abs();
-    final lit = environment.ambient + environment.key * facingLight;
+    // [occlusion] is how much of the sky the surroundings hide from this
+    // point, [shadowed] whether the key light is blocked on its way here:
+    // both are what a recess does to a face set in it.
+    final open = 1 - occlusion.clamp(0.0, 1.0);
+    final lit =
+        environment.ambient * open +
+        environment.key * facingLight * (1 - shadowed.clamp(0.0, 1.0));
 
     final rough = surface.roughness.clamp(0.04, 1.0);
     // Schlick's Fresnel, with the glancing reflection a rough surface can
@@ -278,7 +321,7 @@ abstract final class Shading {
     }
 
     final diffuse = base * (lit * (1 - metal * 0.85));
-    final reflection = reflected.tinting(tint) * fresnel.toDouble();
+    final reflection = reflected.tinting(tint) * (fresnel.toDouble() * open);
     final shine = tint * (highlight * (0.35 + 0.65 * surface.reflectivity));
     final result = diffuse * (1 - fresnel.toDouble()) + reflection + shine;
     return Shaded(result.argb, 1);

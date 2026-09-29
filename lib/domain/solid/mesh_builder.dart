@@ -410,16 +410,108 @@ abstract final class MeshBuilder {
     final thickness = section.finish.material.isGlazing
         ? math.min(28.0, depth * 0.4)
         : math.min(depth * 0.55, 40.0);
-    _slabBetween(
+    final front = -(depth - thickness) / 2;
+    if (section.finish.material.isGlazing) {
+      _slabBetween(out, fill, front, thickness, section.id, section.finish,
+          FacetRole.glazing, place ?? (p) => p);
+      return;
+    }
+    _panel(
       out,
       fill,
-      -(depth - thickness) / 2,
+      front,
       thickness,
       section.id,
       section.finish,
-      section.finish.material.isGlazing ? FacetRole.glazing : FacetRole.panel,
       place ?? (p) => p,
+      recesses: _stepsAround(design, section, fill, front, depth),
     );
+  }
+
+  /// A panel: a slab of [shape], [thickness] deep from [frontZ], its faces'
+  /// edges eased by its arris ([panelArrisOf]) — inside the shape and the
+  /// thickness, so it covers exactly the ground and the depth it did as a
+  /// plain slab — and its faces set [recesses] below what stands round
+  /// them. A shape the arris cannot be taken off cleanly is built square.
+  static void _panel(
+    List<Facet> out,
+    Polygon shape,
+    double frontZ,
+    double thickness,
+    String elementId,
+    Finish finish,
+    Vec3 Function(Vec3) place, {
+    List<double> recesses = const [],
+  }) {
+    final arris = panelArrisOf(thickness);
+    final face = shape.isConvex ? shape.inset(arris) : const Polygon([]);
+    final n = shape.corners.length;
+    if (face.corners.length != n ||
+        face.area <= 0 ||
+        face.area >= shape.area ||
+        arris * 2 >= thickness) {
+      _slabBetween(out, shape, frontZ, thickness, elementId, finish,
+          FacetRole.panel, place, recesses: recesses);
+      return;
+    }
+
+    final backZ = frontZ - thickness;
+    Vec3 at(Vec2 p, double z) => place(_at(p, z));
+    final c = shape.corners, f = face.corners;
+
+    _quad(out, [for (final p in f) at(p, frontZ)], elementId, finish,
+        FacetRole.panel, recesses: recesses);
+    _quad(out, [for (final p in f.reversed) at(p, backZ)], elementId, finish,
+        FacetRole.panel,
+        recesses: recesses.length == n
+            ? [for (var k = 0; k < n; k++) recesses[(2 * n - 2 - k) % n]]
+            : const []);
+    for (var i = 0; i < n; i++) {
+      final j = (i + 1) % n;
+      // The arris at the front, the edge itself, and the arris at the back.
+      _quad(out, [at(f[i], frontZ), at(f[j], frontZ), at(c[j], frontZ - arris),
+          at(c[i], frontZ - arris)], elementId, finish, FacetRole.panel);
+      _quad(out, [at(c[i], backZ + arris), at(c[j], backZ + arris),
+          at(c[j], frontZ - arris), at(c[i], frontZ - arris)], elementId,
+          finish, FacetRole.panel, side: true);
+      _quad(out, [at(c[i], backZ + arris), at(c[j], backZ + arris),
+          at(f[j], backZ), at(f[i], backZ)], elementId, finish,
+          FacetRole.panel);
+    }
+  }
+
+  /// How far what stands round [fill] stands proud of its face at [front],
+  /// edge by edge: the sash, where the pane is inside a leaf and the edge is
+  /// on the leaf's daylight; the frame, where the edge is on the frame's; and
+  /// otherwise the bar the edge runs along, which stands where every bar
+  /// stands in [depth]. Each is the face the solid builds there; nothing is
+  /// a figure of its own.
+  static List<double> _stepsAround(
+    Design design,
+    SectionElement section,
+    Polygon fill,
+    double front,
+    double depth,
+  ) {
+    final geometry = DesignGeometry.of(design);
+    final ring = geometry.surroundOf(section);
+    final ringFront = geometry.isInLeaf(section)
+        ? leafFront(design.depthMm)
+        : 0.0;
+    final barFront = -depth * 0.1;
+    final n = fill.corners.length;
+    return [
+      for (var i = 0; i < n; i++)
+        () {
+          final a = fill.corners[i], b = fill.corners[(i + 1) % n];
+          final onRing =
+              ring != null &&
+              ring.awayFrom(a) < 1 &&
+              ring.awayFrom(b) < 1 &&
+              ring.awayFrom(a.lerp(b, 0.5)) < 1;
+          return math.max(0.0, (onRing ? ringFront : barFront) - front);
+        }(),
+    ];
   }
 
   /// A leaf that opens: a sash ring inside the section with its own infill,
@@ -505,18 +597,22 @@ abstract final class MeshBuilder {
           ? math.min(26.0, leafDepth * 0.4)
           : math.min(leafDepth * 0.6, 38.0);
       final front = leafFront - (leafDepth - thickness) / 2;
-      _slabBetween(
-        out,
-        glazed,
-        front,
-        thickness,
-        section.id,
-        section.finish,
-        section.finish.material.isGlazing
-            ? FacetRole.glazing
-            : FacetRole.panel,
-        move,
-      );
+      if (section.finish.material.isGlazing) {
+        _slabBetween(out, glazed, front, thickness, section.id,
+            section.finish, FacetRole.glazing, move);
+      } else {
+        _panel(
+          out,
+          glazed,
+          front,
+          thickness,
+          section.id,
+          section.finish,
+          move,
+          // A panel filling the leaf is set in the sash all round.
+          recesses: [for (final _ in glazed.corners) leafFront - front],
+        );
+      }
       return;
     }
 
@@ -799,10 +895,12 @@ abstract final class MeshBuilder {
     String elementId,
     Finish finish,
     FacetRole role,
-    Vec3 Function(Vec3) place,
-  ) {
+    Vec3 Function(Vec3) place, {
+    List<double> recesses = const [],
+  }) {
     if (shape.isEmpty) return;
     final backZ = frontZ - thickness;
+    final n = shape.corners.length;
 
     _quad(
       out,
@@ -810,16 +908,21 @@ abstract final class MeshBuilder {
       elementId,
       finish,
       role,
+      recesses: recesses,
     );
+    // The back face runs the other way round, so its edge `k` is the front's
+    // edge `n - 2 - k`: the same step, seen from behind.
     _quad(
       out,
       [for (final c in shape.corners.reversed) place(_at(c, backZ))],
       elementId,
       finish,
       role,
+      recesses: recesses.length == n
+          ? [for (var k = 0; k < n; k++) recesses[(2 * n - 2 - k) % n]]
+          : const [],
     );
 
-    final n = shape.corners.length;
     for (var i = 0; i < n; i++) {
       final j = (i + 1) % n;
       _quad(out, [
@@ -838,6 +941,7 @@ abstract final class MeshBuilder {
     Finish finish,
     FacetRole role, {
     bool side = false,
+    List<double> recesses = const [],
   }) {
     if (corners.length < 3) return;
     // The user's colour and the material it is, as they are: how the face
@@ -848,6 +952,7 @@ abstract final class MeshBuilder {
       colour: finish.colour,
       surface: finish.material.surface,
       isSide: side,
+      recesses: recesses,
       transparency: finish.material.transparency,
       gloss: finish.material.gloss,
       role: role,

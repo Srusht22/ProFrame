@@ -245,3 +245,9 @@ double barArrisOf(MaterialKind material, double barWidth) =>
       ProfileStyle.extruded => math.min(1.0, 0.03 * barWidth),
       ProfileStyle.moulded => math.min(8.0, 0.15 * barWidth),
     };
+
+/// How the edges of a panel's faces are eased: the small arris a painted or
+/// foiled panel is finished with, so it reads as a slab with edges that take
+/// the light and not as a sheet. Never more than two millimetres, and never
+/// more than a small share of its thickness; always inside its outline.
+double panelArrisOf(double thickness) => math.min(2.0, thickness * 0.08);

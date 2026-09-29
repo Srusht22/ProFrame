@@ -157,7 +157,13 @@ class ModelPainter extends CustomPainter {
   ///
   /// [corner] shades the face as seen at that corner, along the eye's own
   /// ray to it; without it, the face is shaded as seen at its middle.
-  Shaded shadeOf(ProjectedFacet face, {int? corner, Vec3? view}) {
+  Shaded shadeOf(
+    ProjectedFacet face, {
+    int? corner,
+    Vec3? view,
+    double occlusion = 0,
+    double shadowed = 0,
+  }) {
     final source = face.source;
     return Shading.of(
       surface: style.usesFinishes
@@ -171,6 +177,8 @@ class ModelPainter extends CustomPainter {
           view ??
           (corner == null ? _towardsEye(face) : face.towardsEyeFrom(corner)),
       skyward: face.skyward,
+      occlusion: occlusion,
+      shadowed: shadowed,
     );
   }
 
@@ -202,6 +210,10 @@ class ModelPainter extends CustomPainter {
   void _face(Canvas canvas, Path path, ProjectedFacet face) {
     if (_seenThrough(face)) {
       _pane(canvas, face);
+      return;
+    }
+    if (_setIn(face)) {
+      _recessed(canvas, face);
       return;
     }
     final shaded = shadeOf(face);
@@ -322,6 +334,124 @@ class ModelPainter extends CustomPainter {
     if (shades.every((s) => s.reflection != null)) {
       layer([for (final s in shades) Color(s.reflection!)], BlendMode.plus);
     }
+  }
+
+  /// Whether [face] is set below what stands round it — a panel in its
+  /// sash — and so is shaded across for the step it is set in.
+  static bool _setIn(ProjectedFacet face) =>
+      !face.source.surface.isTransparent &&
+      face.corners.length == 4 &&
+      face.source.recesses.length == 4 &&
+      face.source.recesses.any((r) => r > 0) &&
+      face.eyeCorners.length == 4;
+
+  /// A face set in a recess — a panel in its sash or its frame — shaded
+  /// point by point for the step round it.
+  ///
+  /// A solid panel reads as one because of what its surroundings do to the
+  /// light on it: towards each edge, the sash or the frame standing proud of
+  /// it hides part of the sky, so it darkens gently into the corner; and on
+  /// the side the light comes from, the step throws a sharp shadow across
+  /// it. Neither is painted on: both are worked out at every point from how
+  /// far it is from each edge, how high that edge's step is
+  /// (`Facet.recesses`) and where the light is. The grid is fine near the
+  /// edges, where that changes within millimetres, and coarse across the
+  /// middle, where it does not.
+  void _recessed(Canvas canvas, ProjectedFacet face) {
+    final e = face.eyeCorners;
+    final at = [for (final c in face.corners) _place(c)];
+    final steps = face.source.recesses;
+    final light = Environment.daylight.light;
+    final eye = face.viewer;
+
+    // The face's own way out towards the viewer, and each edge's way out of
+    // the face, across its step.
+    final centre = (e[0] + e[1] + e[2] + e[3]) * 0.25;
+    var normal = face.normal.normalised;
+    final toViewer = eye == null ? const Vec3(0, 0, 1) : eye - centre;
+    if (normal.dot(toViewer) < 0) normal = normal * -1;
+    final outs = <Vec3>[];
+    for (var k = 0; k < 4; k++) {
+      final a = e[k], b = e[(k + 1) % 4];
+      final along = (b - a).normalised;
+      var out = normal.cross(along).normalised;
+      if (out.dot(centre - a) > 0) out = out * -1;
+      outs.add(out);
+    }
+
+    List<double> spacing(double length) {
+      final half = length / 2;
+      final near = <double>[
+        for (final mm in const [0.0, 0.6, 1.3, 2, 3, 4.5, 6.5, 9, 12, 16, 22,
+            30, 42, 60, 85, 120])
+          if (mm < half) mm / length,
+      ];
+      return {
+        ...near,
+        for (var i = 1; i < 8; i++) i / 8,
+        for (final t in near) 1 - t,
+      }.toList()
+        ..sort();
+    }
+
+    final us = spacing((e[1] - e[0]).length);
+    final vs = spacing((e[3] - e[0]).length);
+    final points = <Offset>[];
+    final shades = <Shaded>[];
+    for (final v in vs) {
+      for (final u in us) {
+        Offset flat(List<Offset> c) =>
+            (c[0] * (1 - u) + c[1] * u) * (1 - v) +
+            (c[3] * (1 - u) + c[2] * u) * v;
+        final p =
+            e[0] * ((1 - u) * (1 - v)) +
+            e[1] * (u * (1 - v)) +
+            e[2] * (u * v) +
+            e[3] * ((1 - u) * v);
+        var occlusion = 0.0, shadowed = 0.0;
+        for (var k = 0; k < 4; k++) {
+          final step = recess(
+            depth: steps[k],
+            away: (p - e[k]).dot(outs[k] * -1),
+            out: outs[k],
+            normal: normal,
+            light: light,
+          );
+          occlusion += step.occlusion;
+          shadowed = math.max(shadowed, step.shadowed);
+        }
+        points.add(flat(at));
+        shades.add(
+          shadeOf(
+            face,
+            view: eye == null ? const Vec3(0, 0, 1) : (eye - p).normalised,
+            occlusion: math.min(occlusion, 0.75),
+            shadowed: shadowed,
+          ),
+        );
+      }
+    }
+    final across = us.length;
+    canvas.drawVertices(
+      ui.Vertices(
+        ui.VertexMode.triangles,
+        points,
+        colors: [for (final s in shades) Color(s.colour)],
+        indices: [
+          for (var j = 0; j + 1 < vs.length; j++)
+            for (var i = 0; i + 1 < across; i++) ...[
+              j * across + i,
+              j * across + i + 1,
+              (j + 1) * across + i + 1,
+              j * across + i,
+              (j + 1) * across + i + 1,
+              (j + 1) * across + i,
+            ],
+        ],
+      ),
+      BlendMode.dst,
+      Paint(),
+    );
   }
 
   /// How finely a pane is shaded across: a point every tenth of the way,

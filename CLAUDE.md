@@ -3640,6 +3640,50 @@ drawing the tint is never so dark or so pale that the lines go, tinted is
 shaded, frosted is stippled, and outside the panes not a pixel changes.
 Drawing the glass flat again fails four of those tests.
 
+### Panels are solid
+
+A panel was a slab painted one colour: from the front, a rectangle, and
+nothing to say it was a solid thing set into a sash. It is shaded as what it
+is now, and nothing about it is a texture or a colour chosen for it.
+
+- **Its edges are eased**, as a finished panel's are. `_panel` in
+  `mesh_builder.dart` builds the front and the back as the fill inset by
+  `panelArrisOf` (`frame_profile.dart`: at most 2 mm, and a small share of
+  the thickness), with an arris and a side round every edge — the arrises
+  catch the light differently from the face. Every corner is inside the
+  pane's fill and its thickness, so its width, height and position are what
+  they were; the fill is `DesignGeometry.fillOf`, unchanged.
+- **It sits back in what holds it.** Each face records how far what
+  surrounds it stands proud of it (`Facet.recesses`, an edge at a time,
+  from the sash's front for a pane of a leaf and the frame's for a fixed
+  light, `DesignGeometry.surroundOf` / `isInLeaf`). `ModelPainter._recessed`
+  shades such a face on a grid packed close at its edges, and `recess` in
+  `shading.dart` says, for each point, how much sky the step shuts out and
+  whether it lies in the shadow the step casts on the side the key light
+  comes from. `Shading.of` takes both — `occlusion` dims the ambient and
+  reflected light, `shadowed` the key — so the corner of the step is darker
+  and the middle of the panel is lit as it always was.
+- **The colour is the user's.** Every panel facet carries the finish's
+  colour exactly; what changes on the screen is lighting of that colour, a
+  shade of the same hue, never a different one. It is opaque, so what is
+  behind it never shows.
+- **Glass, panel and frame are three things** even in one colour: the glass
+  is seen through and carries its sheen, the panel is an even, matte face
+  set back with a shadowed edge, and the frame is its profile.
+
+Changing a panel's colour changes nothing but how it looks. The door's
+pinned solid fingerprints in `rendering_geometry_baseline_test.dart` moved
+once, on purpose, for the arris; the designs' did not.
+`test/app/panels_look_like_panels_test.dart` holds it: every colour and a
+custom one the same geometry — design, solid shut and open, fills, bars and
+dimensions; every facet the user's colour; a slab with sides and eased
+faces inside its fill; on the pictures, opaque on a light and a dark
+backdrop, keeping its hue, even across its middle, darker in the corner of
+its step and back to its own colour a little way in; and a panel, a pane
+and the frame in one colour three different pictures. Switching the
+recessed shading off, or the arris, fails it. The technical drawing is
+unchanged: a panel is still hatched.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the

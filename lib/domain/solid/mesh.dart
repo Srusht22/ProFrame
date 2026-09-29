@@ -67,6 +67,15 @@ class Facet {
   /// is green; seen face on it is clear.
   final bool isSide;
 
+  /// How far what stands round this face stands proud of it, edge by edge —
+  /// the edge from corner `i` to the next — in millimetres: the step down
+  /// from the sash or the frame to a panel set in it. Empty for a face with
+  /// nothing round it. It is what the renderer shades the recess by — the
+  /// darker band where the step hides part of the sky, and the shadow the
+  /// step throws — so a panel reads as a solid thing set in its frame and
+  /// not a colour laid in it. It moves nothing.
+  final List<double> recesses;
+
   /// 0 opaque to 1 clear.
   final double transparency;
 
@@ -90,6 +99,7 @@ class Facet {
     required this.colour,
     this.surface = Surfaces.pvc,
     this.isSide = false,
+    this.recesses = const [],
     this.transparency = 0,
     this.gloss = 0.3,
     this.role = FacetRole.frame,
@@ -103,6 +113,7 @@ class Facet {
         colour: colour,
         surface: surface,
         isSide: isSide,
+        recesses: recesses,
         transparency: transparency,
         gloss: gloss,
         role: role,
@@ -116,6 +127,7 @@ class Facet {
         colour: colour,
         surface: surface,
         isSide: isSide,
+        recesses: recesses,
         transparency: surface.transmission,
         gloss: 1 - surface.roughness,
         role: role,

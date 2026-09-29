@@ -190,6 +190,17 @@ class DesignGeometry {
     for (final section in design.topLevelSections) section.id,
   };
 
+  /// What [section] is set in: the daylight of the leaf it is a pane of,
+  /// or — a main division — the frame's. Null with no frame.
+  Polygon? surroundOf(SectionElement section) =>
+      OpeningLeaf.daylightAround(design, section.id) ??
+      design.frame?.innerOutline;
+
+  /// Whether [section] is inside a leaf — a pane of one — rather than a
+  /// main division set in the frame.
+  bool isInLeaf(SectionElement section) =>
+      OpeningLeaf.daylightAround(design, section.id) != null;
+
   /// The outside of the leaf filling [section]: the section's own outline
   /// and nothing wider — or, for a panel on a track, [slidingPanelOf].
   Polygon leafOuter(SectionElement section) =>

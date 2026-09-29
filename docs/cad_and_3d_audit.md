@@ -206,3 +206,19 @@ what is behind it, frosting scatters, reflection is added; the thin side is
 green. CAD: tinted glass shaded, frosted stippled, lines unchanged. Glass
 choices never change geometry. Held by
 `test/app/glass_looks_like_glass_test.dart`.
+
+## 10. Since the audit — panels (Phase 6)
+
+A panel is a slab with eased edges: its front and back are its fill inset by
+`panelArrisOf` (never more than 2 mm, never more than a small share of its
+thickness), with an arris and a side round every edge, all inside the fill
+and the thickness. Each face records how high what surrounds it stands
+proud of it (`Facet.recesses`, from the sash's or frame's front); the
+painter shades such a face on a grid dense at its edges
+(`ModelPainter._recessed`), darkening it by the light the step shuts out
+and, on the side the key light comes from, by the shadow the step casts
+(`recess` and the `occlusion`/`shadowed` terms of `Shading.of`). The colour
+on every facet is the user's exactly; nothing is textured. CAD unchanged.
+Colour changes never change geometry; the door's pinned solid fingerprints
+moved once, on purpose, for the arris. Held by
+`test/app/panels_look_like_panels_test.dart`.

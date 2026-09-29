@@ -275,13 +275,22 @@ void main() {
             if (panes.isEmpty) continue;
             // A panel on a sliding track is a sash of its own, filled to its
             // own daylight; anything else is filled to what fills its region.
+            final fill = geometry.onTrack(section)
+                ? geometry.leafInner(section)!
+                : geometry.fillOf(section);
+            // A panel's faces have their edges eased by its arris, inside
+            // that fill and that thickness: its corners are the fill's and
+            // the fill's taken in by the arris.
+            final zs = [for (final f in panes) ...f.corners.map((c) => c.z)];
+            final thickness =
+                zs.reduce((a, b) => a > b ? a : b) -
+                zs.reduce((a, b) => a < b ? a : b);
+            final eased = panes.first.role == FacetRole.panel
+                ? fill.inset(panelArrisOf(thickness))
+                : fill;
             expect(
               seenSquareOn(panes),
-              cornersOf([
-                geometry.onTrack(section)
-                    ? geometry.leafInner(section)!
-                    : geometry.fillOf(section),
-              ]),
+              cornersOf([fill, eased]),
               reason: section.id,
             );
           }

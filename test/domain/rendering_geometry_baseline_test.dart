@@ -177,19 +177,25 @@ void main() {
   // fingerprinted.
   //
   // The designs' own fingerprints are as they were when the CAD and 3D
-  // audit was written, and have never moved. The solid's moved once, on
-  // purpose: when the frame and the sash became their profile swept round
+  // audit was written, and have never moved. The solid's moved twice, on
+  // purpose. First when the frame and the sash became their profile swept round
   // the ring and the bars' long front edges were eased (the frame is a real
   // profile, see the_frame_is_a_real_profile_test.dart) — every one of
   // those new corners inside the outline, the daylight and the depth the
   // plain ring had. Before that the solid was: door f0c6fb11c2c3f44a /
   // d5ef2ef09699c719, window 98fce4023f819c2b / d7da8fe47c3965a5, sliding
   // 8253ab439ee87dbf / cee840fe27ca12f7.
+  //
+  // Then when a panel's faces were given the small eased arris a finished
+  // panel has (panels are solid, see panels_look_like_panels_test.dart):
+  // every new corner inside the pane's fill and its thickness, and only the
+  // door — the one design here with a panel — moved. Before that the door
+  // was 1eaebb46c455cad2 / 28e1f7f336edbf2f.
   const pinned = <String, Map<String, String>>{
     'door': {
       'design': 'ae3cfe6089559a06',
-      'shut': '1eaebb46c455cad2',
-      'open': '28e1f7f336edbf2f',
+      'shut': '926fa8e9b336512a',
+      'open': '870c6b3cd760cbcf',
     },
     'window': {
       'design': '4f27d2f58f42a604',

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/design_geometry.dart';
 import 'package:proframe/domain/model/elements.dart';
@@ -501,15 +502,25 @@ void main() {
       );
       expect(without(glazed), without(door));
       // …and the pane covers the same ground: a sealed unit and a panel are
-      // built to their own thicknesses, which is construction, not
-      // appearance.
-      Set<String> across(Design d) => {
-        for (final f in MeshBuilder.build(d).facets)
-          if (f.elementId == panes.last.id)
-            for (final c in f.corners)
-              '${c.x.toStringAsFixed(3)},${c.y.toStringAsFixed(3)}',
-      };
-      expect(across(glazed), across(door));
+      // built to their own thicknesses, and a panel's faces have their edges
+      // eased, which is construction, not appearance. The ground each covers
+      // is the fill, to the millimetre, and nothing of either is outside it.
+      final fill = DesignGeometry.of(door).fillOf(panes.last);
+      for (final d in [glazed, door]) {
+        final corners = [
+          for (final f in MeshBuilder.build(d).facets)
+            if (f.elementId == panes.last.id) ...f.corners,
+        ];
+        double lo(Iterable<double> v) => v.reduce((a, b) => a < b ? a : b);
+        double hi(Iterable<double> v) => v.reduce((a, b) => a > b ? a : b);
+        expect(lo(corners.map((c) => c.x)), closeTo(fill.left, 1e-9));
+        expect(hi(corners.map((c) => c.x)), closeTo(fill.right, 1e-9));
+        expect(lo(corners.map((c) => c.y)), closeTo(fill.top, 1e-9));
+        expect(hi(corners.map((c) => c.y)), closeTo(fill.bottom, 1e-9));
+        for (final c in corners) {
+          expect(fill.contains(Vec2(c.x, c.y)), isTrue);
+        }
+      }
     });
 
     test('the frame made aluminium: every size and line where it was, and '
