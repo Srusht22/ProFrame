@@ -338,3 +338,14 @@ overlapping or on the drawing, figures past or staggered off runs too
 short for them, and a row left off at a zoom where it cannot be legible.
 Every figure on the drawing is written to the millimetre. Held by
 `test/app/the_dimensions_test.dart`.
+
+## 19. Since the audit — openings and sections in the solid (Phase 15)
+
+The hierarchy — frame, openings, the panes and dividers inside each — was
+already the solid's by `DesignTree`, and is now held on complex designs: a
+door and two windows each divided glass over panel, independent in the
+model and in motion, each divider inside its own leaf, and one pane's
+material changing that pane alone. The floor's shadow blocks each member
+square to itself (`Block.axes`), so a leaf standing open shades the floor
+under it and not the whole box its swing spans. Held by
+`test/app/openings_and_sections_in_3d_test.dart`.

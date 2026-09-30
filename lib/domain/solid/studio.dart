@@ -138,7 +138,7 @@ class Floor {
   /// floor would show.
   static Floor? under(Mesh mesh) {
     if (mesh.isEmpty) return null;
-    final whole = <String, Block>{};
+    final facetsOf = <String, List<Facet>>{};
     var top = double.infinity, level = -double.infinity;
     var plan = Block.around(mesh.facets.first.corners);
     for (final facet in mesh.facets) {
@@ -148,29 +148,34 @@ class Floor {
       }
       plan = plan.join(Block.around(facet.corners));
       if (_shutsOutNothing(facet)) continue;
-      final box = Block.around(facet.corners);
-      whole[facet.elementId] = whole[facet.elementId]?.join(box) ?? box;
+      (facetsOf[facet.elementId] ??= []).add(facet);
     }
     if (!level.isFinite) return null;
-    // Each part's faces, taken by the side of the part they are nearest.
+    // Each part's faces, taken by the side of the part they are nearest —
+    // measured along the part's own directions, so a leaf swung open is
+    // its own stiles and rails wherever it has swung to.
     final byMember = <String, Block>{};
-    for (final facet in mesh.facets) {
-      if (_shutsOutNothing(facet)) continue;
-      final part = whole[facet.elementId]!;
-      final c = facet.centre;
-      final sides = [
-        c.x - part.minX,
-        part.maxX - c.x,
-        c.y - part.minY,
-        part.maxY - c.y,
-      ];
-      var side = 0;
-      for (var k = 1; k < 4; k++) {
-        if (sides[k] < sides[side]) side = k;
+    for (final MapEntry(key: id, value: facets) in facetsOf.entries) {
+      final axes = _axesOf(facets);
+      final part = Block.around([
+        for (final f in facets) ...f.corners,
+      ], axes: axes);
+      for (final facet in facets) {
+        final box = Block.around(facet.corners, axes: axes);
+        final cx = (box.minX + box.maxX) / 2, cy = (box.minY + box.maxY) / 2;
+        final sides = [
+          cx - part.minX,
+          part.maxX - cx,
+          cy - part.minY,
+          part.maxY - cy,
+        ];
+        var side = 0;
+        for (var k = 1; k < 4; k++) {
+          if (sides[k] < sides[side]) side = k;
+        }
+        final key = '$id|$side';
+        byMember[key] = byMember[key]?.join(box) ?? box;
       }
-      final key = '${facet.elementId}|$side';
-      final box = Block.around(facet.corners);
-      byMember[key] = byMember[key]?.join(box) ?? box;
     }
     final all = byMember.values.toList();
     final blocks = [
@@ -181,7 +186,8 @@ class Floor {
     final standing = height * standingShare;
     var minX = double.infinity, maxX = -double.infinity;
     var minZ = double.infinity, maxZ = -double.infinity;
-    for (final b in blocks) {
+    for (final block in blocks) {
+      final b = block.square;
       if (level - b.maxY > standing) continue;
       minX = math.min(minX, b.minX);
       maxX = math.max(maxX, b.maxX);
@@ -209,6 +215,51 @@ class Floor {
   static bool _shutsOutNothing(Facet facet) =>
       facet.role == FacetRole.hardware || facet.surface.isTransparent;
 
+  /// The directions [facets] — one part — are square to: its broad faces
+  /// facing along the third, found as the direction most of their area
+  /// faces along, either way; the second as near the model's upright as
+  /// that allows. Null where that is the model's own facing, as it is for
+  /// everything but a leaf swung or tilted open, so everything else is the
+  /// plain box it always was.
+  static (Vec3, Vec3, Vec3)? _axesOf(List<Facet> facets) {
+    // The spread of the faces' directions, weighted by area; the direction
+    // it is greatest along is the one the part faces.
+    final c = List<double>.filled(9, 0);
+    for (final f in facets) {
+      final n = f.normal;
+      var area = 0.0;
+      for (var i = 1; i + 1 < f.corners.length; i++) {
+        area +=
+            (f.corners[i] - f.corners[0])
+                .cross(f.corners[i + 1] - f.corners[0])
+                .length /
+            2;
+      }
+      final v = [n.x, n.y, n.z];
+      for (var i = 0; i < 3; i++) {
+        for (var j = 0; j < 3; j++) {
+          c[i * 3 + j] += area * v[i] * v[j];
+        }
+      }
+    }
+    var w = const Vec3(0, 0, 1);
+    for (var round = 0; round < 40; round++) {
+      final next = Vec3(
+        c[0] * w.x + c[1] * w.y + c[2] * w.z,
+        c[3] * w.x + c[4] * w.y + c[5] * w.z,
+        c[6] * w.x + c[7] * w.y + c[8] * w.z,
+      );
+      if (next.length < 1e-12) return null;
+      w = next.normalised;
+    }
+    if (w.z < 0) w = w * -1;
+    if (w.z > 0.9995) return null;
+    var v = const Vec3(0, 1, 0) - w * w.y;
+    if (v.length < 1e-6) v = const Vec3(1, 0, 0) - w * w.x;
+    v = v.normalised;
+    return (v.cross(w).normalised, v, w);
+  }
+
   static bool _heldByAnother(List<Block> all, int i) {
     for (var j = 0; j < all.length; j++) {
       if (j == i) continue;
@@ -223,7 +274,7 @@ class Floor {
   /// most rays from most of the floor.
   late final Block? _all = blocks.isEmpty
       ? null
-      : blocks.reduce((a, b) => a.join(b));
+      : blocks.map((b) => b.square).reduce((a, b) => a.join(b));
 
   /// How far the floor is shown beyond the model's plan.
   double get reach =>
@@ -509,6 +560,19 @@ class Floor {
         b.maxX,
         b.maxY,
         b.maxZ,
+        // A leaf swung further has the same bounds along its own axes: the
+        // axes are part of what the box is.
+        if (b.axes case (final u, final v, final w)) ...[
+          u.x,
+          u.y,
+          u.z,
+          v.x,
+          v.y,
+          v.z,
+          w.x,
+          w.y,
+          w.z,
+        ],
       ],
     ];
     final last = _lastOcclusion;
@@ -532,21 +596,40 @@ class Floor {
   }
 }
 
-/// A box in the model's space, square to its axes.
+/// A box in the model's space: square to the model's own axes, or — for a
+/// part turned out of them, a leaf swung open — square to the part's own
+/// ([axes]), so a swung rail is the rail and not the far larger box square to
+/// the model that would hold it.
 class Block {
+  /// The bounds, measured along [axes] where it has them.
   final double minX, minY, minZ, maxX, maxY, maxZ;
 
-  const Block(this.minX, this.minY, this.minZ, this.maxX, this.maxY, this.maxZ);
+  /// The part's own three directions, or null for the model's.
+  final (Vec3, Vec3, Vec3)? axes;
 
-  factory Block.around(List<Vec3> points) {
-    var a = points.first, b = points.first;
-    for (final p in points) {
+  const Block(
+    this.minX,
+    this.minY,
+    this.minZ,
+    this.maxX,
+    this.maxY,
+    this.maxZ, {
+    this.axes,
+  });
+
+  factory Block.around(List<Vec3> points, {(Vec3, Vec3, Vec3)? axes}) {
+    Vec3 local(Vec3 p) =>
+        axes == null ? p : Vec3(p.dot(axes.$1), p.dot(axes.$2), p.dot(axes.$3));
+    var a = local(points.first), b = a;
+    for (final q in points) {
+      final p = local(q);
       a = Vec3(math.min(a.x, p.x), math.min(a.y, p.y), math.min(a.z, p.z));
       b = Vec3(math.max(b.x, p.x), math.max(b.y, p.y), math.max(b.z, p.z));
     }
-    return Block(a.x, a.y, a.z, b.x, b.y, b.z);
+    return Block(a.x, a.y, a.z, b.x, b.y, b.z, axes: axes);
   }
 
+  /// Both boxes at once; the two are measured along the same axes.
   Block join(Block o) => Block(
     math.min(minX, o.minX),
     math.min(minY, o.minY),
@@ -554,9 +637,13 @@ class Block {
     math.max(maxX, o.maxX),
     math.max(maxY, o.maxY),
     math.max(maxZ, o.maxZ),
+    axes: axes,
   );
 
+  /// Whether [o] lies wholly within this box — asked only of two boxes
+  /// measured along the same axes.
   bool holds(Block o) =>
+      identical(axes, o.axes) &&
       o.minX >= minX &&
       o.maxX <= maxX &&
       o.minY >= minY &&
@@ -564,9 +651,40 @@ class Block {
       o.minZ >= minZ &&
       o.maxZ <= maxZ;
 
+  /// The box square to the model's axes that holds this one.
+  Block get square {
+    final frame = axes;
+    if (frame == null) return this;
+    final corners = [
+      for (final x in [minX, maxX])
+        for (final y in [minY, maxY])
+          for (final z in [minZ, maxZ])
+            frame.$1 * x + frame.$2 * y + frame.$3 * z,
+    ];
+    return Block.around(corners);
+  }
+
   /// [hitBy] for a ray from [x], [y], [z] along [d], with nothing made on
   /// the way — the same slab test, three axes written out.
   bool _hit(double x, double y, double z, _Ray d) {
+    final frame = axes;
+    if (frame != null) {
+      // Turned into the part's own directions first.
+      final from = Vec3(x, y, z);
+      final along = Vec3(d.x, d.y, d.z);
+      return _slab(
+        from.dot(frame.$1),
+        from.dot(frame.$2),
+        from.dot(frame.$3),
+        _Ray(
+          Vec3(along.dot(frame.$1), along.dot(frame.$2), along.dot(frame.$3)),
+        ),
+      );
+    }
+    return _slab(x, y, z, d);
+  }
+
+  bool _slab(double x, double y, double z, _Ray d) {
     var near = 0.0, far = double.infinity;
     if (d.x == 0) {
       if (x < minX || x > maxX) return false;

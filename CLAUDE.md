@@ -4208,6 +4208,61 @@ the right of it; the word IN steps round a lever, so the lever's own
 outline is compared with the swing symbols off; and a diagonal in a sash
 leaves the design's own chains as they were, counted by side.
 
+### Openings and what is inside them, in the solid
+
+The user's words: *complex designs — several openings, doors and windows,
+glass and panel sections, dividers inside them — must keep their hierarchy
+in 3D: a door with glass above and a panel below is FRAME ├── GLASS └──
+PANEL, the glass looking like glass and the panel like panel; each opening
+independent, never merged visually or geometrically; a divider inside an
+opening stays inside it and is never part of the outer frame; glass → panel
+on one section changes that section only; the 3D makes the hierarchy
+understandable.*
+
+Most of that was already true by construction — the solid walks
+`DesignTree`, every leaf is placed by one transform, a pane's finish is its
+own — and this phase holds it on complex designs rather than rebuilding it.
+What looking at them found was the floor.
+
+- **A leaf standing open cast a block of shadow.** The floor's shadow is
+  rays against each opaque member as the box it fills, and those boxes were
+  square to the model: a sash member swung out at an angle fills a box as
+  wide as the whole swing, so under every open leaf the floor went solid
+  black in a rectangle the leaf does not cover — which reads as a slab, not
+  a door standing open. `Floor.under` now blocks each member **square to
+  itself**: `Block.axes` is the member's own three directions, found from
+  its faces (the direction its faces turn least, by the spread of their
+  normals — `_axesOf`), and a ray is turned into those directions before it
+  is tested (`Block._hit`). A member square to the model — everything in a
+  shut design — has no axes and is exactly the box it always was, so a shut
+  design's floor did not change. `Block.square` is the model-square box
+  round a turned one, which is what the floor's extent and the quick
+  whole-model test still use. The shadow of an open leaf is now the leaf's.
+
+`test/app/openings_and_sections_in_3d_test.dart` holds all of it:
+
+- a door of frosted glass over a brown panel — the tree's opening holding
+  exactly the two panes and the line between them, which is not a bar of
+  the design; the glass built as glazing and nothing of the panel
+  transparent; on the pictures, clear glass changing with the studio behind
+  it and the panel not changing at all;
+- three openings under a fixed head — a door and two windows, each divided
+  glass over panel, the first two either side of one mullion — sharing no
+  part, every part built, a lock on the door alone; their sashes not
+  meeting, and the mullion between them no opening's; swung, every part of
+  every opening moving and nothing else, **each as one body** (every
+  distance within an opening kept) and **not one body together** (distances
+  from one opening to another changing);
+- each opening's divider inside that opening's outline, set back behind the
+  design's own bars in the leaf's depth, and never one of the design's bars;
+- one pane made panel: that pane's facets changed and every other element's
+  identical, facet for facet; on the technical drawing every changed pixel
+  inside that pane;
+- open, the floor round each turned member lit by most of the sky (at most
+  0.4 of it shut out, where the square boxes shut out 0.8 or more), and shut,
+  no member turned at all. Blocking the members square to the model again
+  fails it.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the
