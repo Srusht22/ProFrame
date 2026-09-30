@@ -8,26 +8,32 @@ import 'package:flutter/material.dart';
 /// section is cut through, the lightest is annotation. Keeping them in one
 /// place is what stops a drawing turning into a picture.
 abstract final class Cad {
-  /// Paper.
-  static const Color sheet = Color(0xFFFDFDFB);
-  static const Color border = Color(0xFFCBD2CF);
+  /// Paper: white, very slightly warm, as drawing film is.
+  static const Color sheet = Color(0xFFFDFDFC);
+  static const Color border = Color(0xFFCDD0D2);
 
-  /// The drawing itself.
-  static const Color heavy = Color(0xFF0B1512);
-  static const Color medium = Color(0xFF243330);
-  static const Color light = Color(0xFF5E6D68);
+  /// The drawing itself, in graphite inks — neutral, so a drawing reads as
+  /// a drawing and not as part of the application round it. Weight carries
+  /// the rank of a line first; the ink only steps it down with the weight.
+  static const Color heavy = Color(0xFF121416);
+  static const Color medium = Color(0xFF2F3337);
+  static const Color light = Color(0xFF6A6E72);
 
-  /// Annotation.
-  static const Color dimension = Color(0xFF9A6B13);
-  static const Color hidden = Color(0xFF8A9793);
+  /// Annotation: one restrained ink for everything that measures, a dark
+  /// slate blue — the colour a dimension layer is kept in, clear of the
+  /// geometry without competing with it.
+  static const Color dimension = Color(0xFF2E4D6E);
+  static const Color hidden = Color(0xFF8C9196);
 
   /// Materials, as a drawing shows them rather than as they look.
   static const Color glass = Color(0xFFE9F1F4);
   static const Color glassLine = Color(0xFF9FB9C2);
-  static const Color hatch = Color(0xFF9AA5A1);
+  static const Color hatch = Color(0xFF9EA3A7);
 
-  static const Color grid = Color(0xFFE6EBE8);
-  static const Color gridStrong = Color(0xFFD3DBD7);
+  /// The squared paper under the drawing: there to measure by, far quieter
+  /// than any line of the drawing on it.
+  static const Color grid = Color(0xFFF0F1F2);
+  static const Color gridStrong = Color(0xFFE4E6E7);
 
   static const Color selection = Color(0xFFB8860B);
   static const Color grip = Color(0xFF013E37);
@@ -61,18 +67,18 @@ abstract final class Cad {
   /// nothing that carried meaning on paper fades into the sheet here — the
   /// faintest line on the drawing, the hatch, is still well clear of it.
   static const CadColours night = CadColours(
-    sheet: Color(0xFF141C1A),
-    border: Color(0xFF34413D),
-    heavy: Color(0xFFE8EFEC),
-    medium: Color(0xFFC2CEC9),
-    light: Color(0xFF93A39E),
-    dimension: Color(0xFFE0B35A),
-    hidden: Color(0xFF7E8E89),
+    sheet: Color(0xFF16181A),
+    border: Color(0xFF383C40),
+    heavy: Color(0xFFECEEF0),
+    medium: Color(0xFFC6CACE),
+    light: Color(0xFF979DA2),
+    dimension: Color(0xFF9DBEDF),
+    hidden: Color(0xFF80868B),
     glass: Color(0xFF1D2C31),
     glassLine: Color(0xFF6E97A4),
-    hatch: Color(0xFF6D7B77),
-    grid: Color(0xFF1C2523),
-    gridStrong: Color(0xFF26322F),
+    hatch: Color(0xFF70767B),
+    grid: Color(0xFF1C1F21),
+    gridStrong: Color(0xFF25292C),
     selection: Color(0xFFE8B84A),
     grip: Color(0xFF7FD3C2),
     snap: Color(0xFF4FD0B3),
@@ -80,20 +86,33 @@ abstract final class Cad {
 
   /// Line weights in pixels, at any zoom: a drawing's line weights do not
   /// change when you look closer at it.
-  static const double outline = 2.0;
+  ///
+  /// **Each rank a clear step from the next**, as a draughtsman's pens are
+  /// (0.7, 0.5, 0.35, 0.25, 0.18 mm — each about √2 finer than the last), so
+  /// what a line is can be read from its weight alone:
+  ///
+  /// | Weight | What |
+  /// | --- | --- |
+  /// | [outline] | The outside of the frame: the design's own edge |
+  /// | [profile], [bar] | The frame's daylight edge, a leaf, a mullion or transom |
+  /// | [glazingBar] | A bar drawn inside a section |
+  /// | [detail] | Where glass or a panel meets what holds it |
+  /// | [annotation] | Dimensions, and the swing of a leaf |
+  /// | [hairline] | Hatching, sightlines, the bead, centre lines, the grid |
+  static const double outline = 2.4;
   static const double profile = 1.4;
-  static const double bar = 1.3;
+  static const double bar = 1.4;
 
   /// A bar drawn inside a section — a glazing bar within a sash or a light,
   /// which is a smaller member than the mullion beside it and is drawn as
   /// one. The weight is how a reader tells the two apart.
   static const double glazingBar = 1.0;
-  static const double detail = 0.9;
-  static const double annotation = 0.8;
-  static const double hairline = 0.6;
+  static const double detail = 0.7;
+  static const double annotation = 0.6;
+  static const double hairline = 0.4;
 
-  static const double textSize = 11.5;
-  static const double smallTextSize = 10;
+  static const double textSize = 11;
+  static const double smallTextSize = 9.5;
 
   /// How far the first row of dimensions sits outside the drawing, and the
   /// step out to each row after it, in pixels.
@@ -141,6 +160,7 @@ abstract final class Cad {
     Color colour = heavy,
     double size = textSize,
     FontWeight weight = FontWeight.w500,
+    double spacing = 0.2,
   }) => TextPainter(
     text: TextSpan(
       text: text,
@@ -150,11 +170,63 @@ abstract final class Cad {
         height: 1.1,
         fontWeight: weight,
         color: colour,
-        letterSpacing: 0.2,
+        letterSpacing: spacing,
+        // Figures all one width, so a column of them lines up and a size
+        // does not shift as it is typed over.
+        fontFeatures: const [FontFeature.tabularFigures()],
       ),
     ),
     textDirection: TextDirection.ltr,
   )..layout();
+
+  /// [text] written centred on [at], over whatever is under it, with a thin
+  /// rim of the [paper] round every letter rather than a box — the text mask
+  /// a drawing gives lettering laid over hatching, which keeps the lines
+  /// under it running right up to the words. [turned] reads it up the page.
+  static void write(
+    Canvas canvas,
+    String text,
+    Offset at, {
+    required Color colour,
+    required Color paper,
+    double size = textSize,
+    FontWeight weight = FontWeight.w500,
+    double spacing = 0.2,
+    bool turned = false,
+  }) {
+    TextPainter make(Paint? foreground) => TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontFamily: 'Noto Sans',
+          fontSize: size,
+          height: 1.1,
+          fontWeight: weight,
+          letterSpacing: spacing,
+          fontFeatures: const [FontFeature.tabularFigures()],
+          color: foreground == null ? colour : null,
+          foreground: foreground,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final rim = make(
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeJoin = StrokeJoin.round
+        ..color = paper,
+    );
+    final ink = make(null);
+    canvas.save();
+    canvas.translate(at.dx, at.dy);
+    if (turned) canvas.rotate(-math.pi / 2);
+    final corner = Offset(-ink.width / 2, -ink.height / 2);
+    rim.paint(canvas, corner);
+    ink.paint(canvas, corner);
+    canvas.restore();
+  }
 }
 
 /// The colours a technical drawing is drawn in, as one set: [Cad.paper] on

@@ -244,25 +244,21 @@ class CadPainter extends CustomPainter {
                 ? 'GLASS'
                 : '${look.label.toUpperCase()} GLASS')
           : finish.material.label.toUpperCase().replaceFirst('SOLID ', '');
-      final text = Cad.label(
-        word,
-        colour: ink.medium,
-        size: Cad.smallTextSize,
-        weight: FontWeight.w700,
-      );
       final marked = design.openingOf(section.id)?.markAt != null;
       final at =
           view.toScreen(section.outline.centroid) +
           Offset(0, marked ? -35 : -16);
-      final box = Rect.fromCenter(
-        center: at,
-        width: text.width + 9,
-        height: text.height + 3,
-      );
-      canvas.drawRect(box, Cad.fill(ink.sheet.withValues(alpha: 0.9)));
-      text.paint(
+      // Spaced capitals, as a drawing letters what a part is — masked by
+      // the paper round each letter, not boxed.
+      Cad.write(
         canvas,
-        Offset(at.dx - text.width / 2, at.dy - text.height / 2),
+        word,
+        at,
+        colour: ink.medium,
+        paper: ink.sheet,
+        size: Cad.smallTextSize,
+        weight: FontWeight.w600,
+        spacing: 1.1,
       );
     }
   }
@@ -460,7 +456,9 @@ class CadPainter extends CustomPainter {
       _leaf(canvas, section);
       final box = section.outline;
       final edge = opening.mechanism.hingeEdge;
-      final paint = Cad.stroke(ink.medium, Cad.detail);
+      // How a leaf opens is a reference line, not the leaf: thin, and in the
+      // lighter ink, so the swing never reads as a member.
+      final paint = Cad.stroke(ink.light, Cad.annotation);
 
       if (edge == null) {
         final middle = view.toScreen(box.centroid);
@@ -519,6 +517,7 @@ class CadPainter extends CustomPainter {
         colour: ink.light,
         size: Cad.smallTextSize,
         weight: FontWeight.w600,
+        spacing: 1.1,
       );
       // Inside the section, not hanging off the apex — the apex sits on the
       // section's own edge, so anything placed outside it lands on the frame
@@ -574,27 +573,23 @@ class CadPainter extends CustomPainter {
 
     final chosen = opening.id == selectedId;
 
+    // A drawing's tag: the glyph in a thin circle, where it was drawn — a
+    // reference to the instruction, in the annotation ink, not a button.
     final on = view.toScreen(at);
     final text = Cad.label(
       glyph,
       colour: ink.dimension,
-      size: 15,
-      weight: FontWeight.w700,
+      size: 13,
+      weight: FontWeight.w600,
     );
-    final box = Rect.fromCenter(
-      center: on,
-      width: text.width + 13,
-      height: text.height + 7,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(box, const Radius.circular(5)),
-      Cad.fill(ink.sheet),
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(box, const Radius.circular(5)),
+    final radius = math.max(text.width, text.height) / 2 + 4;
+    canvas.drawCircle(on, radius, Cad.fill(ink.sheet));
+    canvas.drawCircle(
+      on,
+      radius,
       chosen
           ? Cad.stroke(ink.selection, 2.2)
-          : Cad.stroke(ink.dimension.withValues(alpha: 0.6), Cad.annotation),
+          : Cad.stroke(ink.dimension, Cad.annotation),
     );
     text.paint(
       canvas,
@@ -700,8 +695,9 @@ class CadPainter extends CustomPainter {
     final text = Cad.label(
       chain.runs.first.note.toUpperCase(),
       colour: ink.dimension.withValues(alpha: 0.75),
-      size: Cad.smallTextSize,
-      weight: FontWeight.w700,
+      size: Cad.smallTextSize - 0.5,
+      weight: FontWeight.w600,
+      spacing: 1.1,
     );
 
     if (chain.axis == DimensionAxis.horizontal) {
@@ -751,21 +747,14 @@ class CadPainter extends CustomPainter {
       final at = CadDimensions.sectionSizeAt(design, view, section);
       if (at == null) continue;
 
-      final text = Cad.label(
+      Cad.write(
+        canvas,
         Measurements.sizeOf(design, section, sizes),
-        colour: ink.light,
+        at,
+        colour: ink.dimension,
+        paper: ink.sheet,
         size: Cad.smallTextSize,
         weight: FontWeight.w600,
-      );
-      final box = Rect.fromCenter(
-        center: at,
-        width: text.width + 9,
-        height: text.height + 3,
-      );
-      canvas.drawRect(box, Cad.fill(ink.sheet.withValues(alpha: 0.9)));
-      text.paint(
-        canvas,
-        Offset(at.dx - text.width / 2, at.dy - text.height / 2),
       );
     }
   }
@@ -793,17 +782,27 @@ class CadPainter extends CustomPainter {
         paint,
       );
     }
-    canvas.drawLine(Offset(x1, y), Offset(x2, y), paint);
-    _tick(canvas, Offset(x1, y), paint);
-    _tick(canvas, Offset(x2, y), paint);
+    // The dimension line runs a little past each witness line, as a
+    // building drawing's does, so a chain reads as one continuous line.
+    final lo = math.min(x1, x2), hi = math.max(x1, x2);
+    canvas.drawLine(
+      Offset(lo - _runPast, y),
+      Offset(hi + _runPast, y),
+      paint,
+    );
+    _tick(canvas, Offset(x1, y));
+    _tick(canvas, Offset(x2, y));
 
     _dimensionLabel(
       canvas,
       Measurements.figure(run.valueMm, known: known),
-      at,
+      CadDimensions.figureAt(at, across: true),
       horizontal: true,
     );
   }
+
+  /// How far a dimension line runs past the witness lines at its ends.
+  static const double _runPast = 3;
 
   void _verticalRun(
     Canvas canvas,
@@ -827,55 +826,54 @@ class CadPainter extends CustomPainter {
         paint,
       );
     }
-    canvas.drawLine(Offset(x, y1), Offset(x, y2), paint);
-    _tick(canvas, Offset(x, y1), paint);
-    _tick(canvas, Offset(x, y2), paint);
+    final lo = math.min(y1, y2), hi = math.max(y1, y2);
+    canvas.drawLine(
+      Offset(x, lo - _runPast),
+      Offset(x, hi + _runPast),
+      paint,
+    );
+    _tick(canvas, Offset(x, y1));
+    _tick(canvas, Offset(x, y2));
 
     _dimensionLabel(
       canvas,
       Measurements.figure(run.valueMm, known: known),
-      at,
+      CadDimensions.figureAt(at, across: false),
       horizontal: false,
     );
   }
 
   /// The forty-five degree slash that building drawings use instead of an
-  /// arrowhead.
-  void _tick(Canvas canvas, Offset at, Paint paint) {
-    const reach = 4.0;
+  /// arrowhead: a step heavier than the dimension line, so where each
+  /// measurement starts and stops is plain at a glance.
+  void _tick(Canvas canvas, Offset at) {
+    const reach = 3.5;
     canvas.drawLine(
       at + const Offset(-reach, reach),
       at + const Offset(reach, -reach),
-      paint,
+      Cad.stroke(ink.dimension, Cad.glazingBar),
     );
   }
 
+  /// A figure, written where it goes — above its line for a chain, on it
+  /// for a measurement the user drew — masked by the paper round its
+  /// letters rather than a box, and turned to read up the page on a line
+  /// running down it.
   void _dimensionLabel(
     Canvas canvas,
     String text,
     Offset at, {
     required bool horizontal,
   }) {
-    final painter = Cad.label(
-      text,
-      colour: ink.dimension,
-      weight: FontWeight.w600,
-    );
-    canvas.save();
-    canvas.translate(at.dx, at.dy);
-    if (!horizontal) canvas.rotate(-math.pi / 2);
-
-    final box = Rect.fromCenter(
-      center: Offset.zero,
-      width: painter.width + 8,
-      height: painter.height + 1,
-    );
-    canvas.drawRect(box, Cad.fill(ink.sheet));
-    painter.paint(
+    Cad.write(
       canvas,
-      Offset(-painter.width / 2, -painter.height / 2 - 1),
+      text,
+      at,
+      colour: ink.dimension,
+      paper: ink.sheet,
+      weight: FontWeight.w600,
+      turned: !horizontal,
     );
-    canvas.restore();
   }
 
   /// The dimensions the user drew themselves, where they put them.
@@ -891,8 +889,8 @@ class CadPainter extends CustomPainter {
       canvas.drawLine(view.toScreen(dimension.a), from, paint);
       canvas.drawLine(view.toScreen(dimension.b), to, paint);
       canvas.drawLine(from, to, paint);
-      _tick(canvas, from, paint);
-      _tick(canvas, to, paint);
+      _tick(canvas, from);
+      _tick(canvas, to);
 
       // A dimension the user drew measures the sketch, which has a scale
       // only once the design's sizes are given; one they typed is theirs.

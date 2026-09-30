@@ -305,3 +305,13 @@ the new floor exposed were fixed at their source: the pitch was applied the
 wrong way round (the first view was from below the floor), and glass could
 be painted over the stile in front of it (`ProjectedFacet.hiders`). Held by
 `test/app/the_studio_test.dart`.
+
+## 16. Since the audit — the drawing's own language (Phase 12)
+
+`cad_style.dart` gives the elevation a draughtsman's weight scale (2.4, 1.4,
+1.0, 0.7, 0.6, 0.4 px), graphite inks and one slate annotation ink, and
+`Cad.write` letters with tabular figures and a paper mask instead of boxes.
+Chain figures stand just off their lines at `CadDimensions.figureAt`, which
+the tap targets share; dimension lines run past their witness lines and end
+in a heavier 45° slash; the opening mark is a drafting tag. No geometry and
+no figure changed. Held by `test/app/the_cad_is_a_drawing_test.dart`.

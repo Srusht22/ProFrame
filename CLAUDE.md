@@ -4039,6 +4039,56 @@ across it is the strip light's sheen — more than 15 levels, not the 40 the
 sky's horizon line gave from below; and the lever's shadow is asked whether
 it falls on glass by the face, not the id.
 
+### The technical drawing, drawn as one
+
+The user's words: *the CAD view must look like a professional technical
+drawing, not a Flutter canvas with some rectangles — geometric accuracy,
+clean lines, hierarchy, dimensions, technical clarity; do not make every
+line identical; do not change the geometry, only how it is represented;
+dimensions correspond exactly to the saved geometry — if the design says
+964 cm, do not display 1000 cm because it looks better.*
+
+- **Weight is the rank of a line**, each rank a clear step from the next as
+  a draughtsman's pens are (0.7, 0.5, 0.35, 0.25, 0.18 mm): `Cad.outline`
+  (2.4) the outside of the frame; `Cad.profile` and `Cad.bar` (1.4) the
+  frame's daylight edge, a leaf, a mullion or transom; `Cad.glazingBar`
+  (1.0) a bar inside a section; `Cad.detail` (0.7) where glass or a panel
+  meets what holds it; `Cad.annotation` (0.6) dimensions and the swing of a
+  leaf, which is a reference line and drawn in the lighter ink so it never
+  reads as a member; `Cad.hairline` (0.4) hatching, sightlines, the bead,
+  centre lines and the grid. The table is on the constants in
+  `cad_style.dart`.
+- **Graphite inks, one ink for measuring.** Every line of the drawing is
+  neutral grey — the drawing is a drawing, not part of the application
+  round it — and everything that measures (dimensions, their names, a
+  pane's size, the opening's tag) is one restrained slate blue, clear of
+  the geometry and of the selection's gold. The squared paper is quieter
+  than any line on it. `Cad.night` is the same drawing on a neutral dark
+  sheet.
+- **Technical lettering.** Tabular figures, so a column of sizes lines up;
+  spaced capitals for what a part is (GLASS, PANEL, OVERALL, DAYLIGHT);
+  and no boxes: `Cad.write` masks the paper round each letter, so lines
+  run right up to the words. A chain's figure is written just above its
+  line — just left of one running down, read up the page — at
+  `CadDimensions.figureAt`, which the tap targets read too, so what is
+  written and what can be tapped are still one thing. The dimension line
+  runs a little past its witness lines and ends in the building drawing's
+  45° slash, a step heavier than the line. The `<` or `>` the user drew is
+  a drafting tag — the glyph in a thin circle — not a chip.
+- **Every figure is the geometry**, written by `Units.label` to the
+  millimetre: nothing in this pass rounds, snaps or tidies a number, and
+  no line moved.
+
+`test/app/the_cad_is_a_drawing_test.dart` holds it: each weight a clear step
+from the next; on the pixels, across a window's side, the frame's outside
+far heavier than its daylight edge and that far heavier than the sightline
+and the bead; every line grey and the paper quieter than any of them; one
+ink for measuring, readable and clear of the geometry and the selection; a
+window 964.3 cm across written 964.3 cm; every tappable figure reading the
+geometry it names; a figure's tap target on the figure, and the dimension
+line unbroken under it — putting a box back behind the figures fails it —
+and painting leaving the design as it was.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the

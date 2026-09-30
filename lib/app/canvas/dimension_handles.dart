@@ -96,6 +96,17 @@ abstract final class CadDimensions {
   /// the right of it.
   static const Size sizeReach = Size(112, 20);
 
+  /// How far a chain's figure stands off its dimension line, in pixels: just
+  /// above a row across, just left of a row down and read up the page — as
+  /// a drawing writes them, so the line runs unbroken under its figure.
+  static const double figureOff = 8;
+
+  /// Where the figure for a run is written, given where the run's middle is
+  /// on its dimension line.
+  static Offset figureAt(Offset onLine, {required bool across}) => across
+      ? onLine - const Offset(0, figureOff)
+      : onLine - const Offset(figureOff, 0);
+
   /// How far out from the drawing the [chain]'s row of figures sits.
   static double outFor(DimensionChain chain) =>
       Cad.dimensionGap + chain.row * Cad.dimensionStep;
@@ -199,7 +210,7 @@ abstract final class CadDimensions {
         final overall = run.of == ChainRunOf.overall;
         handles.add(DimensionHandle(
           rect: Rect.fromCenter(
-            center: at,
+            center: figureAt(at, across: across),
             width: across ? labelReach.width : labelReach.height,
             height: across ? labelReach.height : labelReach.width,
           ),
