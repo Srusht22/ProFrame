@@ -14,8 +14,9 @@ import '../../domain/solid/studio.dart';
 import '../state/everything_shown.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
-import 'display_style.dart';
 import 'model_painter.dart';
+import 'view_mode.dart';
+import 'view_mode_switch.dart';
 
 /// The model, and the means to walk round it.
 ///
@@ -42,6 +43,68 @@ Set<String> partsOfOpening(Design design, String? selectedId) {
     element.parentId,
     for (final part in design.contentsOf(element)) part.id,
   };
+}
+
+/// The overall sizes the technical mode writes on the model: the width
+/// along the foot of the drawn face, the height up one side of it and the
+/// depth along the foot of the side that is seen — each placed where
+/// [camera] puts that edge of the frame.
+///
+/// **Every figure is the design's**, never measured off the picture: the
+/// frame's own width and height, written to the millimetre as the technical
+/// drawing writes them and `?` where the size has not been given, and the
+/// design's depth. The depth is left off where the camera sees no side, and
+/// the height goes up the side the depth is not on, so the two never meet.
+List<ModelDimension> overallSizesOn(Design design, Camera camera, Mesh mesh) {
+  final outline = design.frame?.outline;
+  if (outline == null || outline.isEmpty || mesh.isEmpty) return const [];
+  // The very transform the faces are projected by, so a figure stands on
+  // the edge it measures.
+  final eye = camera.eyeSpaceFor(mesh);
+  final l = outline.left, r = outline.right;
+  final t = outline.top, b = outline.bottom;
+  final back = -design.depthMm;
+  final middle = eye.place(Vec3((l + r) / 2, (t + b) / 2, back / 2));
+  if (middle == null) return const [];
+
+  // Which side is seen: the left where the eye looks across towards +x.
+  final leftSeen = eye.lookingAt(Vec3(l, (t + b) / 2, back / 2)).x > 0;
+  final rightSeen = eye.lookingAt(Vec3(r, (t + b) / 2, back / 2)).x < 0;
+  final depthAt = leftSeen ? l : rightSeen ? r : null;
+  final heightAt = depthAt == l ? r : l;
+
+  ModelDimension? of(Vec3 a, Vec3 z, String label) {
+    final from = eye.place(a), to = eye.place(z);
+    if (from == null || to == null) return null;
+    return ModelDimension(from: from, to: to, label: label, awayFrom: middle);
+  }
+
+  return [
+    ?of(
+      Vec3(l, b, 0),
+      Vec3(r, b, 0),
+      Measurements.figure(
+        outline.width,
+        known: Measurements.knowsOverall(design, MeasureAxis.across),
+        places: 1,
+      ),
+    ),
+    ?of(
+      Vec3(heightAt, t, 0),
+      Vec3(heightAt, b, 0),
+      Measurements.figure(
+        outline.height,
+        known: Measurements.knowsOverall(design, MeasureAxis.down),
+        places: 1,
+      ),
+    ),
+    if (depthAt != null)
+      ?of(
+        Vec3(depthAt, b, 0),
+        Vec3(depthAt, b, back),
+        '${Units.formatTo(design.depthMm, 1)} ${Units.symbol}',
+      ),
+  ];
 }
 
 class ModelView extends ConsumerStatefulWidget {
@@ -149,7 +212,6 @@ class _ModelViewState extends ConsumerState<ModelView> {
         if (everything) ...[
         _ViewToolbar(
           camera: state.camera,
-          style: state.displayStyle,
           groundPlane: state.groundPlane,
           controller: controller,
           // A named view frames the model from that side, because a window
@@ -195,12 +257,15 @@ class _ModelViewState extends ConsumerState<ModelView> {
               final faces = camera.project(mesh);
               final painter = ModelPainter(
                 faces: faces,
-                floor: state.groundPlane
+                floor: state.groundPlane && state.viewMode.drawsFloor
                     ? _floorUnder(mesh)?.seenBy(camera, mesh)
                     : null,
                 size: size,
                 viewSpan: Camera.viewSpan(mesh),
-                style: state.displayStyle,
+                mode: state.viewMode,
+                dimensions: state.viewMode.isTechnical
+                    ? overallSizesOn(state.design, camera, mesh)
+                    : const [],
                 groundPlane: state.groundPlane,
                 selectedId: state.selectedId,
                 highlighted: partsOfOpening(state.design, state.selectedId),
@@ -292,12 +357,34 @@ class _ModelViewState extends ConsumerState<ModelView> {
                       Positioned.fill(
                         child: CustomPaint(size: size, painter: painter),
                       ),
+                      // How the model is shown, and how it is projected,
+                      // across the top band the model is framed clear of —
+                      // the projection first, and the modes in the room
+                      // left beside it. Both only ways of looking.
                       Positioned(
                         top: 10,
+                        left: 12,
                         right: 12,
-                        child: _ProjectionSwitch(
-                          projection: camera.projection,
-                          onChanged: controller.setProjection,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Flexible(
+                              child: ViewModeSwitch(
+                                mode: state.viewMode,
+                                modes: [
+                                  ...ViewMode.shown,
+                                  if (everything) ViewMode.wireframe,
+                                ],
+                                onChanged: controller.setViewMode,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _ProjectionSwitch(
+                              projection: camera.projection,
+                              onChanged: controller.setProjection,
+                            ),
+                          ],
                         ),
                       ),
                       Positioned(
@@ -538,14 +625,12 @@ class _SolidNumberState extends State<_SolidNumber> {
 /// The views, the projection and the way the model is drawn.
 class _ViewToolbar extends StatelessWidget {
   final Camera camera;
-  final DisplayStyle style;
   final bool groundPlane;
   final WorkspaceController controller;
   final ValueChanged<Camera> onLook;
 
   const _ViewToolbar({
     required this.camera,
-    required this.style,
     required this.groundPlane,
     required this.controller,
     required this.onLook,
@@ -597,21 +682,6 @@ class _ViewToolbar extends StatelessWidget {
                       : Projection.perspective,
                 ),
               ),
-              const SizedBox(width: 6),
-              const SizedBox(height: 22, child: VerticalDivider(width: 12)),
-              for (final option in DisplayStyle.values)
-                _Chip(
-                  label: option == style ? option.label : null,
-                  icon: switch (option) {
-                    DisplayStyle.shaded => Icons.format_color_fill,
-                    DisplayStyle.shadedWithEdges => Icons.deblur,
-                    DisplayStyle.wireframe => Icons.grid_on,
-                    DisplayStyle.monochrome => Icons.contrast,
-                  },
-                  on: style == option,
-                  tooltip: option.hint,
-                  onTap: () => controller.setDisplayStyle(option),
-                ),
               const SizedBox(width: 6),
               const SizedBox(height: 22, child: VerticalDivider(width: 12)),
               _Chip(
@@ -778,7 +848,12 @@ class _ProjectionSwitch extends StatelessWidget {
                 InkWell(
                   key: keyOf(p),
                   borderRadius: BorderRadius.circular(8),
-                  onTap: p == projection ? null : () => onChanged(p),
+                  // The chosen one takes its tap too, rather than letting it
+                  // through to the model, where it would put down whatever
+                  // was picked.
+                  onTap: () {
+                    if (p != projection) onChanged(p);
+                  },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 160),
                     padding: const EdgeInsets.symmetric(

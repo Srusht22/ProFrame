@@ -12,8 +12,8 @@ import 'package:proframe/app/canvas/cad_style.dart';
 import 'package:proframe/app/canvas/design_painter.dart';
 import 'package:proframe/app/canvas/view_transform.dart';
 import 'package:proframe/app/theme/app_theme.dart';
-import 'package:proframe/app/viewer/display_style.dart';
 import 'package:proframe/app/viewer/model_painter.dart';
+import 'package:proframe/app/viewer/view_mode.dart';
 import 'package:proframe/domain/dimensions/measurements.dart';
 import 'package:proframe/domain/editing/design_edits.dart';
 import 'package:proframe/domain/geometry/polygon.dart';
@@ -706,7 +706,7 @@ void main() {
           faces: camera.project(mesh),
           size: const Size(640, 480),
           viewSpan: Camera.viewSpan(mesh),
-          style: DisplayStyle.shaded,
+          mode: ViewMode.realistic,
           groundPlane: false,
         );
       }
@@ -804,14 +804,14 @@ void main() {
         width: 640,
         height: 480,
       );
-      for (final style in DisplayStyle.values) {
+      for (final mode in ViewMode.values) {
         for (final palette in [Palette.light, Palette.dark]) {
           await _raster(
             (canvas) => ModelPainter(
               faces: camera.project(built),
               size: const Size(640, 480),
               viewSpan: Camera.viewSpan(built),
-              style: style,
+              mode: mode,
               palette: palette,
             ).paint(canvas, const Size(640, 480)),
           );

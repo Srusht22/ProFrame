@@ -3,8 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/theme/app_theme.dart';
-import 'package:proframe/app/viewer/display_style.dart';
 import 'package:proframe/app/viewer/model_painter.dart';
+import 'package:proframe/app/viewer/view_mode.dart';
 import 'package:proframe/domain/model/materials.dart';
 import 'package:proframe/domain/model/surface.dart';
 import 'package:proframe/domain/solid/camera.dart';
@@ -147,7 +147,7 @@ void main() {
         faces: camera.project(mesh),
         size: const Size(800, 600),
         viewSpan: Camera.viewSpan(mesh),
-        style: DisplayStyle.shaded,
+        mode: ViewMode.realistic,
       );
       // Grouped as the painter lights them: by which way each face turns
       // on the screen, once turned to the viewer.

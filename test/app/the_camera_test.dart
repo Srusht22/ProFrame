@@ -8,9 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/app/theme/app_theme.dart';
-import 'package:proframe/app/viewer/display_style.dart';
 import 'package:proframe/app/viewer/model_painter.dart';
 import 'package:proframe/app/viewer/model_view.dart';
+import 'package:proframe/app/viewer/view_mode.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/solid/camera.dart';
 import 'package:proframe/domain/solid/mesh.dart';
@@ -61,7 +61,7 @@ Rect framedIn(Camera camera, Mesh mesh, Size size) => onScreen(
     faces: camera.project(mesh),
     size: size,
     viewSpan: Camera.viewSpan(mesh),
-    style: DisplayStyle.shaded,
+    mode: ViewMode.realistic,
   ),
 );
 

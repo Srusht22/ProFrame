@@ -5,8 +5,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/theme/app_theme.dart';
-import 'package:proframe/app/viewer/display_style.dart';
 import 'package:proframe/app/viewer/model_painter.dart';
+import 'package:proframe/app/viewer/view_mode.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/elements.dart';
@@ -74,7 +74,7 @@ Future<_Shot> _shoot(
   Camera camera = Camera.presentation,
   Palette palette = Palette.light,
   bool floor = true,
-  DisplayStyle style = DisplayStyle.shaded,
+  ViewMode mode = ViewMode.realistic,
 }) async {
   final mesh = MeshBuilder.build(d);
   final framed = camera.framing(mesh, width: _size.width, height: _size.height);
@@ -82,7 +82,7 @@ Future<_Shot> _shoot(
     faces: framed.project(mesh),
     size: _size,
     viewSpan: Camera.viewSpan(mesh),
-    style: style,
+    mode: mode,
     groundPlane: floor,
     floor: floor ? Floor.under(mesh)?.seenBy(framed, mesh) : null,
     palette: palette,
@@ -154,14 +154,14 @@ void main() {
     test('a palette in any colours paints the model to the byte as the '
         'application\'s own does', () async {
       for (final palette in [Palette.light, Palette.dark]) {
-        for (final style in DisplayStyle.values) {
-          final own = await _shoot(door, palette: palette, style: style);
+        for (final mode in ViewMode.values) {
+          final own = await _shoot(door, palette: palette, mode: mode);
           final other = await _shoot(
             door,
             palette: _garish(palette),
-            style: style,
+            mode: mode,
           );
-          expect(other.rgba, own.rgba, reason: '$palette $style');
+          expect(other.rgba, own.rgba, reason: '$palette $mode');
         }
       }
     });
@@ -409,7 +409,7 @@ void main() {
         faces: camera.project(mesh),
         size: _size,
         viewSpan: Camera.viewSpan(mesh),
-        style: DisplayStyle.shaded,
+        mode: ViewMode.realistic,
         groundPlane: false,
       );
       final scale = _size.shortestSide * Camera.spanShare / painter.viewSpan;

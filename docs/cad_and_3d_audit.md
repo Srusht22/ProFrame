@@ -374,3 +374,18 @@ frame of the model records in about a third of the time — curved facets
 shaded as finely as they are large on the screen, and the ironmongery's
 shadows masked rather than clipped by path booleans. Held by
 `test/app/live_updates_test.dart`.
+
+## 22. Since the audit — view modes (Phase 18)
+
+The 3D view's display styles became four view modes, all painting the same
+projected faces (`ViewMode`, `ModelPainter`): **Technical** — a hidden-line
+drawing on the technical drawing's paper and inks, edges only where the
+form turns, ranked by part (`penOf`), with the overall width, height and
+depth written on it from the design's own figures (`overallSizesOn`);
+**Shaded** — one colour, lit, edged; **Material** — every material as it
+is made, edged, no cast shadows; **Realistic** — materials, the
+ironmongery's shadows and the floor's, no lines, and the default. The
+wireframe stays under More. The selector (`ViewModeSwitch`) sits in the
+band along the top of the view the model is framed clear of, spread or
+collapsed to a list by measured width; a tap on the chosen option no
+longer falls through to the model. Held by `test/app/view_modes_test.dart`.

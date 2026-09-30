@@ -954,7 +954,7 @@ the rest; it reads **Less** while they are shown.
 | Back, the design's name, **Sizes**, Undo, Save | Redo, Show my drawing, Read again, Parts, Details |
 | Draw / CAD / 3D | The technical drawing's layers, the strip of tools inside an opening, the status bar |
 | Select, Freehand, Straight line, Rectangle, Eraser (`ToolBar.simple`) | Polyline, Dimension, Arrow, Note, the pen's colour |
-| The model, **Open** and Play where there is a leaf, and the camera's own controls — Perspective \| Orthographic, zoom, **Fit**, **Reset** | The named views and display styles, Depth, Profile, the readout |
+| The model, **Open** and Play where there is a leaf, how it is shown — Technical, Shaded, Material, Realistic — and the camera's own controls — Perspective \| Orthographic, zoom, **Fit**, **Reset** | The named views, the wireframe, Depth, Profile, the readout |
 
 **Nothing is taken away.** Every control is one tap off; the drawing still
 reads itself, a line drawn inside an opening still joins it, and a
@@ -4341,7 +4341,7 @@ changed is what happens *around* that:
   ground is made of goes to every piece.
 - **Looking is not work.** `WorkspaceState.work` is a token that is new
   whenever anything but a way of looking changes, and the same while only
-  the camera, its framing, the leaves' swing, the display style or the
+  the camera, its framing, the leaves' swing, the view mode or the
   floor do. Every widget but the model view — the workspace, its bars, the
   panel, the parts, the drawing and the technical drawing — watches it
   through `WidgetRef.watchWork`, so turning the model (a state a pointer
@@ -4383,6 +4383,62 @@ view and not the workspace, its panel, its parts or its tools, with the
 solid built once for the drag. Filling a split pane afresh again, watching
 the whole state from the panel, or building the solid for every move each
 fail it.
+
+### Four ways of looking at the model
+
+The user's words: *useful viewing modes for professional users — Technical
+CAD, Shaded, Material Preview, Realistic 3D; all modes use the same
+geometry; changing mode must not modify design data; the selector modern
+and unobtrusive, not covering model space unnecessarily.*
+
+`ViewMode` (`lib/app/viewer/view_mode.dart`) replaces the old display
+styles, and each mode is a way of painting the **same projected faces** —
+`ModelPainter` is handed one list of faces and the mode decides only how
+each is painted:
+
+| Mode | What it shows |
+| --- | --- |
+| **Technical** | A line drawing of the solid, on the technical drawing's own paper and inks (`Cad.paper`, `Cad.night`): glass its tint, the frame, a sash and a bar their structural tone, everything else the paper, filled flat so what is behind is hidden. An edge is drawn only where the form turns — two faces more than twenty degrees apart, or a face with nothing seen beyond it (the outline as seen, and where one part butts another) — ranked as the drawing ranks its lines (`ModelPainter.penOf`: the frame heaviest, a sash, a bar, the ironmongery, glass and panel finest). The overall width, height and depth are written on it (`overallSizesOn`). No floor. |
+| **Shaded** | Faces in one colour (`Studio.clay`), lit, with their edges: the form and its depth. The floor's grid; no shadows. |
+| **Material** | Every part in its own material — glass seen through with its sheen, the panel matte and set back, the frame its profile, the metal bright — with its edges, and no shadow cast over any of it, so each is seen as itself. |
+| **Realistic** | The most the renderer does: the materials, the ironmongery's cast shadows, the floor's shadow, no drawn lines. What the view opens in. |
+
+The wireframe is kept as a fifth, offered under **More**.
+
+- **The figures are the design's.** Technical writes the frame's own width
+  and height, to the millimetre as the technical drawing does, and `?`
+  where the size has not been given (`Measurements.figure`), and the
+  design's depth — each on the edge it measures, placed by the very
+  `EyeSpace` the faces are projected by. The depth goes along the foot of
+  the side that is seen and is left off square on, and the height goes up
+  the other side, so they never meet.
+- **A mode is a way of looking**, like the camera: `WorkspaceState.viewMode`
+  is never written into the design, saved or undone, and it is one of the
+  looking fields, so choosing one keeps the work and rebuilds only the
+  model view.
+- **The selector is in the top band the model is framed clear of**
+  (`ViewModeSwitch`), across from Perspective | Orthographic, in the room
+  left beside it: every mode named side by side where it fits, one button
+  naming the mode that opens the list where it does not — a phone — and
+  the mark alone where even that is too wide. The room is measured from
+  the labels as written, never guessed. A tap on the chosen mode, or on
+  the chosen projection, is taken by the switch: it used to fall through to
+  the model and put down whatever was picked.
+
+`test/app/view_modes_test.dart` holds it: the model at the same place and
+size in all five and each a different picture; painting every mode in both
+appearances leaving the design and the solid as they were; the figures the
+frame's own and `?` where not given, standing on the edges the camera puts
+them on, the depth left off square on and the labels unchanged as the view
+turns; the pens ranked; the paper, the glass tint and the structural tone
+exact on the pixels, with no floor; the figures written only in Technical;
+a brown panel grey in Shaded and brown in Material and Realistic; the
+floor's shadow in Realistic and not in Material; glass seen through in
+both; and on the real app, at a laptop and a phone, the selector in the
+band and clear of the projection, every mode chosen showing the same faces
+with the design, the work and the undo history untouched — a tap on the
+mode already chosen included — and the wireframe under More. Making Shaded
+show the finishes, or letting the chosen mode's tap through, fails it.
 
 ## Working on this repository
 

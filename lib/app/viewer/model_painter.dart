@@ -9,8 +9,9 @@ import '../../domain/solid/camera.dart';
 import '../../domain/solid/mesh.dart';
 import '../../domain/solid/shading.dart';
 import '../../domain/solid/studio.dart';
+import '../canvas/cad_style.dart';
 import '../theme/app_theme.dart';
-import 'display_style.dart';
+import 'view_mode.dart';
 
 /// Paints the projected model, far faces first.
 ///
@@ -33,8 +34,15 @@ class ModelPainter extends CustomPainter {
   /// the design's own hierarchy; nothing here works out what belongs to what.
   final Set<String> highlighted;
 
-  final DisplayStyle style;
+  /// How the model is shown. Every mode paints these same [faces]: a mode
+  /// chooses how, never what.
+  final ViewMode mode;
   final bool groundPlane;
+
+  /// The overall sizes written on the model in [ViewMode.technical], each
+  /// from the design's own figures and placed where the camera puts its
+  /// edge. Nothing in any other mode.
+  final List<ModelDimension> dimensions;
 
   /// The floor the model stands on, as the eye sees it — its grid and its
   /// shadow. Null where there is none to show: seen from beneath, or not
@@ -54,8 +62,9 @@ class ModelPainter extends CustomPainter {
     required this.faces,
     required this.size,
     required this.viewSpan,
-    required this.style,
+    required this.mode,
     this.groundPlane = true,
+    this.dimensions = const [],
     this.floor,
     this.selectedId,
     this.highlighted = const {},
@@ -90,7 +99,9 @@ class ModelPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     _backdrop(canvas, size);
     if (faces.isEmpty) return;
-    if (groundPlane && floor != null) _floor(canvas, floor!);
+    if (mode.drawsFloor && groundPlane && floor != null) {
+      _floor(canvas, floor!);
+    }
 
     final lit = {...highlighted, ?selectedId};
     // Each piece of ironmongery's shadow, gathered by what it falls on —
@@ -99,13 +110,14 @@ class ModelPainter extends CustomPainter {
     // falls on, and under what casts it.
     final shadows = <String, List<ProjectedFacet>>{};
     final known = <ProjectedFacet, Rect>{};
-    if (style.usesFinishes && style.drawsFaces) {
+    if (mode.castsShadows) {
       for (final face in faces) {
         if (face.shadow != null) {
           (shadows[_castOnto(face)] ??= []).add(face);
         }
       }
     }
+    final creases = mode.isTechnical ? _creasesOf(faces) : null;
     for (var i = 0; i < faces.length; i++) {
       final face = faces[i];
       final path = _pathOf(face);
@@ -116,7 +128,7 @@ class ModelPainter extends CustomPainter {
       }
       // A sheet of glass is kept off what lies in front of it, whatever
       // order the sort gave the two (see `ProjectedFacet.hiders`).
-      final keptOff = style.drawsFaces && face.hiders.isNotEmpty;
+      final keptOff = mode.drawsFaces && face.hiders.isNotEmpty;
       if (keptOff) {
         // One clip for each face in front — the view with that face's
         // outline cut out, filled even-odd — and clips meet, so what is left
@@ -133,10 +145,12 @@ class ModelPainter extends CustomPainter {
           );
         }
       }
-      if (style.drawsFaces) _face(canvas, path, face);
-      if (style.drawsEdges && !_isSmooth(face)) _edges(canvas, path, face);
-      if (style == DisplayStyle.wireframe && _isSmooth(face)) {
-        _edges(canvas, path, face);
+      if (creases != null) {
+        _drawn(canvas, path, face, creases[i]);
+      } else {
+        if (mode.drawsFaces) _face(canvas, path, face);
+        if (mode.drawsEdges && !_isSmooth(face)) _edges(canvas, path, face);
+        if (mode == ViewMode.wireframe) _edges(canvas, path, face);
       }
       if (keptOff) canvas.restore();
       if (lit.contains(face.elementId)) {
@@ -149,6 +163,11 @@ class ModelPainter extends CustomPainter {
         );
       }
     }
+    if (mode.isTechnical) {
+      for (final dimension in dimensions) {
+        _dimension(canvas, dimension);
+      }
+    }
   }
 
   /// The studio the model is shown in: light or dark as the application
@@ -158,6 +177,10 @@ class ModelPainter extends CustomPainter {
   /// A seamless sweep, lighter above, with no horizon drawn on it: nothing
   /// behind the model to look at but the model.
   void _backdrop(Canvas canvas, Size size) {
+    if (mode.isTechnical) {
+      canvas.drawRect(Offset.zero & size, Paint()..color = ink.sheet);
+      return;
+    }
     canvas.drawRect(
       Offset.zero & size,
       Paint()
@@ -206,6 +229,7 @@ class ModelPainter extends CustomPainter {
       }
     }
 
+    if (!mode.castsShadows) return;
     final across = floor.columns;
     final rows = floor.rows;
     if (across < 2 || rows < 2) return;
@@ -266,10 +290,10 @@ class ModelPainter extends CustomPainter {
   }) {
     final source = face.source;
     return Shading.of(
-      surface: style.usesFinishes
+      surface: mode.usesFinishes
           ? source.surface
           : Shading.clay(source.surface),
-      colour: style.usesFinishes ? source.colour : _clay,
+      colour: mode.usesFinishes ? source.colour : _clay,
       normal: normal ?? face.normal,
       environment: Environment.daylight,
       side: source.isSide,
@@ -824,10 +848,189 @@ class ModelPainter extends CustomPainter {
   static const _penumbra = 0.8;
 
 
+  /// The technical drawing's inks: paper in the light appearance, the
+  /// night sheet in the dark — the very colours the CAD view is drawn in.
+  CadColours get ink => palette.isDark ? Cad.night : Cad.paper;
+
+  /// How far apart two faces' directions must be for the edge they share to
+  /// be drawn: where the form turns, and not along a curve made of flats.
+  static const _creaseCosine = 0.94; // twenty degrees
+
+  /// For each face, whether each of its edges is drawn in the technical
+  /// mode, and how: `null` where the face runs on smoothly into its
+  /// neighbour, `true` where nothing seen shares the edge — the outline of
+  /// the part as seen, or where it butts against another — and `false`
+  /// where it shares the edge with a face turned away from it.
+  ///
+  /// Worked out from the faces being painted, in the model's own
+  /// millimetres: an edge is two corners, and two faces share it when they
+  /// have both. A face the camera does not see is not among them, so the
+  /// edge it shared with one that is seen is the silhouette.
+  static List<List<bool?>> _creasesOf(List<ProjectedFacet> faces) {
+    int q(double v) => (v * 100).round();
+    (int, int, int) key(Vec3 v) => (q(v.x), q(v.y), q(v.z));
+    ((int, int, int), (int, int, int)) edge(Vec3 a, Vec3 b) {
+      final p = key(a), r = key(b);
+      final first = p.$1 != r.$1
+          ? p.$1 < r.$1
+          : p.$2 != r.$2
+          ? p.$2 < r.$2
+          : p.$3 <= r.$3;
+      return first ? (p, r) : (r, p);
+    }
+
+    final sharing = <((int, int, int), (int, int, int)), List<int>>{};
+    for (var i = 0; i < faces.length; i++) {
+      final c = faces[i].source.corners;
+      for (var k = 0; k < c.length; k++) {
+        (sharing[edge(c[k], c[(k + 1) % c.length])] ??= []).add(i);
+      }
+    }
+    return [
+      for (var i = 0; i < faces.length; i++)
+        () {
+          final c = faces[i].source.corners;
+          final n = faces[i].normal;
+          return [
+            for (var k = 0; k < c.length; k++)
+              () {
+                final others = [
+                  for (final j in sharing[edge(c[k], c[(k + 1) % c.length])]!)
+                    if (j != i) j,
+                ];
+                if (others.isEmpty) return true;
+                for (final j in others) {
+                  if (n.dot(faces[j].normal) < _creaseCosine) return false;
+                }
+                return null;
+              }(),
+          ];
+        }(),
+    ];
+  }
+
+  /// A face as the technical mode draws it: filled flat in what the
+  /// drawing shows it as — glass its tint, the frame, a sash and a bar
+  /// their structural tone, everything else the paper — and its edges
+  /// where the form turns, each in the pen its part is drawn with.
+  ///
+  /// Filled, so what is behind it is hidden as the eye would find it, and
+  /// the drawing is of the faces seen and nothing through them.
+  void _drawn(Canvas canvas, Path path, ProjectedFacet face, List<bool?> edges) {
+    final source = face.source;
+    final glass = source.surface.isTransparent && !source.isSide;
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = glass
+            ? ink.glass
+            : switch (source.role) {
+                FacetRole.frame ||
+                FacetRole.sash ||
+                FacetRole.bar ||
+                FacetRole.bead => ink.structure,
+                _ => ink.sheet,
+              },
+    );
+    final outline = Path(), creases = Path();
+    final at = [for (final c in face.corners) _place(c)];
+    for (var k = 0; k < at.length && k < edges.length; k++) {
+      final seen = edges[k];
+      if (seen == null) continue;
+      final a = at[k], b = at[(k + 1) % at.length];
+      (seen ? outline : creases)
+        ..moveTo(a.dx, a.dy)
+        ..lineTo(b.dx, b.dy);
+    }
+    final (outer, inner) = penOf(source.role, glass: glass);
+    canvas.drawPath(outline, Cad.stroke(outer.$2, outer.$1, round: true));
+    canvas.drawPath(creases, Cad.stroke(inner.$2, inner.$1, round: true));
+  }
+
+  /// The pens a part is drawn with in the technical mode — for its outline
+  /// as seen, then for where its form turns — ranked as the technical
+  /// drawing ranks its lines (`Cad.outline` down to `Cad.detail`): the
+  /// frame heaviest, a sash and a bar next, glass, a panel and the bead
+  /// the finest, and the ironmongery a fine line in the middle ink.
+  ((double, Color), (double, Color)) penOf(
+    FacetRole role, {
+    bool glass = false,
+  }) {
+    if (glass) {
+      return ((Cad.detail, ink.glassLine), (Cad.detail, ink.glassLine));
+    }
+    return switch (role) {
+      FacetRole.frame => (
+        (Cad.outline * 0.75, ink.heavy),
+        (Cad.glazingBar, ink.medium),
+      ),
+      FacetRole.sash => ((Cad.profile, ink.heavy), (Cad.glazingBar, ink.medium)),
+      FacetRole.bar => ((Cad.glazingBar, ink.medium), (Cad.detail, ink.medium)),
+      FacetRole.hardware => ((Cad.detail, ink.medium), (Cad.detail, ink.medium)),
+      _ => ((Cad.detail, ink.light), (Cad.detail, ink.light)),
+    };
+  }
+
+  /// An overall size written on the model, as the technical drawing writes
+  /// one: witness lines out from the edge it measures, the dimension line
+  /// a little past them ending in the building drawing's slash, and the
+  /// figure beyond it — all in the one ink that measures.
+  void _dimension(Canvas canvas, ModelDimension dimension) {
+    final a = _place(dimension.from), b = _place(dimension.to);
+    final along = b - a;
+    final length = along.distance;
+    if (length < _shortestDimension) return;
+    final u = along / length;
+    var n = Offset(-u.dy, u.dx);
+    final middle = (a + b) / 2;
+    final away = middle - _place(dimension.awayFrom);
+    if (away.dx * n.dx + away.dy * n.dy < 0) n = -n;
+
+    final pen = Cad.stroke(ink.dimension, Cad.annotation);
+    final from = a + n * _dimensionOff, to = b + n * _dimensionOff;
+    canvas.drawLine(
+      a + n * Cad.witnessGap,
+      from + n * Cad.witnessOvershoot,
+      pen,
+    );
+    canvas.drawLine(b + n * Cad.witnessGap, to + n * Cad.witnessOvershoot, pen);
+    canvas.drawLine(
+      from - u * Cad.witnessOvershoot,
+      to + u * Cad.witnessOvershoot,
+      pen,
+    );
+    final slash = (u + n) * (3.5 / math.sqrt2);
+    final tick = Cad.stroke(ink.dimension, Cad.annotation * 2);
+    for (final end in [from, to]) {
+      canvas.drawLine(end - slash, end + slash, tick);
+    }
+
+    // Read up the page where the line runs up it, as the drawing does.
+    final turned = u.dy.abs() > u.dx.abs() * 2;
+    final text = Cad.label(dimension.label, size: Cad.textSize);
+    final w = turned ? text.height : text.width;
+    final h = turned ? text.width : text.height;
+    final reach = n.dx.abs() * w / 2 + n.dy.abs() * h / 2;
+    Cad.write(
+      canvas,
+      dimension.label,
+      (from + to) / 2 + n * (reach + 3),
+      colour: ink.dimension,
+      paper: ink.sheet,
+      turned: turned,
+    );
+  }
+
+  /// How far out from the edge it measures a dimension line stands, and
+  /// the shortest edge on the screen worth measuring: an edge seen end on
+  /// is a point, and a figure written on it says nothing.
+  static const _dimensionOff = 24.0;
+  static const _shortestDimension = 18.0;
+
   /// A face's edges, as its material shows them: hard and dark on an
   /// extrusion or a metal, barely there on glass, which is seen through.
   void _edges(Canvas canvas, Path path, ProjectedFacet face) {
-    if (style == DisplayStyle.wireframe) {
+    if (mode == ViewMode.wireframe) {
       canvas.drawPath(
         path,
         Paint()
@@ -864,7 +1067,7 @@ class ModelPainter extends CustomPainter {
   ProjectedFacet? faceAt(Offset pixel) {
     for (final face in faces.reversed) {
       if (!_pathOf(face).contains(pixel)) continue;
-      if (style.drawsFaces &&
+      if (mode.drawsFaces &&
           face.hiders.isNotEmpty &&
           _outlinesOf(face.hiders).contains(pixel)) {
         continue;
@@ -909,8 +1112,9 @@ class ModelPainter extends CustomPainter {
       old.selectedId != selectedId ||
       !setEquals(old.highlighted, highlighted) ||
       old.size != size ||
-      old.style != style ||
+      old.mode != mode ||
       old.groundPlane != groundPlane ||
+      !listEquals(old.dimensions, dimensions) ||
       old.floor != floor ||
       old.palette != palette ||
       old.viewSpan != viewSpan ||
@@ -948,4 +1152,39 @@ class ModelPainter extends CustomPainter {
     }
     return true;
   }
+}
+
+/// One overall size written on the model in the technical mode: the edge
+/// it measures, where the camera puts its two ends, and the figure — which
+/// is the design's own, never read back off the picture.
+@immutable
+class ModelDimension {
+  /// The two ends of the measured edge, in view units.
+  final Vec2 from;
+  final Vec2 to;
+
+  /// The figure, as the technical drawing writes it.
+  final String label;
+
+  /// The middle of the model on the screen, in view units: the dimension
+  /// stands out from the edge on the side away from it.
+  final Vec2 awayFrom;
+
+  const ModelDimension({
+    required this.from,
+    required this.to,
+    required this.label,
+    required this.awayFrom,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is ModelDimension &&
+      other.from == from &&
+      other.to == to &&
+      other.label == label &&
+      other.awayFrom == awayFrom;
+
+  @override
+  int get hashCode => Object.hash(from, to, label, awayFrom);
 }

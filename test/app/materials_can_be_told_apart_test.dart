@@ -7,8 +7,8 @@ import 'package:proframe/app/canvas/cad_layers.dart';
 import 'package:proframe/app/canvas/cad_painter.dart';
 import 'package:proframe/app/canvas/view_transform.dart';
 import 'package:proframe/app/theme/app_theme.dart';
-import 'package:proframe/app/viewer/display_style.dart';
 import 'package:proframe/app/viewer/model_painter.dart';
+import 'package:proframe/app/viewer/view_mode.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/infill.dart';
@@ -103,7 +103,7 @@ class Rendered {
 Future<Rendered> render(
   Design design, {
   Palette palette = Palette.light,
-  DisplayStyle style = DisplayStyle.shaded,
+  ViewMode mode = ViewMode.realistic,
 }) async {
   final mesh = MeshBuilder.build(design);
   final faces = _camera.project(mesh);
@@ -112,7 +112,7 @@ Future<Rendered> render(
     faces: faces,
     size: _size,
     viewSpan: span,
-    style: style,
+    mode: mode,
     groundPlane: false,
     palette: palette,
   );

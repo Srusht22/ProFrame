@@ -22,7 +22,7 @@ import '../../domain/solid/mesh.dart';
 import '../../infrastructure/customer_store.dart';
 import '../../infrastructure/design_store.dart';
 import '../canvas/cad_layers.dart';
-import '../viewer/display_style.dart';
+import '../viewer/view_mode.dart';
 import 'tools.dart';
 
 /// Everything on screen at once.
@@ -253,8 +253,10 @@ class WorkspaceState {
   /// never a change to it.
   final CadLayers layers;
 
-  /// How the model is drawn. Also only a way of looking at it.
-  final DisplayStyle displayStyle;
+  /// How the model is shown — technical, shaded, material or realistic.
+  /// Only a way of looking at it: the same geometry in every mode, and
+  /// never written into the design.
+  final ViewMode viewMode;
   final bool groundPlane;
 
   /// Strokes the user has said are lines to build rather than opening marks.
@@ -263,7 +265,7 @@ class WorkspaceState {
 
   /// Who this state is as *work*: new whenever anything but a way of looking
   /// at the model changes, and the same object while only the camera, its
-  /// framing, how far the leaves are swung, the display style or the floor
+  /// framing, how far the leaves are swung, the view mode or the floor
   /// do.
   ///
   /// Turning the model is a stream of states, one a pointer move, and
@@ -286,7 +288,7 @@ class WorkspaceState {
     this.openFraction = 0,
     this.penColour = 0xFF013E37,
     this.layers = const CadLayers(),
-    this.displayStyle = DisplayStyle.shadedWithEdges,
+    this.viewMode = ViewMode.realistic,
     this.groundPlane = true,
     this.notSymbols = const {},
     this.settledQuestions = const {},
@@ -310,7 +312,7 @@ class WorkspaceState {
     double? openFraction,
     int? penColour,
     CadLayers? layers,
-    DisplayStyle? displayStyle,
+    ViewMode? viewMode,
     bool? groundPlane,
     Set<String>? notSymbols,
     Set<String>? settledQuestions,
@@ -344,7 +346,7 @@ class WorkspaceState {
     openFraction: openFraction ?? this.openFraction,
     penColour: penColour ?? this.penColour,
     layers: layers ?? this.layers,
-    displayStyle: displayStyle ?? this.displayStyle,
+    viewMode: viewMode ?? this.viewMode,
     groundPlane: groundPlane ?? this.groundPlane,
     notSymbols: notSymbols ?? this.notSymbols,
     settledQuestions: settledQuestions ?? this.settledQuestions,
@@ -359,7 +361,7 @@ class _Work {}
 extension WatchingTheWork on WidgetRef {
   /// The workspace's state, rebuilding this widget whenever the work
   /// changes and never for a way of looking at the model — the camera, its
-  /// framing, the leaves' swing, the display style or the floor.
+  /// framing, the leaves' swing, the view mode or the floor.
   ///
   /// For every widget that reads none of those, which is every widget but
   /// the model view: watching the whole state, they were built again for
@@ -539,8 +541,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     ),
   );
 
-  void setDisplayStyle(DisplayStyle style) =>
-      state = state.copyWith(displayStyle: style);
+  void setViewMode(ViewMode mode) => state = state.copyWith(viewMode: mode);
 
   void setGroundPlane(bool on) => state = state.copyWith(groundPlane: on);
 

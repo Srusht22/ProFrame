@@ -13,9 +13,9 @@ import 'package:proframe/app/screens/tool_bar.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/app/state/tools.dart';
 import 'package:proframe/app/state/workspace.dart';
-import 'package:proframe/app/viewer/display_style.dart';
 import 'package:proframe/app/viewer/model_painter.dart';
 import 'package:proframe/app/viewer/model_view.dart';
+import 'package:proframe/app/viewer/view_mode.dart';
 import 'package:proframe/domain/editing/design_edits.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
@@ -327,8 +327,8 @@ void main() {
         'reset': controller.zoomExtents,
         'framed': () => controller.frame(Camera.isometric, what: 'here'),
         'swing': () => controller.setOpenFraction(0.4),
-        'display style': () =>
-            controller.setDisplayStyle(DisplayStyle.wireframe),
+        'view mode': () =>
+            controller.setViewMode(ViewMode.wireframe),
         'floor': () => controller.setGroundPlane(false),
       };
       for (final MapEntry(key: what, value: look) in looks.entries) {
@@ -412,7 +412,7 @@ void main() {
         controller.setOpenFraction(f);
         await tester.pump();
       }
-      controller.setDisplayStyle(DisplayStyle.shaded);
+      controller.setViewMode(ViewMode.technical);
       await tester.pump();
 
       expect(

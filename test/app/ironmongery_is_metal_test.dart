@@ -7,8 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/canvas/cad_layers.dart';
 import 'package:proframe/app/canvas/cad_painter.dart';
 import 'package:proframe/app/canvas/view_transform.dart';
-import 'package:proframe/app/viewer/display_style.dart';
 import 'package:proframe/app/viewer/model_painter.dart';
+import 'package:proframe/app/viewer/view_mode.dart';
 import 'package:proframe/domain/editing/design_edits.dart';
 import 'package:proframe/domain/geometry/polygon.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
@@ -97,7 +97,7 @@ Future<_Shot> _render(Design d, Camera camera, {String? leaving}) async {
     ],
     size: _size,
     viewSpan: span,
-    style: DisplayStyle.shadedWithEdges,
+    mode: ViewMode.realistic,
     groundPlane: false,
   );
   final recorder = ui.PictureRecorder();

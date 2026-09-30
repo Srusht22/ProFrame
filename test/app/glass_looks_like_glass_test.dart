@@ -8,8 +8,8 @@ import 'package:proframe/app/canvas/cad_layers.dart';
 import 'package:proframe/app/canvas/cad_painter.dart';
 import 'package:proframe/app/canvas/view_transform.dart';
 import 'package:proframe/app/theme/app_theme.dart';
-import 'package:proframe/app/viewer/display_style.dart';
 import 'package:proframe/app/viewer/model_painter.dart';
+import 'package:proframe/app/viewer/view_mode.dart';
 import 'package:proframe/domain/dimensions/dimension_chain.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
@@ -124,7 +124,7 @@ Future<Picture> render(
     faces: faces,
     size: _size,
     viewSpan: span,
-    style: DisplayStyle.shaded,
+    mode: ViewMode.realistic,
     groundPlane: false,
     palette: palette,
   ).paint(Canvas(recorder), _size);
