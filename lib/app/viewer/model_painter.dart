@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../domain/geometry/vec2.dart';
@@ -877,20 +878,55 @@ class ModelPainter extends CustomPainter {
   /// a pan.
   double get millimetresPerPixel => _scale <= 0 ? 1 : 1 / _scale;
 
+  /// Whether what is on the screen is still this picture.
+  ///
+  /// Asked of everything painted, face by face. It used to look at the
+  /// number of faces and the first face alone, and a change of colour, of
+  /// glass, or of where a handle is leaves both of those as they were — so
+  /// the model on the screen went on showing the design as it had been. The
+  /// comparison is a pass over the faces, far cheaper than painting them.
   @override
   bool shouldRepaint(ModelPainter old) =>
-      old.faces.length != faces.length ||
       old.selectedId != selectedId ||
-      old.highlighted.length != highlighted.length ||
+      !setEquals(old.highlighted, highlighted) ||
       old.size != size ||
       old.style != style ||
       old.groundPlane != groundPlane ||
       old.floor != floor ||
       old.palette != palette ||
       old.viewSpan != viewSpan ||
-      (faces.isNotEmpty &&
-          old.faces.isNotEmpty &&
-          (old.faces.first.depth != faces.first.depth ||
-              old.faces.first.corners.first.x != faces.first.corners.first.x ||
-              old.faces.first.corners.first.y != faces.first.corners.first.y));
+      !_samePicture(old.faces, faces);
+
+  static bool _samePicture(List<ProjectedFacet> a, List<ProjectedFacet> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      final p = a[i], q = b[i];
+      if (identical(p, q)) continue;
+      final f = p.source, g = q.source;
+      if (p.depth != q.depth ||
+          p.light != q.light ||
+          p.hiders.length != q.hiders.length ||
+          (p.shadow == null) != (q.shadow == null) ||
+          p.corners.length != q.corners.length ||
+          f.elementId != g.elementId ||
+          f.colour != g.colour ||
+          f.surface != g.surface ||
+          f.transparency != g.transparency ||
+          f.gloss != g.gloss ||
+          f.role != g.role ||
+          f.part != g.part ||
+          f.isSide != g.isSide ||
+          f.glassFaces != g.glassFaces) {
+        return false;
+      }
+      for (var k = 0; k < p.corners.length; k++) {
+        if (p.corners[k].x != q.corners[k].x ||
+            p.corners[k].y != q.corners[k].y) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
 }

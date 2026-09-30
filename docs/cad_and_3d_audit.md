@@ -349,3 +349,15 @@ material changing that pane alone. The floor's shadow blocks each member
 square to itself (`Block.axes`), so a leaf standing open shades the floor
 under it and not the whole box its swing spans. Held by
 `test/app/openings_and_sections_in_3d_test.dart`.
+
+## 20. Since the audit — one design in every view (Phase 16)
+
+The three views are now measured against each other on complex designs:
+width, height, each opening, each divider, glass or panel, and every piece
+of ironmongery, the solid by its facets and each drawing by its pixels.
+Three gaps were closed: `ModelPainter.shouldRepaint` compares the picture
+face by face instead of the first face, so a change of material or of
+ironmongery repaints the model; the solid builds a section's bars whether
+or not they divide it; and the drawing's frame is an even-odd ring, since
+the web filled a path difference over every pane. Held by
+`test/app/cad_and_3d_are_one_design_test.dart`.

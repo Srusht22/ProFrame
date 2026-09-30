@@ -4263,6 +4263,61 @@ What looking at them found was the floor.
   no member turned at all. Blocking the members square to the model again
   fails it.
 
+### One design, three views, always in step
+
+The user's words: *CAD and 3D always represent the same design — the visual
+style may differ, but the width, the height, where each opening is and how
+big, the internal dividers, which part is glass and which panel, and where
+each component is must match; a change to the geometry or the material
+updates both; a change of camera or of how it is shown changes no geometry;
+no independent geometry for CAD and 3D — the saved design is the source of
+truth.*
+
+The structure was already one — `DesignGeometry`, `DesignTree`, a design
+that is immutable so every edit is a new object — and this phase measures
+it rather than trusting it. Measuring found three places where the views
+did not say the same thing:
+
+- **The model on the screen kept its old picture.** `ModelPainter.shouldRepaint`
+  compared the number of faces and the first face alone, and a pane given
+  another colour or glass, or a handle moved or recoloured, leaves both as
+  they were — so the 3D view went on showing the design as it had been (the
+  floor, new every build, usually hid it; with the floor off it showed). It
+  now compares the picture face by face — where each is on the screen, how
+  it is lit, what it is made of and in what colour — a pass far cheaper than
+  painting, and compares what is highlighted by its contents.
+- **A line that divides nothing was missing from the solid.** A line inside
+  an opening or a light that stops short of the far side makes no panes; it
+  is still the user's line, and both drawings drew it. `MeshBuilder` built a
+  section's bars only when it had panes, so the solid left it out. The bars
+  are now built first, whether or not they divide anything.
+- **The drawing showed neither glass nor panel in the browser.** Its frame
+  was a path difference, which the web's renderer fills as the whole
+  outline, so the frame's colour lay over every pane — while every test
+  canvas was right. It is one path filled even-odd now, as the technical
+  drawing's rings are, and a scan keeps `Path.combine` out of both drawings.
+
+`test/app/cad_and_3d_are_one_design_test.dart` holds it on four designs —
+three windows under a fixed head, a window and a door between fixed lights,
+the first with a mullion dragged and the width typed, and lines that divide
+nothing in an opening and in a light. Each view is measured on what it puts
+down: the solid by its facets, each drawing by the pixels that change when
+one part is left out of the picture. And they are required to agree, to the
+millimetre in the solid and within a line's width on the drawings: the
+width and height; each opening's leaf and its ironmongery; every divider
+inside an opening or a light; each pane glass or panel in all three — a
+sealed unit or a panel in the solid, the glass tint or paper on the
+technical drawing, its own finish on the drawing; and every handle and
+hinge, a hinge round the back drawn as hidden detail and not at all on the
+drawing of the face you stand at. Then: a divider moved reaches all three,
+each drawing changing only inside its opening; one pane made panel changes
+that pane alone in all three; the painter repaints for a recolour, a glass,
+a handle recoloured and a handle moved, and not for the same design; and
+eight cameras, every display style in both appearances, and the drawings'
+layers and inks leave the design and its solid exactly as they were.
+Taking back either code fix fails it, and so does moving the drawing's
+ironmongery four pixels.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the

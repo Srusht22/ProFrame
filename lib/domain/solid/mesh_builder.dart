@@ -340,17 +340,22 @@ abstract final class MeshBuilder {
       return;
     }
 
+    // The bars drawn inside it, then whatever they enclose — which may in
+    // turn have lines inside it. Each bar stops where the fill of this
+    // section stops, so a bar inside a sash runs between the sash's faces
+    // rather than across them.
+    //
+    // A bar is built whether or not it divides anything: a line drawn
+    // inside a section that stops short of an edge makes no panes, and it
+    // is still a line the user drew, on both drawings — so it is in the
+    // solid too, lying across what fills the section.
+    _addBarsInside(out, design, branch, layout.barsIn(holder), place: place);
     if (branch.isLeaf) {
       _addFixedInfill(out, design, section, frame, layout, holder,
           place: place);
       return;
     }
 
-    // The bars drawn inside it, then whatever they enclose — which may in
-    // turn have lines inside it. Each bar stops where the fill of this
-    // section stops, so a bar inside a sash runs between the sash's faces
-    // rather than across them.
-    _addBarsInside(out, design, branch, layout.barsIn(holder), place: place);
     for (final pane in branch.panes) {
       final child = design.sectionById(pane.sectionId);
       if (child != null) {
@@ -709,6 +714,8 @@ abstract final class MeshBuilder {
     // it — and they swing with it too, because they are part of it.
     final glazed = sashInner.isEmpty ? sashOuter : sashInner;
 
+    // Built whether or not they divide it, as in [_addSection].
+    _addBarsInside(out, design, branch, layout.barsIn(leaf), place: move);
     if (branch.isLeaf) {
       if (section.finish.material.isGlazing) {
         _glazing(out, design, section, glazed, frame, layout, leaf, move);
@@ -729,7 +736,6 @@ abstract final class MeshBuilder {
       return;
     }
 
-    _addBarsInside(out, design, branch, layout.barsIn(leaf), place: move);
     for (final pane in branch.panes) {
       final child = design.sectionById(pane.sectionId);
       if (child != null) {

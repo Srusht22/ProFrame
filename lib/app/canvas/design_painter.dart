@@ -134,9 +134,14 @@ class DesignPainter extends CustomPainter {
     final frame = design.frame;
     if (frame == null) return;
 
-    final outer = view.pathOf(frame.outline);
-    final inner = view.pathOf(frame.innerOutline);
-    final ring = Path.combine(PathOperation.difference, outer, inner);
+    // One path filled even-odd, never a path difference: the web's renderer
+    // filled the whole outline with the difference, laying the frame's
+    // colour over every pane, so the drawing showed no glass and no panel
+    // where the other two views did.
+    final ring = Path()
+      ..fillType = PathFillType.evenOdd
+      ..addPath(view.pathOf(frame.outline), Offset.zero)
+      ..addPath(view.pathOf(frame.innerOutline), Offset.zero);
 
     canvas.drawPath(
       ring,
