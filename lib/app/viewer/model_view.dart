@@ -8,6 +8,7 @@ import '../../domain/dimensions/units.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import '../../domain/solid/camera.dart';
+import '../../domain/solid/mesh.dart';
 import '../../domain/solid/mesh_builder.dart';
 import '../../domain/solid/studio.dart';
 import '../state/everything_shown.dart';
@@ -71,6 +72,39 @@ class _ModelViewState extends ConsumerState<ModelView> {
   /// outside it that frame the model — a named view.
   Size _size = Size.zero;
 
+  // **The solid is built from the design and the leaves' swing, and from
+  // nothing else**, so it is built again when either changes and kept while
+  // neither does. Turning the model, zooming it, picking a part or changing
+  // how it is drawn rebuilt it — and the floor's shadow, worked out by rays
+  // against every member — for every pointer move. A design is never
+  // changed in place, so the same object is the same design.
+  Design? _builtFrom;
+  double? _builtOpen;
+  Mesh? _mesh;
+  Floor? _floor;
+  bool _floorMade = false;
+
+  Mesh _meshOf(Design design, double openFraction) {
+    if (_mesh == null ||
+        !identical(design, _builtFrom) ||
+        openFraction != _builtOpen) {
+      _mesh = MeshBuilder.build(design, openFraction: openFraction);
+      _builtFrom = design;
+      _builtOpen = openFraction;
+      _floorMade = false;
+    }
+    return _mesh!;
+  }
+
+  /// The floor under [mesh], worked out once for it.
+  Floor? _floorUnder(Mesh mesh) {
+    if (!_floorMade) {
+      _floor = Floor.under(mesh);
+      _floorMade = true;
+    }
+    return _floor;
+  }
+
   /// What the camera is framed for: this design, at its own size, in a view
   /// this size. When any of it changes the model is fitted to the view
   /// again; a view the user has turned, zoomed or panned is theirs until
@@ -93,10 +127,7 @@ class _ModelViewState extends ConsumerState<ModelView> {
 
     if (state.design.frame == null) return const _NothingYet();
 
-    final mesh = MeshBuilder.build(
-      state.design,
-      openFraction: state.openFraction,
-    );
+    final mesh = _meshOf(state.design, state.openFraction);
 
     /// [camera] framing the model in the view as it was last laid out,
     /// between the controls over its top and its foot.
@@ -165,7 +196,7 @@ class _ModelViewState extends ConsumerState<ModelView> {
               final painter = ModelPainter(
                 faces: faces,
                 floor: state.groundPlane
-                    ? Floor.under(mesh)?.seenBy(camera, mesh)
+                    ? _floorUnder(mesh)?.seenBy(camera, mesh)
                     : null,
                 size: size,
                 viewSpan: Camera.viewSpan(mesh),

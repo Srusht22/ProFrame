@@ -75,7 +75,7 @@ class ToolBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(workspaceProvider);
+    final state = ref.watchWork();
     final controller = ref.read(workspaceProvider.notifier);
     final drawing = state.view == WorkspaceView.draw;
     final active = drawing ? state.tool : Tool.select;

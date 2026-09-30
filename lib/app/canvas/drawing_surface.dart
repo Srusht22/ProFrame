@@ -96,7 +96,7 @@ class _DrawingSurfaceState extends ConsumerState<DrawingSurface> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(workspaceProvider);
+    final state = ref.watchWork();
     final controller = ref.read(workspaceProvider.notifier);
 
     return LayoutBuilder(

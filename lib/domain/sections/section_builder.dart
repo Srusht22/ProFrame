@@ -472,9 +472,11 @@ abstract final class SectionBuilder {
   /// When the count changed, a line was drawn or deleted, and the match is
   /// made on how much ground each new face shares with each old section.
   ///
-  /// A face that is a continuation of nothing is filled with [fresh] — what
-  /// the user said the whole design is built of, when they said — or with
-  /// the plain clear glass every part has always started as.
+  /// A face cut from a section another face has taken — the other half of a
+  /// pane a line was drawn across — keeps that section's finish under an id
+  /// of its own. A face that is a continuation of nothing is filled with
+  /// [fresh] — what the user said the whole design is built of, when they
+  /// said — or with the plain clear glass every part has always started as.
   static List<SectionElement> _carryIdentityForward(
     List<SectionElement> previous,
     List<Polygon> faces,
@@ -509,13 +511,27 @@ abstract final class SectionBuilder {
       claimed.add(candidate.id);
     }
 
+    // A face that shares its ground with a section already taken by another
+    // face is a piece of that section: a line has been drawn across it. The
+    // section's identity goes to one piece only, but what it is made of is
+    // what that ground is made of, so every piece of it keeps its glass or
+    // its panel and its colour. Filling the second piece afresh put plain
+    // clear glass in half of a pane the user had made frosted, the moment
+    // they divided it.
+    Finish? cutFrom(int index) {
+      for (final (_, i, candidate) in pairs) {
+        if (i == index) return candidate.finish;
+      }
+      return null;
+    }
+
     return [
       for (var i = 0; i < faces.length; i++)
         matched[i]?.copyWith(outline: faces[i]) ??
             SectionElement(
               id: nextId(),
               outline: faces[i],
-              finish: fresh ?? Finish.glazingDefault,
+              finish: cutFrom(i) ?? fresh ?? Finish.glazingDefault,
             ),
     ];
   }

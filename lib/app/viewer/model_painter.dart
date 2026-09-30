@@ -98,6 +98,7 @@ class ModelPainter extends CustomPainter {
     // down just before the first of what casts it is painted: after what it
     // falls on, and under what casts it.
     final shadows = <String, List<ProjectedFacet>>{};
+    final known = <ProjectedFacet, Rect>{};
     if (style.usesFinishes && style.drawsFaces) {
       for (final face in faces) {
         if (face.shadow != null) {
@@ -110,7 +111,7 @@ class ModelPainter extends CustomPainter {
       final path = _pathOf(face);
       if (face.shadow != null) {
         if (shadows.remove(_castOnto(face)) case final cast?) {
-          _shadow(canvas, cast, faces.sublist(0, i));
+          _shadow(canvas, cast, faces.sublist(0, i), known);
         }
       }
       // A sheet of glass is kept off what lies in front of it, whatever
@@ -619,7 +620,18 @@ class ModelPainter extends CustomPainter {
     final List<Shaded> shades;
     final List<int> triangles;
     if (n == 4) {
-      const steps = _smoothSteps;
+      // As finely as the facet is large on the screen: a cell never finer
+      // than [_smoothCell] pixels, and never coarser than [_smoothSteps]
+      // across. A knuckle's facet a few pixels wide is lit at its corners;
+      // a lever filling the view gets the whole grid, where its highlight is
+      // seen. The grid was the whole grid for every facet, and lighting a
+      // few thousand points nobody could tell apart was most of what a
+      // frame of the model cost.
+      var span = 0.0;
+      for (var k = 0; k < 4; k++) {
+        span = math.max(span, (at[k] - at[(k + 1) % 4]).distance);
+      }
+      final steps = (span / _smoothCell).ceil().clamp(1, _smoothSteps);
       points = [];
       shades = [];
       for (var j = 0; j <= steps; j++) {
@@ -683,6 +695,10 @@ class ModelPainter extends CustomPainter {
   /// highlight a few degrees wide lands between its corners and is seen.
   static const _smoothSteps = 6;
 
+  /// The smallest cell, in pixels, a curved facet is shaded across in: a
+  /// highlight narrower than this is not seen on a screen.
+  static const _smoothCell = 4.0;
+
   /// A piece of ironmongery's shadow on the face of the leaf it is fixed to.
   ///
   /// Where the key light is stopped by the piece, the leaf behind it gets
@@ -695,6 +711,7 @@ class ModelPainter extends CustomPainter {
     Canvas canvas,
     List<ProjectedFacet> cast,
     List<ProjectedFacet> beneath,
+    Map<ProjectedFacet, Rect> known,
   ) {
     // What the shadow takes away is the key light's share of what that face
     // is lit by — the same light `Shading.of` lights it with — and no more.
@@ -749,56 +766,58 @@ class ModelPainter extends CustomPainter {
     // **A shadow falls only on what can take one.** Light passes through
     // clear glass, so a pane takes no shadow, and what is seen through it
     // is not in the shadow either. So the shadow is kept to the solid faces
-    // already painted where it falls, less any glass painted over them.
-    Path? takes;
+    // already painted where it falls, less any glass painted over them —
+    // as a mask, in the order they were painted: each solid face laid into
+    // it, each pane of glass cleared out of it. It used to be one clip made
+    // by joining and cutting paths (`Path.combine`), which cost more than
+    // painting the rest of the model, and which the web's renderer does not
+    // take the way the others do.
+    var any = false;
+    canvas.saveLayer(bounds, Paint()..blendMode = BlendMode.multiply);
+    final solid = Paint()..color = Colors.white;
+    final clear = Paint()..blendMode = BlendMode.clear;
     for (final face in beneath) {
-      if (!_overlaps(face, bounds)) continue;
-      final path = _pathOf(face);
+      if (!_boundsOf(face, known).overlaps(bounds)) continue;
       if (face.source.surface.isTransparent && !face.source.isSide) {
-        if (takes != null) {
-          takes = Path.combine(PathOperation.difference, takes, path);
-        }
+        if (any) canvas.drawPath(_pathOf(face), clear);
       } else {
-        takes = takes == null
-            ? path
-            : Path.combine(PathOperation.union, takes, path);
+        canvas.drawPath(_pathOf(face), solid);
+        any = true;
       }
     }
-    if (takes == null) return;
-
-    canvas.save();
-    canvas.clipPath(takes);
-    canvas.saveLayer(
-      bounds,
-      Paint()
-        ..blendMode = BlendMode.multiply
-        ..imageFilter = ui.ImageFilter.blur(sigmaX: soft, sigmaY: soft),
-    );
-    canvas.drawRect(bounds, Paint()..color = Colors.white);
-    final dark = Paint()..color = Color.fromARGB(255, g, g, g);
-    for (final path in paths) {
-      canvas.drawPath(path, dark);
+    if (any) {
+      canvas.saveLayer(
+        bounds,
+        Paint()
+          ..blendMode = BlendMode.srcIn
+          ..imageFilter = ui.ImageFilter.blur(sigmaX: soft, sigmaY: soft),
+      );
+      canvas.drawRect(bounds, Paint()..color = Colors.white);
+      final dark = Paint()..color = Color.fromARGB(255, g, g, g);
+      for (final path in paths) {
+        canvas.drawPath(path, dark);
+      }
+      canvas.restore();
     }
-    canvas.restore();
     canvas.restore();
   }
 
-  /// Whether [face] lands anywhere within [bounds] on the screen.
-  bool _overlaps(ProjectedFacet face, Rect bounds) {
-    var left = double.infinity, top = double.infinity;
-    var right = -double.infinity, bottom = -double.infinity;
-    for (final c in face.corners) {
-      final at = _place(c);
-      left = math.min(left, at.dx);
-      top = math.min(top, at.dy);
-      right = math.max(right, at.dx);
-      bottom = math.max(bottom, at.dy);
-    }
-    return left < bounds.right &&
-        bounds.left < right &&
-        top < bounds.bottom &&
-        bounds.top < bottom;
-  }
+  /// Where [face] lands on the screen, kept in [known] — every shadow asks
+  /// it of every face painted before it, so each is worked out once a
+  /// picture.
+  Rect _boundsOf(ProjectedFacet face, Map<ProjectedFacet, Rect> known) =>
+      known[face] ??= () {
+        var left = double.infinity, top = double.infinity;
+        var right = -double.infinity, bottom = -double.infinity;
+        for (final c in face.corners) {
+          final at = _place(c);
+          left = math.min(left, at.dx);
+          top = math.min(top, at.dy);
+          right = math.max(right, at.dx);
+          bottom = math.max(bottom, at.dy);
+        }
+        return Rect.fromLTRB(left, top, right, bottom);
+      }();
 
   /// How soft a shadow's edge is where it touches what casts it, in
   /// millimetres of the model.

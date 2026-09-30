@@ -92,7 +92,7 @@ class _CadViewState extends ConsumerState<CadView> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(workspaceProvider);
+    final state = ref.watchWork();
     final controller = ref.read(workspaceProvider.notifier);
     final layers = state.layers;
     final padding = layers.dimensions

@@ -361,3 +361,16 @@ ironmongery repaints the model; the solid builds a section's bars whether
 or not they divide it; and the drawing's frame is an even-odd ring, since
 the web filled a path difference over every pane. Held by
 `test/app/cad_and_3d_are_one_design_test.dart`.
+
+## 21. Since the audit — live updates (Phase 17)
+
+Every view is built from the one design, so every edit reaches all three at
+once. Around that: a pane split by a line keeps its finish in both halves
+(`SectionBuilder._carryIdentityForward`); a way of looking at the model is
+not work (`WorkspaceState.work`, `WidgetRef.watchWork`), so turning the
+model or playing its swing rebuilds only the model view; `ModelView` keeps
+the solid and its floor while the design and the swing are the same; and a
+frame of the model records in about a third of the time — curved facets
+shaded as finely as they are large on the screen, and the ironmongery's
+shadows masked rather than clipped by path booleans. Held by
+`test/app/live_updates_test.dart`.

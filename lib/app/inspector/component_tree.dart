@@ -25,7 +25,7 @@ class ComponentTree extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(workspaceProvider);
+    final state = ref.watchWork();
     final controller = ref.read(workspaceProvider.notifier);
     final design = state.design;
 

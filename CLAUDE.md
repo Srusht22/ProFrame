@@ -4318,6 +4318,72 @@ layers and inks leave the design and its solid exactly as they were.
 Taking back either code fix fails it, and so does moving the drawing's
 ironmongery four pixels.
 
+### Every edit reaches every view at once, and looking does no work
+
+The user's words: *when the design changes — width, height, a divider
+moved, an opening changed, a panel colour, a glass type, a component added
+or removed — CAD and 3D update reliably, both, never one refreshed by hand;
+a material change moves no geometry and a geometry change does not reset
+materials; and the whole application is not rebuilt on every tiny
+interaction, so the preview stays responsive.*
+
+There is one design, in `WorkspaceState`, and every view is built from it,
+so an edit is shown by every view with nothing to refresh. What this phase
+changed is what happens *around* that:
+
+- **A geometry edit split a pane's material.** A line drawn across a pane
+  makes two panes of it, and `SectionBuilder._carryIdentityForward` gives
+  the old pane's identity to one of them only — so the other was a
+  continuation of nothing and was filled with plain clear glass: half of a
+  pane the user had made frosted went clear the moment they divided it. A
+  face cut from a section another face has taken now keeps that section's
+  finish under an id of its own. Identity goes to one piece; what the
+  ground is made of goes to every piece.
+- **Looking is not work.** `WorkspaceState.work` is a token that is new
+  whenever anything but a way of looking changes, and the same while only
+  the camera, its framing, the leaves' swing, the display style or the
+  floor do. Every widget but the model view — the workspace, its bars, the
+  panel, the parts, the drawing and the technical drawing — watches it
+  through `WidgetRef.watchWork`, so turning the model (a state a pointer
+  move) and playing the swing (a state a frame) rebuild the model view and
+  nothing else. `copyWith` treats anything it is given except those five as
+  work, so a field added later is work unless it is added to them.
+- **The solid is built from the design and the swing, and nothing else.**
+  `ModelView` keeps the mesh while the design object and the swing are the
+  same, and the floor's shadow for as long as it keeps the mesh; the camera
+  only projects what is there. They were both built again for every
+  pointer move.
+- **A frame of the model costs a third of what it did.** Measured on three
+  divided windows with their ironmongery, recording a frame fell from about
+  210 ms to 63. A curved facet is shaded on a grid as fine as it is large
+  on the screen (`_smoothCell`, four pixels, up to the old six by six) — a
+  knuckle's facet a few pixels wide is lit at its corners, a lever filling
+  the view keeps the whole grid. And a piece of ironmongery's shadow is
+  kept to what can take it by a mask — the solid faces laid in, the glass
+  over them cleared out, in the order they were painted — where it was one
+  clip made by joining and cutting paths, which cost more than painting the
+  rest of the model and which the web's renderer does not take the way the
+  others do. The picture is the same; every test of how the model looks
+  passed unchanged.
+
+`test/app/live_updates_test.dart` holds it: on the real app, with each of
+Draw, CAD and 3D on the screen in turn, the width, the height, a divider
+moved, an opening turned outward, a panel recoloured, a glass changed, a
+hinge added and taken away, and a line added inside a pane and deleted —
+each shown by the painter on the screen the moment it is made, from the
+design as it now is. Through the workspace, eight geometry edits — width,
+height, a divider moved, a mullion dragged, an opening turned, three
+hinges, the depth, the sheet read again — each change the geometry and
+leave every part's finish as it was; a line across a frosted pane leaves
+two frosted panes; and four material edits leave the geometry to the byte.
+Ten ways of looking keep the work and the design, and an edit, a
+selection, a tool, a view and an undo each make new work; and on the real
+app a drag of twenty moves, a swing and a display style rebuild the model
+view and not the workspace, its panel, its parts or its tools, with the
+solid built once for the drag. Filling a split pane afresh again, watching
+the whole state from the panel, or building the solid for every move each
+fail it.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the

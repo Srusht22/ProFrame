@@ -150,7 +150,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
       workspaceProvider.select((s) => s.sizesToAsk),
       (_, keys) => _sizesOutstanding(keys),
     );
-    final state = ref.watch(workspaceProvider);
+    final state = ref.watchWork();
     final controller = ref.read(workspaceProvider.notifier);
     // Decided by the room the screen is actually given, not by the device:
     // a phone-sized browser window on a laptop is laid out as a phone.

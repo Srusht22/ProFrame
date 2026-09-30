@@ -261,7 +261,19 @@ class WorkspaceState {
   /// Their answer is kept, so the same mark is never asked about twice.
   final Set<String> notSymbols;
 
-  const WorkspaceState({
+  /// Who this state is as *work*: new whenever anything but a way of looking
+  /// at the model changes, and the same object while only the camera, its
+  /// framing, how far the leaves are swung, the display style or the floor
+  /// do.
+  ///
+  /// Turning the model is a stream of states, one a pointer move, and
+  /// playing the swing is one a frame. Everything but the model view reads
+  /// none of those, so it watches this (`WidgetRef.watchWork`) and is not
+  /// rebuilt for them — the bars, the panels, the parts and the drawings
+  /// stay as they are while the model turns.
+  final Object work;
+
+  WorkspaceState({
     required this.design,
     this.tool = Tool.pen,
     this.view = WorkspaceView.draw,
@@ -278,7 +290,8 @@ class WorkspaceState {
     this.groundPlane = true,
     this.notSymbols = const {},
     this.settledQuestions = const {},
-  });
+    Object? work,
+  }) : work = work ?? _Work();
 
   DesignElement? get selected =>
       selectedId == null ? null : design.elementById(selectedId!);
@@ -302,6 +315,23 @@ class WorkspaceState {
     Set<String>? notSymbols,
     Set<String>? settledQuestions,
   }) => WorkspaceState(
+    // Only the ways of looking keep the work as it was. Anything else given
+    // here — and anything added here later — is a change to the work.
+    work: clearSelection ||
+            (design ??
+                    tool ??
+                    view ??
+                    selectedId ??
+                    questions ??
+                    needsReading ??
+                    showSketch ??
+                    penColour ??
+                    layers ??
+                    notSymbols ??
+                    settledQuestions) !=
+                null
+        ? _Work()
+        : work,
     design: design ?? this.design,
     tool: tool ?? this.tool,
     view: view ?? this.view,
@@ -319,6 +349,37 @@ class WorkspaceState {
     notSymbols: notSymbols ?? this.notSymbols,
     settledQuestions: settledQuestions ?? this.settledQuestions,
   );
+}
+
+/// One piece of work: compared by identity, so a new one is never equal to
+/// the last.
+class _Work {}
+
+/// The workspace's state as a widget that shows the work sees it.
+extension WatchingTheWork on WidgetRef {
+  /// The workspace's state, rebuilding this widget whenever the work
+  /// changes and never for a way of looking at the model — the camera, its
+  /// framing, the leaves' swing, the display style or the floor.
+  ///
+  /// For every widget that reads none of those, which is every widget but
+  /// the model view: watching the whole state, they were built again for
+  /// every pointer move while the model was turned and every frame while a
+  /// swing played.
+  WorkspaceState watchWork() =>
+      watch(workspaceProvider.select((s) => _WorkOf(s))).state;
+}
+
+/// The state, equal to another exactly when it is the same work.
+class _WorkOf {
+  final WorkspaceState state;
+  const _WorkOf(this.state);
+
+  @override
+  bool operator ==(Object other) =>
+      other is _WorkOf && identical(other.state.work, state.work);
+
+  @override
+  int get hashCode => identityHashCode(state.work);
 }
 
 /// The workspace: the design, what is being done to it, and the way back.
