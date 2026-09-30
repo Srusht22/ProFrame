@@ -143,15 +143,16 @@ class Environment {
   static const keyLight = Vec3(-0.45, -0.7, 1);
 
   /// A bright day: the light the model is shown in by default. A clear
-  /// sky, bluer overhead than at the hazy horizon, over paving — so what a
-  /// surface reflects depends on which way it faces and from where it is
-  /// seen, as it does outdoors, and glass shows the sky moving across it.
+  /// sky, bluer overhead than at the hazy horizon, over the studio's floor
+  /// — a neutral grey, since what the model stands on is the studio's and
+  /// not a place — so what a surface reflects depends on which way it faces
+  /// and from where it is seen, and glass shows the sky moving across it.
   static final daylight = Environment(
     light: keyLight.normalised,
     fill: const Vec3(0.55, 0.3, 0.8).normalised,
     sky: Rgb.of(0xFF94B4CF),
     horizon: Rgb.of(0xFFF1F4F4),
-    ground: Rgb.of(0xFF77746D),
+    ground: Rgb.of(0xFF747474),
   );
 
   /// What is seen looking along [direction]: sky above the horizon, ground
@@ -211,9 +212,12 @@ class Environment {
 
   /// How much of a strip light is seen looking along [d] — 1 inside one, 0
   /// clear of both — [up] being how far above the horizon it points. The
-  /// strips stand from a little below eye level to well above it.
+  /// strips are tall soft boxes standing on the studio floor either side of
+  /// the camera, so they reach from well below eye level to well above it:
+  /// a pane seen from a little above, which reflects a little below the
+  /// horizon, still carries one.
   double stripAt(Vec3 d, double up, {double blur = 0}) {
-    if (up < -0.25 || up > 0.85) return 0;
+    if (up < -0.6 || up > 0.85) return 0;
     final round = (math.atan2(d.x, d.z) * 180 / math.pi).abs();
     final edge = stripEdge + blur;
     var seen = 0.0;

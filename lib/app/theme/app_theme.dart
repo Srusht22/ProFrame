@@ -287,14 +287,6 @@ class Palette extends ThemeExtension<Palette> {
   /// The ink a new stroke is drawn in when nothing else has been chosen.
   final Color drawnInk;
 
-  /// The 3D view's backdrop, top to bottom, and the line the model stands on.
-  final Color skyTop;
-  final Color skyBottom;
-  final Color groundLine;
-
-  /// The edges of a solid.
-  final Color modelEdge;
-
   /// The technical drawing, and the sheet the user draws on.
   final CadColours cad;
 
@@ -316,10 +308,6 @@ class Palette extends ThemeExtension<Palette> {
     required this.selection,
     required this.shadow,
     required this.drawnInk,
-    required this.skyTop,
-    required this.skyBottom,
-    required this.groundLine,
-    required this.modelEdge,
     required this.cad,
   });
 
@@ -341,10 +329,6 @@ class Palette extends ThemeExtension<Palette> {
     selection: AppTheme.selection,
     shadow: AppTheme.ink,
     drawnInk: AppTheme.drawnInk,
-    skyTop: Color(0xFFF8FAF9),
-    skyBottom: Color(0xFFE2E8E6),
-    groundLine: AppTheme.ink,
-    modelEdge: AppTheme.ink,
     cad: Cad.paper,
   );
 
@@ -369,10 +353,6 @@ class Palette extends ThemeExtension<Palette> {
     selection: Color(0xFFE8B84A),
     shadow: Colors.black,
     drawnInk: Color(0xFF7FD3C2),
-    skyTop: Color(0xFF1E2826),
-    skyBottom: Color(0xFF0F1614),
-    groundLine: Color(0xFFE4EBE8),
-    modelEdge: Color(0xFF050807),
     cad: Cad.night,
   );
 

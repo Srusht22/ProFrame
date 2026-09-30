@@ -9,6 +9,7 @@ import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import '../../domain/solid/camera.dart';
 import '../../domain/solid/mesh_builder.dart';
+import '../../domain/solid/studio.dart';
 import '../state/everything_shown.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -60,6 +61,10 @@ enum _Drag { orbit, pan }
 class _ModelViewState extends ConsumerState<ModelView> {
   Offset? _from;
   _Drag _mode = _Drag.orbit;
+
+  /// Whether the middle mouse button is down: it pans, and the drag it
+  /// makes is not also an orbit.
+  bool _middle = false;
   double _mmPerPixel = 1;
 
   /// The size of the view the model was last laid out in, for the controls
@@ -159,6 +164,9 @@ class _ModelViewState extends ConsumerState<ModelView> {
               final faces = camera.project(mesh);
               final painter = ModelPainter(
                 faces: faces,
+                floor: state.groundPlane
+                    ? Floor.under(mesh)?.seenBy(camera, mesh)
+                    : null,
                 size: size,
                 viewSpan: Camera.viewSpan(mesh),
                 style: state.displayStyle,
@@ -187,8 +195,13 @@ class _ModelViewState extends ConsumerState<ModelView> {
                   }
                 },
                 // The middle button pans, as it does in every modelling
-                // program — it never reaches the gestures below, which
-                // answer the primary button and fingers.
+                // program — and only pans: the gestures below hear the same
+                // drag, and are told to leave it alone.
+                onPointerDown: (event) => _middle =
+                    event.kind == PointerDeviceKind.mouse &&
+                    event.buttons & kMiddleMouseButton != 0,
+                onPointerUp: (_) => _middle = false,
+                onPointerCancel: (_) => _middle = false,
                 onPointerMove: (event) {
                   if (event.kind == PointerDeviceKind.mouse &&
                       event.buttons & kMiddleMouseButton != 0) {
@@ -212,6 +225,7 @@ class _ModelViewState extends ConsumerState<ModelView> {
                         : _Drag.orbit;
                   },
                   onScaleUpdate: (details) {
+                    if (_middle) return;
                     final from = _from ?? details.localFocalPoint;
                     final delta = details.localFocalPoint - from;
                     _from = details.localFocalPoint;
@@ -229,7 +243,9 @@ class _ModelViewState extends ConsumerState<ModelView> {
                         // Well inside a right angle: past about fifty
                         // degrees a window is being looked at edge on, which
                         // tells the user nothing.
-                        controller.orbit(delta.dx * 0.28, -delta.dy * 0.18);
+                        // Down the screen rises over the model, as turning a thing
+                        // in the hand tips its top towards you.
+                        controller.orbit(delta.dx * 0.28, delta.dy * 0.18);
                       case _Drag.pan:
                         controller.panCamera(
                           delta.dx * _mmPerPixel,

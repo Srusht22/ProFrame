@@ -7,6 +7,7 @@ import '../../domain/geometry/vec2.dart';
 import '../../domain/solid/camera.dart';
 import '../../domain/solid/mesh.dart';
 import '../../domain/solid/shading.dart';
+import '../../domain/solid/studio.dart';
 import '../theme/app_theme.dart';
 import 'display_style.dart';
 
@@ -34,7 +35,14 @@ class ModelPainter extends CustomPainter {
   final DisplayStyle style;
   final bool groundPlane;
 
-  /// The colours of the appearance in effect.
+  /// The floor the model stands on, as the eye sees it — its grid and its
+  /// shadow. Null where there is none to show: seen from beneath, or not
+  /// asked for.
+  final ProjectedFloor? floor;
+
+  /// The colours of the appearance in effect — for what the application
+  /// draws over the model, the outline of what is picked. The model itself
+  /// is shown in the [studio], never in these.
   final Palette palette;
 
   /// View units across the model. Fixed by the model, not by the zoom and
@@ -47,6 +55,7 @@ class ModelPainter extends CustomPainter {
     required this.viewSpan,
     required this.style,
     this.groundPlane = true,
+    this.floor,
     this.selectedId,
     this.highlighted = const {},
     this.palette = Palette.light,
@@ -78,9 +87,9 @@ class ModelPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    _sky(canvas, size);
+    _backdrop(canvas, size);
     if (faces.isEmpty) return;
-    if (groundPlane) _ground(canvas, size);
+    if (groundPlane && floor != null) _floor(canvas, floor!);
 
     final lit = {...highlighted, ?selectedId};
     // Each piece of ironmongery's shadow, gathered by what it falls on —
@@ -103,11 +112,26 @@ class ModelPainter extends CustomPainter {
           _shadow(canvas, cast, faces.sublist(0, i));
         }
       }
+      // A sheet of glass is kept off what lies in front of it, whatever
+      // order the sort gave the two (see `ProjectedFacet.hiders`).
+      final keptOff = style.drawsFaces && face.hiders.isNotEmpty;
+      if (keptOff) {
+        canvas
+          ..save()
+          ..clipPath(
+            Path.combine(
+              PathOperation.difference,
+              Path()..addRect(Offset.zero & size),
+              _outlinesOf(face.hiders),
+            ),
+          );
+      }
       if (style.drawsFaces) _face(canvas, path, face);
       if (style.drawsEdges && !_isSmooth(face)) _edges(canvas, path, face);
       if (style == DisplayStyle.wireframe && _isSmooth(face)) {
         _edges(canvas, path, face);
       }
+      if (keptOff) canvas.restore();
       if (lit.contains(face.elementId)) {
         canvas.drawPath(
           path,
@@ -120,53 +144,100 @@ class ModelPainter extends CustomPainter {
     }
   }
 
-  void _sky(Canvas canvas, Size size) {
+  /// The studio the model is shown in: light or dark as the application
+  /// is, and neutral either way.
+  Studio get studio => Studio.of(dark: palette.isDark);
+
+  /// A seamless sweep, lighter above, with no horizon drawn on it: nothing
+  /// behind the model to look at but the model.
+  void _backdrop(Canvas canvas, Size size) {
     canvas.drawRect(
       Offset.zero & size,
       Paint()
         ..shader = ui.Gradient.linear(Offset.zero, Offset(0, size.height), [
-          palette.skyTop,
-          palette.skyBottom,
+          Color(studio.backdropTop),
+          Color(studio.backdropBottom),
         ]),
     );
   }
 
-  /// The floor the thing is standing on, and its shadow.
+  /// The floor the model stands on: its shadow, then its grid, all before
+  /// the model, so neither can lie over any part of the design.
   ///
-  /// A model floating in nothing has no size. A ground line gives it one.
-  void _ground(Canvas canvas, Size size) {
-    var lowest = -double.infinity;
-    var left = double.infinity, right = -double.infinity;
-    for (final face in faces) {
-      for (final c in face.corners) {
-        lowest = math.max(lowest, c.y);
-        left = math.min(left, c.x);
-        right = math.max(right, c.x);
+  /// The shadow is laid down point by point across the floor, as dark as
+  /// `Floor` says the light it takes away is, and blended between them. The
+  /// grid fades as the floor does, and as the floor turns edge on — where
+  /// its lines would crowd into one — and its ten-centimetre lines only
+  /// show where they are far enough apart to be told from each other.
+  void _floor(Canvas canvas, ProjectedFloor floor) {
+    final seen = _smoothstep(0.03, 0.25, floor.facing);
+    final minorApart = _smoothstep(5, 12, floor.stepSeen * _scale);
+    final ink = Color(studio.lines);
+    for (final major in [false, true]) {
+      final strength =
+          seen * (major ? studio.majorLines : studio.minorLines * minorApart);
+      if (strength <= 0.002) continue;
+      // Gathered by how strongly each piece shows, a few steps of it, and
+      // each step drawn at once.
+      const steps = 12;
+      final paths = List.generate(steps + 1, (_) => Path());
+      for (final line in floor.lines) {
+        if (line.major != major) continue;
+        final from = _place(line.from), to = _place(line.to);
+        paths[(line.weight * steps).round()]
+          ..moveTo(from.dx, from.dy)
+          ..lineTo(to.dx, to.dy);
+      }
+      for (var k = 1; k <= steps; k++) {
+        canvas.drawPath(
+          paths[k],
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = major ? 1.0 : 0.8
+            ..color = ink.withValues(alpha: strength * k / steps),
+        );
       }
     }
-    if (!lowest.isFinite) return;
 
-    final base = _place(Vec2((left + right) / 2, lowest));
-    final width = (right - left) * _scale;
-
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: base + Offset(width * 0.04, 8),
-        width: width * 0.98,
-        height: math.max(10, width * 0.1),
+    final across = floor.columns;
+    final rows = floor.rows;
+    if (across < 2 || rows < 2) return;
+    final points = <Offset>[];
+    final colours = <Color>[];
+    final index = <int, int>{};
+    for (var k = 0; k < floor.points.length; k++) {
+      final at = floor.points[k];
+      if (at == null) continue;
+      index[k] = points.length;
+      points.add(_place(at));
+      colours.add(Color.fromARGB((floor.darkness[k] * 255).round(), 0, 0, 0));
+    }
+    final triangles = <int>[];
+    for (var j = 0; j + 1 < rows; j++) {
+      for (var i = 0; i + 1 < across; i++) {
+        final a = index[j * across + i], b = index[j * across + i + 1];
+        final c = index[(j + 1) * across + i];
+        final d = index[(j + 1) * across + i + 1];
+        if (a == null || b == null || c == null || d == null) continue;
+        triangles.addAll([a, b, d, a, d, c]);
+      }
+    }
+    if (triangles.isEmpty) return;
+    canvas.drawVertices(
+      ui.Vertices(
+        ui.VertexMode.triangles,
+        points,
+        colors: colours,
+        indices: triangles,
       ),
-      Paint()
-        ..color = Colors.black.withValues(alpha: palette.isDark ? 0.35 : 0.13)
-        ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 16),
+      BlendMode.dst,
+      Paint(),
     );
+  }
 
-    canvas.drawLine(
-      Offset(base.dx - width * 0.85, base.dy + 1),
-      Offset(base.dx + width * 0.85, base.dy + 1),
-      Paint()
-        ..strokeWidth = 1
-        ..color = palette.groundLine.withValues(alpha: 0.13),
-    );
+  static double _smoothstep(double from, double to, double v) {
+    final t = ((v - from) / (to - from)).clamp(0.0, 1.0);
+    return t * t * (3 - 2 * t);
   }
 
   /// How [face] looks: its material under the light, from `Shading.of` —
@@ -224,8 +295,8 @@ class ModelPainter extends CustomPainter {
       face.eyeCorners.length == face.corners.length &&
       face.corners.length >= 3;
 
-  /// The one colour a monochrome view is in.
-  static const _clay = 0xFFDCE0DE;
+  /// The one colour a monochrome view is in: the studio's grey.
+  static const _clay = Studio.clay;
 
   /// A face, in the three layers `Shaded` describes: what it lets through
   /// multiplies what is behind it, what it shows of itself is laid over,
@@ -738,8 +809,8 @@ class ModelPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.0
           // A wireframe has no faces; its edges are read against the
-          // backdrop.
-          ..color = palette.ink.withValues(alpha: 0.5),
+          // studio's backdrop.
+          ..color = Color(studio.lines).withValues(alpha: 0.5),
       );
       return;
     }
@@ -751,19 +822,50 @@ class ModelPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 0.9
         // Edges between faces are dark in either appearance, because the
-        // faces are the design's own colours.
-        ..color = Color.lerp(own, palette.modelEdge, darkness)!
+        // faces are the design's own colours — and neutral, because they
+        // are the model's and not the application's.
+        ..color = Color.lerp(own, const Color(Studio.edgeInk), darkness)!
             .withValues(alpha: 0.35 + 0.45 * darkness),
     );
   }
 
   /// Which part of the design is under [pixel] — the nearest face, since the
   /// list is painted far to near.
-  String? elementAt(Offset pixel) {
+  String? elementAt(Offset pixel) => faceAt(pixel)?.elementId;
+
+  /// The face painted uppermost at [pixel]: the nearest, since the list is
+  /// painted far to near — and never a sheet of glass where it is kept off
+  /// what lies in front of it.
+  ProjectedFacet? faceAt(Offset pixel) {
     for (final face in faces.reversed) {
-      if (_pathOf(face).contains(pixel)) return face.elementId;
+      if (!_pathOf(face).contains(pixel)) continue;
+      if (style.drawsFaces &&
+          face.hiders.isNotEmpty &&
+          _outlinesOf(face.hiders).contains(pixel)) {
+        continue;
+      }
+      return face;
     }
     return null;
+  }
+
+  /// [outlines] as one shape: every one turned the same way round, so where
+  /// they overlap is still inside rather than cancelling out.
+  Path _outlinesOf(List<List<Vec2>> outlines) {
+    final path = Path();
+    for (final outline in outlines) {
+      if (outline.length < 3) continue;
+      var area = 0.0;
+      for (var k = 0; k < outline.length; k++) {
+        final a = outline[k], b = outline[(k + 1) % outline.length];
+        area += a.x * b.y - b.x * a.y;
+      }
+      final points = [
+        for (final c in area < 0 ? outline.reversed : outline) _place(c),
+      ];
+      path.addPolygon(points, true);
+    }
+    return path;
   }
 
   /// How many millimetres of model one pixel covers, for turning a drag into
@@ -778,6 +880,7 @@ class ModelPainter extends CustomPainter {
       old.size != size ||
       old.style != style ||
       old.groundPlane != groundPlane ||
+      old.floor != floor ||
       old.palette != palette ||
       old.viewSpan != viewSpan ||
       (faces.isNotEmpty &&

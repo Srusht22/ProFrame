@@ -292,3 +292,16 @@ and long soft edges so a pane shows a gradient and never burns out.
 the key light's size (`keySize`) bounds how tight a highlight can be and how
 sharp a cast shadow is. All white; a white face square on is exposed as
 before. Held by `test/app/the_studio_lights_test.dart`.
+
+## 15. Since the audit — the studio and the floor (Phase 11)
+
+`Studio` is what the model is shown in and is neutral throughout; the
+application's palette no longer supplies the backdrop, ground line, model
+edge or clay. `Floor` stands at the model's foot with a ten-centimetre grid
+laid from the model's own side and face, and a shadow worked out by rays
+against the model's opaque members — the room's light from above and the key
+light's, glass letting it through — lit by `Environment.lightOn`. Two faults
+the new floor exposed were fixed at their source: the pitch was applied the
+wrong way round (the first view was from below the floor), and glass could
+be painted over the stile in front of it (`ProjectedFacet.hiders`). Held by
+`test/app/the_studio_test.dart`.

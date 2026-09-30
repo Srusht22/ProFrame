@@ -289,7 +289,11 @@ void main() {
       final panel = await render(p);
       final panels = panel.across(wideLight(p)).map(panel.brightness).toList();
 
-      expect(spread(panes), greaterThan(40), reason: '$panes');
+      // Seen from a little above, as the view now is, a pane reflects the
+      // studio's even floor below the horizon, and what moves across it is
+      // the strip light's sheen. It was 40 when the camera was, wrongly,
+      // below the model and the pane reflected the sky's horizon line.
+      expect(spread(panes), greaterThan(15), reason: '$panes');
       expect(spread(panels), lessThan(4), reason: '$panels');
     });
 

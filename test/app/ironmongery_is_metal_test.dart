@@ -423,10 +423,6 @@ void main() {
       final camera = _near(door, lever, zoom: 10);
       final withIt = await _render(door, camera);
       final without = await _render(door, camera, leaving: lever.id);
-      final glass = {
-        for (final s in door.sections)
-          if (s.finish.material.surface.isTransparent) s.id,
-      };
       // Where the lever itself is, on either face of the door — seen
       // through the glass, its twin on the far face is the lever and not
       // its shadow.
@@ -472,8 +468,12 @@ void main() {
           final change = withIt.brightness(p) - without.brightness(p);
           if (change < -6) {
             darker++;
-            final under = without.painter.elementAt(p);
-            if (glass.contains(under)) onGlass++;
+            // Asked of the face and not of its part: a divided opening's
+            // sash and the glass it held undivided share the section's id.
+            final under = without.painter.faceAt(p);
+            if (under != null && under.source.surface.isTransparent) {
+              onGlass++;
+            }
           }
         }
       }

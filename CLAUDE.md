@@ -3855,8 +3855,11 @@ modifying the design.*
   zoomed or panned, which is theirs until one of those changes, including
   across a trip to the drawing and back. **Fit** does it on demand from
   wherever they are looking.
-- **The controls**: a drag turns it; two fingers, **Shift** and a drag, or
-  the middle mouse button pan it — at the pointer's own speed at every zoom
+- **The controls**: a drag turns it — down the screen rises over the model,
+  as turning a thing in the hand tips its top towards you; two fingers,
+  **Shift** and a drag, or the middle mouse button pan it — and the middle
+  button only pans: the orbit gesture hears the same drag and is told to
+  leave it alone — at the pointer's own speed at every zoom
   (the pan was converted without the zoom, so zoomed in five times the
   model ran five times faster than the finger); the wheel and a pinch zoom,
   the wheel **towards the pointer** (`Camera.zoomedToward`) so what is under
@@ -3955,6 +3958,86 @@ colour at the middle of whichever frame face was painted first; two grey
 surfaces turned alike to the same light are, rightly, alike, so it now holds
 that the frame is told apart by its form — the light changes across a member
 from face to sightline to reveal — while the panel's middle is one even face.
+
+### The studio and the floor
+
+The user's words: *the background should make the model easy to inspect —
+a professional CAD and product visualisation environment; no distracting
+scenery, no photographs, no fake room; a subtle ground plane or controlled
+shadow for position, scale, contact and depth, never hiding geometry; a
+clean neutral background. **The ProFrame UI colour is not the same thing as
+the customer's material colour.***
+
+- **The studio is not the application's palette.** `Studio`
+  (`lib/domain/solid/studio.dart`) is the backdrop — a seamless sweep,
+  lighter above, with no horizon drawn on it — the floor's lines, the line
+  between two faces of the model (`Studio.edgeInk`) and the monochrome clay
+  (`Studio.clay`), and every one of them is a grey, red, green and blue
+  equal. The house green and cream stay in the bars, the buttons and what
+  is picked; nothing of them reaches the model, so glass shows grey behind
+  it and not green, and an edge is dark and not the application's ink. The
+  appearance chooses the light studio or the dark one and never supplies a
+  colour: `Palette` no longer has a backdrop, a ground line or a model edge.
+  The design's own finishes come from the design alone. What the model
+  reflects is the studio too: the ground in `Environment.daylight` is a
+  neutral grey floor, not warm paving.
+- **The floor** (`Floor`) is at the model's lowest point, drawn before the
+  model so nothing on it can lie over the design, and seen only from above
+  — from beneath it would stand in front of the model, so it is not drawn.
+  - **Scale**: a grid of ten-centimetre squares with a metre line every ten,
+    laid from the model's own left side and its drawn face
+    (`Floor.linesAcross`, `linesDeep`), so the model can be counted in
+    squares. It fades out towards `Floor.reach` so the floor has no edge,
+    fades as the floor turns edge on, and drops its ten-centimetre lines
+    where they would crowd closer than a few pixels.
+  - **Contact and position — the shadow is worked out, not painted on.** At
+    each point of the floor, how much of the room's light from above the
+    model shuts out (`occlusionAt`, ninety-six directions over the sky) and
+    how much of the key light (`keyShutAt`, spread across the soft box so
+    the shadow is sharp at the foot and soft further out), by rays against
+    the model's envelope: its opaque members, each as the box it fills — a
+    ring side by side, since light comes through the middle of it. **Glass
+    lets the light through**, so the floor's shadow is the shape of what the
+    design is made of. The floor is then lit by the same
+    `Environment.lightOn` as every face, so a shadow is exactly as dark as
+    the light it takes away. The room's share is kept per envelope, so
+    turning the view costs only the key's.
+- **The view is from where it says.** A positive pitch rises over the model.
+  It was applied the wrong way round — the model's y runs down and the turn
+  was written as though it ran up — so the first view looked up at the model
+  from well below the floor and **Top** showed its underside; the drag was
+  reversed to match, so the gesture feels as it did. `EyeSpace` is now the
+  one transform the faces and the floor are both projected by.
+- **Glass is kept off what is in front of it.** Seen from above, a tall
+  pane's average depth is nearer than the full-height stile beside it, and
+  the strip of glass running into the rebate was painted over the stile.
+  Every face of glass is flat, so its own plane settles it exactly:
+  `Camera.project` lists, for each, the faces painted before it that lie
+  wholly on the eye's side of that plane (`ProjectedFacet.hiders`), and the
+  painter clips the glass off them. `ModelPainter.faceAt` answers what is
+  uppermost at a point with the same rule — asked of the face and not its
+  id, because a divided opening's sash and the glass it held undivided
+  share the section's id. Moving each pane in the order was tried first and
+  is not to come back: it fought the depth sort and put the glass's edges
+  over the handle.
+
+`test/app/the_studio_test.dart` holds it: every studio colour a grey; the
+backdrop grey on the screen in both appearances; a palette in garish colours
+painting the model to the byte as the application's own does, in every
+display style; the floor at the foot, seen from above and not from below;
+the grid's squares laid from the model's side and face with a metre line
+every ten; the shadow dark at the foot and falling away to nothing; glass
+letting the key light through where a panel does not; the floor darker just
+in front of the foot on the picture; not a pixel of the model's opaque faces
+changed by the floor; the design and the mesh untouched; the first view from
+above, **Top** looking down, the screen's down the camera's; and no pane
+painted over the frame or a sash in front of it, from four views. Putting the
+application's ink back on the edges, or taking the glass's clip away, fails
+it. Two older tests moved with the camera, and say so where they assert: a
+pane seen from above reflects the studio's even floor, so the light moving
+across it is the strip light's sheen — more than 15 levels, not the 40 the
+sky's horizon line gave from below; and the lever's shadow is asked whether
+it falls on glass by the face, not the id.
 
 ## Working on this repository
 

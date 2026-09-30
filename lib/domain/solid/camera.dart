@@ -74,6 +74,12 @@ class ProjectedFacet {
   /// decides how much light the shadow takes from it.
   final Vec3? shadowNormal;
 
+  /// For a face of glass — a sheet, or the thin edge of one: the outlines,
+  /// in view units, of the faces painted before it that lie wholly in front
+  /// of its plane, which it must never be painted over whatever order the
+  /// sort gave. Empty for anything else.
+  final List<List<Vec2>> hiders;
+
   const ProjectedFacet({
     required this.corners,
     required this.depth,
@@ -88,7 +94,25 @@ class ProjectedFacet {
     this.shadowFacing = 0,
     this.shadowReach = 0,
     this.shadowNormal,
+    this.hiders = const [],
   });
+
+  ProjectedFacet _hiddenBy(List<List<Vec2>> by) => ProjectedFacet(
+    corners: corners,
+    depth: depth,
+    light: light,
+    source: source,
+    normal: normal,
+    eyeCorners: eyeCorners,
+    viewer: viewer,
+    skyward: skyward,
+    cornerNormals: cornerNormals,
+    shadow: shadow,
+    shadowFacing: shadowFacing,
+    shadowReach: shadowReach,
+    shadowNormal: shadowNormal,
+    hiders: by,
+  );
 
   /// The way to the eye from corner [k]: different at every corner in a
   /// perspective view, which is why a pane's reflection changes across it.
@@ -312,9 +336,29 @@ class Camera {
     final yaw = yawDegrees * math.pi / 180;
     final pitch = pitchDegrees * math.pi / 180;
     return Vec3(
-      math.sin(yaw) * math.sin(pitch),
+      -math.sin(yaw) * math.sin(pitch),
       math.cos(pitch),
-      -math.cos(yaw) * math.sin(pitch),
+      math.cos(yaw) * math.sin(pitch),
+    );
+  }
+
+  /// How [mesh]'s space is turned into the eye's, from here: the one
+  /// transform every projection uses — the model's faces and the floor it
+  /// stands on — so the two cannot be seen from two different places.
+  EyeSpace eyeSpaceFor(Mesh mesh) {
+    final span = math.max(mesh.span, 1).toDouble();
+    final yaw = yawDegrees * math.pi / 180;
+    final pitch = pitchDegrees * math.pi / 180;
+    return EyeSpace._(
+      centre: mesh.centre + target,
+      span: span,
+      eyeDistance: span * distanceInSpans,
+      zoom: zoom,
+      projection: projection,
+      cosYaw: math.cos(yaw),
+      sinYaw: math.sin(yaw),
+      cosPitch: math.cos(pitch),
+      sinPitch: math.sin(pitch),
     );
   }
 
@@ -327,42 +371,22 @@ class Camera {
   List<ProjectedFacet> project(Mesh mesh, {Vec3? lightFrom}) {
     if (mesh.isEmpty) return const [];
 
-    final centre = mesh.centre + target;
-    final span = math.max(mesh.span, 1);
-    final eyeDistance = span * distanceInSpans;
-
-    final yaw = yawDegrees * math.pi / 180;
-    final pitch = pitchDegrees * math.pi / 180;
-    final cosYaw = math.cos(yaw), sinYaw = math.sin(yaw);
-    final cosPitch = math.cos(pitch), sinPitch = math.sin(pitch);
+    final space = eyeSpaceFor(mesh);
+    final centre = space.centre;
+    final span = space.span;
+    final eyeDistance = space.eyeDistance;
 
     // Light from over the viewer's left shoulder, which is where a window is
     // usually photographed from.
     final light = (lightFrom ?? const Vec3(-0.45, -0.7, 1)).normalised;
 
-    Vec3 toEye(Vec3 point) {
-      final p = point - centre;
-      final x = p.x * cosYaw + p.z * sinYaw;
-      final z = -p.x * sinYaw + p.z * cosYaw;
-      final y = p.y * cosPitch - z * sinPitch;
-      final zz = p.y * sinPitch + z * cosPitch;
-      return Vec3(x, y, zz);
-    }
+    final toEye = space.toEye;
 
     // Up in the model is towards -y; turned as everything else is.
-    final skyward = (toEye(centre + const Vec3(0, -1, 0)) - toEye(centre))
-        .normalised;
+    final skyward =
+        (toEye(centre + const Vec3(0, -1, 0)) - toEye(centre)).normalised;
 
-    Vec2? onScreen(Vec3 eye) {
-      final away = eyeDistance - eye.z;
-      if (projection == Projection.perspective && away <= span * 0.02) {
-        return null;
-      }
-      final scale = projection == Projection.perspective
-          ? eyeDistance / away
-          : 1.0;
-      return Vec2(eye.x * scale * zoom, eye.y * scale * zoom);
-    }
+    final onScreen = space.onScreen;
 
     // The key light, in the eye's space: the one `Shading.of` lights by,
     // so a shadow falls where that light says it does.
@@ -476,7 +500,43 @@ class Camera {
       projected,
       projection == Projection.perspective ? Vec3(0, 0, eyeDistance) : null,
     );
-    return [for (final seen in projected) seen.facet];
+    return _glassBehindWhatIsInFront(
+      projected,
+      projection == Projection.perspective ? Vec3(0, 0, eyeDistance) : null,
+    );
+  }
+
+  /// The painted order, each sheet of glass told what it lies behind.
+  ///
+  /// Glass is a large flat face set back in a rebate behind the stiles and
+  /// rails round it, and its average depth says little about what it is in
+  /// front of: seen from a little above, a tall pane's middle is nearer the
+  /// eye than the middle of the full-height stile beside it, and by depth
+  /// alone the strip of glass running into the rebate was painted over the
+  /// stile. A sheet is flat, and so is its edge, so its own plane settles
+  /// it exactly: a face painted before it that lies wholly on the eye's side
+  /// of that plane is in front of it wherever the two overlap, and the glass
+  /// is kept off it.
+  static List<ProjectedFacet> _glassBehindWhatIsInFront(
+    List<_Seen> order,
+    Vec3? eye,
+  ) {
+    final out = [for (final seen in order) seen.facet];
+    for (var i = 0; i < order.length; i++) {
+      final sheet = order[i];
+      final source = sheet.facet.source;
+      if (!source.surface.isTransparent) continue;
+      final hiders = <List<Vec2>>[];
+      for (var j = 0; j < i; j++) {
+        final face = order[j];
+        if (!sheet.box.overlaps(face.box)) continue;
+        if (sheet.sideOf(face.eye, eye) == _Side.inFront) {
+          hiders.add(face.facet.corners);
+        }
+      }
+      if (hiders.isNotEmpty) out[i] = sheet.facet._hiddenBy(hiders);
+    }
+    return out;
   }
 
   /// Puts each piece of ironmongery where it actually is in the painting
@@ -532,77 +592,114 @@ class Camera {
         });
         members = [for (final k in ranked) members[k]];
       }
-      final others = [
-        for (final seen in order)
-          if (pieceOf(seen) != id) seen,
-      ];
-      // Where the piece sits among the rest, before anything is decided.
-      final at = order.indexOf(members.first);
-      var place = 0;
-      for (var i = 0; i < at; i++) {
-        if (pieceOf(order[i]) != id) place++;
-      }
+      _placeByPlanes(order, members, (s) => pieceOf(s) == id, eye);
+    }
+  }
 
-      final bounds = _Box.around(members);
-      final corners = [for (final m in members) ...m.eye];
-      // Faces the piece is wholly behind or in front of — which it must be
-      // painted before or after — and faces whose plane only nicks the edge
-      // of it, which it should be.
-      final mustPrecede = <int>[], mustFollow = <int>[];
-      final shouldPrecede = <int>[], shouldFollow = <int>[];
-      for (var i = 0; i < others.length; i++) {
-        final face = others[i];
-        // Only a face the piece actually meets on the screen can hide it or
-        // be hidden by it. Boxes are the quick answer; a long, thin face —
-        // a sill's sightline running the width of the frame — has a box
-        // far bigger than itself, and a constraint from a face the piece
-        // never touches can only get in the way of the ones that matter.
-        if (!bounds.overlaps(face.box) || !face.meets(members)) continue;
-        switch (face.sideOf(corners, eye)) {
-          case _Side.behind:
-            mustPrecede.add(i);
-          case _Side.inFront:
-            mustFollow.add(i);
-          case _Side.across:
-            // A hinge's knuckle stands proud of the face it is screwed to,
-            // so the plane of the stile it hangs on runs through the edge
-            // of it. Mostly behind that plane is behind it.
-            switch (face.leaningOf(corners, eye)) {
-              case _Side.behind:
-                shouldPrecede.add(i);
-              case _Side.inFront:
-                shouldFollow.add(i);
-              case _Side.across:
-                break;
-            }
-        }
-      }
+  /// Puts [members] — one piece, in the order given — where it breaks the
+  /// fewest of the planes it must be in front of or behind, as near as that
+  /// allows to where the sort put it.
+  static void _placeByPlanes(
+    List<_Seen> order,
+    List<_Seen> members,
+    bool Function(_Seen) isMember,
+    Vec3? eye,
+  ) {
+    final others = [
+      for (final seen in order)
+        if (!isMember(seen)) seen,
+    ];
+    // Where the piece sits among the rest, before anything is decided.
+    final at = order.indexOf(members.first);
+    var place = 0;
+    for (var i = 0; i < at; i++) {
+      if (!isMember(order[i])) place++;
+    }
 
-      // Where it breaks the fewest of what it must do, then the fewest of
-      // what it should, as near as that allows to where the sort put it.
-      // Where nothing disagrees this is the one place everything is met.
-      int broken(List<int> precede, List<int> follow, int at) =>
-          precede.where((i) => i < at).length +
-          follow.where((i) => i >= at).length;
+    final bounds = _Box.around(members);
+    final corners = [for (final m in members) ...m.eye];
+    // Faces the piece is wholly behind or in front of — which it must be
+    // painted before or after — and faces whose plane only nicks the edge
+    // of it, which it should be.
+    final mustPrecede = <int>[], mustFollow = <int>[];
+    final shouldPrecede = <int>[], shouldFollow = <int>[];
+    for (var i = 0; i < others.length; i++) {
+      final face = others[i];
+      // Only a face the piece actually meets on the screen can hide it or
+      // be hidden by it. Boxes are the quick answer; a long, thin face —
+      // a sill's sightline running the width of the frame — has a box
+      // far bigger than itself, and a constraint from a face the piece
+      // never touches can only get in the way of the ones that matter.
+      if (!bounds.overlaps(face.box) || !face.meets(members)) continue;
+      switch (face.sideOf(corners, eye)) {
+        case _Side.behind:
+          mustPrecede.add(i);
+        case _Side.inFront:
+          mustFollow.add(i);
+        case _Side.across:
+          // A hinge's knuckle stands proud of the face it is screwed to,
+          // so the plane of the stile it hangs on runs through the edge
+          // of it. Mostly behind that plane is behind it.
+          switch (face.leaningOf(corners, eye)) {
+            case _Side.behind:
+              shouldPrecede.add(i);
+            case _Side.inFront:
+              shouldFollow.add(i);
+            case _Side.across:
+              break;
+          }
+      }
+    }
+
+    // Where it breaks the fewest of what it must do, then the fewest of
+    // what it should, as near as that allows to where the sort put it.
+    // Where nothing disagrees this is the one place everything is met.
+    // Counted in one sweep: moving the piece past a face breaks that face's
+    // "precede" and mends its "follow".
+    if (mustPrecede.isNotEmpty ||
+        mustFollow.isNotEmpty ||
+        shouldPrecede.isNotEmpty ||
+        shouldFollow.isNotEmpty) {
+      final n = others.length;
+      final mustP = List<bool>.filled(n, false);
+      final mustF = List<bool>.filled(n, false);
+      final shouldP = List<bool>.filled(n, false);
+      final shouldF = List<bool>.filled(n, false);
+      for (final i in mustPrecede) {
+        mustP[i] = true;
+      }
+      for (final i in mustFollow) {
+        mustF[i] = true;
+      }
+      for (final i in shouldPrecede) {
+        shouldP[i] = true;
+      }
+      for (final i in shouldFollow) {
+        shouldF[i] = true;
+      }
+      var must = mustFollow.length, should = shouldFollow.length;
       var best = place;
       var bestCost = double.infinity;
-      for (var at = 0; at <= others.length; at++) {
-        final cost =
-            broken(mustPrecede, mustFollow, at) * 1000.0 +
-            broken(shouldPrecede, shouldFollow, at);
+      for (var at = 0; at <= n; at++) {
+        final cost = must * 1000.0 + should;
         if (cost < bestCost ||
             (cost == bestCost && (at - place).abs() < (best - place).abs())) {
           best = at;
           bestCost = cost;
         }
+        if (at == n) break;
+        if (mustP[at]) must++;
+        if (mustF[at]) must--;
+        if (shouldP[at]) should++;
+        if (shouldF[at]) should--;
       }
       place = best;
-
-      order
-        ..clear()
-        ..addAll(others)
-        ..insertAll(place, members);
     }
+
+    order
+      ..clear()
+      ..addAll(others)
+      ..insertAll(place, members);
   }
 
   /// How many view units across the model is, looked at from any angle.
@@ -649,6 +746,79 @@ class Camera {
 
 /// A projected face with its corners still in eye space, for the one
 /// question an average depth cannot answer: which side of it something is.
+/// The model's space as the eye has it: x across, y down the screen, z
+/// towards the viewer, with the eye [eyeDistance] out along z for a
+/// perspective and infinitely far for a parallel view.
+class EyeSpace {
+  /// The point the view turns about, in the model's space.
+  final Vec3 centre;
+
+  /// The model's size corner to corner, in millimetres.
+  final double span;
+  final double eyeDistance;
+  final double zoom;
+  final Projection projection;
+  final double cosYaw, sinYaw, cosPitch, sinPitch;
+
+  const EyeSpace._({
+    required this.centre,
+    required this.span,
+    required this.eyeDistance,
+    required this.zoom,
+    required this.projection,
+    required this.cosYaw,
+    required this.sinYaw,
+    required this.cosPitch,
+    required this.sinPitch,
+  });
+
+  bool get isPerspective => projection == Projection.perspective;
+
+  /// A point of the model, in the eye's space.
+  Vec3 toEye(Vec3 point) {
+    final p = point - centre;
+    final x = p.x * cosYaw + p.z * sinYaw;
+    final z = -p.x * sinYaw + p.z * cosYaw;
+    // The model's y runs down, so rising over it (a positive pitch) turns
+    // what is further down away from the eye and what is up towards it.
+    final y = p.y * cosPitch + z * sinPitch;
+    final zz = -p.y * sinPitch + z * cosPitch;
+    return Vec3(x, y, zz);
+  }
+
+  /// A direction in the model's space, turned into the eye's.
+  Vec3 turn(Vec3 direction) => toEye(direction + centre);
+
+  /// A direction in the eye's space, turned back into the model's.
+  Vec3 turnBack(Vec3 d) {
+    final y = d.y * cosPitch - d.z * sinPitch;
+    final z = d.y * sinPitch + d.z * cosPitch;
+    return Vec3(d.x * cosYaw - z * sinYaw, y, d.x * sinYaw + z * cosYaw);
+  }
+
+  /// Where the eye is in the model's space; null for a parallel view.
+  Vec3? get eye =>
+      isPerspective ? centre + turnBack(Vec3(0, 0, eyeDistance)) : null;
+
+  /// Which way the eye looks at [point], in the model's space.
+  Vec3 lookingAt(Vec3 point) => switch (eye) {
+    final at? => (point - at).normalised,
+    null => turnBack(const Vec3(0, 0, -1)),
+  };
+
+  /// Where a point in the eye's space lands, in view units; null for one
+  /// too near the eye, or behind it, to be seen.
+  Vec2? onScreen(Vec3 eye) {
+    final away = eyeDistance - eye.z;
+    if (isPerspective && away <= span * 0.02) return null;
+    final scale = isPerspective ? eyeDistance / away : 1.0;
+    return Vec2(eye.x * scale * zoom, eye.y * scale * zoom);
+  }
+
+  /// Where a point of the model lands, in view units.
+  Vec2? place(Vec3 point) => onScreen(toEye(point));
+}
+
 class _Seen {
   final ProjectedFacet facet;
   final List<Vec3> eye;
