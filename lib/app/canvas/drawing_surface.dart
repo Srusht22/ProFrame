@@ -14,6 +14,7 @@ import '../state/tools.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'design_painter.dart';
+import 'view_controls.dart';
 import 'view_transform.dart';
 
 /// The sheet: where the user draws, and where the design appears.
@@ -103,8 +104,14 @@ class _DrawingSurfaceState extends ConsumerState<DrawingSurface> {
       builder: (context, constraints) {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
         if (size != _size) {
+          // A view still as it was fitted is fitted again to the room it
+          // now has — a window made wider, a phone turned — and one the user
+          // has moved is theirs and stays where they put it.
+          final asFitted =
+              _view == null ||
+              _view!.isSameAs(ViewTransform.fit(_fittedTo, _size));
           _size = size;
-          _view ??= ViewTransform.fit(_fittedTo, size);
+          if (asFitted) _view = ViewTransform.fit(_fittedTo, size);
         }
         _fitIfNeeded(state.design.bounds);
         final view = _transform;
@@ -171,7 +178,8 @@ class _DrawingSurfaceState extends ConsumerState<DrawingSurface> {
               Positioned(
                 right: 12,
                 bottom: 12,
-                child: _ZoomButtons(
+                child: ViewControls(
+                  fitTooltip: 'Fit the drawing to the view',
                   onIn: () => setState(
                     () => _view = _transform.zoomed(
                       1.25,
@@ -502,50 +510,3 @@ class _GridPainter extends CustomPainter {
       old.palette != palette;
 }
 
-class _ZoomButtons extends StatelessWidget {
-  final VoidCallback onIn;
-  final VoidCallback onOut;
-  final VoidCallback onFit;
-
-  const _ZoomButtons({
-    required this.onIn,
-    required this.onOut,
-    required this.onFit,
-  });
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: context.palette.surface,
-    elevation: 1,
-    borderRadius: BorderRadius.circular(12),
-    child: Padding(
-      padding: const EdgeInsets.all(2),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            onPressed: onIn,
-            icon: const Icon(Icons.add),
-            tooltip: 'Zoom in',
-            color: context.palette.primary,
-            visualDensity: VisualDensity.compact,
-          ),
-          IconButton(
-            onPressed: onOut,
-            icon: const Icon(Icons.remove),
-            tooltip: 'Zoom out',
-            color: context.palette.primary,
-            visualDensity: VisualDensity.compact,
-          ),
-          IconButton(
-            onPressed: onFit,
-            icon: const Icon(Icons.fit_screen_outlined),
-            tooltip: 'Fit',
-            color: context.palette.primary,
-            visualDensity: VisualDensity.compact,
-          ),
-        ],
-      ),
-    ),
-  );
-}

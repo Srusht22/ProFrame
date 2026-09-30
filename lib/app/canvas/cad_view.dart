@@ -21,6 +21,7 @@ import 'cad_layers.dart';
 import 'cad_painter.dart';
 import 'dimension_handles.dart';
 import 'dimension_layout.dart';
+import 'view_controls.dart';
 import 'view_transform.dart';
 
 /// The technical drawing, and the drafting board it sits on.
@@ -95,22 +96,6 @@ class _CadViewState extends ConsumerState<CadView> {
     final state = ref.watchWork();
     final controller = ref.read(workspaceProvider.notifier);
     final layers = state.layers;
-    final padding = layers.dimensions
-        ? _sheetPadding +
-              DimensionLayout.roomFor(
-                state.design,
-                // A phone's width is the drawing's: its rows down the right
-                // come in as it is looked at closer.
-                rightToo: _size.width >= 600,
-              )
-        : _sheetPadding;
-    // A row along the head or down the right that comes or goes — an
-    // opening marked, a part divided — refits the drawing round it, so no
-    // figure is ever left off the sheet.
-    if (padding != _padding) {
-      _padding = padding;
-      if (_fittedTo != null && !_size.isEmpty) _view = _fitted(_fittedTo, _size);
-    }
 
     // An opening is a container. Pick any part of one and the tools for
     // drawing inside it appear, because from there a line is the opening's.
@@ -151,9 +136,34 @@ class _CadViewState extends ConsumerState<CadView> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final size = Size(constraints.maxWidth, constraints.maxHeight);
+              // The room round the drawing for its rows of figures, worked
+              // out here, where the room there is is known. Worked out in
+              // the build above, it read the size of the last layout, so the
+              // refit it called for waited for the next rebuild — which was
+              // often the user's first press on zoom, and undid it.
+              final padding = layers.dimensions
+                  ? _sheetPadding +
+                        DimensionLayout.roomFor(
+                          state.design,
+                          // A phone's width is the drawing's: its rows down
+                          // the right come in as it is looked at closer.
+                          rightToo: size.width >= 600,
+                        )
+                  : _sheetPadding;
               if (size != _size) {
+                // Still as it was fitted, it is fitted again to the room it
+                // now has; moved by the user, it stays where they put it.
+                final asFitted = _view == null ||
+                    _view!.isSameAs(_fitted(_fittedTo, _size));
                 _size = size;
-                _view ??= _fitted(_fittedTo, size);
+                _padding = padding;
+                if (asFitted) _view = _fitted(_fittedTo, size);
+              } else if (padding != _padding) {
+                // A row along the head or down the right that comes or goes
+                // — an opening marked, a part divided — refits the drawing
+                // round it, so no figure is ever left off the sheet.
+                _padding = padding;
+                if (_fittedTo != null) _view = _fitted(_fittedTo, size);
               }
               _fitIfNeeded(state.design.bounds);
               final view = _transform;
@@ -261,32 +271,55 @@ class _CadViewState extends ConsumerState<CadView> {
                               ),
                             ),
                           ),
-                          if (everything)
-                            Positioned(
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              child: _StatusBar(
-                              state: state,
-                              pointer: _pointer,
-                              scale: view.scale,
-                            ),
-                          ),
-                          Positioned(
-                            right: 12,
-                            top: 12,
-                            child: _ZoomStack(
-                              onIn: () => setState(() => _view = _transform
-                                  .zoomed(1.25, size.center(Offset.zero))),
-                              onOut: () => setState(() => _view = _transform
-                                  .zoomed(0.8, size.center(Offset.zero))),
-                            ),
-                          ),
                         ],
                       ),
                     ),
                   ),
                 )),
+                    // The view's own controls and, under More, the status
+                    // bar — laid over the drawing rather than inside its
+                    // pointer handling, so a press on either is never also a
+                    // press on the drawing, which would pick or put down
+                    // whatever was under it.
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: ViewControls(
+                              fitTooltip: 'Fit the drawing to the view',
+                              onIn: () => setState(
+                                () => _view = _transform.zoomed(
+                                  1.25,
+                                  size.center(Offset.zero),
+                                ),
+                              ),
+                              onOut: () => setState(
+                                () => _view = _transform.zoomed(
+                                  0.8,
+                                  size.center(Offset.zero),
+                                ),
+                              ),
+                              onFit: () => setState(() {
+                                _fittedTo = state.design.bounds;
+                                _view = _fitted(state.design.bounds, size);
+                              }),
+                            ),
+                          ),
+                          if (everything)
+                            _StatusBar(
+                              state: state,
+                              pointer: _pointer,
+                              scale: view.scale,
+                            ),
+                        ],
+                      ),
+                    ),
                     if (_editing case final figure?)
                       _FigureEditor(
                         figure: figure,
@@ -1395,35 +1428,3 @@ class _StatusBar extends StatelessWidget {
   }
 }
 
-class _ZoomStack extends StatelessWidget {
-  final VoidCallback onIn;
-  final VoidCallback onOut;
-
-  const _ZoomStack({required this.onIn, required this.onOut});
-
-  @override
-  Widget build(BuildContext context) => Material(
-        color: context.palette.surface,
-        elevation: 1,
-        borderRadius: BorderRadius.circular(10),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              onPressed: onIn,
-              icon: const Icon(Icons.add),
-              tooltip: 'Zoom in',
-              color: context.palette.primary,
-              visualDensity: VisualDensity.compact,
-            ),
-            IconButton(
-              onPressed: onOut,
-              icon: const Icon(Icons.remove),
-              tooltip: 'Zoom out',
-              color: context.palette.primary,
-              visualDensity: VisualDensity.compact,
-            ),
-          ],
-        ),
-      );
-}

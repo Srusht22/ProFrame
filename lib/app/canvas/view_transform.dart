@@ -19,6 +19,12 @@ class ViewTransform {
 
   const ViewTransform({required this.scale, required this.origin});
 
+  /// Whether [other] shows the sheet exactly as this does, to within a
+  /// hair — so a view can tell whether it is still as it was fitted.
+  bool isSameAs(ViewTransform other) =>
+      (scale - other.scale).abs() <= scale * 1e-9 &&
+      (origin - other.origin).distance < 0.01;
+
   /// A view that fits [content] into [size] with a margin.
   /// A view that fits [content] into [size] with a margin.
   ///

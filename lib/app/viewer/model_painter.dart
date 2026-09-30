@@ -118,6 +118,7 @@ class ModelPainter extends CustomPainter {
       }
     }
     final creases = mode.isTechnical ? _creasesOf(faces) : null;
+    final picked = lit.isEmpty ? const <int, List<bool>>{} : _outsideOf(faces, lit);
     for (var i = 0; i < faces.length; i++) {
       final face = faces[i];
       final path = _pathOf(face);
@@ -153,15 +154,7 @@ class ModelPainter extends CustomPainter {
         if (mode == ViewMode.wireframe) _edges(canvas, path, face);
       }
       if (keptOff) canvas.restore();
-      if (lit.contains(face.elementId)) {
-        canvas.drawPath(
-          path,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.2
-            ..color = palette.selection,
-        );
-      }
+      if (picked[i] case final outside?) _picked(canvas, path, face, outside);
     }
     if (mode.isTechnical) {
       for (final dimension in dimensions) {
@@ -848,6 +841,40 @@ class ModelPainter extends CustomPainter {
   static const _penumbra = 0.8;
 
 
+  /// A face of what is picked, outlined only along the outside of the
+  /// pick — not round every face it is built from, which drew a sash as a
+  /// heavy band of rings, one for every arris.
+  ///
+  /// Only outlined, never tinted: a tint over a finish reads as another
+  /// finish — anthracite went olive — and over glass it gathers once for
+  /// every face of the unit. The part keeps the look it is made in, and the
+  /// line says it is the one picked. Painted in turn with the rest, so what
+  /// stands in front of the pick still stands in front of it.
+  void _picked(
+    Canvas canvas,
+    Path path,
+    ProjectedFacet face,
+    List<bool> outside,
+  ) {
+    final edges = Path();
+    final at = [for (final c in face.corners) _place(c)];
+    for (var k = 0; k < at.length && k < outside.length; k++) {
+      if (!outside[k]) continue;
+      final a = at[k], b = at[(k + 1) % at.length];
+      edges
+        ..moveTo(a.dx, a.dy)
+        ..lineTo(b.dx, b.dy);
+    }
+    canvas.drawPath(
+      edges,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round
+        ..color = palette.selection,
+    );
+  }
+
   /// The technical drawing's inks: paper in the light appearance, the
   /// night sheet in the dark — the very colours the CAD view is drawn in.
   CadColours get ink => palette.isDark ? Cad.night : Cad.paper;
@@ -866,19 +893,63 @@ class ModelPainter extends CustomPainter {
   /// millimetres: an edge is two corners, and two faces share it when they
   /// have both. A face the camera does not see is not among them, so the
   /// edge it shared with one that is seen is the silhouette.
-  static List<List<bool?>> _creasesOf(List<ProjectedFacet> faces) {
+  /// An edge between two corners of the model, the same whichever way
+  /// round it is walked — to the hundredth of a millimetre, so two faces
+  /// that share it find each other.
+  static ((int, int, int), (int, int, int)) _edgeKey(Vec3 a, Vec3 b) {
     int q(double v) => (v * 100).round();
-    (int, int, int) key(Vec3 v) => (q(v.x), q(v.y), q(v.z));
-    ((int, int, int), (int, int, int)) edge(Vec3 a, Vec3 b) {
-      final p = key(a), r = key(b);
-      final first = p.$1 != r.$1
-          ? p.$1 < r.$1
-          : p.$2 != r.$2
-          ? p.$2 < r.$2
-          : p.$3 <= r.$3;
-      return first ? (p, r) : (r, p);
-    }
+    final p = (q(a.x), q(a.y), q(a.z)), r = (q(b.x), q(b.y), q(b.z));
+    final first = p.$1 != r.$1
+        ? p.$1 < r.$1
+        : p.$2 != r.$2
+        ? p.$2 < r.$2
+        : p.$3 <= r.$3;
+    return first ? (p, r) : (r, p);
+  }
 
+  /// Whether [face] is turned towards the eye. Every face of the model is
+  /// painted, the far side of each part too, so this is what tells the
+  /// side of a part that is seen from the side behind it.
+  static bool _facesEye(ProjectedFacet face) =>
+      face.normal.dot(_towardsEye(face)) > 0;
+
+  /// For each face of what is picked that is turned to the eye, which of
+  /// its edges are the outside of the pick: an edge no other such face
+  /// shares — the pick's outline as seen, and where it meets what is not
+  /// picked. Every other edge lies between two faces of the same part,
+  /// where a line would only say how the part happens to be built.
+  static Map<int, List<bool>> _outsideOf(
+    List<ProjectedFacet> faces,
+    Set<String> lit,
+  ) {
+    bool counted(ProjectedFacet face) =>
+        lit.contains(face.elementId) && _facesEye(face);
+    final count = <((int, int, int), (int, int, int)), int>{};
+    for (final face in faces) {
+      if (!counted(face)) continue;
+      final c = face.source.corners;
+      for (var k = 0; k < c.length; k++) {
+        final key = _edgeKey(c[k], c[(k + 1) % c.length]);
+        count[key] = (count[key] ?? 0) + 1;
+      }
+    }
+    return {
+      for (var i = 0; i < faces.length; i++)
+        if (counted(faces[i]))
+          i: [
+            for (var k = 0; k < faces[i].source.corners.length; k++)
+              count[_edgeKey(
+                    faces[i].source.corners[k],
+                    faces[i].source.corners[(k + 1) %
+                        faces[i].source.corners.length],
+                  )] ==
+                  1,
+          ],
+    };
+  }
+
+  static List<List<bool?>> _creasesOf(List<ProjectedFacet> faces) {
+    final edge = _edgeKey;
     final sharing = <((int, int, int), (int, int, int)), List<int>>{};
     for (var i = 0; i < faces.length; i++) {
       final c = faces[i].source.corners;
@@ -899,6 +970,12 @@ class ModelPainter extends CustomPainter {
                     if (j != i) j,
                 ];
                 if (others.isEmpty) return true;
+                // Seen on one side of the edge and not the other: the
+                // outline of the part as it stands against what is behind.
+                final seen = _facesEye(faces[i]);
+                for (final j in others) {
+                  if (_facesEye(faces[j]) != seen) return true;
+                }
                 for (final j in others) {
                   if (n.dot(faces[j].normal) < _creaseCosine) return false;
                 }

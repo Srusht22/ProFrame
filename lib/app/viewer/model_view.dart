@@ -11,6 +11,7 @@ import '../../domain/solid/camera.dart';
 import '../../domain/solid/mesh.dart';
 import '../../domain/solid/mesh_builder.dart';
 import '../../domain/solid/studio.dart';
+import '../canvas/view_controls.dart';
 import '../state/everything_shown.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -390,7 +391,8 @@ class _ModelViewState extends ConsumerState<ModelView> {
                       Positioned(
                         right: 12,
                         bottom: 12,
-                        child: _Navigation(
+                        child: ViewControls(
+                          fitTooltip: 'Fit the model to the view',
                           onIn: () => controller.zoomCamera(1.25),
                           onOut: () => controller.zoomCamera(0.8),
                           onFit: () => controller.frame(
@@ -755,69 +757,6 @@ class _Chip extends StatelessWidget {
     );
     return tooltip == null ? chip : Tooltip(message: tooltip!, child: chip);
   }
-}
-
-/// The buttons over the model: closer, further, the whole model, and the
-/// view it was first shown from.
-class _Navigation extends StatelessWidget {
-  // A row along the foot of the view rather than a column up its side, so
-  // the band it lies over is one the model is fitted clear of.
-  final VoidCallback onIn;
-  final VoidCallback onOut;
-  final VoidCallback onFit;
-  final VoidCallback onReset;
-
-  const _Navigation({
-    required this.onIn,
-    required this.onOut,
-    required this.onFit,
-    required this.onReset,
-  });
-
-  static const fitKey = ValueKey('camera-fit');
-  static const resetKey = ValueKey('camera-reset');
-
-  @override
-  Widget build(BuildContext context) => Material(
-        color: context.palette.surface,
-        elevation: 1,
-        borderRadius: BorderRadius.circular(10),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              onPressed: onIn,
-              icon: const Icon(Icons.add),
-              tooltip: 'Zoom in',
-              color: context.palette.primary,
-              visualDensity: VisualDensity.compact,
-            ),
-            IconButton(
-              onPressed: onOut,
-              icon: const Icon(Icons.remove),
-              tooltip: 'Zoom out',
-              color: context.palette.primary,
-              visualDensity: VisualDensity.compact,
-            ),
-            IconButton(
-              key: fitKey,
-              onPressed: onFit,
-              icon: const Icon(Icons.fit_screen_outlined),
-              tooltip: 'Fit the model to the view',
-              color: context.palette.primary,
-              visualDensity: VisualDensity.compact,
-            ),
-            IconButton(
-              key: resetKey,
-              onPressed: onReset,
-              icon: const Icon(Icons.restart_alt_rounded),
-              tooltip: 'Reset the view',
-              color: context.palette.primary,
-              visualDensity: VisualDensity.compact,
-            ),
-          ],
-        ),
-      );
 }
 
 /// Perspective or orthographic: the two ways of looking through the

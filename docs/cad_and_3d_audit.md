@@ -389,3 +389,18 @@ wireframe stays under More. The selector (`ViewModeSwitch`) sits in the
 band along the top of the view the model is framed clear of, spread or
 collapsed to a list by measured width; a tap on the chosen option no
 longer falls through to the model. Held by `test/app/view_modes_test.dart`.
+
+## 23. Since the audit — the polish (Phase 19)
+
+One set of view controls (`ViewControls`) in the same corner of the drawing,
+the technical drawing and the model, laid over each view rather than inside
+its pointer handling — on the technical drawing a press on zoom had put down
+the picked part. The technical drawing's room for its figures is worked out
+inside the layout, so its first refit no longer waits for, and undoes, the
+user's first zoom; the drawing and the technical drawing refit when their
+room changes unless moved. The model outlines a pick along its outside and
+silhouette only, untinted (`ModelPainter._outsideOf`), and the technical
+mode's outline pen follows the same silhouette. The materials were measured
+on one window of every kind and left as they were. Held by
+`test/app/materials_read_as_materials_test.dart` and
+`test/app/controls_and_selection_test.dart`.

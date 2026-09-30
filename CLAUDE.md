@@ -4440,6 +4440,77 @@ with the design, the work and the undo history untouched — a tap on the
 mode already chosen included — and the wireframe under More. Making Shaded
 show the finishes, or letting the chosen mode's tap through, fails it.
 
+### The polish, and what it turned up
+
+The user's words: *a visual polish pass — spacing, typography, toolbar,
+icons, camera controls, dimension readability, materials, shadows,
+reflections, glass, panel, frame, handles, hinges, selection states,
+active tools, zoom, reset and view mode controls; clarity, precision and
+manufacturing usability, not gradients, animations or glow; the UI keeps
+ProFrame's colours and the model the customer's materials.* Looking at every
+view on a phone and a laptop found most of it already right, and four things
+that were not — three of them bugs a screenshot shows and a test did not:
+
+- **One set of view controls.** The drawing had a column with a fit, the
+  technical drawing a column with no fit at its top, the model a row with a
+  fit and a reset. `ViewControls` (`lib/app/canvas/view_controls.dart`) is
+  now the one row, in the one corner — the foot of the view, on the right —
+  of all three: zoom in, zoom out, fit, and reset where there is a view to
+  reset to (the model's first view).
+- **A press on zoom was a press on the drawing.** The technical drawing's
+  buttons sat inside the drawing's own pointer handling, so pressing one
+  put down whatever part was picked. The controls, and the status bar
+  under More, are laid over the drawing now, never inside it.
+- **The first zoom was undone.** The technical drawing worked out the room
+  for its rows of figures from its size *before* layout had set it, so the
+  refit that followed the first layout waited for the next rebuild — which
+  was usually the user's first press on zoom, and put it back. The room is
+  worked out inside the layout now, where the size is known.
+- **The drawings refit when their room changes.** A window grown from a
+  phone's width kept the phone's framing, the design small in one corner.
+  The drawing and the technical drawing are fitted again to the room they
+  have, as the model always was, unless the user has moved the view —
+  a view is still as fitted when it is the fit of its old room
+  (`ViewTransform.isSameAs`).
+- **What is picked on the model is outlined along its outside.** It was
+  outlined round every facet it is built from, which drew a sash as a heavy
+  band of gold rings, one for every arris. Now only the edges where the pick
+  meets what is not picked, or turns away from the eye, are drawn — the
+  painter paints the far side of every part too, so turning away is the
+  silhouette (`ModelPainter._outsideOf`). It is **never tinted**: a tint
+  over a finish reads as another finish, anthracite went olive, and over a
+  sealed unit it gathered once for every face of the glass. The same test
+  of facing puts the technical mode's outline pen on the silhouette.
+
+**The materials were left as they are, on purpose.** On one window holding
+an anthracite aluminium frame, clear glass, tinted glass, a white panel, a
+silver handle and hinges, each already reads as itself — frame `56 59 61`,
+clear glass `186 197 199`, tinted `85 91 90`, panel white, handle
+`133 145 152` with a highlight across it, hinges `102 111 118`, satin where
+the handle is polished — so none of the material figures was touched.
+**Bars keep their own finish**: a mullion is not repainted because the frame
+was, so a coloured frame with white bars is what the design says until the
+user colours the bars too.
+
+`test/app/materials_read_as_materials_test.dart` is the phase's visual
+test, on that window seen square on and as first shown: every part on the
+screen; each a colour of its own, the closest pair clear by more than
+twenty levels; the glass seen through — changing with the studio behind
+it — where every solid part is the same to the byte; the tinted glass
+darker than the clear; the handle a metal with a highlight and a shade
+across it and the panel one even matte face; the handle catching more
+light than the satin hinges; nothing of the application's green or gold in
+the model; and every facet the colour the customer gave its part.
+`test/app/controls_and_selection_test.dart` holds the rest: the one row in
+the same corner of all three views at a phone and a laptop, each button
+doing what it says; a press on any of them leaving the pick picked, the
+design as it was and nothing to undo; the drawing and the technical drawing
+refitted when a phone's window becomes a laptop's and left alone once
+zoomed; and the frame picked drawn as a line or two across its jamb, not a
+band, with the face between them and the middle of a picked pane not
+changed by a pixel. Outlining every facet again, or leaving the drawing's
+framing behind on a resize, fails it.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the
