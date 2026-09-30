@@ -189,16 +189,17 @@ class CadPainter extends CustomPainter {
       final path = view.pathOf(outline);
 
       // **The material says how it is indicated** — glass by the sheet's
-      // glass tint and the two strokes across a corner, anything solid by
-      // its own colour and hatching — from its [CadIndication], the same
-      // description the solid is shaded from.
+      // pale glass tint and the two strokes across a corner, anything solid
+      // by hatching on the paper — from its [CadIndication], the same
+      // description the solid is shaded from. A panel's colour is written
+      // on it by name (see `_materialNames`), never flooded over it.
       final cad = section.finish.material.surface.cad;
       canvas.drawPath(
         path,
         Cad.fill(
-          cad.ownColour
-              ? Color(section.finish.colour).withValues(alpha: cad.tint)
-              : Color.lerp(ink.glass, Color(section.finish.colour), cad.shade)!,
+          cad.inGlassTint
+              ? Color.lerp(ink.glass, Color(section.finish.colour), cad.shade)!
+              : ink.sheet,
         ),
       );
       if (layers.hatching) {
@@ -239,11 +240,18 @@ class CadPainter extends CustomPainter {
 
       final finish = section.finish;
       final look = GlassLook.of(finish);
-      final word = finish.material.surface.cad.hatch == CadHatch.glazing
+      // A panel's colour is named, as a joiner's schedule names it, rather
+      // than painted: PANEL · BROWN. A colour of the user's own has no name
+      // to give, and is left to the part's own panel.
+      final colour = PanelColour.of(finish);
+      final word = finish.material.surface.cad.inGlassTint
           ? (look == null || look == GlassLook.clear
                 ? 'GLASS'
                 : '${look.label.toUpperCase()} GLASS')
-          : finish.material.label.toUpperCase().replaceFirst('SOLID ', '');
+          : [
+              finish.material.label.toUpperCase().replaceFirst('SOLID ', ''),
+              ?colour?.label.toUpperCase(),
+            ].join(' · ');
       final marked = design.openingOf(section.id)?.markAt != null;
       final at =
           view.toScreen(section.outline.centroid) +
@@ -321,7 +329,9 @@ class CadPainter extends CustomPainter {
     canvas.restore();
   }
 
-  /// Forty-five degree hatching, for anything solid.
+  /// Forty-five degree hatching, for a solid infill — a panel. Evenly
+  /// spaced fine lines on the paper: plainly not glass, and quiet enough
+  /// that the part's outline and its name read over it.
   void _hatch(Canvas canvas, Polygon outline) {
     final path = view.pathOf(outline);
     final bounds = path.getBounds();
@@ -329,8 +339,8 @@ class CadPainter extends CustomPainter {
 
     canvas.save();
     canvas.clipPath(path);
-    final paint = Cad.stroke(ink.hatch.withValues(alpha: 0.55), Cad.hairline);
-    const spacing = 9.0;
+    final paint = Cad.stroke(ink.hatch, Cad.hairline);
+    const spacing = 8.0;
     final reach = bounds.width + bounds.height;
     for (var at = 0.0; at < reach; at += spacing) {
       canvas.drawLine(
@@ -349,11 +359,17 @@ class CadPainter extends CustomPainter {
     // Side by side rather than as two closed outlines, because a side the
     // user left open has no member and so no line.
     final lines = frame.lines;
+    final inner = frame.innerOutline;
+    // The frame is structure: laid in the structural tone, whatever it is
+    // made of, under its lines — which is what tells it at a glance from
+    // the glass and the panels it holds.
+    if (layers.hatching && !inner.isEmpty) {
+      _structure(canvas, frame.outline, inner);
+    }
     final heavy = Cad.stroke(ink.heavy, Cad.outline);
     for (final edge in lines.outside) {
       canvas.drawLine(view.toScreen(edge.a), view.toScreen(edge.b), heavy);
     }
-    final inner = frame.innerOutline;
     if (!inner.isEmpty) {
       final medium = Cad.stroke(ink.medium, Cad.profile);
       for (final edge in lines.daylight) {
@@ -372,36 +388,24 @@ class CadPainter extends CustomPainter {
           sightline,
         );
       }
-      // A section through the profile, indicated as its material is.
-      if (layers.hatching &&
-          frame.finish.material.surface.cad.hatch == CadHatch.diagonal) {
-        _profileHatch(canvas, frame.outline, inner);
-      }
     }
   }
 
-  /// Hatching in the frame ring, which is what says it is a section through
-  /// material rather than an empty border.
-  void _profileHatch(Canvas canvas, Polygon outer, Polygon inner) {
-    final ring = Path.combine(
-      PathOperation.difference,
-      view.pathOf(outer),
-      view.pathOf(inner),
-    );
-    final bounds = ring.getBounds();
-    canvas.save();
-    canvas.clipPath(ring);
-    final paint = Cad.stroke(ink.hatch.withValues(alpha: 0.7), Cad.hairline);
-    const spacing = 6.0;
-    final reach = bounds.width + bounds.height;
-    for (var at = 0.0; at < reach; at += spacing) {
-      canvas.drawLine(
-        Offset(bounds.left + at, bounds.top),
-        Offset(bounds.left + at - bounds.height, bounds.bottom),
-        paint,
-      );
-    }
-    canvas.restore();
+  /// The ring between [outer] and [inner] — a frame's or a sash's members —
+  /// laid in the structural tone: flat, with no lines of its own, so the
+  /// structure reads as one band and its sightlines as edges on it.
+  ///
+  /// The ring is one path holding both outlines, filled even-odd: the inner
+  /// lies wholly within the outer, so that is exactly the band between them
+  /// on every renderer. A path difference was tried first and is not to come
+  /// back — the web's renderer filled the whole of the outer with it, over
+  /// the glass and the panels.
+  void _structure(Canvas canvas, Polygon outer, Polygon inner) {
+    final ring = Path()
+      ..fillType = PathFillType.evenOdd
+      ..addPath(view.pathOf(outer), Offset.zero)
+      ..addPath(view.pathOf(inner), Offset.zero);
+    canvas.drawPath(ring, Cad.fill(ink.structure));
   }
 
   /// Each bar as its two faces, at the angle it was drawn at.
@@ -418,8 +422,13 @@ class CadPainter extends CustomPainter {
       if (divider == null) continue;
       final body = _barBody(divider);
       if (body.isEmpty) continue;
-      canvas.drawPath(view.pathOf(body), Cad.fill(ink.sheet));
-      if (layers.hatching) _hatch(canvas, body);
+      // A bar is structure too — the frame's own tone, so a mullion reads
+      // as part of what holds the glass and the panels and never as one of
+      // them.
+      canvas.drawPath(
+        view.pathOf(body),
+        Cad.fill(layers.hatching ? ink.structure : ink.sheet),
+      );
       canvas.drawPath(
         view.pathOf(body),
         Cad.stroke(inside ? ink.medium : ink.heavy,
@@ -558,7 +567,7 @@ class CadPainter extends CustomPainter {
     if (inner == null) return;
 
     final outer = OpeningLeaf.outerOf(section);
-    if (layers.hatching) _profileHatch(canvas, outer, inner);
+    if (layers.hatching) _structure(canvas, outer, inner);
     canvas.drawPath(view.pathOf(outer), Cad.stroke(ink.medium, Cad.profile));
     canvas.drawPath(view.pathOf(inner), Cad.stroke(ink.medium, Cad.profile));
   }

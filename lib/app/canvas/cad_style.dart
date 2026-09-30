@@ -30,6 +30,11 @@ abstract final class Cad {
   static const Color glassLine = Color(0xFF9FB9C2);
   static const Color hatch = Color(0xFF9EA3A7);
 
+  /// The structure — the frame, a sash, a mullion or a transom — laid in a
+  /// flat light grey, the tone a drawing gives what holds everything else,
+  /// so the members read as one thing and apart from what fills them.
+  static const Color structure = Color(0xFFE5E7E8);
+
   /// The squared paper under the drawing: there to measure by, far quieter
   /// than any line of the drawing on it.
   static const Color grid = Color(0xFFF0F1F2);
@@ -51,6 +56,7 @@ abstract final class Cad {
     glass: glass,
     glassLine: glassLine,
     hatch: hatch,
+    structure: structure,
     grid: grid,
     gridStrong: gridStrong,
     selection: selection,
@@ -76,7 +82,8 @@ abstract final class Cad {
     hidden: Color(0xFF80868B),
     glass: Color(0xFF1D2C31),
     glassLine: Color(0xFF6E97A4),
-    hatch: Color(0xFF70767B),
+    hatch: Color(0xFF72767A),
+    structure: Color(0xFF2B2E30),
     grid: Color(0xFF1C1F21),
     gridStrong: Color(0xFF25292C),
     selection: Color(0xFFE8B84A),
@@ -253,6 +260,9 @@ class CadColours {
   final Color glassLine;
   final Color hatch;
 
+  /// The flat tone of the frame, the sashes and the bars.
+  final Color structure;
+
   final Color grid;
   final Color gridStrong;
 
@@ -271,6 +281,7 @@ class CadColours {
     required this.glass,
     required this.glassLine,
     required this.hatch,
+    required this.structure,
     required this.grid,
     required this.gridStrong,
     required this.selection,

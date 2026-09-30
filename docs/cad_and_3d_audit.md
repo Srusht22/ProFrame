@@ -315,3 +315,14 @@ Chain figures stand just off their lines at `CadDimensions.figureAt`, which
 the tap targets share; dimension lines run past their witness lines and end
 in a heavier 45° slash; the opening mark is a drafting tag. No geometry and
 no figure changed. Held by `test/app/the_cad_is_a_drawing_test.dart`.
+
+## 17. Since the audit — materials on the drawing (Phase 13)
+
+Structure (frame, sashes, bars) is one flat light grey band; glass the
+sheet's pale tint with its corner strokes, stippled when frosted and shaded
+when tinted; a panel fine hatching on the paper. The panel's colour is
+named (`PANEL · BROWN`) and no longer flooded: `CadIndication` lost
+`ownColour` and `tint`. Rings are drawn as one even-odd path and the 3D
+glass clip as one even-odd clip per face in front, because the web's
+renderer did not take a path difference as the others do. Held by
+`test/app/materials_on_the_drawing_test.dart`.

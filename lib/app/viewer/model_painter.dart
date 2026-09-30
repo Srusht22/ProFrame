@@ -116,15 +116,20 @@ class ModelPainter extends CustomPainter {
       // order the sort gave the two (see `ProjectedFacet.hiders`).
       final keptOff = style.drawsFaces && face.hiders.isNotEmpty;
       if (keptOff) {
-        canvas
-          ..save()
-          ..clipPath(
-            Path.combine(
-              PathOperation.difference,
-              Path()..addRect(Offset.zero & size),
-              _outlinesOf(face.hiders),
-            ),
+        // One clip for each face in front — the view with that face's
+        // outline cut out, filled even-odd — and clips meet, so what is left
+        // is the view with all of them cut out. No path difference: the
+        // web's renderer does not take one the way the others do.
+        canvas.save();
+        for (final hider in face.hiders) {
+          if (hider.length < 3) continue;
+          canvas.clipPath(
+            Path()
+              ..fillType = PathFillType.evenOdd
+              ..addRect(Offset.zero & size)
+              ..addPolygon([for (final c in hider) _place(c)], true),
           );
+        }
       }
       if (style.drawsFaces) _face(canvas, path, face);
       if (style.drawsEdges && !_isSmooth(face)) _edges(canvas, path, face);

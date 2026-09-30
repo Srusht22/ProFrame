@@ -63,18 +63,20 @@ enum CadHatch {
   solid,
 }
 
-/// How a material is shown on the technical drawing.
+/// How a material is shown on the technical drawing: by convention, never
+/// in its colour.
+///
+/// **A drawing names a colour; it does not paint it.** A panel is hatched on
+/// the paper whatever colour it is ordered in, and the colour is written on
+/// it with its name — so a brown door and a white one are the same drawing
+/// but for a word, and nothing on the sheet is a flood of a finish that
+/// competes with the lines. Glass alone is tinted, with the sheet's own
+/// pale glass tint, because a controlled tint is the drawing's convention
+/// for glazing.
 class CadIndication {
   final CadHatch hatch;
 
-  /// Whether the part is tinted with its own colour on the sheet — a panel
-  /// in the colour it is ordered in — or with the sheet's glass tint.
-  final bool ownColour;
-
-  /// How strongly that tint is laid on, 0 to 1.
-  final double tint;
-
-  /// For glass shown in the sheet's glass tint: how much of its own colour
+  /// For glass, shown in the sheet's glass tint: how much of its own colour
   /// that tint takes, 0 to 1 — a controlled shade, so tinted glass reads
   /// darker than clear on the drawing without hiding the lines over it.
   final double shade;
@@ -85,11 +87,12 @@ class CadIndication {
 
   const CadIndication({
     required this.hatch,
-    this.ownColour = true,
-    this.tint = 0.32,
     this.shade = 0,
     this.stipple = false,
   });
+
+  /// Whether the part is shown in the sheet's glass tint.
+  bool get inGlassTint => hatch == CadHatch.glazing;
 }
 
 /// How the edges of a material read: the arris where two faces meet, and
@@ -186,7 +189,7 @@ abstract final class Surfaces {
     roughness: 0.02,
     reflectivity: 0.06,
     edge: EdgeLook(darkness: 0.15, sideTint: 0xFF7FA79A),
-    cad: CadIndication(hatch: CadHatch.glazing, ownColour: false),
+    cad: CadIndication(hatch: CadHatch.glazing),
   );
 
   /// Body-tinted glass: less through, the tint deeper.
@@ -197,11 +200,7 @@ abstract final class Surfaces {
     roughness: 0.02,
     reflectivity: 0.07,
     edge: EdgeLook(darkness: 0.2, sideTint: 0xFF566E66),
-    cad: CadIndication(
-      hatch: CadHatch.glazing,
-      ownColour: false,
-      shade: 0.3,
-    ),
+    cad: CadIndication(hatch: CadHatch.glazing, shade: 0.3),
   );
 
   /// Acid-etched or sandblasted glass: light comes through, a view does
@@ -215,11 +214,7 @@ abstract final class Surfaces {
     reflectivity: 0.05,
     edge: EdgeLook(darkness: 0.15, sideTint: 0xFF9DB8AE),
     texture: SurfaceTexture.frosted,
-    cad: CadIndication(
-      hatch: CadHatch.glazing,
-      ownColour: false,
-      stipple: true,
-    ),
+    cad: CadIndication(hatch: CadHatch.glazing, stipple: true),
   );
 
   /// An infill panel: opaque, matte, painted or foiled.

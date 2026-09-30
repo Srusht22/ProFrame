@@ -165,9 +165,9 @@ void main() {
 
     test('the drawing indicates each as a drawing does', () {
       expect(Surfaces.clearGlass.cad.hatch, CadHatch.glazing);
-      expect(Surfaces.clearGlass.cad.ownColour, isFalse);
+      expect(Surfaces.clearGlass.cad.inGlassTint, isTrue);
       expect(Surfaces.panel.cad.hatch, CadHatch.diagonal);
-      expect(Surfaces.panel.cad.ownColour, isTrue);
+      expect(Surfaces.panel.cad.inGlassTint, isFalse);
       expect(Surfaces.rubber.cad.hatch, CadHatch.solid);
     });
   });

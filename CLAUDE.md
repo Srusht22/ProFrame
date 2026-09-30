@@ -4089,6 +4089,48 @@ geometry it names; a figure's tap target on the figure, and the dimension
 line unbroken under it — putting a box back behind the figures fails it —
 and painting leaving the design as it was.
 
+### What each part is made of, on the drawing
+
+The user's words: *CAD should remain technical rather than photorealistic;
+glass by a professional convention — a controlled tint, a hatch, a glass
+symbol, an annotation — never a heavy opaque colour; the panel clearly
+distinguishable from glass; the frame clearly structural; frame, glass and
+panel told apart without being noisy; no arbitrary bright colours merely to
+differentiate components.*
+
+- **The frame is structure**, and so are a sash, a mullion and a transom:
+  one flat light grey band (`CadColours.structure`) under their outlines,
+  whatever they are made of. The frame's diagonal hatch was the same as a
+  panel's, so a PVC frame and a PVC panel were drawn alike; structure and
+  infill now differ by role, not by material.
+- **Glass is the sheet's pale glass tint** with the two strokes across a
+  corner; frosted glass is stippled and tinted glass a controlled shade
+  darker (`CadIndication.shade`). Never a heavy fill: clear glass stays
+  lighter than 0.8 luminance and the darkest glass above 0.45.
+- **A panel is fine forty-five degree hatching on the paper.**
+- **A drawing names a colour; it does not paint it.** `CadIndication` no
+  longer has `ownColour` or `tint`: a panel's finish is written on it by
+  name — `PANEL · BROWN` — from `PanelColour.of`, and never flooded over
+  it, so a brown door and a white one are one drawing but for that word.
+  The fills on the sheet are grey, paper and the glass tint, nothing else.
+- **A ring is one path filled even-odd.** The structural band was first a
+  path difference, and the web's renderer filled the whole outer outline
+  with it, over the glass and the panels — which only the browser showed.
+  The 3D view's glass clip (*The studio and the floor*) used a difference
+  too and is now a clip for each face in front, the view with that face's
+  outline cut out, even-odd; clips meet, so what is left is the view with
+  all of them cut out.
+
+`test/app/materials_on_the_drawing_test.dart` holds it on the pixels of a
+door with frosted glass, a brown panel and a clear light, on paper and at
+night: the frame's jamb the structural tone, the light the glass tint
+evenly, the panel the paper with hatching across a twentieth to two fifths
+of it, and the three different; a mullion the frame's tone; every glass
+look light enough and clear glass lightest; every fill grey, paper or the
+glass tint; the four panel colours one drawing with the lettering off, and
+two different words with it on — flooding the panel with its colour again
+fails three of those — and nothing in the design moved.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the
