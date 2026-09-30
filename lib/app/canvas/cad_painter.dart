@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../domain/dimensions/dimension_chain.dart';
 import '../../domain/dimensions/measurements.dart';
 import '../../domain/dimensions/units.dart';
 import '../../domain/geometry/polygon.dart';
@@ -19,6 +18,7 @@ import '../../domain/model/surface.dart';
 import 'cad_layers.dart';
 import 'cad_style.dart';
 import 'dimension_handles.dart';
+import 'dimension_layout.dart';
 import 'view_transform.dart';
 
 /// Draws the design as a technical drawing.
@@ -91,7 +91,7 @@ class CadPainter extends CustomPainter {
     if (layers.annotations) _materialNames(canvas, tree.sections);
     _hardware(canvas);
     if (layers.dimensions) {
-      _chains(canvas, tree);
+      _chains(canvas, size, tree);
       _userDimensions(canvas);
     }
     if (layers.annotations) _annotations(canvas);
@@ -252,6 +252,14 @@ class CadPainter extends CustomPainter {
               finish.material.label.toUpperCase().replaceFirst('SOLID ', ''),
               ?colour?.label.toUpperCase(),
             ].join(' · ');
+      // Only where the word fits inside the part it names.
+      final wide = Cad.label(
+        word,
+        size: Cad.smallTextSize,
+        weight: FontWeight.w600,
+        spacing: 1.1,
+      ).width;
+      if (view.lengthToScreen(section.widthMm) < wide + 10) continue;
       final marked = design.openingOf(section.id)?.markAt != null;
       final at =
           view.toScreen(section.outline.centroid) +
@@ -539,7 +547,32 @@ class CadPainter extends CustomPainter {
         OpeningEdge.top => Offset(-tag.width / 2, -tag.height - tagGap),
         OpeningEdge.bottom => Offset(-tag.width / 2, tagGap),
       };
-      tag.paint(canvas, view.toScreen(apex) + inward);
+      // The apex is on the stile the handle is on, half way along it — where
+      // the handle is — so the word steps along that stile until it is clear
+      // of every piece of this leaf's ironmongery, rather than lying on it.
+      var word = (view.toScreen(apex) + inward) & Size(tag.width, tag.height);
+      final pieces = [
+        for (final piece in design.hardware)
+          if (design.openingHolding(piece.parentId)?.id == opening.id &&
+              (layers.hiddenDetail || !design.isConcealed(piece)))
+            for (final shape in DesignGeometry.of(design).hardwareOf(piece))
+              if (!shape.isEmpty) view.pathOf(shape).getBounds().inflate(3),
+      ]..sort((a, b) => a.top.compareTo(b.top));
+      final sideHung = edge == OpeningEdge.left || edge == OpeningEdge.right;
+      for (var round = 0; round < pieces.length; round++) {
+        final hit = pieces.where((p) => p.overlaps(word)).toList();
+        if (hit.isEmpty) break;
+        word = sideHung
+            ? word.translate(
+                0,
+                hit.map((p) => p.bottom).reduce(math.max) - word.top,
+              )
+            : word.translate(
+                hit.map((p) => p.right).reduce(math.max) - word.left,
+                0,
+              );
+      }
+      tag.paint(canvas, word.topLeft);
 
       _openingMark(canvas, opening);
     }
@@ -669,61 +702,58 @@ class CadPainter extends CustomPainter {
 
   // ------------------------------------------------------------- dimensions
 
-  void _chains(Canvas canvas, DesignTree tree) {
-    final frame = design.frame!;
-    final sizes = Measurements.of(design);
-    for (final chain in DimensionChains.of(design)) {
-      final out = CadDimensions.outFor(chain);
-      for (final run in chain.runs) {
-        // A figure nobody has given is written `?`: the sketch has no
-        // scale, and a number read off it would be a guess.
-        final known = CadDimensions.knows(design, chain.axis, run, sizes);
-        if (chain.axis == DimensionAxis.horizontal) {
-          _horizontalRun(canvas, run, frame.outline.bottom, out, known);
-        } else {
-          _verticalRun(canvas, run, frame.outline.left, out, known);
-        }
+  /// Every chain of dimensions, where [DimensionLayout] puts it — the same
+  /// answer the figures are tapped by.
+  void _chains(Canvas canvas, Size size, DesignTree tree) {
+    final layout = DimensionLayout.of(design, view, canvas: size);
+    final paint = Cad.stroke(ink.dimension, Cad.annotation);
+    for (final placed in layout.figures) {
+      // Witness lines, standing off the geometry so they never touch it.
+      canvas
+        ..drawLine(placed.witnessFrom.$1, placed.witnessFrom.$2, paint)
+        ..drawLine(placed.witnessTo.$1, placed.witnessTo.$2, paint);
+      // The dimension line runs a little past each witness line, as a
+      // building drawing's does, so a chain reads as one continuous line.
+      final along = placed.to - placed.from;
+      final unit = along / math.max(along.distance, 1e-9);
+      canvas.drawLine(
+        placed.from - unit * _runPast,
+        placed.to + unit * _runPast,
+        paint,
+      );
+      // Where the figure stands beyond a run too short to hold it, the line
+      // is carried on to it.
+      if (placed.leader case (final from, final to)) {
+        canvas.drawLine(from, to, paint);
       }
-      _chainName(canvas, chain, frame.outline, out);
+      _tick(canvas, placed.from);
+      _tick(canvas, placed.to);
+      _dimensionLabel(
+        canvas,
+        placed.text,
+        placed.figure,
+        horizontal: !placed.turned,
+      );
     }
-    _sectionSizes(canvas, tree.sections, sizes);
-  }
-
-  /// What a row of dimensions is measuring, at the end of it.
-  ///
-  /// A chain of daylight openings does not add up to the overall size — the
-  /// frame and the bars are the difference — so each row says which it is
-  /// rather than leaving the reader to work out why the numbers disagree.
-  void _chainName(
-    Canvas canvas,
-    DimensionChain chain,
-    Polygon outline,
-    double outPixels,
-  ) {
-    if (chain.runs.isEmpty) return;
-    final text = Cad.label(
-      chain.runs.first.note.toUpperCase(),
-      colour: ink.dimension.withValues(alpha: 0.75),
-      size: Cad.smallTextSize - 0.5,
-      weight: FontWeight.w600,
-      spacing: 1.1,
+    for (final name in layout.names) {
+      Cad.write(
+        canvas,
+        name.text,
+        name.at,
+        colour: ink.dimension.withValues(alpha: 0.75),
+        paper: ink.sheet,
+        size: Cad.smallTextSize - 0.5,
+        weight: FontWeight.w600,
+        spacing: 1.1,
+        turned: name.turned,
+      );
+    }
+    _sectionSizes(
+      canvas,
+      tree.sections,
+      Measurements.of(design),
+      DimensionLayout.places,
     );
-
-    if (chain.axis == DimensionAxis.horizontal) {
-      final y = view.toScreen(Vec2(0, outline.bottom)).dy + outPixels;
-      final x = view.toScreen(Vec2(outline.right, 0)).dx + 14;
-      text.paint(canvas, Offset(x, y - text.height / 2));
-    } else {
-      // Below the chain and turned to read up it, so two rows of vertical
-      // dimensions never print their names on top of each other.
-      final x = view.toScreen(Vec2(outline.left, 0)).dx - outPixels;
-      final y = view.toScreen(Vec2(0, outline.bottom)).dy + 14;
-      canvas.save();
-      canvas.translate(x, y);
-      canvas.rotate(-math.pi / 2);
-      text.paint(canvas, Offset(-text.width, -text.height / 2));
-      canvas.restore();
-    }
   }
 
   /// Every section's own size, written in it.
@@ -740,10 +770,11 @@ class CadPainter extends CustomPainter {
     Canvas canvas,
     List<TreeSection> branches,
     List<Measure> sizes,
+    int places,
   ) {
     for (final branch in branches) {
       if (!branch.isLeaf) {
-        _sectionSizes(canvas, branch.panes, sizes);
+        _sectionSizes(canvas, branch.panes, sizes, places);
         continue;
       }
       final section = design.sectionById(branch.sectionId);
@@ -758,7 +789,7 @@ class CadPainter extends CustomPainter {
 
       Cad.write(
         canvas,
-        Measurements.sizeOf(design, section, sizes),
+        Measurements.sizeOf(design, section, sizes, places),
         at,
         colour: ink.dimension,
         paper: ink.sheet,
@@ -768,89 +799,8 @@ class CadPainter extends CustomPainter {
     }
   }
 
-  void _horizontalRun(
-    Canvas canvas,
-    ChainRun run,
-    double fromMm,
-    double outPixels,
-    bool known,
-  ) {
-    final at = CadDimensions.horizontalRunAt(view, run, fromMm, outPixels);
-    if (at == null) return;
-    final base = view.toScreen(Vec2(0, fromMm)).dy;
-    final y = at.dy;
-    final x1 = view.toScreen(Vec2(run.fromMm, 0)).dx;
-    final x2 = view.toScreen(Vec2(run.toMm, 0)).dx;
-
-    final paint = Cad.stroke(ink.dimension, Cad.annotation);
-    // Witness lines, standing off the geometry so they never touch it.
-    for (final x in [x1, x2]) {
-      canvas.drawLine(
-        Offset(x, base + Cad.witnessGap),
-        Offset(x, y + Cad.witnessOvershoot),
-        paint,
-      );
-    }
-    // The dimension line runs a little past each witness line, as a
-    // building drawing's does, so a chain reads as one continuous line.
-    final lo = math.min(x1, x2), hi = math.max(x1, x2);
-    canvas.drawLine(
-      Offset(lo - _runPast, y),
-      Offset(hi + _runPast, y),
-      paint,
-    );
-    _tick(canvas, Offset(x1, y));
-    _tick(canvas, Offset(x2, y));
-
-    _dimensionLabel(
-      canvas,
-      Measurements.figure(run.valueMm, known: known),
-      CadDimensions.figureAt(at, across: true),
-      horizontal: true,
-    );
-  }
-
   /// How far a dimension line runs past the witness lines at its ends.
   static const double _runPast = 3;
-
-  void _verticalRun(
-    Canvas canvas,
-    ChainRun run,
-    double fromMm,
-    double outPixels,
-    bool known,
-  ) {
-    final at = CadDimensions.verticalRunAt(view, run, fromMm, outPixels);
-    if (at == null) return;
-    final base = view.toScreen(Vec2(fromMm, 0)).dx;
-    final x = at.dx;
-    final y1 = view.toScreen(Vec2(0, run.fromMm)).dy;
-    final y2 = view.toScreen(Vec2(0, run.toMm)).dy;
-
-    final paint = Cad.stroke(ink.dimension, Cad.annotation);
-    for (final y in [y1, y2]) {
-      canvas.drawLine(
-        Offset(base - Cad.witnessGap, y),
-        Offset(x - Cad.witnessOvershoot, y),
-        paint,
-      );
-    }
-    final lo = math.min(y1, y2), hi = math.max(y1, y2);
-    canvas.drawLine(
-      Offset(x, lo - _runPast),
-      Offset(x, hi + _runPast),
-      paint,
-    );
-    _tick(canvas, Offset(x, y1));
-    _tick(canvas, Offset(x, y2));
-
-    _dimensionLabel(
-      canvas,
-      Measurements.figure(run.valueMm, known: known),
-      CadDimensions.figureAt(at, across: false),
-      horizontal: false,
-    );
-  }
 
   /// The forty-five degree slash that building drawings use instead of an
   /// arrowhead: a step heavier than the dimension line, so where each

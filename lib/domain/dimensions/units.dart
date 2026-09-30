@@ -44,6 +44,23 @@ abstract final class Units {
     return text == '-0' ? '0' : text;
   }
 
+  /// [mm] as a number of centimetres to exactly [decimals] places — `1050`
+  /// to one place is `105.0` — for a drawing whose figures are written to
+  /// one precision throughout, so a column of them lines up. It never drops
+  /// a digit [format] would keep: one place is the millimetre, the finest
+  /// a figure is written to anywhere.
+  static String formatTo(double mm, int decimals) {
+    final cm = toCm(mm);
+    if (!cm.isFinite) return '—';
+    // Never fewer places than the figure has: asked for none, 96.4 is still
+    // 96.4.
+    final places = format(mm).contains('.') ? 1 : decimals.clamp(0, 1);
+    final text = cm.toStringAsFixed(places);
+    return text.startsWith('-') && double.parse(text) == 0
+        ? text.substring(1)
+        : text;
+  }
+
   /// [mm] as a number of centimetres with the unit on it: `96.4 cm`.
   static String label(double mm) => '${format(mm)} $symbol';
 

@@ -2997,7 +2997,10 @@ the two meet.
 Figures are written to the tenth of a centimetre — the millimetre — which is
 the finest distinction worth quoting on a drawing. That is how many digits are
 printed, not what the design is: a value typed as 72.25 cm is exactly 722.5 mm
-in the geometry, and 96.4 cm is never written as 96.
+in the geometry, and 96.4 cm is never written as 96. On the technical drawing
+every figure carries that tenth, `160.0 cm` beside `91.6 cm`
+(`Units.formatTo`, `DimensionLayout.places`), so the drawing is one format and
+stays it as it is edited; elsewhere a whole centimetre is written `160`.
 
 If you add a field, it takes and gives millimetres and lets `_NumberField` do
 the conversion. A field that is not a length — an angle — passes
@@ -4069,9 +4072,9 @@ dimensions correspond exactly to the saved geometry — if the design says
   spaced capitals for what a part is (GLASS, PANEL, OVERALL, DAYLIGHT);
   and no boxes: `Cad.write` masks the paper round each letter, so lines
   run right up to the words. A chain's figure is written just above its
-  line — just left of one running down, read up the page — at
-  `CadDimensions.figureAt`, which the tap targets read too, so what is
-  written and what can be tapped are still one thing. The dimension line
+  line — just left of one running down, read up the page — where
+  `DimensionLayout` puts it, which the tap targets read too, so what is
+  written and what can be tapped are still one thing (see *The dimensions*). The dimension line
   runs a little past its witness lines and ends in the building drawing's
   45° slash, a step heavier than the line. The `<` or `>` the user drew is
   a drafting tag — the glyph in a thin circle — not a chip.
@@ -4130,6 +4133,80 @@ look light enough and clear glass lightest; every fill grey, paper or the
 glass tint; the four panel colours one drawing with the lettering off, and
 two different words with it on — flooding the panel with its colour again
 fails three of those — and nothing in the design moved.
+
+### The dimensions
+
+The user's words: *dimensions readable, aligned, correctly positioned,
+non-overlapping and associated with the correct geometry; one format, in
+centimetres; overall width and height, opening width and height, internal
+division dimensions and component dimensions told apart; never invented —
+every measurement from the design's geometry; text not over the geometry;
+readable when the design becomes complex.*
+
+- **Each kind of figure has its side** (`DimensionSide`), as an elevation
+  is dimensioned:
+
+  | Side | Nearest the drawing | Beyond it |
+  | --- | --- | --- |
+  | Foot | main divisions across (DAYLIGHT) | overall width |
+  | Left | main divisions down (DAYLIGHT) | overall height |
+  | Head | the divisions inside each divided part, across (DIVISION) | each opening's width (OPENING) |
+  | Right | the divisions inside each divided part, down (DIVISION) | each opening's height (OPENING) |
+
+  Component dimensions — each pane's own `width × height`, what glass or a
+  panel is cut to — stay written inside the pane. A row is named at its
+  end. The overall row sits beside the drawing where there is no row of
+  divisions on that side, not a row's width out from nothing.
+- **Every figure is a section that is there**, measured
+  (`DimensionChains.of`): the frame, a main division, an opening's own
+  region, a pane a line made — `ChainRunOf` says which and `sectionId`
+  names it. A part's divisions are chained only where its own bars are
+  square (a diagonal in a sash makes that sash's panes unbandable and
+  leaves everything else). **A measurement is written once**: a part whose
+  runs are exactly another's — openings side by side at one height — adds
+  no second row down the side. Parts that would overlap along a side go on
+  rows of their own.
+- **One layout, for the painter and the pointer** (`DimensionLayout`,
+  `lib/app/canvas/dimension_layout.dart`). Rows are placed most wanted
+  first — overall, divisions, openings, divisions inside parts — against
+  everything already written and the drawing itself, so no figure or name
+  overlaps another or lies on the drawing. A figure goes over the middle of
+  its run; one too long for it stands just past an end, the dimension line
+  carried on to it; where that would put it alongside another run of the
+  row — two narrow lights side by side — it is staggered, a line further
+  off over its own run, with a leader from the run's middle.
+- **Readable at any size — by writing less, not by scattering.** A row
+  that cannot be written legibly at this zoom — every figure over its run
+  or just beside it and on the sheet — is left off until the drawing is
+  looked at closer; the overall size always stays. So a phone shows the
+  whole and the main divisions, and zooming in brings the rest; nothing a
+  phone writes is anything a laptop does not. A phone keeps its width for
+  the drawing, reserving room only along the head (`roomFor(rightToo:)`),
+  and the CAD view refits when a row along the head or down the right
+  comes or goes. A pane's own size and name are written only where they
+  fit inside the pane, and the IN or OUT of a leaf steps along its stile
+  clear of the leaf's ironmongery.
+
+`test/app/the_dimensions_test.dart` holds it on a door, a window, a sliding
+pair, three openings in a row, a door and window set and a window with two
+lights a hand's width wide: each kind on its side and row; nothing open and
+nothing divided keeping to the foot and the left; three openings at one
+height one row down the right; no two runs on a row overlapping; every run
+exactly the section it names, or the frame; every figure `n.n cm` or
+`? cm` and the run to the millimetre; a line drawn in one part rewriting no
+other part's figure; on a laptop and a phone no figure or name overlapping
+another or on the drawing; a figure too long for its run beside it with its
+line carried on, or staggered with a leader; every figure over or just
+beside its own run and never alongside another; small showing fewer rows,
+the overall always, nothing a laptop does not, and a laptop every row;
+every figure tapped where it is written; and nothing in the design moved.
+Letting a figure stand beside another run, or writing figures without
+looking at what is already there, fails it. Three older tests moved with
+it and say so where they assert: a line drawn in an opening adds that
+opening's DIVISION row beside the drawing, so its pixels are allowed to
+the right of it; the word IN steps round a lever, so the lever's own
+outline is compared with the swing symbols off; and a diagonal in a sash
+leaves the design's own chains as they were, counted by side.
 
 ## Working on this repository
 

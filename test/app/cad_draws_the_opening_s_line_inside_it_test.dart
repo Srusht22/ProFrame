@@ -200,11 +200,27 @@ void main() {
       (s) => s.id != band.id && s.id != after.openings.single.sectionId,
     );
 
+    // Right of the drawing is the row of the divisions made inside each
+    // part: the line made two panes of the opening, and with dimensions on
+    // their heights are written down the right — measured off the opening,
+    // standing beside the drawing and not on it.
+    final drawing = onScreen(view, after.frame!.outline);
     for (final layers in _everyLayer) {
-      final diff = changed(
+      var diff = changed(
         await pixels(before, view, layers),
         await pixels(after, view, layers),
       );
+      if (layers.dimensions) {
+        expect(
+          diff.any((p) => p.dx > drawing.right),
+          isTrue,
+          reason: 'the panes it makes are dimensioned',
+        );
+        diff = [
+          for (final p in diff)
+            if (p.dx <= drawing.right + 2) p,
+        ];
+      }
       expect(diff, isNotEmpty, reason: 'the line is drawn');
       final outside = [
         for (final p in diff)

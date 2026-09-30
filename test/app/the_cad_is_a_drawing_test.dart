@@ -7,6 +7,7 @@ import 'package:proframe/app/canvas/cad_layers.dart';
 import 'package:proframe/app/canvas/cad_painter.dart';
 import 'package:proframe/app/canvas/cad_style.dart';
 import 'package:proframe/app/canvas/dimension_handles.dart';
+import 'package:proframe/app/canvas/dimension_layout.dart';
 import 'package:proframe/app/canvas/view_transform.dart';
 import 'package:proframe/domain/dimensions/dimension_chain.dart';
 import 'package:proframe/domain/dimensions/measurements.dart';
@@ -223,39 +224,30 @@ void main() {
       final view = _viewOf(d);
       final rgba = await _paint(d, layers: const CadLayers(grid: false));
       final handles = CadDimensions.of(d, view, const CadLayers());
-      final outline = d.frame!.outline;
-      var checked = 0;
-      for (final chain in DimensionChains.of(d)) {
-        final across = chain.axis == DimensionAxis.horizontal;
-        for (final run in chain.runs) {
-          final onLine = across
-              ? CadDimensions.horizontalRunAt(
-                  view,
-                  run,
-                  outline.bottom,
-                  CadDimensions.outFor(chain),
-                )
-              : CadDimensions.verticalRunAt(
-                  view,
-                  run,
-                  outline.left,
-                  CadDimensions.outFor(chain),
-                );
-          if (onLine == null) continue;
-          final written = CadDimensions.figureAt(onLine, across: across);
-          expect(
-            handles.any((h) => h.rect.contains(written)),
-            isTrue,
-            reason: 'tap target for $run',
-          );
-          // Right under the middle of the figure the dimension line is
-          // still there: nothing boxes the figure out of it.
-          final c = _at(rgba, onLine.dx.round(), onLine.dy.round());
-          expect(_dark(c), greaterThan(0.2), reason: 'line under $run: $c');
-          checked++;
+      final placed = DimensionLayout.of(d, view).figures;
+      expect(placed.length, greaterThan(2));
+      for (final figure in placed) {
+        expect(
+          handles.any((h) => h.rect.contains(figure.figure)),
+          isTrue,
+          reason: 'tap target for ${figure.run}',
+        );
+        // Right under the middle of the figure's run the dimension line is
+        // still there: nothing boxes the figure out of it.
+        final middle = (figure.from + figure.to) / 2;
+        // A fine line may fall between two pixels: the darker of those
+        // within one of the middle.
+        var darkest = 0.0;
+        for (var dy = -1; dy <= 1; dy++) {
+          for (var dx = -1; dx <= 1; dx++) {
+            final c = _at(rgba, middle.dx.round() + dx, middle.dy.round() + dy);
+            if (_dark(c) > darkest) darkest = _dark(c);
+          }
         }
+        expect(darkest, greaterThan(0.2), reason: 'line under ${figure.run}');
+        // And the figure stands off it, not on it.
+        expect(figure.rect.contains(middle), isFalse);
       }
-      expect(checked, greaterThan(2));
     });
   });
 

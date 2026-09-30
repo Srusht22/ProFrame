@@ -4,11 +4,11 @@ import '../../domain/dimensions/dimension_chain.dart';
 import '../../domain/dimensions/measurements.dart';
 import '../../domain/geometry/polygon.dart';
 import '../../domain/geometry/segment.dart';
-import '../../domain/geometry/vec2.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import 'cad_layers.dart';
 import 'cad_style.dart';
+import 'dimension_layout.dart';
 import 'view_transform.dart';
 
 /// What a figure on the drawing measures, and so what typing over it means.
@@ -70,24 +70,6 @@ class DimensionHandle {
 /// be tapped are the same thing by construction rather than by two pieces of
 /// arithmetic agreeing with each other.
 abstract final class CadDimensions {
-  /// Whether the figure for [run], in a chain along [axis], is one the
-  /// user has given.
-  static bool knows(
-    Design design,
-    DimensionAxis axis,
-    ChainRun run,
-    List<Measure> sizes,
-  ) {
-    final along = axis == DimensionAxis.horizontal
-        ? MeasureAxis.across
-        : MeasureAxis.down;
-    final section = run.sectionId;
-    if (run.of == ChainRunOf.overall || section == null) {
-      return Measurements.knowsOverall(design, along);
-    }
-    return Measurements.knowsSection(design, section, along, sizes);
-  }
-
   /// How far a tappable figure reaches either side of where it is written.
   static const Size labelReach = Size(78, 20);
 
@@ -95,50 +77,6 @@ abstract final class CadDimensions {
   /// written as one line: the width to the left of the cross, the height to
   /// the right of it.
   static const Size sizeReach = Size(112, 20);
-
-  /// How far a chain's figure stands off its dimension line, in pixels: just
-  /// above a row across, just left of a row down and read up the page — as
-  /// a drawing writes them, so the line runs unbroken under its figure.
-  static const double figureOff = 8;
-
-  /// Where the figure for a run is written, given where the run's middle is
-  /// on its dimension line.
-  static Offset figureAt(Offset onLine, {required bool across}) => across
-      ? onLine - const Offset(0, figureOff)
-      : onLine - const Offset(figureOff, 0);
-
-  /// How far out from the drawing the [chain]'s row of figures sits.
-  static double outFor(DimensionChain chain) =>
-      Cad.dimensionGap + chain.row * Cad.dimensionStep;
-
-  /// Where a run of a horizontal chain writes its figure, or null when the
-  /// run is too short on screen to carry one.
-  static Offset? horizontalRunAt(
-    ViewTransform view,
-    ChainRun run,
-    double fromMm,
-    double outPixels,
-  ) {
-    final y = view.toScreen(Vec2(0, fromMm)).dy + outPixels;
-    final x1 = view.toScreen(Vec2(run.fromMm, 0)).dx;
-    final x2 = view.toScreen(Vec2(run.toMm, 0)).dx;
-    if ((x2 - x1).abs() < 3) return null;
-    return Offset((x1 + x2) / 2, y);
-  }
-
-  /// The same down the side of the drawing.
-  static Offset? verticalRunAt(
-    ViewTransform view,
-    ChainRun run,
-    double fromMm,
-    double outPixels,
-  ) {
-    final x = view.toScreen(Vec2(fromMm, 0)).dx - outPixels;
-    final y1 = view.toScreen(Vec2(0, run.fromMm)).dy;
-    final y2 = view.toScreen(Vec2(0, run.toMm)).dy;
-    if ((y2 - y1).abs() < 3) return null;
-    return Offset(x, (y1 + y2) / 2);
-  }
 
   /// Where a section writes its own size, or null when there is no room for
   /// it or no honest figure to write.
@@ -149,8 +87,15 @@ abstract final class CadDimensions {
   ) {
     if (design.hasChildren(section.id)) return null;
     if (!isRectangle(section.outline)) return null;
-    if (view.lengthToScreen(section.widthMm) < 62) return null;
     if (view.lengthToScreen(section.heightMm) < 26) return null;
+    // Only where it fits inside the pane, with room either side: a size
+    // spilling over the bars into the next pane would be read as its.
+    final written = Cad.label(
+      Measurements.sizeOf(design, section, null, DimensionLayout.places),
+      size: Cad.smallTextSize,
+      weight: FontWeight.w600,
+    ).width;
+    if (view.lengthToScreen(section.widthMm) < written + 10) return null;
 
     // Where the user marked this section, their mark has the middle and the
     // size steps aside.
@@ -187,48 +132,47 @@ abstract final class CadDimensions {
 
   /// Every figure on the drawing that can be typed over, nearest the
   /// pointer first when they overlap.
+  /// [canvas], where given, is the sheet the drawing is on, as the painter
+  /// is given it — so a row the painter leaves off at this zoom offers
+  /// nothing to tap.
   static List<DimensionHandle> of(
     Design design,
     ViewTransform view,
-    CadLayers layers,
-  ) {
+    CadLayers layers, {
+    Size? canvas,
+  }) {
     final frame = design.frame;
     if (frame == null || !layers.dimensions) return const [];
 
     final handles = <DimensionHandle>[];
     final sizes = Measurements.of(design);
 
-    for (final chain in DimensionChains.of(design)) {
-      final out = outFor(chain);
-      for (final run in chain.runs) {
-        final across = chain.axis == DimensionAxis.horizontal;
-        final at = across
-            ? horizontalRunAt(view, run, frame.outline.bottom, out)
-            : verticalRunAt(view, run, frame.outline.left, out);
-        if (at == null) continue;
-
-        final overall = run.of == ChainRunOf.overall;
-        handles.add(DimensionHandle(
-          rect: Rect.fromCenter(
-            center: figureAt(at, across: across),
-            width: across ? labelReach.width : labelReach.height,
-            height: across ? labelReach.height : labelReach.width,
-          ),
-          of: overall
-              ? (across
-                  ? DimensionOf.overallWidth
-                  : DimensionOf.overallHeight)
-              : (across
-                  ? DimensionOf.sectionWidth
-                  : DimensionOf.sectionHeight),
-          elementId: overall ? null : run.sectionId,
-          valueMm: run.valueMm,
-          label: overall
-              ? (across ? 'Overall width' : 'Overall height')
-              : (across ? 'Daylight width' : 'Daylight height'),
-          known: knows(design, chain.axis, run, sizes),
-        ));
-      }
+    // Every chain's figures, exactly where the painter writes them: the
+    // words themselves, with a little room round them to take a finger.
+    for (final placed in DimensionLayout.of(
+      design,
+      view,
+      canvas: canvas,
+    ).figures) {
+      final run = placed.run;
+      final across = placed.chain.axis == DimensionAxis.horizontal;
+      final overall = run.of == ChainRunOf.overall;
+      final what = switch (run.of) {
+        ChainRunOf.overall => 'Overall',
+        ChainRunOf.daylight => 'Daylight',
+        ChainRunOf.opening => 'Opening',
+        ChainRunOf.division => 'Division',
+      };
+      handles.add(DimensionHandle(
+        rect: placed.rect.inflate(3),
+        of: overall
+            ? (across ? DimensionOf.overallWidth : DimensionOf.overallHeight)
+            : (across ? DimensionOf.sectionWidth : DimensionOf.sectionHeight),
+        elementId: overall ? null : run.sectionId,
+        valueMm: run.valueMm,
+        label: '$what ${across ? 'width' : 'height'}',
+        known: placed.known,
+      ));
     }
 
     // A section's own size, written in it: the width left of the cross and

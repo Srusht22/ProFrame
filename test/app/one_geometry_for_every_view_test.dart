@@ -48,17 +48,18 @@ ViewTransform _view(Design design) => ViewTransform.fit(
 );
 
 /// The technical drawing, with nothing laid over the parts themselves.
-Future<Uint8List> cad(Design design) async {
+Future<Uint8List> cad(Design design, {bool openings = true}) async {
   final recorder = ui.PictureRecorder();
   CadPainter(
     design: design,
     view: _view(design),
-    layers: const CadLayers(
+    layers: CadLayers(
       grid: false,
       dimensions: false,
       centreLines: false,
       annotations: false,
       grips: false,
+      openings: openings,
     ),
   ).paint(Canvas(recorder), _size);
   return _rgba(recorder);
@@ -453,7 +454,11 @@ void main() {
           design,
           DesignGeometry.of(design).hardwareOf(piece),
         );
-        for (final (view, paint) in [('CAD', cad), ('sheet', sheet)]) {
+        // The drawing without its swing symbols: the word saying which way
+        // a leaf opens steps round that leaf's ironmongery, so taking a
+        // piece away moves it too, and this is about the piece alone.
+        Future<Uint8List> drawing(Design d) => cad(d, openings: false);
+        for (final (view, paint) in [('CAD', drawing), ('sheet', sheet)]) {
           final box = changed(await paint(design), await paint(without));
           expect(box, isNotNull, reason: view);
           // Within the width of the line it is drawn with.

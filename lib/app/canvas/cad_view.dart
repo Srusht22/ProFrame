@@ -20,6 +20,7 @@ import '../theme/app_theme.dart';
 import 'cad_layers.dart';
 import 'cad_painter.dart';
 import 'dimension_handles.dart';
+import 'dimension_layout.dart';
 import 'view_transform.dart';
 
 /// The technical drawing, and the drafting board it sits on.
@@ -64,11 +65,16 @@ class _CadViewState extends ConsumerState<CadView> {
   static const EdgeInsets _sheetPadding =
       EdgeInsets.only(left: 118, right: 70, top: 20, bottom: 150);
 
+  /// [_sheetPadding], and the room the design's own rows along the head and
+  /// down the right need — its openings and its divisions — so every figure
+  /// is on the sheet when it is fitted.
+  EdgeInsets _padding = _sheetPadding;
+
   ViewTransform _fitted(Polygon? content, Size size) => ViewTransform.fit(
         content,
         size,
         marginFraction: 0.06,
-        padding: _sheetPadding,
+        padding: _padding,
       );
 
   ViewTransform get _transform => _view ?? _fitted(_fittedTo, _size);
@@ -89,6 +95,22 @@ class _CadViewState extends ConsumerState<CadView> {
     final state = ref.watch(workspaceProvider);
     final controller = ref.read(workspaceProvider.notifier);
     final layers = state.layers;
+    final padding = layers.dimensions
+        ? _sheetPadding +
+              DimensionLayout.roomFor(
+                state.design,
+                // A phone's width is the drawing's: its rows down the right
+                // come in as it is looked at closer.
+                rightToo: _size.width >= 600,
+              )
+        : _sheetPadding;
+    // A row along the head or down the right that comes or goes — an
+    // opening marked, a part divided — refits the drawing round it, so no
+    // figure is ever left off the sheet.
+    if (padding != _padding) {
+      _padding = padding;
+      if (_fittedTo != null && !_size.isEmpty) _view = _fitted(_fittedTo, _size);
+    }
 
     // An opening is a container. Pick any part of one and the tools for
     // drawing inside it appear, because from there a line is the opening's.
@@ -136,8 +158,12 @@ class _CadViewState extends ConsumerState<CadView> {
               _fitIfNeeded(state.design.bounds);
               final view = _transform;
               final grips = _gripsFor(state.design, state.selectedId);
-              final figures =
-                  CadDimensions.of(state.design, view, layers);
+              final figures = CadDimensions.of(
+                state.design,
+                view,
+                layers,
+                canvas: size,
+              );
 
               // The opening the user is working inside, if they have picked
               // any part of one. A line tool only exists while there is

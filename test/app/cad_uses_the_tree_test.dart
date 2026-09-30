@@ -263,12 +263,17 @@ void main() {
       ]);
 
       // The design's own bars are still square, so its bands still mean
-      // something and its figures are still written.
+      // something and its figures are still written. (The sash's own panes,
+      // along the head and down the right, are what the diagonal does make
+      // unbandable — that is the sash's row and not the design's.)
+      int designs(Design d) => DimensionChains.of(d)
+          .where(
+            (c) =>
+                c.side == DimensionSide.bottom || c.side == DimensionSide.left,
+          )
+          .length;
       expect(DimensionChains.isRectilinear(slanted), isTrue);
-      expect(
-        DimensionChains.of(slanted).length,
-        DimensionChains.of(design).length,
-      );
+      expect(designs(slanted), designs(design));
     });
 
     test('a diagonal that divides the design does strike them off', () {

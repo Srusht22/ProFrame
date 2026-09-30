@@ -403,16 +403,29 @@ void main() {
           ),
         ).inflate(1),
     ];
-    var changed = 0;
+    // Right of the drawing is the row of the divisions made inside each
+    // part: the lines made panes of the openings, whose heights are written
+    // down the right — beside the drawing, measured off it, never on it.
+    final drawing = Rect.fromPoints(
+      view.toScreen(after.frame!.outline.topLeft),
+      view.toScreen(
+        Vec2(after.frame!.outline.right, after.frame!.outline.bottom),
+      ),
+    );
+    var changed = 0, beside = 0;
     for (var i = 0; i < a.length; i += 4) {
       if (a[i] == b[i] && a[i + 1] == b[i + 1] && a[i + 2] == b[i + 2]) {
         continue;
       }
-      changed++;
       final p = Offset(
         ((i ~/ 4) % 960).toDouble(),
         ((i ~/ 4) ~/ 960).toDouble(),
       );
+      if (p.dx > drawing.right + 2) {
+        beside++;
+        continue;
+      }
+      changed++;
       expect(
         boxes.any((box) => box.contains(p)),
         isTrue,
@@ -420,6 +433,7 @@ void main() {
       );
     }
     expect(changed, greaterThan(0));
+    expect(beside, greaterThan(0), reason: 'the panes are dimensioned');
 
     // And CAD draws from the model's own tree: each bar once, at the level
     // the model puts it.

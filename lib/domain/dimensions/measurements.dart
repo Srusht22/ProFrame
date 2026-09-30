@@ -279,8 +279,15 @@ abstract final class Measurements {
   }
 
   /// [mm] as a figure: centimetres where it is known, `?` where it is not.
-  static String figure(double mm, {required bool known}) =>
-      known ? Units.label(mm) : '? ${Units.symbol}';
+  ///
+  /// [places], where given, writes it to that many places — a drawing's
+  /// figures are all written to one precision (see [Units.formatTo]).
+  static String figure(double mm, {required bool known, int? places}) =>
+      known
+      ? (places == null
+            ? Units.label(mm)
+            : '${Units.formatTo(mm, places)} ${Units.symbol}')
+      : '? ${Units.symbol}';
 
   /// A width by a height, each written only where it is known.
   static String size(
@@ -288,15 +295,17 @@ abstract final class Measurements {
     double heightMm, {
     required bool knowsWidth,
     required bool knowsHeight,
+    int? places,
   }) =>
-      '${knowsWidth ? Units.format(widthMm) : '?'} × '
-      '${figure(heightMm, known: knowsHeight)}';
+      '${!knowsWidth ? '?' : places == null ? Units.format(widthMm) : Units.formatTo(widthMm, places)} × '
+      '${figure(heightMm, known: knowsHeight, places: places)}';
 
   /// [section]'s width by its height, as far as each is known.
   static String sizeOf(
     Design design,
     SectionElement section, [
     List<Measure>? all,
+    int? places,
   ]) {
     final measures = all ?? of(design);
     return size(
@@ -309,6 +318,7 @@ abstract final class Measurements {
         measures,
       ),
       knowsHeight: knowsSection(design, section.id, MeasureAxis.down, measures),
+      places: places,
     );
   }
 

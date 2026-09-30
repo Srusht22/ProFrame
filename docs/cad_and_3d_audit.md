@@ -326,3 +326,15 @@ named (`PANEL · BROWN`) and no longer flooded: `CadIndication` lost
 glass clip as one even-odd clip per face in front, because the web's
 renderer did not take a path difference as the others do. Held by
 `test/app/materials_on_the_drawing_test.dart`.
+
+## 18. Since the audit — the dimensions (Phase 14)
+
+`DimensionChains` now places each kind of figure on its side — divisions
+and overall along the foot and down the left, divisions inside parts and
+openings along the head and down the right — each read off a section that
+is there, and each measurement once. `DimensionLayout` is the one placement
+the painter and the tap targets share: most wanted rows first, nothing
+overlapping or on the drawing, figures past or staggered off runs too
+short for them, and a row left off at a zoom where it cannot be legible.
+Every figure on the drawing is written to the millimetre. Held by
+`test/app/the_dimensions_test.dart`.
