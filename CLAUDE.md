@@ -5657,6 +5657,80 @@ its middle pushes past itself, is joined too. Leaving the guard out fails
 test 4; judging it after squaring instead of in the ink fails
 `standard_normalization_rules_test`.
 
+### The whole system, end to end
+
+```
+Drawing → raw geometry → normalisation / validation → canonical geometry
+        → Draw, CAD, 3D → save → reload
+```
+
+`test/full_pipeline_regression_test.dart` runs that chain the way the
+user does, on the real app, for two designs of Adam's.
+
+- **An imperfect door.** Every corner is a little out, a fanlight
+  transom is stopped 15 cm short of the far jamb, and a `>` is drawn in
+  the leaf. Then a line is drawn short inside the leaf.
+- **A window under a stair, drawn by hand.** Every side is a little out,
+  with a `>` under the slope and a line drawn short inside it.
+
+Each is made frosted glass over a brown panel, in an anthracite aluminium
+frame with silver handles and black hinges. It is checked as drawn, then
+saved, the app closed, opened again from the device and opened from its
+card. At each stage it is checked on:
+
+- **geometry:** the door square; the window's five corners where they were
+  drawn and its slope within 0.6° of the stair's;
+- **frame:** the frame and its material;
+- **openings:** one, on the region holding its mark;
+- **dividers:** the design's own reach the frame; the line drawn short is
+  the leaf's and completed across it;
+- **glass and panel:** frosted above and brown below, the glass raked
+  under the slope;
+- **handles and hinges:** the opening's, hinges down the hinge stile, the
+  handle on the leaf, the door's lock, each in its finish;
+- **dimensions:** every figure a section that is there, the overall
+  figures the frame's own;
+- **CAD:** on its pixels, every line of the outline, the daylight and
+  every bar inked where the geometry puts it, and none outside the
+  outline;
+- **3D:** on its facets, nothing outside the outline, the frame on every
+  corner of it, the glass glazing, the panel brown and opaque, and every
+  piece of ironmongery built;
+- **persistence:** the reopened file identical, field by field and as a
+  whole, the slope the same;
+- **customer and design:** both designs Adam's on the device.
+
+Then the features round them:
+- Adam's page shows both designs by name, the most recent first, and
+  nothing of Sara's.
+- The Door and Angled chips each show their own, and All shows both.
+- An edit brings a design to the top.
+- Sara's page shows hers alone.
+
+Each item on the brief's regression list is also held by its own tests,
+which the full suite runs:
+
+| Feature | Held by |
+| --- | --- |
+| Customer pages | `a_customer_s_page_test`, `customers_screen_test` |
+| Multiple designs | `a_customer_s_designs_as_cards_test`, `designs_are_kept_for_their_customer_test` |
+| Design names | `a_design_is_named_test`, `editing_a_design_s_information_test` |
+| Recent designs (most recently edited first) | `the_designs_screen_test`, `the_whole_customer_workflow_test` |
+| Category filtering | `finding_a_customer_s_designs_test`, `an_angled_design_test` |
+| Opening creation | `only_the_marked_section_opens_test`, `the_mark_picks_one_face_test`, `many_openings_in_one_design_test` |
+| Line completion | `a_line_stopped_short_is_completed_test`, `a_line_started_in_the_opening_is_completed_to_it_test`, `a_line_outside_the_opening_is_completed_to_the_design_test` |
+| Divider behaviour | `lines_inside_an_opening_test`, `the_opening_survives_its_own_lines_test`, `internal_lines_keep_the_opening_test` |
+| Panel and glass | `glass_or_panel_test` (domain and app), `materials_on_the_drawing_test` |
+| Handles | `a_door_has_door_furniture_test`, `a_window_has_window_furniture_test`, `the_handle_is_on_both_faces_test` |
+| Hinges | `hinges_round_the_back_test`, `the_openings_hardware_test` |
+| Saving and loading | `persistence_and_old_designs_test`, `reopening_keeps_the_category_test`, `opening_an_existing_design_test` |
+
+Taking line completion out fails this test. Reading every design as
+standard does not, because the under-stair slope is about 41°, past
+anything any category straightens. The category's own behaviour is held
+by `reopening_keeps_the_category_test` and
+`comprehensive_geometry_test`, which do fail under that change.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the

@@ -675,3 +675,16 @@ lines about a centimetre. `_joined` now leaves such ends for the trim.
 "Such ends" is judged in the ink: both ends past the crossing by more than
 the weld, and no other end at the corner. Everything else joins as before.
 
+## 23. The whole system, end to end (Phase 19)
+
+`test/full_pipeline_regression_test.dart` runs the whole chain on the real
+app: drawing, reading, canonical geometry, CAD on its pixels, 3D on its
+facets, save, close, reopen. It does this for an imperfect door and a
+hand-drawn under-stair window. It then checks the customer page, several
+designs, names, most recent first, category filtering, and another
+customer.
+
+The full suite is the regression run: 2194 tests, all passing, with
+`flutter analyze` clean. Nothing in the application changed in this
+phase; nothing it found needed fixing.
+
