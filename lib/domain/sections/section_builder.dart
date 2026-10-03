@@ -414,8 +414,6 @@ abstract final class SectionBuilder {
         (from.top - to.top).abs() < 1e-6;
     if (sameSize && samePlace) return dividers;
 
-    Vec2 moved(Vec2 p) => from.sameIn(to, p);
-
     // The ids of everything inside this section, at any depth: a bar two
     // levels down still belongs to the thing being moved.
     final inside = <String>{};
@@ -458,10 +456,22 @@ abstract final class SectionBuilder {
       if (!from.holds(divider.segment)) return dividers;
     }
 
+    // An end that met the section's edge still meets it: on a raked light
+    // the slope is not where the box puts it (`Polygon.lineIn`).
+    final onEdge = math.max(
+      1.0,
+      Tol.weldFor(
+        math.max(from.width, from.height),
+        fraction: Tol.weldFractionClean,
+      ),
+    );
     return [
       for (final divider in dividers)
         if (inside.contains(divider.id))
-          divider.copyWith(a: moved(divider.a), b: moved(divider.b))
+          () {
+            final line = from.lineIn(to, divider.segment, onEdge: onEdge);
+            return divider.copyWith(a: line.a, b: line.b);
+          }()
         else
           divider,
     ];

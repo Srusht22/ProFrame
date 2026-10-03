@@ -496,3 +496,29 @@ Still open:
   and level sides, but not for a bar at a slope.
 - No aligned figure is drawn along a slope.
 - Validation problems are not shown in the app.
+
+## 16. Openings inside an angled design (Phase 12)
+
+An opening marked under a slope is the shape the frame gives it, raked and
+never squared. Read and built, it already held its divider, its glass, its
+panel and its ironmongery, all inside it. What broke was editing it. An
+opening's contents were carried by its bounding box (`Polygon.sameIn`), and
+on a raked light the box's top is wherever the slope meets the bar beside
+it. So moving that bar sideways stretched the opening vertically:
+- a rail inside it rode up or down, and its panel's height changed;
+- an upright dropped to the slope came off the slope and divided nothing,
+  so the opening lost its glass and its panel.
+
+- **The carry is measured from the sides that bound a region square**
+  (`Polygon.sameIn`): between a level head and a level sill, between two
+  upright sides. A rectangle carries exactly as before. A raked light,
+  with only a sill level, carries its contents with the sill.
+- **An end that met the region's edge still meets it**
+  (`Polygon.lineIn`), along its own line. `SectionBuilder._carryContents`
+  and `DesignEdits.moveOpeningToSection` both use it.
+- **A frame reshape lets the rebuild carry the opening's contents**
+  (`FrameSides.reshaped`). Phase 11 froze them in place, which was only
+  right while the carry was wrong. The sill taken down by an overall
+  height now takes the rail with it, so the panel keeps its height.
+
+`test/domain/openings_inside_an_angled_design_test.dart` holds it.

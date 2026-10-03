@@ -287,13 +287,102 @@ class Polygon {
   /// a resize and the carrying that follows an opening to another section go
   /// through here, so there is one answer to where the inside of a section
   /// goes, not two.
+  ///
+  /// **It is measured from the sides that bound the shape square**, along
+  /// each axis: between its level head and its level sill, between its two
+  /// upright sides. On a rectangle those are its box, and this is the box's
+  /// proportion. On a light under a slope there is no level head — its top
+  /// is wherever the slope happens to meet the bar beside it — and carrying
+  /// in proportion to that box moved everything inside up or down whenever
+  /// the bar moved sideways: the rail in a raked sash rode up the leaf and
+  /// its panel grew, with nothing that bounds the panel having moved. So
+  /// where only one side along an axis is square, what is inside goes with
+  /// that side; where neither is, with the box, as before.
   Vec2 sameIn(Polygon other, Vec2 point) {
     if (width <= 0 || height <= 0) return point;
     return Vec2(
-      other.left + (point.x - left) * (other.width / width),
-      other.top + (point.y - top) * (other.height / height),
+      _alongIn(other, point.x, across: true),
+      _alongIn(other, point.y, across: false),
     );
   }
+
+  double _alongIn(Polygon other, double v, {required bool across}) {
+    final (lo, hi) = _squareBounds(across: across);
+    final (toLo, toHi) = other._squareBounds(across: across);
+    if (lo != null && hi != null && toLo != null && toHi != null) {
+      return toLo + (v - lo) * ((toHi - toLo) / (hi - lo));
+    }
+    if (hi != null && toHi != null) return v + (toHi - hi);
+    if (lo != null && toLo != null) return v + (toLo - lo);
+    final (from, size) = across ? (left, width) : (top, height);
+    final (to, toSize) = across
+        ? (other.left, other.width)
+        : (other.top, other.height);
+    return to + (v - from) * (toSize / size);
+  }
+
+  /// Where this shape's box is bounded by a side square to [across]'s axis:
+  /// an upright side at its left and right, a level one at its top and
+  /// bottom. Null for an extreme that is only a corner of a slope.
+  (double?, double?) _squareBounds({required bool across}) {
+    const on = Tol.samePointMm;
+    final (low, high) = across ? (left, right) : (top, bottom);
+    double? lo, hi;
+    for (final e in edges) {
+      final square = across
+          ? (e.a.x - e.b.x).abs() <= on && (e.a.y - e.b.y).abs() > on
+          : (e.a.y - e.b.y).abs() <= on && (e.a.x - e.b.x).abs() > on;
+      if (!square) continue;
+      final at = across ? e.a.x : e.a.y;
+      if ((at - low).abs() <= on) lo = low;
+      if ((at - high).abs() <= on) hi = high;
+    }
+    if (lo != null && hi != null && hi - lo <= on) return (null, hi);
+    return (lo, hi);
+  }
+
+  /// [line] where it lands when this shape becomes [other]: each end the
+  /// same place in the new shape as in this one, by [sameIn] — and an end
+  /// that met this shape's boundary, within [onEdge], still meeting the new
+  /// one, where the line it is on now reaches it.
+  ///
+  /// A line dropped from the slope of a raked light to its sill ends on the
+  /// slope. Carried to the light as it is after a bar beside it moved, its
+  /// foot is still on the sill but its head can come off the slope, and a
+  /// line that stops short of what it was drawn to divides nothing: the
+  /// glass and the panel either side of it were lost. Its head is put back
+  /// on the slope along its own line, so it keeps its angle and its place.
+  Segment lineIn(Polygon other, Segment line, {required double onEdge}) {
+    final a = sameIn(other, line.a), b = sameIn(other, line.b);
+    Vec2 end(Vec2 was, Vec2 now, Vec2 far) {
+      if (_boundaryDistance(was) > onEdge) return now;
+      if (other._boundaryDistance(now) <= 1e-6) return now;
+      final r = now - far;
+      if (r.length < 1e-9) return now;
+      Vec2? best;
+      var nearest = double.infinity;
+      for (final edge in other.edges) {
+        final s = edge.direction;
+        final denominator = r.cross(s);
+        if (denominator.abs() < 1e-9 * r.length * s.length) continue;
+        final u = (far - edge.a).cross(r) / -denominator;
+        final slack = 1e-6 / math.max(s.length, 1e-9);
+        if (u < -slack || u > 1 + slack) continue;
+        final at = edge.pointAt(u.clamp(0.0, 1.0));
+        final d = at.distanceTo(now);
+        if (d < nearest) {
+          best = at;
+          nearest = d;
+        }
+      }
+      return best ?? now;
+    }
+
+    return Segment(end(line.a, a, b), end(line.b, b, a));
+  }
+
+  double _boundaryDistance(Vec2 p) =>
+      edges.map((e) => e.distanceTo(p)).fold(double.infinity, math.min);
 
   /// [shape] where it lands when this shape becomes [other] — the same
   /// place in the new shape as it had in this one, corner by corner.

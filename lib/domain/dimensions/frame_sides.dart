@@ -288,8 +288,9 @@ abstract final class FrameSides {
   /// the slope, at the angle it was drawn and in the place it was drawn,
   /// so the lights either side keep their widths. A bar that ended on a
   /// side that did not move is where it was. A line inside an opening is
-  /// the same, against the frame's inner face, and is not stretched with
-  /// the opening the way a resize would carry it. The ink is moved with
+  /// the opening's, and goes with it as any resize carries it — from the
+  /// sides that bound it square, its ends kept on the slope it met
+  /// (`Polygon.sameIn`, `Polygon.lineIn`). The ink is moved with
   /// what was read from it — the frame's along each side that moved, a
   /// bar's along the bar — so reading the sheet again builds this design.
   /// A figure the user drew on a side that moved goes with it, and one
@@ -384,6 +385,12 @@ abstract final class FrameSides {
 
     final bars = <String, DividerElement>{};
     for (final bar in design.dividers) {
+      // A line inside a section is that section's, and the rebuild carries
+      // it with the section (`Polygon.sameIn`, `Polygon.lineIn`).
+      if (bar.parentId != null) {
+        bars[bar.id] = bar;
+        continue;
+      }
       final line = bar.segment;
       final a = endOf(line, bar.a), b = endOf(line, bar.b);
       bars[bar.id] = (a == bar.a && b == bar.b)
@@ -458,26 +465,11 @@ abstract final class FrameSides {
         strokes: [for (final s in design.sketch.strokes) inked(s)],
       ),
     );
-    var rebuilt = SectionBuilder.rebuild(placed);
-    // A rebuild carries what is inside a section that changed shape along
-    // with it, in proportion. Here nothing inside moved but the ends that
-    // met the frame, so the lines inside go back to where they were placed
-    // above, and the rebuild that follows finds every section as it is.
-    final inside = {
-      for (final d in placed.dividers)
-        if (d.parentId != null) d.id: d,
-    };
-    final carried = rebuilt.dividers.any((d) {
-      final p = inside[d.id];
-      return p != null && (p.a != d.a || p.b != d.b);
-    });
-    if (carried) {
-      rebuilt = SectionBuilder.rebuild(
-        rebuilt.copyWith(
-          dividers: [for (final d in rebuilt.dividers) inside[d.id] ?? d],
-        ),
-      );
-    }
+    // What is inside a section that changed shape goes with it, carried
+    // from the sides that bound it square: a raked light's sill moved down
+    // takes its rail down with it, so the panel below keeps its height, and
+    // its slope moved takes nothing of the rail, which met no slope.
+    final rebuilt = SectionBuilder.rebuild(placed);
 
     if (rebuilt.topLevelSections.length != design.topLevelSections.length ||
         rebuilt.sections.length != design.sections.length ||

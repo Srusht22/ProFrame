@@ -1170,7 +1170,18 @@ abstract final class DesignEdits {
     collect(from.id);
     if (bars.isEmpty && panes.isEmpty) return design;
 
-    Vec2 moved(Vec2 point) => from.outline.sameIn(to.outline, point);
+    // A bar that met the section's edge still meets the new one's
+    // (`Polygon.lineIn`): a line dropped from the slope of a raked light
+    // reaches the slope of the light it is taken to.
+    final onEdge = math.max(
+      1.0,
+      Tol.weldFor(
+        math.max(from.outline.width, from.outline.height),
+        fraction: Tol.weldFractionClean,
+      ),
+    );
+    Segment moved(DividerElement divider) =>
+        from.outline.lineIn(to.outline, divider.segment, onEdge: onEdge);
 
     return design.copyWith(
       dividers: [
@@ -1179,12 +1190,12 @@ abstract final class DesignEdits {
             divider
           else if (design.sectionHolding(divider.parentId) == from.id)
             divider.copyWith(
-              a: moved(divider.a),
-              b: moved(divider.b),
+              a: moved(divider).a,
+              b: moved(divider).b,
               parentId: to.id,
             )
           else
-            divider.copyWith(a: moved(divider.a), b: moved(divider.b)),
+            divider.copyWith(a: moved(divider).a, b: moved(divider).b),
       ],
       sections: [
         for (final section in design.sections)

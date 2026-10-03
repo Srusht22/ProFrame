@@ -5162,8 +5162,10 @@ its tallest side and says nothing about the others. So
     slope, at the place and angle it was drawn. A transom whose side has
     drawn back below it now meets the slope, at its own height.
   - A bar that ended on a side that did not move is where it was.
-  - A line inside an opening is not stretched in proportion, as a resize
-    would carry it, so the panel below a line keeps its height.
+  - A line inside an opening is the opening's, and goes with it as any
+    resize carries it — from the sides that bound it square, its ends kept
+    on the slope it met — so the panel below a rail keeps its height (see
+    *Openings inside an angled design*).
   - The ink moves with what was read from it: the frame's along each side,
     a bar's along the bar. A fresh reading gives the same design.
   - A figure the user stated on a side that moved reads the side's new
@@ -5198,6 +5200,90 @@ on a phone.
 
 Putting back the overall's stretch, leaving the ink behind, or leaving a
 bar's end where it was each fails it.
+
+### Openings inside an angled design
+
+```
+            ╱╲
+          ╱    ╲
+        ╱│      │╲
+      ╱  │      │  ╲
+     │ > │      │ <  │
+     │───│      │  │ │
+     └───┴──────┴──┴─┘
+   Opening 1  fixed  Opening 2
+```
+
+An opening marked under a slope is the shape the frame gives it — raked,
+never made a rectangle — and it is an opening like any other. Its
+divider, its glass, its panel, its hinges and its handle are its own and
+inside it, and stay so through every edit that reshapes it. Built from the
+reading, all of that already held:
+- the panes are cut from the raked region;
+- the leaf and what fills it follow the slope;
+- the ironmongery goes on the leaf's own stiles.
+
+What did not hold was carrying the opening's contents when it changed
+shape.
+
+- **The carry is measured from the sides that bound a region square**
+  (`Polygon.sameIn`): between its level head and its level sill, and
+  between its two upright sides. On a rectangle those are its box, so
+  nothing square carries differently. A raked light has no level head;
+  its box's top is wherever the slope meets the bar beside it. So
+  carrying by the box moved everything inside up or down whenever that
+  bar moved sideways. The rail in a raked sash rode up its leaf and its
+  panel changed height, though nothing that bounds the panel had moved.
+  Now a region with only one square side along an axis carries its
+  contents with that side, and one with none carries them by the box, as
+  before.
+- **An end that met the region's edge still meets it** (`Polygon.lineIn`).
+  An upright dropped from the slope to the sill was carried off the slope
+  when the bar beside it moved. A line that stops short divides nothing,
+  so the opening came back with no glass and no panel. Its end is now put
+  back on the edge along its own line, keeping its angle and its place.
+  `SectionBuilder._carryContents` and
+  `DesignEdits.moveOpeningToSection` both carry through it, so there is
+  still one answer to where the inside of a section goes.
+- **A frame reshaped carries its openings' contents the same way**
+  (`FrameSides.reshaped`). *Dimensions on an angled design* froze them in
+  place, which was right only while the carry was wrong: an overall
+  height taking the sill down left the rail behind, and the panel grew by
+  the whole difference. Now the sill takes the rail with it, so the panel
+  keeps its height, and a slope moved by a jamb's height moves nothing
+  the slope did not bound.
+
+`test/domain/openings_inside_an_angled_design_test.dart` holds it, on a
+gable:
+- two raked openings either side of a fixed light under the apex:
+  - Opening 1, a window hinged on its left, divided by a rail into raked
+    glass over a white panel;
+  - Opening 2, a door hinged on its right, divided by an upright from the
+    sill to the slope.
+- Every relationship is required, each time:
+  - each opening raked and on its own region;
+  - its branch of the tree holding exactly its divider and two panes;
+  - the divider its own, inside it and meeting its edge at both ends;
+  - the glass raked, the panel white, and every fill inside the leaf,
+    which follows the slope;
+  - hinges on one stile and a handle on the other, all its own, with a
+    lock on the door alone;
+  - nothing shared between the two, nothing in the fixed light, and no
+    validation problem.
+- Every edit is checked against them:
+  - as drawn;
+  - in the solid, inside their regions shut, with only the openings
+    moving when swung;
+  - with either mullion moved either way, and the rail and the panel
+    staying put;
+  - with each jamb made taller and shorter;
+  - with the overall height and width given;
+  - with Opening 1 moved into the five-sided light under the apex;
+  - after a save, a load and a fresh reading.
+- The carry is unchanged on a rectangle.
+
+Carrying by the box again fails five of its tests, and not putting an end
+back on the edge fails four.
 
 ## Working on this repository
 
