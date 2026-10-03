@@ -4652,7 +4652,8 @@ records five faults found by running the reading on hand-drawn shapes:
   back with no square side — **fixed**, see below;
 - the weld turns two level transoms into two sloped ones — **fixed**;
 - a drag in CAD is undone by the next reading, because the ink is not
-  moved;
+  moved — **fixed**, see *An edit on the technical drawing is an edit to
+  the drawing*;
 - a handle on a raked leaf is placed outside the leaf, because hardware is
   placed from the opening's bounding box — **fixed**, see *An angled design
   keeps its geometry*;
@@ -5786,6 +5787,97 @@ this version does not know — one added by a later version — loads as a
 window, as any unknown category always has. Opening it and saving it here
 would then keep it as a window. Nothing this version writes can produce
 such a file.
+
+### An edit on the technical drawing is an edit to the drawing
+
+The user's report: a door's head dragged on the technical drawing from
+200 cm to 190, then **Read** — and the door was 200 cm again. Every CAD
+edit went the same way: a transom dragged, a bar's end moved, a length or
+an angle typed on a bar's panel, a jamb pushed out.
+
+**The cause was two authorities.** The frame and every bar of the design
+are read from the user's strokes, and **Read** reads them again — rightly,
+because the drawing is the source of truth. The CAD edits changed the
+design and left the ink where it was, so the next reading rebuilt the
+design from the old ink. A size typed in the form never had the fault:
+`Measurements.stretch` and `FrameSides.reshaped` already move the ink a
+line was read from as the line moves.
+
+**The fix is that rule, for every other edit.** `InkFollows.edit`
+(`lib/domain/editing/ink_follows.dart`) takes the design before an edit
+and after it, and gives the after with its ink moved exactly as the edit
+moved what was read from it:
+
+- **a bar's, a figure's and an arrow's own stroke** carried with that
+  element, each sample by the displacement of the point of the element it
+  lies against;
+- **the frame's ink** — every stroke nothing else was read from — carried
+  with the frame's edges, a sample only with an edge within the hand's
+  reach of it, so a stroke that is nothing to do with the frame stays put;
+- **a dimension resting on a line that moved** carried with it, and a
+  figure the user stated reading the new length. Otherwise the next
+  reading's pins would hold the old figure and pull the geometry back.
+
+Nothing is written into the ink that was not there: every sample is the
+user's own, moved, and the mark of an opening is never touched. It is not
+a second geometry: the design is still the only canonical geometry, and
+the ink is still what a reading reads. The edit becomes part of the
+drawing, so a reading of the moved ink builds the design the edit made.
+
+`WorkspaceController._inked` is where it is applied, on every drag and
+typed figure the technical drawing and the panels make:
+- `dragSelected`, `dragElement`;
+- `moveDividerTo`, `moveDividerAcross`, `moveDividerEnd`,
+  `moveDividerWithin`;
+- `moveFrameEdge`, `moveFrameMember`;
+- `moveDimensionEnd`, `moveArrowEnd`;
+- `setDividerLength`, `setDividerAngle`.
+
+The CAD view's grips call these, so the pointer and the panels take one
+route. Undo and redo already kept whole designs, ink included, so an undo
+puts back the ink with the geometry and a Read after it builds what is
+shown.
+
+**Moving the ink exactly found a fault in the reading.** A line ending on
+another line, away from its ends — a T-junction — was joined to the
+nearest corner within the join's reach, a few per cent of the drawing.
+That reach is right for a hand's loose end. A mullion dragged 8 cm along a
+head from the corner where the slope meets it lies on the head exactly,
+and the join pulled the slope's own corner along to it. `_joined` now
+joins such an end only within the weld, the hand's own precision. A hand
+never lands exactly on a line, so no hand-drawn reading changed.
+
+**A limit, stated rather than hidden.** A reading of a standard design
+still squares a line within its wobble band (see *Telling a wobble from a
+slope*). So an edit that turns a bar a degree or two off square is
+squared again by the next Read. That is the category's own rule, the same
+as for a line drawn that way, and the angle is kept in an angled design.
+
+`test/domain/a_cad_edit_survives_reading_test.dart` holds it:
+- the reproduction: the head 200 → 190 cm and a transom dragged, then
+  Read;
+- in every standard category, the edit checked:
+  - on the CAD figure, the 3D solid and the ink;
+  - through switching views, Read, a save and a reload;
+- each kind of edit: a bar moved by its middle and by one end, a length
+  and an angle typed, a jamb, the whole frame;
+- an opening's divider, glass, panel, handle and hinges staying its own,
+  and every material unchanged, as the frame and the mullion are dragged;
+- an angled design, left 200 and right 150, and the window under a stair,
+  each staying raked;
+- a stated figure and a size given in the form agreeing with the edit;
+- undo and redo;
+- three edits;
+- edit, save, edit, Read, save, reload;
+- an edit, then more drawing;
+- a drawing made by hand.
+
+`test/app/a_cad_drag_survives_read_again_test.dart` holds it on the real
+app: on Adam's Basement Door, the head's grip dragged with the pointer and
+**Read again** pressed twice, with a trip to the drawing between.
+
+Taking `InkFollows` out fails all twenty; taking the T-junction rule out
+fails the window under a stair.
 
 ## Working on this repository
 

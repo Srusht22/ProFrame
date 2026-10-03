@@ -876,30 +876,61 @@ abstract final class GeometryNormalizer {
       }
     }
 
+    // **An end that lies on another line, away from that line's ends, is a
+    // T-junction, and it is joined only as close as the hand places a
+    // line.** The join's reach is a hand's loose end — a few per cent of
+    // the drawing — and it is right for two ends that nearly meet. An end
+    // lying exactly on a line is not a loose end: it was put there, by a
+    // straight pen or by an edit on the technical drawing that moved the ink
+    // with the line (`InkFollows`). Joining it to the nearest corner within
+    // the wide reach moved the corner — a mullion dragged 8 cm along a head
+    // from where it met the slope pulled the slope's own corner 6 cm along
+    // the head at the next Read. A hand never lands exactly on a line, so
+    // no hand-drawn reading changes.
+    bool onALine(int i, Vec2 end) {
+      for (var j = 0; j < runs.length; j++) {
+        if (j == i) continue;
+        final line = runs[j].segment;
+        if (line.distanceTo(end) > Tol.samePointMm) continue;
+        if (line.a.distanceTo(end) > hand && line.b.distanceTo(end) > hand) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     final anchors = <Vec2>[];
-    Vec2 anchorFor(Vec2 point) {
+    int anchorFor(Vec2 point, double reach) {
       for (var i = 0; i < anchors.length; i++) {
-        if (anchors[i].distanceTo(point) <= tolerance) {
+        if (anchors[i].distanceTo(point) <= reach) {
           // The anchor drifts to the average of the ends that met there, so
           // no one stroke wins over the others.
           anchors[i] = anchors[i].lerp(point, 0.5);
-          return anchors[i];
+          return i;
         }
       }
       anchors.add(point);
-      return point;
+      return anchors.length - 1;
+    }
+
+    // Each T-junction's own anchor, read back by its index: the wide
+    // read-back below would find the corner again.
+    final tees = <(int, int), int>{};
+    Vec2 joinedEnd(int i, int e, Vec2 end) {
+      if (drawnPast.contains((i, e))) return end;
+      if (onALine(i, end)) {
+        tees[(i, e)] = anchorFor(end, hand);
+        return anchors[tees[(i, e)]!];
+      }
+      return anchors[anchorFor(end, tolerance)];
     }
 
     final welded = [
       for (final (i, run) in runs.indexed)
         run.moved(
           Segment(
-            drawnPast.contains((i, 0))
-                ? run.segment.a
-                : anchorFor(run.segment.a),
-            drawnPast.contains((i, 1))
-                ? run.segment.b
-                : anchorFor(run.segment.b),
+            joinedEnd(i, 0, run.segment.a),
+            joinedEnd(i, 1, run.segment.b),
           ),
         ),
     ];
@@ -915,17 +946,20 @@ abstract final class GeometryNormalizer {
     // A run whose two ends met in one anchor has nothing left of it; it
     // stays in the list as null, so every run still lines up with the one
     // it was, and the caller says what became of it.
+    Vec2 finalEnd(int i, int e, Vec2 end) => switch (tees[(i, e)]) {
+      final anchor? => anchors[anchor],
+      null => _endOf(end, drawnPast.contains((i, e)), settled),
+    };
     return [
       for (final (i, run) in welded.indexed)
-        if (_endOf(run.segment.a, drawnPast.contains((i, 0)), settled)
-                .distanceTo(
-                  _endOf(run.segment.b, drawnPast.contains((i, 1)), settled),
-                ) >=
+        if (finalEnd(i, 0, run.segment.a).distanceTo(
+              finalEnd(i, 1, run.segment.b),
+            ) >=
             Tol.minLineMm)
           run.moved(
             Segment(
-              _endOf(run.segment.a, drawnPast.contains((i, 0)), settled),
-              _endOf(run.segment.b, drawnPast.contains((i, 1)), settled),
+              finalEnd(i, 0, run.segment.a),
+              finalEnd(i, 1, run.segment.b),
             ),
           )
         else

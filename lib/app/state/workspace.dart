@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/dimensions/measurements.dart';
 import '../../domain/dimensions/scale.dart';
 import '../../domain/editing/design_edits.dart';
+import '../../domain/editing/ink_follows.dart';
 import '../../domain/geometry/tolerances.dart';
 import '../../domain/geometry/vec2.dart';
 import '../../domain/hardware/opening_hardware.dart';
@@ -1073,12 +1074,20 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     select(hit?.id);
   }
 
+  /// [after] — the design an edit on the technical drawing made from the
+  /// one in hand — with the ink it was read from moved the same way, so the
+  /// next **Read** builds the edit rather than the drawing as it was before
+  /// it (`InkFollows`). Every edit that moves the frame, a bar, a drawn
+  /// figure or an arrow comes through here; a size typed in the form moves
+  /// its ink by `Measurements.stretch`, by the same rule.
+  Design _inked(Design after) => InkFollows.edit(state.design, after);
+
   void dragSelected(Vec2 by) {
     final id = state.selectedId;
     if (id == null) return;
     _remember(coalesce: 'drag-$id');
     state = state.copyWith(
-      design: DesignEdits.dragElement(state.design, id, by),
+      design: _inked(DesignEdits.dragElement(state.design, id, by)),
     );
   }
 
@@ -1088,10 +1097,12 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       if (divider.id != dividerId) continue;
       _remember(coalesce: 'grip-$dividerId');
       state = state.copyWith(
-        design: DesignEdits.moveDivider(
-          state.design,
-          dividerId,
-          to - divider.segment.midpoint,
+        design: _inked(
+          DesignEdits.moveDivider(
+            state.design,
+            dividerId,
+            to - divider.segment.midpoint,
+          ),
         ),
       );
       return;
@@ -1105,11 +1116,13 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   }) {
     _remember(coalesce: 'grip-end-$dividerId-$startEnd');
     state = state.copyWith(
-      design: DesignEdits.moveDividerEnd(
-        state.design,
-        dividerId,
-        startEnd: startEnd,
-        to: to,
+      design: _inked(
+        DesignEdits.moveDividerEnd(
+          state.design,
+          dividerId,
+          startEnd: startEnd,
+          to: to,
+        ),
       ),
     );
   }
@@ -1118,7 +1131,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   void moveFrameEdge(FrameEdge edge, double toMm) {
     _remember(coalesce: 'frame-edge-$edge');
     state = state.copyWith(
-      design: DesignEdits.moveFrameEdge(state.design, edge, toMm),
+      design: _inked(DesignEdits.moveFrameEdge(state.design, edge, toMm)),
     );
   }
 
@@ -1126,7 +1139,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   void moveFrameMember(int index, double byMm) {
     _remember(coalesce: 'frame-member-$index');
     state = state.copyWith(
-      design: DesignEdits.moveFrameMember(state.design, index, byMm),
+      design: _inked(DesignEdits.moveFrameMember(state.design, index, byMm)),
     );
   }
 
@@ -1134,7 +1147,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   void moveDividerAcross(String dividerId, Vec2 to) {
     _remember(coalesce: 'boundary-$dividerId');
     state = state.copyWith(
-      design: DesignEdits.moveDividerAcross(state.design, dividerId, to),
+      design: _inked(DesignEdits.moveDividerAcross(state.design, dividerId, to)),
     );
   }
 
@@ -1142,7 +1155,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   void dragElement(String elementId, Vec2 by) {
     _remember(coalesce: 'drag-$elementId');
     state = state.copyWith(
-      design: DesignEdits.dragElement(state.design, elementId, by),
+      design: _inked(DesignEdits.dragElement(state.design, elementId, by)),
     );
   }
 
@@ -1153,11 +1166,13 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   }) {
     _remember(coalesce: 'dim-end-$dimensionId-$startEnd');
     state = state.copyWith(
-      design: DesignEdits.moveDimensionEnd(
-        state.design,
-        dimensionId,
-        to,
-        startEnd: startEnd,
+      design: _inked(
+        DesignEdits.moveDimensionEnd(
+          state.design,
+          dimensionId,
+          to,
+          startEnd: startEnd,
+        ),
       ),
     );
   }
@@ -1178,8 +1193,10 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       if (arrow.id != arrowId) continue;
       _remember(coalesce: 'arrow-end-$arrowId-$startEnd');
       state = state.copyWith(
-        design: state.design.withElement(
-          startEnd ? arrow.copyWith(from: to) : arrow.copyWith(to: to),
+        design: _inked(
+          state.design.withElement(
+            startEnd ? arrow.copyWith(from: to) : arrow.copyWith(to: to),
+          ),
         ),
       );
       return;
@@ -1263,7 +1280,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     );
     if (identical(design, state.design)) return;
     _remember(coalesce: 'length-$dividerId');
-    state = state.copyWith(design: design);
+    state = state.copyWith(design: _inked(design));
   }
 
   /// Turns a bar to a given heading, about its own middle.
@@ -1275,7 +1292,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     );
     if (identical(design, state.design)) return;
     _remember(coalesce: 'angle-$dividerId');
-    state = state.copyWith(design: design);
+    state = state.copyWith(design: _inked(design));
   }
 
   void setBarWidth(String dividerId, double widthMm) {
@@ -1417,7 +1434,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   void moveDividerWithin(String dividerId, double alongMm) {
     _remember(coalesce: 'within-$dividerId');
     state = state.copyWith(
-      design: DesignEdits.moveDividerWithin(state.design, dividerId, alongMm),
+      design: _inked(
+        DesignEdits.moveDividerWithin(state.design, dividerId, alongMm),
+      ),
     );
   }
 

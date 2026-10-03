@@ -160,7 +160,7 @@ anyway. There is no curve or arc support. Validation is only structural
    not move the stroke it came from, so the next reading puts it back.
    Only sizes typed through `Measurements` move the ink. A correction system
    that writes geometry without writing the ink, or without pinning it,
-   will be undone the same way.
+   will be undone the same way. **Fixed in Phase 21** (§25).
 4. **Hardware and swing assume a rectangle (probed).** `OpeningHardware`
    uses the opening's bounding box. On a leaf with a raked closing edge the
    lever and the lock were placed at `x = 866.7` when the leaf's edge at
@@ -713,9 +713,49 @@ Checked and found right:
   unchanged.
 
 The open faults from the first audit are now settled:
-- a drag in CAD undone by the next reading: still open, and not part of
-  this feature;
+- a drag in CAD undone by the next reading: still open here, fixed in
+  Phase 21 (§25);
 - sizes and snaps only for horizontal and vertical members: sizes are
   fixed for angled frames by the side figures (§15); the CAD snaps are
   unchanged.
+
+## 25. CAD edits persist through Read (Phase 21)
+
+Fault 3 of §2 was open until this phase, and it was what the user met: a
+door's head dragged on the technical drawing from 200 cm to 190 came back
+at 200 cm after **Read**.
+
+**Reproduced first.** `moveFrameMember` took the head to 1900 mm, and
+`readDrawing` returned 2000. A transom dragged from 500 to 600 came back
+at 500. The frame and the bars are read from the strokes. The drag
+changed the design and not the strokes, so a reading put them back.
+
+**The fix is the rule sizes already followed.** `Measurements.stretch`
+and `FrameSides.reshaped` move the ink as they move the geometry.
+`InkFollows.edit` does the same for every edit the technical drawing and
+the panels make, applied by `WorkspaceController._inked`:
+- each bar's, figure's and arrow's own stroke follows that element;
+- the frame's ink follows the frame's edges, within the hand's reach;
+- a dimension resting on what moved goes with it, and a stated figure
+  reads the new length.
+
+The ink is still what a reading reads, and the design is still the only
+canonical geometry. Undo already kept whole designs, ink included.
+
+**One reading fault found on the way.** `GeometryNormalizer._joined`
+joined an end lying exactly on another line (a T-junction) to that line's
+nearest end within the join's reach, about 3 % of the drawing. A mullion
+moved 80 mm along the under-stair head then pulled the slope's corner
+60 mm along with it. Such an end is now joined only within the weld. No
+hand-drawn reading changed: the full suite is unchanged.
+
+**Limit.** In a standard design, an edit leaving a line inside the wobble
+band (within the snap angle and a twentieth of the drawing) is squared by
+the next Read. That is the category's policy, as for a line drawn that
+way.
+
+`test/domain/a_cad_edit_survives_reading_test.dart` (19 tests) and
+`test/app/a_cad_drag_survives_read_again_test.dart` (the real grip and
+the real button) hold it. Disabling `InkFollows` fails all 20, and
+disabling the T-junction rule fails the under-stair test.
 
