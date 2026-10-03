@@ -3510,9 +3510,11 @@ shows three different things, the glass changes with the backdrop behind
 it while the panel and the frame do not, and the technical drawing fills
 rubber solid.
 
-**Rubber is a material with nothing yet made of it.** There is no gasket or
-seal in the geometry; adding one is new material in the solid, which moves
-the pinned fingerprints on purpose.
+**Rubber is what closes every sealed unit.** The dark butyl seal round the
+edge of each unit's cavity (`MeshBuilder._edgeSeal`, see *One space, and a
+depth for everything*) is made of it; there is no gasket round a sash yet,
+and adding one is new material in the solid, which moves the pinned
+fingerprints on purpose.
 
 ### The frame is a real frame
 
@@ -4510,6 +4512,77 @@ zoomed; and the frame picked drawn as a line or two across its jamb, not a
 band, with the face between them and the middle of a picked pane not
 changed by a pixel. Outlining every facet again, or leaving the drawing's
 framing behind on a resize, fails it.
+
+### The final quality assurance
+
+The user's words: *a complex real design — outer frame, multiple openings,
+clear glass, tinted glass, panel, internal divider, door handle, window
+handle, hinges, dimensions, different frame and material settings — and
+every claim about CAD, 3D, the materials and the geometry verified on it;
+glass, panel, frame, metal and rubber side by side must not look like
+rectangles of different colours; fix only what this project broke.*
+
+`test/final_cad_and_3d_quality_test.dart` is that, the whole system measured
+at once on one design drawn stroke by stroke (`mixed.theScreen()`): a clear
+fixed light, a window opening of clear glass over a brown panel, a tinted
+fixed light, a door opening of tinted glass over a brown panel, an
+anthracite aluminium frame, white uPVC mullions, an aluminium divider in
+each opening, a bronze lever and lock, a silver espagnolette, black hinges
+and a dimension the user drew. Its groups follow the brief's own numbers:
+
+- **CAD 1–11**, on the drawing's pixels: the frame, every bar and every
+  section where the design has them and the corners inked; every run a
+  section that is there, written to the millimetre; the frame's outside
+  unbroken; the outline heavier than a divider inside an opening; glass a
+  cool tint, a panel hatched paper never flooded with its brown, the frame
+  the structural tone, and no fill a saturated colour; each divider inside
+  its own opening and its opening's in the tree; moving one opening's
+  divider changing the drawing inside that opening and nowhere else; three
+  lines across a jamb, outside, sightline and daylight; and no figure on
+  another or on the drawing.
+- **3D 1–16**: the frame the whole depth with sides and reveals; the panel a
+  slab with a front and a back, opaque; every unit two sheets of glass and
+  a rubber seal; the frame aluminium and every piece of ironmongery a
+  metal; handles standing out of their leaves and hinges with thickness;
+  on the picture, glass seen through and carrying the light across it,
+  the panel even and the same whatever is behind it, a highlight and a
+  shade across the handle; shadows on the floor and from the ironmongery;
+  and through the app, the model turned, zoomed and fitted.
+- **The material board** — the brief's most important test. Five pieces of
+  one shape: glass, panel, frame, metal and rubber, the first four in
+  *one* colour, so only the materials can tell them apart, standing on the
+  studio's floor as every model does. Each is told from every other by a
+  signature of what it does — the colour it shows, whether what is behind
+  shows through, how the light varies across all of it that is seen.
+  Glass is seen through, the floor's lines running on behind it, and
+  carries the light across it; the panel is opaque and one even face; the
+  frame is opaque and its reveals take the light unlike its face; the
+  metal is opaque and the light varies across it more than across any
+  painted face; rubber reflects the least and carries no highlight.
+  **Rubber is the one piece in its own colour**, the seal's, because its
+  darkness *is* its colour: square on, a matte grey rubber and a matte grey
+  panel take the light identically, as they would on the bench, and the
+  rubber the model builds — the seal round every unit — is dark.
+- **Geometry safety**: the bars where drawn and the dividers where placed;
+  painting every view, in every mode, from four sides and in either
+  appearance, leaving the design, its geometry and its solid as they were;
+  and a change of glass, colour or frame material moving no geometry.
+- **Regression through the app**: the design kept for a customer, opened
+  as saved, drawn in CAD and 3D from the same object, turned, zoomed and
+  fitted with nothing to undo, a pane made frosted, saved, the app opened
+  again from nothing but the device, the material and the geometry back,
+  the dimension back, and the customer and their designs as they were.
+
+**What it turned up, and the one change it made.** A flat face of metal was
+shaded once, as one colour, so on the board a metal plate was a painted
+card: glass was shaded point by point along the eye's ray because what it
+shows is what it reflects, and metal is the same. `ModelPainter._mirrors`
+sends every flat face of metal — metallic a half or more, not a thin side —
+through `_pane`, opaque, on a grid as fine as the face is large on the
+screen (`_mirrorGrid`, a point every `_smoothCell` pixels, at most a pane's
+grid). Round metal already had its own (`_smooth`). Nothing in the geometry
+moved and every other test of how the model looks passed unchanged; taking
+it back fails the board's metal and rubber.
 
 ## Working on this repository
 

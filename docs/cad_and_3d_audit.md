@@ -404,3 +404,15 @@ mode's outline pen follows the same silhouette. The materials were measured
 on one window of every kind and left as they were. Held by
 `test/app/materials_read_as_materials_test.dart` and
 `test/app/controls_and_selection_test.dart`.
+
+## 24. Since the audit — the final quality assurance (Phase 20)
+
+One complex design drawn stroke by stroke — clear and tinted glass, panels,
+a divider in each of two openings, a door's lever and lock, a window's
+espagnolette, hinges, an aluminium frame with uPVC mullions and a drawn
+dimension — measured against every claim of the CAD and 3D work, beside a
+material board of glass, panel, frame, metal and rubber in one shape, the
+first four in one colour, told apart by what each does with the light.
+The one fault it found: a flat face of metal was lit once, as a flat colour;
+it is now shaded point by point as glass is (`ModelPainter._mirrors`).
+Held by `test/final_cad_and_3d_quality_test.dart`.

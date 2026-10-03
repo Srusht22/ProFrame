@@ -319,6 +319,32 @@ class ModelPainter extends CustomPainter {
       face.eyeCorners.length == face.corners.length &&
       face.corners.length >= 3;
 
+  /// Whether [face] is a flat face of metal, turned to be seen: a surface
+  /// whose look is what it reflects, and so shaded point by point.
+  static bool _mirrors(ProjectedFacet face) =>
+      face.source.surface.metallic >= 0.5 &&
+      !face.source.isSide &&
+      face.eyeCorners.length == face.corners.length &&
+      face.corners.length >= 3;
+
+  /// How finely a flat metal face is shaded: as finely as it is large on the
+  /// screen, a point every [_smoothCell] pixels and never more than a pane
+  /// has — a hinge leaf a few pixels across is shaded at its corners, a plate
+  /// filling the view across a grid.
+  int _mirrorGrid(ProjectedFacet face) {
+    var left = double.infinity, top = double.infinity;
+    var right = -double.infinity, bottom = -double.infinity;
+    for (final c in face.corners) {
+      final at = _place(c);
+      left = math.min(left, at.dx);
+      right = math.max(right, at.dx);
+      top = math.min(top, at.dy);
+      bottom = math.max(bottom, at.dy);
+    }
+    final span = math.max(right - left, bottom - top);
+    return (span / _smoothCell).ceil().clamp(1, _grid);
+  }
+
   /// The one colour a monochrome view is in: the studio's grey.
   static const _clay = Studio.clay;
 
@@ -336,6 +362,10 @@ class ModelPainter extends CustomPainter {
     }
     if (_isSmooth(face)) {
       _smooth(canvas, face);
+      return;
+    }
+    if (_mirrors(face)) {
+      _pane(canvas, face, grid: _mirrorGrid(face));
       return;
     }
     final shaded = shadeOf(face);
@@ -381,7 +411,12 @@ class ModelPainter extends CustomPainter {
   /// and blended between them — in the same three layers as every face
   /// (`Shaded`): what it lets through multiplies what is behind, what it
   /// scatters is laid over, what it reflects is added.
-  void _pane(Canvas canvas, ProjectedFacet face) {
+  ///
+  /// A flat face of metal is shaded the same way, and for the same reason:
+  /// what a metal shows is what it reflects, so its look changes across a
+  /// flat face just as a pane's does. Shaded once, a metal plate was a
+  /// painted card of one colour — see [_mirrors].
+  void _pane(Canvas canvas, ProjectedFacet face, {int grid = _grid}) {
     final n = face.corners.length;
     final at = [for (final c in face.corners) _place(c)];
     final List<Offset> points;
@@ -392,9 +427,9 @@ class ModelPainter extends CustomPainter {
       shades = [];
       final eye = face.viewer;
       final e = face.eyeCorners;
-      for (var j = 0; j <= _grid; j++) {
-        for (var i = 0; i <= _grid; i++) {
-          final u = i / _grid, v = j / _grid;
+      for (var j = 0; j <= grid; j++) {
+        for (var i = 0; i <= grid; i++) {
+          final u = i / grid, v = j / grid;
           Offset flat(List<Offset> c) =>
               (c[0] * (1 - u) + c[1] * u) * (1 - v) +
               (c[3] * (1 - u) + c[2] * u) * v;
@@ -415,14 +450,14 @@ class ModelPainter extends CustomPainter {
         }
       }
       triangles = [
-        for (var j = 0; j < _grid; j++)
-          for (var i = 0; i < _grid; i++) ...[
-            j * (_grid + 1) + i,
-            j * (_grid + 1) + i + 1,
-            (j + 1) * (_grid + 1) + i + 1,
-            j * (_grid + 1) + i,
-            (j + 1) * (_grid + 1) + i + 1,
-            (j + 1) * (_grid + 1) + i,
+        for (var j = 0; j < grid; j++)
+          for (var i = 0; i < grid; i++) ...[
+            j * (grid + 1) + i,
+            j * (grid + 1) + i + 1,
+            (j + 1) * (grid + 1) + i + 1,
+            j * (grid + 1) + i,
+            (j + 1) * (grid + 1) + i + 1,
+            (j + 1) * (grid + 1) + i,
           ],
       ];
     } else {
