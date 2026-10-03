@@ -3,8 +3,10 @@ import 'dart:math' as math;
 import '../geometry/segment.dart';
 import '../geometry/tolerances.dart';
 import '../geometry/vec2.dart';
+import '../model/design.dart' show Design;
 import '../model/elements.dart' show DesignKind, DimensionElement;
 import '../sketch/stroke.dart';
+import 'geometry_validation.dart';
 
 /// Which axis a run was squared to, if any.
 enum RunAxis {
@@ -108,10 +110,21 @@ class Deviation {
   /// The size of the whole drawing it is part of.
   final double spanMm;
 
-  const Deviation._(this.axis, this.degrees, this.errorMm, this.spanMm);
+  /// Whether the design is a standard one, whose lines are meant level,
+  /// upright and square — or an angled one, where they need not be.
+  final bool standard;
 
-  /// [segment], measured in a drawing [spanMm] across.
-  factory Deviation.of(Segment segment, double spanMm) {
+  const Deviation._(
+    this.axis,
+    this.degrees,
+    this.errorMm,
+    this.spanMm,
+    this.standard,
+  );
+
+  /// [segment], measured in a drawing [spanMm] across, in a standard
+  /// design or — [standard] false — an angled one.
+  factory Deviation.of(Segment segment, double spanMm, {bool standard = true}) {
     final dx = (segment.a.x - segment.b.x).abs();
     final dy = (segment.a.y - segment.b.y).abs();
     final upright = dx < dy;
@@ -120,6 +133,7 @@ class Deviation {
       segment.offAxisDegrees,
       upright ? dx : dy,
       spanMm,
+      standard,
     );
   }
 
@@ -129,12 +143,24 @@ class Deviation {
   double get precisionMm => Tol.weldFor(spanMm);
 
   /// What the deviation is.
+  ///
+  /// Out by less than the hand can place a line, it is a wobble in any
+  /// design. Between that and `Tol.wobbleShare` of the drawing, within the
+  /// snap angle, it could be the hand or it could be meant, and the drawing
+  /// alone cannot say: **the category says.** A standard design's lines are
+  /// meant square, so it is a wobble; an angled design is one whose user
+  /// said before drawing that non-standard geometry is meant, so it is
+  /// kept — a side ten centimetres out over two metres is a side drawn ten
+  /// centimetres out. The pause to straighten squares any line the user
+  /// asks it to, in either.
   DeviationKind get kind {
     if (errorMm == 0) return DeviationKind.none;
     if (degrees <= Tol.leanDegrees && errorMm <= precisionMm) {
       return DeviationKind.wobble;
     }
-    if (degrees <= Tol.axisSnapDegrees && errorMm <= Tol.wobbleShare * spanMm) {
+    if (standard &&
+        degrees <= Tol.axisSnapDegrees &&
+        errorMm <= Tol.wobbleShare * spanMm) {
       return DeviationKind.wobble;
     }
     if (degrees <= Tol.leanDegrees) return DeviationKind.lean;
@@ -329,7 +355,10 @@ abstract final class GeometryNormalizer {
 
     final span = spanOf(raw);
     final pinned = _pinned(raw, context.stated, span);
-    final squared = [for (final run in pinned) _squared(run, span)];
+    final squared = [
+      for (final run in pinned)
+        _squared(run, span, standard: context.isStandard),
+    ];
     for (var i = 0; i < raw.length; i++) {
       note(CorrectionKind.squared, raw[i], squared[i]);
     }
@@ -373,9 +402,13 @@ abstract final class GeometryNormalizer {
   /// [run] squared, about its middle, where its [Deviation] in a drawing
   /// [spanMm] across is a wobble — and marked with its axis where it is
   /// square, already or now.
-  static DrawnRun _squared(DrawnRun run, double spanMm) {
+  static DrawnRun _squared(
+    DrawnRun run,
+    double spanMm, {
+    required bool standard,
+  }) {
     final s = run.segment;
-    final deviation = Deviation.of(s, spanMm);
+    final deviation = Deviation.of(s, spanMm, standard: standard);
     switch (deviation.kind) {
       case DeviationKind.none:
         return run.withAxis(s, deviation.axis);
@@ -804,6 +837,19 @@ abstract final class GeometryNormalizer {
           null,
     ];
   }
+
+  /// Everything wrong with an angled [design]'s geometry — or any design's
+  /// — and nothing changed.
+  ///
+  /// An angled design is not squared: its slopes, its unequal heights and
+  /// its sides that are not parallel are the drawing. It is still held to
+  /// what anything built must be: coordinates that are numbers, an outline
+  /// that closes without crossing itself, bars joined to the design, every
+  /// child inside its parent, openings holding their own marks and their
+  /// ironmongery on their leaves, and dimensions that measure what they say.
+  /// See [GeometryValidation].
+  static List<GeometryProblem> validateAngledGeometry(Design design) =>
+      GeometryValidation.of(design);
 
   /// The diagonal of everything [runs] reach: the size every tolerance in
   /// the reading is a share of.

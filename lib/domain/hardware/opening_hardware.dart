@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import '../geometry/polygon.dart';
+import '../geometry/segment.dart';
+import '../geometry/tolerances.dart';
 import '../geometry/vec2.dart';
 import '../model/design.dart';
 import '../model/elements.dart';
@@ -89,8 +91,7 @@ abstract final class OpeningHardware {
     final leads = opening.mechanism.slideEdge;
     if (leads != null) {
       final id = '${opening.id}-handle';
-      final pull = handleAt(opening, outline.left, outline.right, outline.top,
-          outline.bottom, leads);
+      final pull = _onTheLeaf(opening, outline, leads);
       return [
         HardwareElement(
           id: id,
@@ -121,20 +122,32 @@ abstract final class OpeningHardware {
     if (edge == null) return const [];
 
     // The hinged edge, and the one opposite it that the handle is on.
+    //
+    // **Along the leaf as it is, not along the box round it.** A leaf
+    // under a raked head is taller at one stile than the other, and its
+    // hinge stile runs only from where the head meets it: hinges spaced
+    // down the box's height put the top one above the head, outside the
+    // leaf. A leaf whose stile was drawn leaning has no one distance
+    // across for it at all: hinges at the box's side all came together at
+    // the foot, the one place the stile reaches it. So a side hung leaf's
+    // hinges run down its own hinge stile (`stileOf`), each where that
+    // stile is at its height, and a top or bottom hung leaf's sit on its
+    // own head or sill wherever along it they are. On a rectangle each of
+    // these is exactly the box's, so nothing square moves.
     final sideHung = edge == OpeningEdge.left || edge == OpeningEdge.right;
-    final along = sideHung ? outline.height : outline.width;
-    final from = sideHung ? outline.top : outline.left;
-
-    final hingeX = switch (edge) {
-      OpeningEdge.left => outline.left,
-      OpeningEdge.right => outline.right,
-      _ => 0.0,
-    };
-    final hingeY = switch (edge) {
-      OpeningEdge.top => outline.top,
-      OpeningEdge.bottom => outline.bottom,
-      _ => 0.0,
-    };
+    final hingeStile = sideHung ? stileOf(outline, edge) : null;
+    final along = hingeStile != null
+        ? hingeStile.b.y - hingeStile.a.y
+        : sideHung
+        ? outline.height
+        : outline.width;
+    final from = hingeStile?.a.y ?? (sideHung ? outline.top : outline.left);
+    double hingeX(double y) =>
+        hingeStile != null
+            ? _xAt(hingeStile, y)
+            : edge == OpeningEdge.left
+            ? outline.left
+            : outline.right;
 
     final pieces = <HardwareElement>[];
 
@@ -147,15 +160,25 @@ abstract final class OpeningHardware {
         id: id,
         kind: HardwareKind.hinge,
         parentId: opening.id,
-        at: sideHung ? Vec2(hingeX, at) : Vec2(at, hingeY),
+        at: sideHung
+            ? Vec2(hingeX(at), at)
+            : Vec2(at, _railAt(outline, at, edge)),
         rotation: sideHung ? 90 : 0,
         finish: _finishOf(design, id, setOf: (opening.id, HardwareKind.hinge)),
       ));
     }
 
     final kind = design.kindOf(opening);
-    final handleAtPoint = handleAt(opening, outline.left, outline.right,
-        outline.top, outline.bottom, edge);
+    final handleAtPoint = _onTheLeaf(opening, outline, edge);
+    final handleSide = sideHung
+        ? stileOf(
+            outline,
+            edge == OpeningEdge.left ? OpeningEdge.right : OpeningEdge.left,
+          )
+        : null;
+    final handleStile = handleSide != null
+        ? (handleSide.a.y, handleSide.b.y)
+        : (outline.top, outline.bottom);
 
     // **A leaf nobody has named yet carries no handle**, and that is not an
     // omission. The mark says this section opens, so it hangs on the hinges
@@ -198,10 +221,16 @@ abstract final class OpeningHardware {
         id: '${opening.id}-lock',
         kind: HardwareKind.lock,
         parentId: opening.id,
-        at: Vec2(
-          handleAtPoint.x,
-          math.min(handleAtPoint.y + lockBelowHandleMm, outline.bottom - 40),
-        ),
+        at: () {
+          final y = math.min(
+            handleAtPoint.y + lockBelowHandleMm,
+            handleStile.$2 - 40,
+          );
+          return Vec2(
+            handleSide != null ? _xAt(handleSide, y) : handleAtPoint.x,
+            y,
+          );
+        }(),
         rotation: 90,
         finish: _finishOf(design, '${opening.id}-lock'),
       ));
@@ -378,6 +407,115 @@ abstract final class OpeningHardware {
   /// and wrong on every other. The middle is derived from the leaf, as every
   /// other position in this repository is, and it is the same rule the top
   /// and bottom hung cases already used.
+  /// Where [opening]'s handle goes on [leaf], hung or sliding from
+  /// [edge]: [handleAt] on the leaf as it is — the stile opposite [edge]
+  /// taken from where the leaf actually lies along it, and a rail's point
+  /// put on the rail itself — rather than on the box round it.
+  static Vec2 _onTheLeaf(
+    OpeningElement opening,
+    Polygon leaf,
+    OpeningEdge edge,
+  ) {
+    final sideHung = edge == OpeningEdge.left || edge == OpeningEdge.right;
+    if (sideHung) {
+      final side = stileOf(
+        leaf,
+        edge == OpeningEdge.left ? OpeningEdge.right : OpeningEdge.left,
+      );
+      if (side == null) {
+        return handleAt(
+          opening,
+          leaf.left,
+          leaf.right,
+          leaf.top,
+          leaf.bottom,
+          edge,
+        );
+      }
+      final at = handleAt(
+        opening,
+        leaf.left,
+        leaf.right,
+        side.a.y,
+        side.b.y,
+        edge,
+      );
+      return Vec2(_xAt(side, at.y), at.y);
+    }
+    final at = handleAt(
+      opening,
+      leaf.left,
+      leaf.right,
+      leaf.top,
+      leaf.bottom,
+      edge,
+    );
+    final rail = edge == OpeningEdge.top
+        ? OpeningEdge.bottom
+        : OpeningEdge.top;
+    return Vec2(at.x, _railAt(leaf, at.x, rail));
+  }
+
+  /// [leaf]'s stile on its [side] — left or right — from its top end to its
+  /// bottom: the edge running more up than across that lies furthest that
+  /// way. On a rectangle it is the box's side; on a leaf drawn leaning it
+  /// is the leaning side itself. Null where the leaf has no such edge.
+  static Segment? stileOf(Polygon leaf, OpeningEdge side) {
+    Segment? best;
+    for (final edge in leaf.edges) {
+      final d = edge.direction;
+      if (d.y.abs() <= d.x.abs()) continue;
+      final x = edge.midpoint.x;
+      if (best == null ||
+          (side == OpeningEdge.left
+              ? x < best.midpoint.x
+              : x > best.midpoint.x)) {
+        best = edge;
+      }
+    }
+    if (best == null) return null;
+    return best.a.y <= best.b.y ? best : best.reversed;
+  }
+
+  /// Where [stile] is across, at height [y].
+  static double _xAt(Segment stile, double y) {
+    final dy = stile.b.y - stile.a.y;
+    if (dy.abs() < 1e-9) return stile.a.x;
+    final t = ((y - stile.a.y) / dy).clamp(0.0, 1.0);
+    return stile.a.x + (stile.b.x - stile.a.x) * t;
+  }
+
+  /// How high [leaf]'s head ([edge] top) or sill ([edge] bottom) is at
+  /// [x]: the rail itself, which on a raked leaf is not the box's.
+  static double _railAt(Polygon leaf, double x, OpeningEdge edge) {
+    final cover = coverAt(leaf, x: x);
+    if (cover == null) {
+      return edge == OpeningEdge.bottom ? leaf.bottom : leaf.top;
+    }
+    return edge == OpeningEdge.bottom ? cover.$2 : cover.$1;
+  }
+
+  /// Where [shape] lies across the line `x = x`: the lowest and highest
+  /// it reaches there, as (top, bottom) — or null where it is not there.
+  ///
+  /// Read a hair inside the shape when [x] is on its side, because a side
+  /// is where a hinge stile is and a line along it meets every corner at
+  /// once.
+  static (double, double)? coverAt(Polygon shape, {required double x}) {
+    if (shape.isEmpty || shape.width <= 0) return null;
+    final hair = math.min(Tol.samePointMm, shape.width / 4);
+    final at = x.clamp(shape.left + hair, shape.right - hair);
+    double? top, bottom;
+    for (final edge in shape.edges) {
+      final (a, b) = (edge.a, edge.b);
+      if (a.x == b.x || (a.x - at) * (b.x - at) > 0) continue;
+      final y = a.y + (at - a.x) * (b.y - a.y) / (b.x - a.x);
+      top = top == null ? y : math.min(top, y);
+      bottom = bottom == null ? y : math.max(bottom, y);
+    }
+    return top == null || bottom == null ? null : (top, bottom);
+  }
+
   static Vec2 handleAt(
     OpeningElement opening,
     double left,

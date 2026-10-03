@@ -53,8 +53,11 @@ const steps =
       (2, DeviationKind.wobble, standardSquares: true, angledSquares: true),
       (10, DeviationKind.wobble, standardSquares: true, angledSquares: true),
       (25, DeviationKind.wobble, standardSquares: true, angledSquares: true),
-      (60, DeviationKind.wobble, standardSquares: true, angledSquares: true),
-      (120, DeviationKind.wobble, standardSquares: true, angledSquares: true),
+      // More than the hand's precision, within the snap angle and a
+      // twentieth of the drawing: the hand or meant, which the category
+      // says — squared in a standard design, kept in an angled one.
+      (60, DeviationKind.wobble, standardSquares: true, angledSquares: false),
+      (120, DeviationKind.wobble, standardSquares: true, angledSquares: false),
       // Five degrees on the drawing's full height: within the snap angle, but a
       // twentieth of the drawing out, which the eye sees. A lean.
       (140, DeviationKind.lean, standardSquares: true, angledSquares: false),
@@ -168,7 +171,8 @@ void main() {
     test('within the snap angle, a full-height jamb of a tall narrow design '
         'is a lean while a rail in it is a wobble — so an angled design '
         'keeps the jamb and squares the rail', () {
-      // 60 × 240 cm, the right jamb 3.5° out and a rail 3.5° out.
+      // 60 × 240 cm, the right jamb 3.5° out and a short rail 3.5° out —
+      // 18 mm, less than the hand can place a line.
       final jambOut = 2400 * 0.0612; // tan 3.5°
       final corners = [
         const Vec2(0, 0),
@@ -179,7 +183,7 @@ void main() {
       ];
       final runs = [
         ...runsOf('frame', corners),
-        ...runsOf('rail', const [Vec2(0, 1000), Vec2(500, 1030.6)]),
+        ...runsOf('rail', const [Vec2(0, 1000), Vec2(300, 1018.4)]),
       ];
       final span = GeometryNormalizer.spanOf(runs);
       expect(

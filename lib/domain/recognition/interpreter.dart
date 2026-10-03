@@ -14,6 +14,7 @@ import '../sections/section_bands.dart';
 import '../sections/section_builder.dart';
 import '../sketch/stroke.dart';
 import 'geometry_normalizer.dart';
+import 'geometry_validation.dart';
 import 'opening_symbol.dart';
 import 'stroke_fit.dart';
 
@@ -38,12 +39,18 @@ class Interpretation {
   /// squared, carried onto a line, joined or kept square, before and after.
   final List<GeometryCorrection> corrections;
 
+  /// What is wrong with the design's geometry as read, where it is an
+  /// angled design: nothing in one is squared, so it is checked instead
+  /// (`GeometryNormalizer.validateAngledGeometry`). Reported, never mended.
+  final List<GeometryProblem> problems;
+
   const Interpretation({
     required this.design,
     this.questions = const [],
     this.unusedStrokeIds = const [],
     this.symbols = const [],
     this.corrections = const [],
+    this.problems = const [],
   });
 
   bool get hasQuestions => questions.isNotEmpty;
@@ -470,6 +477,9 @@ abstract final class SketchInterpreter {
       questions: questions,
       symbols: symbols,
       corrections: normalized.corrections,
+      problems: design.kind == DesignKind.angled
+          ? GeometryNormalizer.validateAngledGeometry(read)
+          : const [],
       unusedStrokeIds: [
         for (final stroke in structural)
           if (!usedStrokes.contains(stroke.id)) stroke.id,

@@ -4651,7 +4651,8 @@ records five faults found by running the reading on hand-drawn shapes:
 - a drag in CAD is undone by the next reading, because the ink is not
   moved;
 - a handle on a raked leaf is placed outside the leaf, because hardware is
-  placed from the opening's bounding box;
+  placed from the opening's bounding box — **fixed**, see *An angled design
+  keeps its geometry*;
 - sizes and the CAD snaps exist only for horizontal and vertical members.
 
 ### Where the hand's inaccuracy comes out
@@ -4795,7 +4796,7 @@ hand's error scales with what it is drawing. Its `kind` is one of four:
 | Kind | When | What is done |
 | --- | --- | --- |
 | `none` | exactly level or upright | nothing |
-| `wobble` | out by no more than the hand's precision (the weld, a hundredth of the drawing) at up to `Tol.leanDegrees`; or within `Tol.axisSnapDegrees` and out by no more than `Tol.wobbleShare` — a twentieth — of the drawing | squared, in every category |
+| `wobble` | out by no more than the hand's precision (the weld, a hundredth of the drawing) at up to `Tol.leanDegrees`, in every design; or, **in a standard design only**, within `Tol.axisSnapDegrees` and out by no more than `Tol.wobbleShare` — a twentieth — of the drawing | squared |
 | `lean` | further out than a wobble, up to `Tol.leanDegrees` | squared in a standard design only where the drawing round it is square (*The standard rules*); kept in an angled one |
 | `slope` | further off than any lean | kept exactly, everywhere |
 
@@ -4966,8 +4967,76 @@ is, in the design and on every face of the solid, the rubber seal
 included; a hinge the taller leaf gained is required to be black. Putting
 the stock finish back on a new hinge fails it in every hinged category.
 
-`validateAngledGeometry` is not written yet: angled designs are the next
-phases' work, and the audit says where it belongs.
+### An angled design keeps its geometry, and is checked instead
+
+The brief: *when the category is Angled / Asymmetrical, intentional
+non-standard geometry is preserved — a left side of 200 cm and a right of
+150, a sloped top, a top and a foot of different widths, in an opening or
+a fixed light; do not make 200 = 150. Non-standard geometry is expected,
+so standard rectangular normalisation is not applied aggressively. But it
+must still validate: coordinates, connected geometry, boundaries,
+dimensions, openings, child geometry, and no unintended
+self-intersections.*
+
+- **Nothing in it is made square that the drawing does not leave in
+  doubt.** The lean rule was already off in an angled design. The wobble
+  band is now the category's too (`Deviation.standard`): a run out by
+  less than the hand can place a line — the weld, a hundredth of the
+  drawing — is a wobble in any design; one out by more than that but
+  within the snap angle and a twentieth of the drawing could be the hand
+  or meant, and the drawing alone cannot say, so the category does — a
+  door's or a window's lines are meant square, and an angled design's
+  user said non-standard geometry is meant. So a side drawn 10 cm out over
+  2 m is squared in a window and kept in an angled design, and the pause
+  to straighten squares any line the user asks it to in either.
+- **It is checked rather than mended.**
+  `GeometryNormalizer.validateAngledGeometry` — `GeometryValidation.of`, in
+  `geometry_validation.dart` — reports `GeometryProblem`s and changes
+  nothing: a coordinate that is not a number; an outline or a section that
+  encloses nothing, or crosses or touches itself (`Polygon.isSimple`); a
+  section outside the frame, or a bar of the design joined to neither the
+  frame nor another bar; a line or a pane outside the part it belongs to;
+  an opening without its region, or whose mark is not in it; ironmongery
+  off its leaf; and a dimension that measures nothing or a stated figure
+  the geometry no longer agrees with. Every reading of an angled design
+  carries them as `Interpretation.problems`; nothing on the screen shows
+  them yet.
+- **Ironmongery goes on the leaf as it is**, which an angled design is the
+  first to need. Hinges and a handle were placed from the leaf's box: under
+  a raked head the top hinge stood above the head, outside the leaf, and on
+  a stile drawn leaning every hinge came together at its foot, the one
+  place the stile reaches the box's side. `OpeningHardware.stileOf` is a
+  leaf's own stile on either side — the edge running more up than across
+  that lies furthest that way — and the hinges run down it, each where it
+  is at its height; the handle and the lock go on the opposite stile the
+  same way, and a top or bottom hung leaf's sit on its own head or sill
+  (`_railAt`). On a rectangle each is exactly the box's, so no square
+  design's ironmongery moved, and the pinned solids did not change.
+
+`test/domain/an_angled_design_keeps_its_geometry_test.dart` holds it: a
+sloped top with its left side 200 cm and its right 150; unequal heights
+and widths; sides that are not parallel, kept, where the same sheet begun
+as a window is squared; a wobble under a hand's precision still cleaned
+with the slope beside it kept; a sloped transom in a fixed light and a
+sloped line drawn inside an opening kept, the opening's raked head kept;
+the geometry the same through a second reading, a save and a reload;
+every one of those read with no problem; leaves under the raked head hung
+on either stile, as a door and as a window, with every piece of
+ironmongery on the leaf; a leaf hung on a leaning stile with its hinges on
+that stile and spread down it; the solid's glass inside the raked leaf;
+and each kind of problem reported — a bow tie, a coordinate that is not a
+number, an outline of two points, a bar hanging from nothing, a line and a
+hinge off their opening, a mark outside its region, a dimension of
+nothing and one the geometry disagrees with — with the design unchanged.
+Placing the ironmongery from the box again fails two of them, and squaring
+the wobble band in an angled design fails the sides that are not
+parallel. Two older tests moved with the band and say so where they
+assert: a side 60 and 120 mm out is kept in an angled design, and the
+rail an angled design squares is now one out by less than the hand's
+precision.
+
+`validateAngledGeometry` is written; what it finds is not yet shown to the
+user, and the audit's other open faults are still open.
 
 ## Working on this repository
 

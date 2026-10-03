@@ -148,6 +148,29 @@ class Polygon {
 
   double get area => signedArea.abs();
 
+  /// Whether the outline goes round once without touching itself: no corner
+  /// visited twice and no two edges meeting except neighbours at the corner
+  /// they share. A bow tie, or an outline pinched to a point, is not — it is
+  /// two shapes drawn as one, and nothing can be built in the pinch.
+  bool get isSimple {
+    final n = corners.length;
+    if (n < 3) return false;
+    for (var i = 0; i < n; i++) {
+      for (var j = i + 1; j < n; j++) {
+        if (corners[i].distanceTo(corners[j]) <= Tol.samePointMm) return false;
+      }
+    }
+    final sides = edges;
+    for (var i = 0; i < n; i++) {
+      for (var j = i + 1; j < n; j++) {
+        final neighbours = j == i + 1 || (i == 0 && j == n - 1);
+        if (neighbours) continue;
+        if (sides[i].crossing(sides[j]) != null) return false;
+      }
+    }
+    return true;
+  }
+
   Vec2 get centroid {
     if (corners.isEmpty) return Vec2.zero;
     final doubleArea = signedArea * 2;

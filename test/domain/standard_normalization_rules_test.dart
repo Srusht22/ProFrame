@@ -212,9 +212,17 @@ void main() {
         hasLength(1),
         reason: 'the right side kept at its slope',
       );
-      // A hand's wobble is cleaned whatever is being drawn.
-      final slight = normalize(runsOf('frame', leaning[3]!), DesignKind.angled);
-      for (final run in slight.runs) {
+      // Three degrees — 84 mm over the side's 160 cm — is kept too: more
+      // than the hand's precision, so in a design whose slopes are meant it
+      // is one of them (see tolerance_based_detection_test.dart). Only a
+      // side out by less than a hand can place a line is cleaned.
+      final three = normalize(runsOf('frame', leaning[3]!), DesignKind.angled);
+      expect(three.changed, isFalse, reason: three.corrections.join('\n'));
+      final hair = normalize(
+        runsOf('frame', withCorner(perfect, 2, const Vec2(2015, 1600))),
+        DesignKind.angled,
+      );
+      for (final run in hair.runs) {
         expect(square(run.segment), isTrue, reason: '${run.segment}');
       }
     });

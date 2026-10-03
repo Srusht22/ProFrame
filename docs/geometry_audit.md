@@ -402,3 +402,21 @@ The rubber seal is built by the solid itself.
 One gap was found. A leaf made taller gains a hinge, which came in the
 stock finish. It now takes the finish the leaf's other hinges share
 (`OpeningHardware._finishOf`, `setOf`).
+
+## 13. Angled / Asymmetrical mode (Phase 9)
+
+- **Preserved.** In an angled design only a deviation smaller than the
+  hand's precision (1% of the drawing) is squared. The 1%–5% band within 5°
+  is squared only in standard designs (`Deviation.standard`).
+- **Validated.** `GeometryNormalizer.validateAngledGeometry`
+  (`GeometryValidation.of`) reports problems with coordinates, boundaries,
+  self-intersections, connection, child geometry, openings, ironmongery
+  and dimensions. It changes nothing. Angled readings carry the result in
+  `Interpretation.problems`.
+- **Fault 4 of §5 fixed.** Ironmongery is placed along the leaf's own
+  stiles (`OpeningHardware.stileOf`) and rails (`_railAt`), not its
+  bounding box. Rectangles are unchanged.
+
+Still open:
+- Faults 3 and 5 of §5.
+- Validation problems are not shown in the app.
