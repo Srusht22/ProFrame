@@ -59,6 +59,14 @@ class StartScreen extends ConsumerStatefulWidget {
     (DesignKind.angled, 'Sloped, under-stair & custom shapes'),
   ];
 
+  /// What the note under the cards says about straightening: which
+  /// categories square a line drawn a little out, and which keeps every
+  /// slope. One sentence, because that is the whole of the difference.
+  static const straighteningNote =
+      'Door, Window, Sliding and Door & window straighten lines drawn a '
+      'little out of square. Angled / Asymmetrical keeps every slope '
+      'exactly as you draw it.';
+
   /// What the button that begins the design says.
   static const startLabel = 'Start drawing';
 
@@ -306,25 +314,42 @@ class _StillMixed extends StatelessWidget {
   const _StillMixed();
 
   @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Icon(Icons.info_outline, size: 17, color: context.palette.muted),
-      SizedBox(width: 8),
-      Expanded(
-        child: Text(
-          'This is where the design starts, not a limit on it: any opening '
-          'you mark can still be made a door or a window, and fixed areas '
-          'sit beside them in the same frame.',
-          style: TextStyle(
-            fontSize: 13,
-            height: 1.45,
-            color: context.palette.muted,
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: 13,
+      height: 1.45,
+      color: context.palette.muted,
+    );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.info_outline, size: 17, color: context.palette.muted),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This is where the design starts, not a limit on it: any '
+                'opening you mark can still be made a door or a window, and '
+                'fixed areas sit beside them in the same frame.',
+                style: style,
+              ),
+              const SizedBox(height: 6),
+              // What the fifth card is for, said where the choice is made:
+              // the four standard categories square what a hand drew a
+              // little out, and the angled one keeps it.
+              Text(
+                StartScreen.straighteningNote,
+                key: const ValueKey('straightening-note'),
+                style: style,
+              ),
+            ],
           ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
 /// The foot of the screen: what is chosen, and the way into the drawing.

@@ -1577,7 +1577,10 @@ second tap on another moves the choice rather than adding to it. **Start
 drawing**, in that bar and so always in reach, is off until something is
 chosen; it completes the setup with the kind, begins the design from
 it, keeps it, and goes into the existing drawing with the designs underneath.
-Nothing else is asked.
+Nothing else is asked. Under the cards one sentence says what separates
+the four standard categories from the fifth: they straighten a line drawn
+a little out of square, and Angled / Asymmetrical keeps every slope. See
+*Telling the categories apart*.
 
 **The category is saved into the design and builds nothing.** It is
 `Design.kind` — `Design.category` by the user's name for it — written to
@@ -5402,6 +5405,71 @@ glass over a white panel and furnished.
 Turning about the box's side again fails the leaning leaf. Building the
 frame or the glass to its box fails the angled window and the window
 under a stair.
+
+### Telling the categories apart
+
+The user's words: *make the distinction understandable without making the
+application complicated.* Door, Window, Sliding and Door & window are
+standard: a line drawn a little out of square is straightened. **Angled /
+Asymmetrical** is for the sloped, the under-stair, the asymmetrical and
+the custom, and keeps every slope as it is drawn. Nothing about either was
+redesigned; the difference is said in two places, each once.
+
+- **Where the choice is made.** The fifth card keeps its name, its line
+  (*Sloped, under-stair & custom shapes*), its pen drawing of a window
+  under a stair, and its triangle in the lists (`kindIcon`). Under the
+  cards, beneath the note that the choice is where a design starts, one
+  sentence says the whole difference (`StartScreen.straighteningNote`):
+  *Door, Window, Sliding and Door & window straighten lines drawn a little
+  out of square. Angled / Asymmetrical keeps every slope exactly as you
+  draw it.*
+- **When it happens.** A reading that visibly put a standard design right
+  says *Geometry normalized for standard design.* in a small pill at the
+  head of the view (`NormalizedNote`). It comes in, stands for about three
+  seconds and goes by itself. It takes no tap, nothing waits on it, and it
+  is never a dialog.
+
+**Only when something a person could see was put right.**
+`NormalizedGeometry.noticeableStrokes` is the strokes a correction moved by
+more than the hand can place a line in that drawing: the weld, a hundredth
+of its size. A jamb stood up from a few degrees, a corner drawn past and
+trimmed, a lean squared all count. The shake taken out of every
+hand-drawn line does not, and neither does a slip of the pen left in the
+sketch. `Interpretation.noticeablyCorrected` carries them for a standard
+design and is empty for an angled one, whose slopes are meant.
+`WorkspaceState.correctedStrokes` remembers what has been said, so reading
+the same sheet again says nothing more. `normalizedNotice` counts each
+reading that had something new to say, and the pill comes up on a new
+count.
+
+**Shown on the work, never behind something over it.** A reading usually
+brings the sizes up at once, and on a phone they fill the screen. A note
+played out behind them was never seen, which is what looking at it in the
+browser found. So the note waits while its route is not the one in front
+(`ModalRoute.of`) or an alert is up (`WorkspaceState.waitingOnAnAlert`,
+which `sizesToAsk` now reads too). If something comes up over it while it
+stands, it is put back to wait. It comes in once the user is back at the
+drawing it is about.
+
+`test/app/category_behaviour_is_clear_test.dart` holds it:
+- each standard category straightening a leaning side and saying which
+  stroke;
+- a square drawing, and one out by less than a hand places a line, saying
+  nothing;
+- an angled design keeping the same slope and saying nothing.
+
+On the real app, at a phone, a tablet and a laptop:
+- the note held back while the sizes are up, then shown at the head of the
+  view once they are put away;
+- inside the view, taking no tap, never in a dialog;
+- gone by itself, and not said again on a second reading;
+- each of the four standard cards saying so, a square drawing and an
+  angled design not;
+- the five cards, the angled one's line and drawing, five different
+  marks, and the sentence under them, fitting at every size.
+
+Saying it again for the same strokes, saying it for the hand's shake, or
+playing it out behind the sizes each fails it.
 
 ## Working on this repository
 

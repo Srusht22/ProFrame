@@ -44,6 +44,13 @@ class Interpretation {
   /// (`GeometryNormalizer.validateAngledGeometry`). Reported, never mended.
   final List<GeometryProblem> problems;
 
+  /// The strokes of a standard design that the reading visibly put right —
+  /// squared, a lean stood up, a corner trimmed — by more than the hand's
+  /// own precision ([NormalizedGeometry.noticeableStrokes]). Empty for an
+  /// angled design, whose slopes are meant and are not corrected, and for
+  /// a drawing only cleaned of the shake of the hand.
+  final Set<String> noticeablyCorrected;
+
   const Interpretation({
     required this.design,
     this.questions = const [],
@@ -51,6 +58,7 @@ class Interpretation {
     this.symbols = const [],
     this.corrections = const [],
     this.problems = const [],
+    this.noticeablyCorrected = const {},
   });
 
   bool get hasQuestions => questions.isNotEmpty;
@@ -477,6 +485,9 @@ abstract final class SketchInterpreter {
       questions: questions,
       symbols: symbols,
       corrections: normalized.corrections,
+      noticeablyCorrected: design.kind == DesignKind.angled
+          ? const {}
+          : normalized.noticeableStrokes,
       problems: design.kind == DesignKind.angled
           ? GeometryNormalizer.validateAngledGeometry(read)
           : const [],

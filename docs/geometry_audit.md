@@ -591,3 +591,28 @@ It also holds the leaning leaf's swing. Three mutations fail it:
 - the box swing;
 - a box frame;
 - box glass.
+
+## 19. Telling the categories apart (Phase 15)
+
+The category, its name, its line and its marks were already in place. Two
+things were added, and nothing else on any screen was changed.
+
+- **One sentence on *Choose your design*.** It sits under the cards: the
+  four standard categories straighten a line drawn a little out of square,
+  and Angled / Asymmetrical keeps every slope
+  (`StartScreen.straighteningNote`).
+- **A quiet note when it happens.** *Geometry normalized for standard
+  design.* is shown when a reading visibly put a standard design right
+  (`NormalizedNote`). A correction counts when it moved a line by more
+  than the weld, which is what `NormalizedGeometry.noticeableStrokes` and
+  `Interpretation.noticeablyCorrected` say. The note is said once per
+  stroke. It is never shown for an angled design and never in a dialog.
+
+The browser found one fault, and it is fixed. A first reading brings up
+the sizes, and on a phone they fill the screen, so the note played out
+unseen behind them. It now waits until the workspace route is in front
+and no alert is up (`WorkspaceState.waitingOnAnAlert`, shared with
+`sizesToAsk`).
+
+`test/app/category_behaviour_is_clear_test.dart` holds it.
+

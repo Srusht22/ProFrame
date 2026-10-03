@@ -198,6 +198,20 @@ class WorkspaceState {
   static const partsQuestionId = 'parts';
   static const onePartQuestionId = 'parts-one';
 
+  /// Whether one of the alerts over the work is up, or waiting to be:
+  /// the side left open, what a leaf is, what a door is built of, or which
+  /// parts are glass and which panel.
+  ///
+  /// A door said to be both is waiting on which parts are which — even
+  /// while the user is off drawing the divider that makes the parts — and
+  /// what comes after (the sizes, the note that the drawing was
+  /// straightened) comes after, not over the drawing they are making.
+  bool get waitingOnAnAlert =>
+      outlineGapQuestion != null ||
+      openingKindQuestions.isNotEmpty ||
+      constructionQuestion != null ||
+      (design.construction == Construction.both && !design.partsAsked);
+
   /// The sizes still to be given, once the design is ready to be asked for
   /// them — its outline read, the sheet read, and nothing else waiting on
   /// the user — as their keys joined into one string; or empty.
@@ -209,15 +223,7 @@ class WorkspaceState {
   String get sizesToAsk {
     final said = design.measured;
     if (said == null || design.frame == null || needsReading) return '';
-    // A door said to be both is waiting on which parts are which — even
-    // while the user is off drawing the divider that makes the parts — and
-    // the sizes come after, not over the drawing they are making.
-    if (outlineGapQuestion != null ||
-        openingKindQuestions.isNotEmpty ||
-        constructionQuestion != null ||
-        (design.construction == Construction.both && !design.partsAsked)) {
-      return '';
-    }
+    if (waitingOnAnAlert) return '';
     return [
       for (final m in Measurements.of(design))
         if (m.asked && !said.contains(m.key)) m.key,
@@ -263,6 +269,17 @@ class WorkspaceState {
   /// Their answer is kept, so the same mark is never asked about twice.
   final Set<String> notSymbols;
 
+  /// Strokes a reading has already said it put right
+  /// ([Interpretation.noticeablyCorrected]), so reading the same sheet
+  /// again does not say it again.
+  final Set<String> correctedStrokes;
+
+  /// How many times a reading has put a standard design visibly right that
+  /// it had not before: a new count is what brings up the quiet note
+  /// *Geometry normalized for standard design.* (`NormalizedNote`). Never a
+  /// question, and nothing waits on it.
+  final int normalizedNotice;
+
   /// Who this state is as *work*: new whenever anything but a way of looking
   /// at the model changes, and the same object while only the camera, its
   /// framing, how far the leaves are swung, the view mode or the floor
@@ -292,6 +309,8 @@ class WorkspaceState {
     this.groundPlane = true,
     this.notSymbols = const {},
     this.settledQuestions = const {},
+    this.correctedStrokes = const {},
+    this.normalizedNotice = 0,
     Object? work,
   }) : work = work ?? _Work();
 
@@ -316,6 +335,8 @@ class WorkspaceState {
     bool? groundPlane,
     Set<String>? notSymbols,
     Set<String>? settledQuestions,
+    Set<String>? correctedStrokes,
+    int? normalizedNotice,
   }) => WorkspaceState(
     // Only the ways of looking keep the work as it was. Anything else given
     // here — and anything added here later — is a change to the work.
@@ -330,7 +351,9 @@ class WorkspaceState {
                     penColour ??
                     layers ??
                     notSymbols ??
-                    settledQuestions) !=
+                    settledQuestions ??
+                    correctedStrokes ??
+                    normalizedNotice) !=
                 null
         ? _Work()
         : work,
@@ -350,6 +373,8 @@ class WorkspaceState {
     groundPlane: groundPlane ?? this.groundPlane,
     notSymbols: notSymbols ?? this.notSymbols,
     settledQuestions: settledQuestions ?? this.settledQuestions,
+    correctedStrokes: correctedStrokes ?? this.correctedStrokes,
+    normalizedNotice: normalizedNotice ?? this.normalizedNotice,
   );
 }
 
@@ -713,7 +738,13 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       state.design,
       notSymbols: state.notSymbols,
     );
+    // What the reading visibly put right in a standard design, and had not
+    // already said it had: said once, quietly, and never asked about.
+    final corrected = result.noticeablyCorrected;
+    final fresh = corrected.difference(state.correctedStrokes);
     state = state.copyWith(
+      correctedStrokes: {...state.correctedStrokes, ...corrected},
+      normalizedNotice: fresh.isEmpty ? null : state.normalizedNotice + 1,
       // The sizes the user gave outlast the reading, as everything else
       // they said does.
       design: Measurements.keepAfterReading(state.design, result.design),

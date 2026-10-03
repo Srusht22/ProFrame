@@ -20,6 +20,7 @@ import '../state/tools.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import '../viewer/model_view.dart';
+import 'normalized_note.dart';
 import 'tool_bar.dart';
 import 'workspace_bars.dart';
 
@@ -297,7 +298,18 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                       Expanded(
                         child: Column(
                           children: [
-                            Expanded(child: _mainView(state)),
+                            Expanded(
+                              child: Stack(
+                                children: [
+                                  Positioned.fill(child: _mainView(state)),
+                                  // A reading that put a standard design
+                                  // right says so, quietly, over the work.
+                                  const Positioned.fill(
+                                    child: NormalizedNote(),
+                                  ),
+                                ],
+                              ),
+                            ),
                             if (state.needsReading &&
                                 state.view == WorkspaceView.draw)
                               _ReadBar(

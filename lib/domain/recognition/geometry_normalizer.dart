@@ -278,10 +278,34 @@ class NormalizedGeometry {
   final List<DrawnRun> runs;
   final List<GeometryCorrection> corrections;
 
-  const NormalizedGeometry(this.runs, this.corrections);
+  /// How big the drawing was: what the hand's precision is measured
+  /// against.
+  final double spanMm;
+
+  const NormalizedGeometry(this.runs, this.corrections, {this.spanMm = 0});
 
   /// Whether anything was changed at all.
   bool get changed => corrections.isNotEmpty;
+
+  /// The strokes a correction moved by more than the hand can place a line
+  /// in this drawing ([Deviation.precisionMm], the weld): what a person
+  /// would see had been put right, as against the shake taken out of every
+  /// line drawn by hand.
+  ///
+  /// A slip of the pen that was not built ([CorrectionKind.absorbed]) is
+  /// not among them: nothing of it was corrected, it was left in the
+  /// sketch.
+  Set<String> get noticeableStrokes {
+    final precision = Tol.weldFor(spanMm);
+    return {
+      for (final c in corrections)
+        if (c.after case final after?)
+          if (math.max(c.before.a.distanceTo(after.a),
+                  c.before.b.distanceTo(after.b)) >
+              precision)
+            c.strokeId,
+    };
+  }
 }
 
 /// Where the accidental inaccuracy of a hand comes out of a drawing — and the
@@ -396,7 +420,7 @@ abstract final class GeometryNormalizer {
         square[i],
       );
     }
-    return NormalizedGeometry(square, corrections);
+    return NormalizedGeometry(square, corrections, spanMm: span);
   }
 
   /// [run] squared, about its middle, where its [Deviation] in a drawing
