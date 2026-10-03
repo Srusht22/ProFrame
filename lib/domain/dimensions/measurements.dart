@@ -446,8 +446,9 @@ abstract final class Measurements {
     double value,
     double at,
     bool farSide,
-    double room,
-  ) {
+    double room, {
+    bool again = true,
+  }) {
     final across = axis == MeasureAxis.across;
     final now = across ? section.widthMm : section.heightMm;
     final growth = value - now;
@@ -488,7 +489,27 @@ abstract final class Measurements {
         _sectionNear(moved, section, axis, growth, farSide);
     if (check == null) return moved;
     final reads = across ? check.widthMm : check.heightMm;
-    return (reads - value).abs() <= 1 ? moved : null;
+    if ((reads - value).abs() <= 1) return moved;
+    // **Measured on the result, and put right once.** A light's size is read
+    // off its outline, and an outline can carry a weld: where a mullion
+    // comes down from the corner a window under a stair's slope meets its
+    // head, the light's corner is snapped onto the frame's a millimetre or
+    // two away, and its width reads that much more than the bar's face
+    // says. The move is worked out from that reading, the bar leaves the
+    // corner, the light reads true — and misses the figure typed by the
+    // weld. So the bar is moved once more, from where it now is, by what is
+    // still wanting; a size that cannot be met is still refused.
+    if (!again) return null;
+    return _resize(
+      moved,
+      check,
+      axis,
+      value,
+      to,
+      farSide,
+      room,
+      again: false,
+    );
   }
 
   /// [sectionId] made [value] along [axis], from wherever the user typed
@@ -637,9 +658,43 @@ abstract final class Measurements {
     // lost. So it is left for the rebuild first; and only where its section
     // has not changed — the bar the size moves is in it, or bound to one
     // that is — is it stretched by the map after all.
+    // **A size inside the frame does not reshape the frame.** Where the
+    // frame's own sides along this axis stay put — a light's width, a pane's
+    // height — every corner of a square frame is on one of them, so nothing
+    // of it moves anyway; but a window under a stair has a corner part way
+    // up a side, where its slope meets the short jamb, and stretching the
+    // sheet to move one bar moved that corner too. Giving the glass in the
+    // opening under the slope a height reshaped the frame, carried the
+    // opening's lines away with the raked light, and then refused the size
+    // because the pane could not be made it. So the frame, and the ink it
+    // was read from, stay exactly as they are unless the frame's own size
+    // is what is being given.
+    final frame = design.frame;
+    final frameMoves = frame != null &&
+        (() {
+          final box = frame.outline;
+          final (low, high) = across
+              ? (box.left, box.right)
+              : (box.top, box.bottom);
+          return (map(low) - low).abs() > 1e-9 ||
+              (map(high) - high).abs() > 1e-9;
+        })();
+    final claimed = <String>{
+      for (final d in design.dividers) ?d.fromStrokeId,
+      for (final d in design.dimensions) ?d.fromStrokeId,
+      for (final a in design.arrows) ?a.fromStrokeId,
+      for (final t in design.texts) ?t.fromStrokeId,
+      for (final o in design.openings)
+        if (o.id.startsWith('opening-')) o.id.substring('opening-'.length),
+    };
+    bool keepsInk(Stroke stroke) =>
+        frame != null && !frameMoves && !claimed.contains(stroke.id);
+
     final stretched = SectionBuilder.rebuild(
       design.copyWith(
-        frame: design.frame?.copyWith(outline: shape(design.frame!.outline)),
+        frame: frame == null || !frameMoves
+            ? frame
+            : frame.copyWith(outline: shape(frame.outline)),
         dividers: [
           for (final d in design.dividers) d.parentId == null ? bar(d) : d,
         ],
@@ -662,11 +717,14 @@ abstract final class Measurements {
         sketch: Sketch(
           strokes: [
             for (final stroke in design.sketch.strokes)
-              stroke.copyWith(
-                samples: [
-                  for (final s in stroke.samples) s.movedTo(point(s.at)),
-                ],
-              ),
+              if (keepsInk(stroke))
+                stroke
+              else
+                stroke.copyWith(
+                  samples: [
+                    for (final s in stroke.samples) s.movedTo(point(s.at)),
+                  ],
+                ),
           ],
         ),
       ),

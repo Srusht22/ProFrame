@@ -73,7 +73,11 @@ abstract final class PlanarSubdivision {
     final nodes = <_Node>[];
     _Node nodeAt(Vec2 point) {
       for (final n in nodes) {
-        if (n.at.distanceTo(point) <= weldTolerance) return n;
+        final apart = n.at.distanceTo(point);
+        if (apart <= weldTolerance &&
+            !_twoPointsOfOneLine(segments, n.at, point, apart)) {
+          return n;
+        }
       }
       final created = _Node(point);
       nodes.add(created);
@@ -182,6 +186,37 @@ abstract final class PlanarSubdivision {
     return null;
   }
 
+  /// How near a point must be to a line to lie on it exactly: rounding,
+  /// not a hand.
+  static const double _exactMm = 1e-3;
+
+  /// How far apart two points on one line must be to be two points.
+  static const double _distinctMm = Tol.samePointMm;
+
+  /// Whether [a] and [b], [apart] from each other, are two points of one of
+  /// [segments] — both lying on it exactly.
+  ///
+  /// The weld joins ends a hand left a little apart. It must not join two
+  /// points the arithmetic put on one line a millimetre or two apart: where
+  /// a mullion's face comes down beside the corner a raked head meets a
+  /// level one, the face meets the head two millimetres from that corner,
+  /// and welding the two moves the light's corner onto the frame's — so
+  /// the light no longer measures from the mullion's face.
+  static bool _twoPointsOfOneLine(
+    List<Segment> segments,
+    Vec2 a,
+    Vec2 b,
+    double apart,
+  ) {
+    if (apart <= _distinctMm) return false;
+    for (final line in segments) {
+      if (line.distanceTo(a) <= _exactMm && line.distanceTo(b) <= _exactMm) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// Cuts every segment at every point another segment meets it, so the
   /// pieces only ever touch at their ends.
   static List<Segment> _split(List<Segment> segments, double tolerance) {
@@ -190,13 +225,16 @@ abstract final class PlanarSubdivision {
       final segment = segments[i];
       if (segment.length < tolerance) continue;
 
-      final cuts = <double>[0, 1];
+      // Each cut, and whether it lies exactly on the line that made it as
+      // well as on this one — a crossing of the two, or this one's own end.
+      final cuts = <(double, bool)>[(0, true), (1, true)];
       for (var j = 0; j < segments.length; j++) {
         if (i == j) continue;
         final other = segments[j];
         final crossing = segment.crossing(other, tolerance: tolerance);
         if (crossing != null) {
-          cuts.add(crossing.onA);
+          final at = segment.pointAt(crossing.onA);
+          cuts.add((crossing.onA, other.distanceTo(at) <= _exactMm));
           continue;
         }
         // Parallel lines never "cross", but a bar running along another one
@@ -204,17 +242,28 @@ abstract final class PlanarSubdivision {
         // corner that is not in the ring.
         for (final end in [other.a, other.b]) {
           if (segment.distanceTo(end) <= tolerance) {
-            cuts.add(segment.parameterOf(end).clamp(0.0, 1.0));
+            cuts.add((
+              segment.parameterOf(end).clamp(0.0, 1.0),
+              segment.distanceTo(end) <= _exactMm,
+            ));
           }
         }
       }
 
-      cuts.sort();
-      final minStep = tolerance / math.max(segment.length, 1e-9);
+      cuts.sort((x, y) => x.$1.compareTo(y.$1));
+      final length = math.max(segment.length, 1e-9);
+      final minStep = tolerance / length;
       var previous = cuts.first;
       for (final cut in cuts.skip(1)) {
-        if (cut - previous <= minStep) continue;
-        pieces.add(Segment(segment.pointAt(previous), segment.pointAt(cut)));
+        final step = cut.$1 - previous.$1;
+        // Two cuts a weld apart are one junction drawn a little out — unless
+        // both are exact, which makes them two points on this line, and
+        // folding them together would bend it.
+        final distinct = previous.$2 && cut.$2 && step * length > _distinctMm;
+        if (step <= minStep && !distinct) continue;
+        pieces.add(
+          Segment(segment.pointAt(previous.$1), segment.pointAt(cut.$1)),
+        );
         previous = cut;
       }
     }

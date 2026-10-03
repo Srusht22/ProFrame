@@ -420,3 +420,45 @@ stock finish. It now takes the finish the leaf's other hinges share
 Still open:
 - Faults 3 and 5 of §5.
 - Validation problems are not shown in the app.
+
+## 14. A window under a stair (Phase 10)
+
+Drawn as an Angled / Asymmetrical design — a short jamb, the stair's slope
+up to a level head, a tall jamb, a mullion dropped from the corner where
+the slope meets the head, a `>` in the light under the slope — it is read,
+built, sized, saved and opened again as drawn. Five faults were found on
+the way, all where a bar meets a raked side:
+
+- **The mullion's own body counted as glass.** A body cut square at its
+  end reached the level head on one side and stopped short of the slope on
+  the other, leaving a sliver of the bar as a light. A bar's body now runs
+  on, along its own line, to meet the line it ends against
+  (`SectionBuilder._reachingWhatItMeets`).
+- **A pane's height stretched the frame.** `Measurements.stretch` mapped
+  the slope's corner with the bars round the pane. When the frame's own
+  sides do not move, the frame and the ink nobody claims are now kept
+  where they are.
+- **A light's size missed by a weld.** It is measured on the result, and
+  put right once (`Measurements._resize`, `again`).
+- **The subdivision welded two points of one line.** Where the mullion's
+  face met the head two millimetres from the corner the slope meets it,
+  the weld folded the two together. The light then measured from the
+  frame's corner, not the bar's face, and a 7 cm border with a 120 cm
+  light was refused. Two points that both lie exactly on one line, more
+  than half a millimetre apart, are now two points
+  (`PlanarSubdivision._twoPointsOfOneLine`). A hand's end left short of a
+  line is still welded to it. Lowering the weld instead was tried and
+  undone: it stopped a hand-drawn line 6 mm short of a mullion from
+  dividing anything.
+- **Two lights swapped identities.** With as many regions as before, the
+  nth region took the nth's identity. When the mullion crossed the slope's
+  corner the faces came back the other way round, and a frosted right
+  light became a frosted left one. Regions are now matched by the ground
+  they share first, and by place only where ground cannot say
+  (`SectionBuilder._carryIdentityForward`).
+
+`test/domain/an_under_stair_design_test.dart` holds it.
+
+Still open:
+- Faults 3 and 5 of §5.
+- Validation problems are not shown in the app.

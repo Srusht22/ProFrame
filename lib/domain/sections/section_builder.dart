@@ -317,24 +317,39 @@ abstract final class SectionBuilder {
     // line made every daylight opening half a bar too wide, which nobody
     // notices on a coloured picture and everybody notices on a drawing with
     // dimensions on it.
-    final bodies = <Polygon>[];
-    final lines = <Segment>[...bounds.edges];
-    for (final divider in dividers) {
-      final run = _clipToBounds(divider.segment, bounds);
-      if (run.isEmpty) continue;
-      final body = _bodyOf(run.single, divider.widthMm);
-      bodies.add(body);
-      for (final edge in body.edges) {
-        lines.addAll(_clipToBounds(edge, bounds));
-      }
-    }
-
     // The ends are already where the user put them, so this only has to
     // cover arithmetic and the width of a drawn line, not a shaky hand.
     final weld = Tol.weldFor(
       math.sqrt(bounds.width * bounds.width + bounds.height * bounds.height),
       fraction: Tol.weldFractionClean,
     );
+
+    final runs = <(DividerElement, Segment)>[
+      for (final divider in dividers)
+        if (_clipToBounds(divider.segment, bounds) case [final run])
+          (divider, run),
+    ];
+    final bodies = <Polygon>[];
+    final lines = <Segment>[...bounds.edges];
+    for (final (divider, run) in runs) {
+      final body = _bodyOf(
+        _reachingWhatItMeets(
+          run,
+          divider.widthMm,
+          meets: [
+            ...bounds.edges,
+            for (final (other, otherRun) in runs)
+              if (!identical(other, divider)) otherRun,
+          ],
+          weld: weld,
+        ),
+        divider.widthMm,
+      );
+      bodies.add(body);
+      for (final edge in body.edges) {
+        lines.addAll(_clipToBounds(edge, bounds));
+      }
+    }
     final all = PlanarSubdivision.facesOf(lines, weldTolerance: weld);
 
     // What is left once the bars themselves are taken out is the daylight.
@@ -483,13 +498,6 @@ abstract final class SectionBuilder {
     String Function() nextId,
     Finish? fresh,
   ) {
-    if (previous.length == faces.length) {
-      return [
-        for (var i = 0; i < faces.length; i++)
-          previous[i].copyWith(outline: faces[i]),
-      ];
-    }
-
     final claimed = <String>{};
     final matched = List<SectionElement?>.filled(faces.length, null);
 
@@ -509,6 +517,27 @@ abstract final class SectionBuilder {
       if (claimed.contains(candidate.id)) continue;
       matched[index] = candidate;
       claimed.add(candidate.id);
+    }
+
+    // As many regions as before, and a region that shares too little of its
+    // ground with any of them to say which it was — a bar dragged a long way
+    // — is the one in its place, among those not already found. Ground
+    // first and place second: the faces do not come back in a fixed order,
+    // and a mullion moved past the corner a raked head meets a level one
+    // came back with the two lights the other way round, so the frosted
+    // light on the right was frosted on the left.
+    if (previous.length == faces.length) {
+      final left = [
+        for (final p in previous)
+          if (!claimed.contains(p.id)) p,
+      ];
+      for (var i = 0; i < faces.length && left.isNotEmpty; i++) {
+        if (matched[i] != null) continue;
+        final inPlace = left.contains(previous[i]) ? previous[i] : left.first;
+        matched[i] = inPlace;
+        claimed.add(inPlace.id);
+        left.remove(inPlace);
+      }
     }
 
     // A face that shares its ground with a section already taken by another
@@ -562,6 +591,55 @@ abstract final class SectionBuilder {
   }
 
   /// The rectangle a bar actually occupies.
+  /// [run], each end that meets a line of [meets] at a slant carried on
+  /// along the run far enough for both of the bar's faces to reach that line.
+  ///
+  /// A bar is cut in as its two faces, and a body squared off at its end
+  /// stops level with the end of its centre line. Where that end meets the
+  /// frame or another bar square, the faces meet it there too. Where it
+  /// meets one at a slant — a mullion under the raked head of a window
+  /// under a stair — the face on the high side stops short of it, the
+  /// daylight beside the bar runs round the top of the face into the bar's
+  /// own body, and the light came back half a bar too wide, the bar's
+  /// material counted as glass. The face on the high side has to run on by
+  /// half the bar's width times the cotangent of the angle between them,
+  /// and the clipping to the daylight then cuts both faces flush with the
+  /// line they meet. An end meeting nothing is where the user stopped, and
+  /// stays.
+  static Segment _reachingWhatItMeets(
+    Segment run,
+    double widthMm, {
+    required List<Segment> meets,
+    required double weld,
+  }) {
+    final length = run.length;
+    if (length < 1e-9) return run;
+    final unit = run.unit;
+    double furtherAt(Vec2 end) {
+      Segment? met;
+      var nearest = weld;
+      for (final line in meets) {
+        if (line.length < 1e-9) continue;
+        final away = line.distanceTo(end);
+        if (away <= nearest) {
+          met = line;
+          nearest = away;
+        }
+      }
+      if (met == null) return 0;
+      final sine = unit.cross(met.unit).abs();
+      // Nearly along it: it does not end on that line so much as lie on it.
+      if (sine < 0.05) return 0;
+      final cosine = unit.dot(met.unit).abs();
+      return widthMm / 2 * cosine / sine;
+    }
+
+    final back = furtherAt(run.a);
+    final on = furtherAt(run.b);
+    if (back == 0 && on == 0) return run;
+    return Segment(run.a - unit * back, run.b + unit * on);
+  }
+
   static Polygon _bodyOf(Segment run, double widthMm) {
     final side = run.unit.perpendicular * (widthMm / 2);
     return Polygon([

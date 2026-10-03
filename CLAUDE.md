@@ -5038,6 +5038,75 @@ precision.
 `validateAngledGeometry` is written; what it finds is not yet shown to the
 user, and the audit's other open faults are still open.
 
+### A window under a stair
+
+```
+         ┌──────────────┐
+        ╱│              │
+       ╱ │              │
+      │ >│              │
+      └──┴──────────────┘
+```
+
+An Angled / Asymmetrical design:
+- a short jamb on the left;
+- the stair's slope up to a level head;
+- a tall jamb on the right;
+- a mullion dropped from the corner where the slope meets the head;
+- a `>` in the light under the slope.
+
+It is built as drawn. The slope keeps its angle, the two jambs their own
+heights, and the outline its five sides. It is never made a rectangle and
+nothing asks whether it should be. Getting it right through every step
+found five places where a bar meeting a raked side went wrong:
+
+- **A bar's body reaches the line it ends against.** A body cut square at
+  its end touched the level head on one side and stopped short of the
+  slope on the other. The sliver between them came back as a light made of
+  the bar. `SectionBuilder._reachingWhatItMeets` carries each end on along
+  the bar's own line to where its face meets that line. The bar is not
+  moved; its centre line ends where it did.
+- **A size inside the frame leaves the frame alone.** Giving the glass
+  under the slope a height stretched the sheet between the bars round it.
+  That moved the corner where the slope meets the short jamb, and the size
+  was refused. When the frame's own sides do not move, `Measurements.stretch`
+  keeps the frame and every stroke no line, mark or figure was read from.
+- **A light's size is measured on the result, and put right once**
+  (`Measurements._resize`).
+- **Two points of one line stay two points.** The mullion's face can meet
+  the head two millimetres from the corner the slope meets it. The
+  subdivision's weld folded the two together, so the light measured from
+  the frame's corner rather than the bar's face, and a 120 cm light with a
+  7 cm border was refused. `PlanarSubdivision._twoPointsOfOneLine` keeps
+  apart two points that both lie exactly on one line more than half a
+  millimetre apart. A hand's end left a few millimetres short of a line is
+  still welded to it. Lowering the weld instead was tried and is not to
+  come back: a hand-drawn line 6 mm short of a mullion then divided
+  nothing.
+- **A region keeps its identity by its ground.** With as many regions as
+  before, the nth region used to take the nth's identity. The faces do not
+  come back in a fixed order: drag the mullion past the slope's corner and
+  the two lights came back swapped, so the frosted light on the right was
+  frosted on the left. `_carryIdentityForward` now matches by the ground
+  regions share. It falls back to their place only where the ground cannot
+  say — a bar dragged a long way.
+
+`test/domain/an_under_stair_design_test.dart` holds it:
+- the five corners, the slope at 40.91°, sides of 90 and 220 cm, drawn
+  exactly and drawn by hand;
+- the mullion dividing the two lights at its faces, wherever it stands;
+- an opening under the slope with a line inside it, glass over a white
+  panel, and its ironmongery on the leaf;
+- the width and height given, with the shape kept and read again the same;
+- the glass given a height, and the light beside the mullion a width, with
+  the frame unmoved;
+- every size at once, as the browser gave them;
+- the mullion dragged both ways with each light keeping its own glass;
+- the design saved, reloaded, kept on the device and opened from its card,
+  identical to the byte and building the same solid.
+
+Taking out the subdivision's fix or the identity fix fails it.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the
