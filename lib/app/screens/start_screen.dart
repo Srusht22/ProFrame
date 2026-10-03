@@ -48,13 +48,15 @@ class StartScreen extends ConsumerStatefulWidget {
 
   const StartScreen({super.key, required this.setup});
 
-  /// The four choices, in the order they are shown — the user's own
-  /// order: door, window, sliding, door & window — and what each card says.
+  /// The five choices, in the order they are shown — the user's own
+  /// order: door, window, sliding, door & window, then angled /
+  /// asymmetrical — and what each card says.
   static const choices = [
     (DesignKind.door, 'Create a custom door design'),
     (DesignKind.window, 'Create a custom window design'),
     (DesignKind.sliding, 'Panels that slide past each other'),
     (DesignKind.both, 'Doors and windows in one frame'),
+    (DesignKind.angled, 'Sloped, under-stair & custom shapes'),
   ];
 
   /// What the button that begins the design says.
@@ -137,9 +139,11 @@ class _StartScreenState extends ConsumerState<StartScreen>
     );
   }
 
-  /// The four cards, every one the same size: one above another on a phone
-  /// ([columns] 1), two by two on a tablet, and all four in a row on a
-  /// screen wide enough to hold them, so the choice is one look.
+  /// The cards, every one the same size: one above another on a phone
+  /// ([columns] 1), two by two on a tablet, and all of them in a row on a
+  /// screen wide enough to hold them, so the choice is one look. A row the
+  /// cards do not fill keeps its gaps, so the last card is no wider than
+  /// the rest.
   Widget _cards({required int columns}) {
     final cards = [
       for (final (i, (kind, blurb)) in StartScreen.choices.indexed)
@@ -170,9 +174,11 @@ class _StartScreenState extends ConsumerState<StartScreen>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final card in these) ...[
-            Expanded(child: card),
-            if (card != these.last) const SizedBox(width: 18),
+          for (var k = 0; k < columns; k++) ...[
+            if (k > 0) const SizedBox(width: 18),
+            Expanded(
+              child: k < these.length ? these[k] : const SizedBox.shrink(),
+            ),
           ],
         ],
       ),
@@ -181,7 +187,7 @@ class _StartScreenState extends ConsumerState<StartScreen>
       children: [
         for (var i = 0; i < cards.length; i += columns) ...[
           if (i > 0) const SizedBox(height: 18),
-          row(cards.sublist(i, i + columns)),
+          row(cards.sublist(i, math.min(i + columns, cards.length))),
         ],
       ],
     );
@@ -197,8 +203,9 @@ class _StartScreenState extends ConsumerState<StartScreen>
         builder: (context, room) {
           final phone = room.maxWidth < 600;
           final gutter = phone ? 16.0 : 32.0;
-          final columns = phone ? 1 : (room.maxWidth < 1000 ? 2 : 4);
-          final across = columns == 4 ? 1180.0 : 880.0;
+          final every = StartScreen.choices.length;
+          final columns = phone ? 1 : (room.maxWidth < 1000 ? 2 : every);
+          final across = columns == every ? 1240.0 : 880.0;
           return Column(
             children: [
               Expanded(
@@ -683,6 +690,20 @@ class _PenDrawing extends CustomPainter {
       [Offset(0.44, 0.46), Offset(0.88, 0.46)],
       [Offset(0.18, 0.4), Offset(0.36, 0.52), Offset(0.18, 0.64)],
       [Offset(0.74, 0.18), Offset(0.56, 0.28), Offset(0.74, 0.38)],
+    ],
+    // A window under a stair: one jamb taller than the other, the head
+    // running up between them, a mullion stopping at the head, and a `<`
+    // in the lower light.
+    DesignKind.angled => const [
+      [
+        Offset(0.15, 0.86),
+        Offset(0.15, 0.5),
+        Offset(0.85, 0.14),
+        Offset(0.85, 0.86),
+        Offset(0.15, 0.86),
+      ],
+      [Offset(0.5, 0.32), Offset(0.5, 0.86)],
+      [Offset(0.43, 0.58), Offset(0.27, 0.68), Offset(0.43, 0.78)],
     ],
     // A sliding door as the user's own reference shows one: the frame, the
     // fixed panel on the right, the left panel overlapping it with its long

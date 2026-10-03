@@ -150,13 +150,14 @@ void main() {
           ),
         );
       }
-      // Every category the application has: door, window, sliding, and door
-      // & window.
+      // Every category the application has: door, window, sliding, door &
+      // window, and angled / asymmetrical.
       expect(DesignKind.values.toSet(), {
         DesignKind.door,
         DesignKind.window,
         DesignKind.sliding,
         DesignKind.both,
+        DesignKind.angled,
       });
       for (final (i, kind) in DesignKind.values.indexed) {
         final kept = (await designs.load('d$i'))!;

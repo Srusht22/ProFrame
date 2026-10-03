@@ -38,7 +38,7 @@ export 'elements.dart' show Construction, DesignKind, Face, OutlineGap;
 /// label for the absence of a name, shown and never stored: a design begun
 /// without a name is kept with none, rather than with one made up for it.
 String shownNameOf(String name, DesignKind kind) =>
-    name.trim().isEmpty ? 'Untitled ${kind.label.toLowerCase()}' : name;
+    name.trim().isEmpty ? 'Untitled ${kind.noun}' : name;
 
 /// Which design this is: its id, whose it is, what it is called and what
 /// it is. Everything the rest of the application needs to know a design by,
@@ -215,7 +215,7 @@ class Design {
     final at = now ?? DateTime.now();
     return Design(
       id: id,
-      name: name ?? 'Untitled ${kind.label.toLowerCase()}',
+      name: name ?? 'Untitled ${kind.noun}',
       kind: kind,
       customer: customer,
       customerId: customerId,

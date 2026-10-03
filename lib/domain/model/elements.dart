@@ -64,10 +64,28 @@ enum DesignKind {
   /// way*, rather than which side it is hinged on. Two panels marked is a
   /// pair that both slide; one marked beside a fixed light is a single
   /// slider. The drawing says which, not a template.
-  sliding('Sliding', Face.outside);
+  sliding('Sliding', Face.outside),
 
-  const DesignKind(this.label, this.seenFrom);
+  /// A design whose shape is not square **on purpose**: a window under a
+  /// stair, a sloped head, a trapezoid, two sides of different heights,
+  /// edges that are not parallel — a custom architectural shape.
+  ///
+  /// Like [both] and [sliding] it is a fact about the assembly, chosen on
+  /// the start screen, and it is the user saying, before they draw a line,
+  /// that the slopes in their drawing are meant. It holds doors or windows
+  /// or both, so it says nothing about any one leaf ([leafDefault] is
+  /// null). Met from inside unless a leaf is said to be a door, as a window
+  /// is, because `Design.seenFrom` settles that from the leaves.
+  angled('Angled / Asymmetrical', Face.inside, 'angled design');
+
+  const DesignKind(this.label, this.seenFrom, [this._noun]);
   final String label;
+  final String? _noun;
+
+  /// What a design of this kind is called in a sentence — *your window*,
+  /// *an untitled angled design* — where [label] is what it is called on
+  /// its own.
+  String get noun => _noun ?? label.toLowerCase();
 
   /// What a single leaf can be.
   ///
@@ -94,7 +112,7 @@ enum DesignKind {
   /// A sliding design's leaves follow a door: the user chose sliding for a
   /// set they walk through, and the leaf's own switch says otherwise.
   DesignKind? get leafDefault => switch (this) {
-        both => null,
+        both || angled => null,
         sliding => door,
         _ => this,
       };

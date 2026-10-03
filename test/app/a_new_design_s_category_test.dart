@@ -16,11 +16,18 @@ import 'new_design.dart';
 import 'the_designs_screen_test.dart' as screen;
 
 // Adam → New Design → Basement Door → Category: Door. After the name, the
-// category — Door, Window, Sliding, Door & Window, in that order — and only
+// category — Door, Window, Sliding, Door & Window, Angled / Asymmetrical, in
+// that order — and only
 // for a new design. It is saved into the design as its category, and it
 // builds nothing: no line, no frame, no opening, no template.
 
-const cards = ['DOOR', 'WINDOW', 'SLIDING', 'DOOR & WINDOW'];
+const cards = [
+  'DOOR',
+  'WINDOW',
+  'SLIDING',
+  'DOOR & WINDOW',
+  'ANGLED / ASYMMETRICAL',
+];
 
 Future<void> toAdamsCategories(
   WidgetTester tester, {
@@ -53,19 +60,32 @@ Future<Map<String, Object?>> storedJson(WidgetTester tester, String id) async =>
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  test('the four categories, in the user\'s order', () {
+  test('the five categories, in the user\'s order', () {
     expect(
       [for (final (kind, _) in StartScreen.choices) kind],
-      [DesignKind.door, DesignKind.window, DesignKind.sliding, DesignKind.both],
+      [
+        DesignKind.door,
+        DesignKind.window,
+        DesignKind.sliding,
+        DesignKind.both,
+        DesignKind.angled,
+      ],
     );
     expect(
       [for (final (kind, _) in StartScreen.choices) kind.label],
-      ['Door', 'Window', 'Sliding', 'Door & window'],
+      [
+        'Door',
+        'Window',
+        'Sliding',
+        'Door & window',
+        'Angled / Asymmetrical',
+      ],
     );
   });
 
-  testWidgets('after the design name come the four categories — Door, '
-      'Window, Sliding, Door & Window — and none chosen', (tester) async {
+  testWidgets('after the design name come the five categories — Door, '
+      'Window, Sliding, Door & Window, Angled / Asymmetrical — and none '
+      'chosen', (tester) async {
     await customers.keepThreeCustomers();
     await screen.openTheApp(tester, size: const Size(390, 844));
     await toAdamsCategories(tester);
@@ -75,13 +95,13 @@ void main() {
       for (final card in cards) tester.getTopLeft(find.text(card)).dy,
     ];
     expect(tops, [...tops]..sort(), reason: 'in the order $cards');
-    expect(tops.toSet(), hasLength(4));
+    expect(tops.toSet(), hasLength(5));
     // Nothing is chosen for the user.
     expect(startDrawing(tester), isNull);
     expect(find.text('Choose a type to continue'), findsOneWidget);
   });
 
-  testWidgets('the four stand in a row, in the same order, where there is '
+  testWidgets('the five stand in a row, in the same order, where there is '
       'room', (tester) async {
     await customers.keepThreeCustomers();
     await screen.openTheApp(tester, size: const Size(1440, 900));
@@ -90,7 +110,7 @@ void main() {
       for (final card in cards) tester.getTopLeft(find.text(card)).dx,
     ];
     expect(lefts, [...lefts]..sort());
-    expect(lefts.toSet(), hasLength(4));
+    expect(lefts.toSet(), hasLength(5));
   });
 
   for (final (card, kind) in const [
@@ -98,6 +118,7 @@ void main() {
     ('WINDOW', DesignKind.window),
     ('SLIDING', DesignKind.sliding),
     ('DOOR & WINDOW', DesignKind.both),
+    ('ANGLED / ASYMMETRICAL', DesignKind.angled),
   ]) {
     testWidgets('$card is saved into the design as its category, with '
         'nothing built', (tester) async {

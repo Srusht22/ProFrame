@@ -30,6 +30,8 @@ IconData kindIcon(DesignKind kind) => switch (kind) {
   DesignKind.window => Icons.window_outlined,
   DesignKind.both => Icons.splitscreen_outlined,
   DesignKind.sliding => Icons.door_sliding_outlined,
+  // A shape whose sides are not square: the outline of a triangle.
+  DesignKind.angled => Icons.change_history_outlined,
 };
 
 /// The picture of a kept design: the design itself, read from the store

@@ -296,7 +296,9 @@ the drawing does not hold the answer:
   because of its proportions. It was read off the height before, which is
   the application deciding from a shape, and it put a door's lever on a
   tall window sash. See *An opening's hinges and handle*. **Only a Door &
-  window design is asked.** The user's words: *for the door and the window
+  window design and an Angled / Asymmetrical one are asked** — the two
+  categories that say nothing about any one leaf (see *An angled or
+  asymmetrical design*). The user's words: *for the door and the window
   category there is no need to ask whether it is a door or a window.* A
   door design's leaves are doors and a window design's windows — they said
   so when they chose what to draw — and a sliding design's leaves follow a
@@ -1211,7 +1213,8 @@ Customer  (lib/domain/model/customer.dart)      Design
   id  ◄──────────────────────────────────────── customerId
   name, phone, address, notes                    name, kind (the category:
   createdAt, updatedAt                           door, window, door & window,
-                                                 sliding), the drawing
+                                                 sliding, angled /
+                                                 asymmetrical), the drawing
 ```
 
 The person's phone, address and notes are the customer's and never in a
@@ -1358,7 +1361,8 @@ from a phone to a laptop.
 **A customer with many designs finds one by name or by category.** Above
 the cards on the customer's page stand a search (`CustomerScreen.searchField`)
 and a chip a category (`CustomerScreen.filterKey`): **All**, then Door,
-Window, Sliding and Door & window in the order a design is begun as, each
+Window, Sliding, Door & window and Angled / Asymmetrical in the order a
+design is begun as, each
 with how many there are — `DesignStore.kindsOf`, one pass over the index — and
 a category the customer has none of left off. The search is by what a design
 is called — *Basement*, *Kitchen*, *Third Floor*, whatever the case — and,
@@ -1555,13 +1559,14 @@ is held:
 ### Choose your design
 
 After the new design's name, one question: what the product is — its
-**category**. `StartScreen` offers **Door**, **Window**, **Sliding** and
-**Door & window**, in that order — the user's own — as four cards, **all
-alike** — the user asked *why are all four cards not
-the same?* when two were large and two were smaller under *More types*.
-They are one row of four where the screen holds them, two by two on a
-tablet, and one above another on a phone, each most of the width and a
-thumb's target. The two that are not door or window stay because the
+**category**. `StartScreen` offers **Door**, **Window**, **Sliding**,
+**Door & window** and **Angled / Asymmetrical**, in that order — the user's
+own — as five cards, **all alike** — the user asked *why are all four
+cards not the same?* when two were large and two were smaller under *More
+types*. They are one row of five where the screen holds them, two to a row
+on a tablet — the fifth on a row of its own, as wide as every other card,
+because a row the cards do not fill keeps its gaps — and one above another
+on a phone, each most of the width and a thumb's target. The two that are not door or window stay because the
 user said *I want all of them*: a sliding design cannot be begun any other
 way, because a design's kind is fixed once it is started.
 
@@ -1582,7 +1587,7 @@ name and its category, and nothing else: no line, no frame, no section,
 no opening, no template — the user draws those. It is only for a new
 design: a design opened from its card goes straight to `openDesign` and
 never comes here. `test/app/a_new_design_s_category_test.dart` holds it:
-the four in order on a phone and a laptop, none chosen, each saved as
+the five in order on a phone and a laptop, none chosen, each saved as
 the design's category with nothing built, a second tap moving the
 choice, an existing design opening as itself, and older files loading.
 
@@ -1618,6 +1623,53 @@ finishes, so `pumpAndSettle` settles and a device asking for less motion
 sees it drawn. `test/app/choose_your_design_test.dart` holds all of it, and
 `chooseDesign` in `test/app/new_design.dart` is how every other app test
 gets from the choice into the drawing.
+
+### An angled or asymmetrical design
+
+The fifth category, `DesignKind.angled`, shown as **Angled /
+Asymmetrical** with *Sloped, under-stair & custom shapes* under it and a
+triangle's outline for its mark (`kindIcon`). It is for a design whose
+shape is not square **on purpose**: a window under a stair, a sloped head,
+a trapezoid, two sides of different heights, edges that are not parallel.
+Choosing it is the user saying, before a line is drawn, that the slopes
+they draw are meant.
+
+It is a category like the other four and nothing more yet: the same
+`Design`, kept as `category: "angled"`, listed, filtered and searched as
+the others are. A design kept before it existed loads exactly as it did. Its card on
+*Choose your design* is drawn by the same pen as the others: a window under
+a stair, one jamb taller than the other, the head running up between them,
+a mullion stopping at the head and a `<` in the lower light.
+
+**It says nothing about any one leaf.** An angled design can hold doors,
+windows or both, so `leafDefault` is null, as it is for Door & window: a
+leaf marked in it hangs on its hinges and carries no handle until the user
+says what it is, and the door-or-window question is put for it. It is seen
+from inside unless a leaf is said to be a door — `Design.seenFrom` settles
+that from the leaves, as it does for every design. It is not asked what it
+is built of; it has the **Material** tool, as a window has.
+`DesignKind.noun` is what it is called in a sentence — *your angled
+design*, *Untitled angled design* — where its label is what it is called
+on its own.
+
+The label is the longest a category has, so the category tag on a design's
+card and on its information form now shrinks to the room it has, rather
+than running off a narrow card.
+
+`test/app/an_angled_design_test.dart` holds it:
+- the five categories, the four that were there neither removed nor renamed;
+- its label, its line, its own mark, and how it behaves about leaves and
+  materials;
+- `"angled"` saved and read back in a design and in the list of designs;
+- through the screens: an Angled / Asymmetrical design made, saved, closed,
+  and the app closed and opened again — its card saying what it is, and the
+  design opening as itself with its category as kept;
+- a leaf in it asked door or window, and given its handle once said;
+- the filter chip;
+- the five cards the same size at a phone, a tablet and a laptop.
+
+`test/app/a_new_design_s_category_test.dart` now holds five categories
+where it held four.
 
 ### A sliding design
 

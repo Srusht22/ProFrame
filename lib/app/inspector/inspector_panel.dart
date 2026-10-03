@@ -452,7 +452,7 @@ class _DesignFields extends StatelessWidget {
     final design = state.design;
     if (design.frame == null) {
       return Text(
-        'Draw the outline of your ${design.kind.label.toLowerCase()}, then '
+        'Draw the outline of your ${design.kind.noun}, then '
         'read the drawing. Whatever you draw is what gets built — nothing is '
         'assumed and nothing is filled in for you.',
         style: Theme.of(context).textTheme.bodySmall,
@@ -1008,10 +1008,15 @@ class _OpeningFields extends StatelessWidget {
           const SizedBox(height: 7),
           Text(
             state.design.kind.leafDefault == null
-                ? 'Nobody has said what this leaf is. This design holds '
-                    'doors and windows, so it does not say either — until '
-                    'you choose, it hangs on its hinges and carries no '
-                    'handle.'
+                ? state.design.kind == DesignKind.angled
+                      ? 'Nobody has said what this leaf is. An angled '
+                            'design can hold doors or windows, so it does '
+                            'not say which — until you choose, it hangs on '
+                            'its hinges and carries no handle.'
+                      : 'Nobody has said what this leaf is. This design '
+                            'holds doors and windows, so it does not say '
+                            'either — until you choose, it hangs on its '
+                            'hinges and carries no handle.'
                 : 'Nobody has said yet, so this leaf follows the design — a '
                     '${state.design.kind.label.toLowerCase()}. Choose to '
                     'say.',

@@ -210,13 +210,15 @@ class _DesignInformationScreenState extends State<DesignInformationScreen> {
                             color: p.primary,
                           ),
                           const SizedBox(width: 10),
-                          Text(
-                            widget.kind.label,
-                            key: DesignInformationScreen.categoryText,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: p.ink,
+                          Flexible(
+                            child: Text(
+                              widget.kind.label,
+                              key: DesignInformationScreen.categoryText,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: p.ink,
+                              ),
                             ),
                           ),
                         ],

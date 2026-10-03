@@ -172,7 +172,10 @@ abstract final class OpeningHardware {
           // window's fastener keeps the plain form it had.
           DesignKind.door => HardwareKind.lever,
           DesignKind.window => HardwareKind.handle,
-          DesignKind.both || DesignKind.sliding || null => null,
+          DesignKind.both ||
+          DesignKind.sliding ||
+          DesignKind.angled ||
+          null => null,
         };
     if (form != null) {
       pieces.add(HardwareElement(
