@@ -5,7 +5,6 @@ import '../geometry/tolerances.dart';
 import '../geometry/vec2.dart';
 import '../model/elements.dart' show DesignKind;
 import '../sketch/stroke.dart';
-import 'stroke_fit.dart';
 
 /// Which axis a run was squared to, if any.
 enum RunAxis {
@@ -33,6 +32,94 @@ class DrawnRun {
 
   /// The same run, its ends at [to].
   DrawnRun moved(Segment to) => DrawnRun(to, strokeId, squaredTo: squaredTo);
+}
+
+/// How far a run is out from the axis it is nearest — what the normaliser
+/// decides by, rather than its angle alone.
+///
+/// One angle means very different things at different sizes: five degrees
+/// is a few millimetres on a short rail and a hand's width on a tall jamb.
+/// So a run is measured three ways, all in the drawing's own millimetres:
+///
+/// - [degrees], how far it turns off the axis;
+/// - [errorMm], how far out it actually is — one end against the other,
+///   across the axis — which is what squaring it would move;
+/// - against the drawing's own size, [spanMm], because the hand's error
+///   scales with what it is drawing: a design is drawn to fill the screen,
+///   whatever size it will be built, so the same drawing at any scale reads
+///   the same.
+///
+/// From those, [kind]: whether this is a wobble to clean, a lean that the
+/// drawing round it must settle, or a slope that is the drawing.
+class Deviation {
+  /// The axis the run is nearest.
+  final RunAxis axis;
+
+  /// How far it turns off that axis.
+  final double degrees;
+
+  /// How far out it is, end against end, across the axis.
+  final double errorMm;
+
+  /// The size of the whole drawing it is part of.
+  final double spanMm;
+
+  const Deviation._(this.axis, this.degrees, this.errorMm, this.spanMm);
+
+  /// [segment], measured in a drawing [spanMm] across.
+  factory Deviation.of(Segment segment, double spanMm) {
+    final dx = (segment.a.x - segment.b.x).abs();
+    final dy = (segment.a.y - segment.b.y).abs();
+    final upright = dx < dy;
+    return Deviation._(
+      upright ? RunAxis.upright : RunAxis.level,
+      segment.offAxisDegrees,
+      upright ? dx : dy,
+      spanMm,
+    );
+  }
+
+  /// The finest the hand places a line in this drawing: the weld, a
+  /// hundredth of its size. A run out by less than this is out by less than
+  /// the hand can mean.
+  double get precisionMm => Tol.weldFor(spanMm);
+
+  /// What the deviation is.
+  DeviationKind get kind {
+    if (errorMm == 0) return DeviationKind.none;
+    if (degrees <= Tol.leanDegrees && errorMm <= precisionMm) {
+      return DeviationKind.wobble;
+    }
+    if (degrees <= Tol.axisSnapDegrees && errorMm <= Tol.wobbleShare * spanMm) {
+      return DeviationKind.wobble;
+    }
+    if (degrees <= Tol.leanDegrees) return DeviationKind.lean;
+    return DeviationKind.slope;
+  }
+
+  @override
+  String toString() =>
+      '${kind.name}: ${degrees.toStringAsFixed(1)}° off ${axis.name}, '
+      '${errorMm.toStringAsFixed(1)} mm out in ${spanMm.toStringAsFixed(0)}';
+}
+
+/// What a run's [Deviation] is.
+enum DeviationKind {
+  /// Exactly level or upright: nothing to do.
+  none,
+
+  /// Out by less than a hand can mean — under its precision at any angle a
+  /// lean may have, or within the snap angle and a small share of the
+  /// drawing. Squared in every design.
+  wobble,
+
+  /// Out further than a wobble but not past `Tol.leanDegrees`: squared in a
+  /// standard design where the drawing round it is square, and kept
+  /// otherwise.
+  lean,
+
+  /// Further off than any lean: the drawing, kept exactly.
+  slope,
 }
 
 /// What the normaliser is told about the drawing beyond its lines: what is
@@ -156,15 +243,17 @@ abstract final class GeometryNormalizer {
   ///
   /// The steps, in their order:
   ///
-  /// 1. **Square** each run within `Tol.axisSnapDegrees` of an axis
-  ///    (`StrokeFitter.straightened`), and remember which axis.
+  /// 1. **Square** each run whose [Deviation] is a wobble — out by less than
+  ///    the hand can mean at this drawing's size — about its middle, and
+  ///    remember which axis. Not by angle alone: the same five degrees is a
+  ///    wobble on a rail and a visible lean on a jamb the drawing's height.
   /// 2. **Carry onto the ink** an end drawn onto another stroke, along its
   ///    own line.
   /// 3. **Join** ends drawn a little apart into one point.
   /// 4. **Trim** two runs drawn past the corner where they cross back to it
   ///    (`Tol.overshootFraction`).
-  /// 5. **Square a lean**, in a standard design only: a run up to
-  ///    `Tol.leanDegrees` off an axis, where the side opposite it or the
+  /// 5. **Square a lean**, in a standard design only: a run whose
+  ///    [Deviation] is a lean, where the side opposite it or the
   ///    side it turns a corner from is square, and squaring it changes the
   ///    width of what it bounds by no more than `Tol.leanShare`.
   /// 6. **Keep square**: every run squared in step 1 or 5 is made square
@@ -184,7 +273,8 @@ abstract final class GeometryNormalizer {
       );
     }
 
-    final squared = [for (final run in raw) _squared(run)];
+    final span = spanOf(raw);
+    final squared = [for (final run in raw) _squared(run, span)];
     for (var i = 0; i < raw.length; i++) {
       note(CorrectionKind.squared, raw[i], squared[i]);
     }
@@ -225,15 +315,24 @@ abstract final class GeometryNormalizer {
     return NormalizedGeometry(square, corrections);
   }
 
-  /// [run] squared to the axis it is within a few degrees of, and marked so.
-  static DrawnRun _squared(DrawnRun run) {
-    final to = StrokeFitter.straightened(run.segment);
-    final axis = to.a.y == to.b.y && to.a.x != to.b.x
-        ? RunAxis.level
-        : to.a.x == to.b.x && to.a.y != to.b.y
-        ? RunAxis.upright
-        : null;
-    return DrawnRun(to, run.strokeId, squaredTo: axis);
+  /// [run] squared, about its middle, where its [Deviation] in a drawing
+  /// [spanMm] across is a wobble — and marked with its axis where it is
+  /// square, already or now.
+  static DrawnRun _squared(DrawnRun run, double spanMm) {
+    final s = run.segment;
+    final deviation = Deviation.of(s, spanMm);
+    switch (deviation.kind) {
+      case DeviationKind.none:
+        return DrawnRun(s, run.strokeId, squaredTo: deviation.axis);
+      case DeviationKind.wobble:
+        final middle = s.midpoint;
+        final to = deviation.axis == RunAxis.upright
+            ? Segment(Vec2(middle.x, s.a.y), Vec2(middle.x, s.b.y))
+            : Segment(Vec2(s.a.x, middle.y), Vec2(s.b.x, middle.y));
+        return DrawnRun(to, run.strokeId, squaredTo: deviation.axis);
+      case DeviationKind.lean || DeviationKind.slope:
+        return DrawnRun(s, run.strokeId);
+    }
   }
 
   /// Two runs drawn past the corner where they cross, trimmed back to it.
@@ -323,13 +422,14 @@ abstract final class GeometryNormalizer {
   /// the same way under a head that leans too have nothing square to go by,
   /// and are kept as drawn.
   static List<DrawnRun> _leansSquared(List<DrawnRun> runs) {
+    final span = spanOf(runs);
     RunAxis? leanOf(DrawnRun run) {
       if (run.squaredTo != null) return null;
-      final s = run.segment;
-      if (s.offAxisDegrees > Tol.leanDegrees) return null;
-      return (s.a.x - s.b.x).abs() < (s.a.y - s.b.y).abs()
-          ? RunAxis.upright
-          : RunAxis.level;
+      final deviation = Deviation.of(run.segment, span);
+      return switch (deviation.kind) {
+        DeviationKind.lean || DeviationKind.wobble => deviation.axis,
+        DeviationKind.none || DeviationKind.slope => null,
+      };
     }
 
     bool squarable(DrawnRun run, RunAxis axis) {

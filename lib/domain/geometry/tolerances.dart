@@ -38,6 +38,22 @@ abstract final class Tol {
   /// meant.
   static const double leanDegrees = 10;
 
+  /// How far a line may be out — one end against the other, across the
+  /// axis it is near — and still be a wobble of the hand whatever is round
+  /// it, as a share of the size of the whole drawing.
+  ///
+  /// An angle alone cannot say this. Five degrees on a short rail is a few
+  /// millimetres; on a jamb running the height of the drawing it is the
+  /// best part of a tenth of the drawing, which the eye sees plainly and
+  /// which may well be meant. The hand's own error scales with what it is
+  /// drawing — people draw a design to fill the screen, whatever size it
+  /// will be built — so the measure is the distance out against the
+  /// drawing's own size: a twentieth, which is a line half the drawing
+  /// long drawn [axisSnapDegrees] off. Further out than this, a line within
+  /// [axisSnapDegrees] is squared only where the drawing round it is square
+  /// (the lean rule), and in an angled design not at all.
+  static const double wobbleShare = 0.05;
+
   /// How far squaring a lean may move the far end of the line, as a share
   /// of the width of what it bounds — the gap to the square side opposite
   /// it, or the length of the square side it turns a corner from.

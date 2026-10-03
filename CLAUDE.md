@@ -4777,6 +4777,52 @@ one further, and a parallelogram, each a rectangle. And what is not made
 rectangular, as above. Switching off the lean, the trim or the category
 each fails it.
 
+### Telling a wobble from a slope
+
+The user's words: *teach the normaliser to distinguish small accidental
+deviations from meaningful geometry — not "any angle = automatically
+rectangle"; not an arbitrary angle without the scale of the geometry:
+the coordinate system, the object's dimensions, the drawing's scale, the
+actual distance error, the category, the snapping that exists.*
+
+So the reading no longer squares by angle alone. `Deviation.of(segment,
+span)` (in `geometry_normalizer.dart`) measures each run in the drawing's
+own millimetres: its angle off the nearest axis, **how far it is actually
+out** — one end against the other, across that axis, which is exactly what
+squaring it would move — and the size of the whole drawing, because the
+hand's error scales with what it is drawing. Its `kind` is one of four:
+
+| Kind | When | What is done |
+| --- | --- | --- |
+| `none` | exactly level or upright | nothing |
+| `wobble` | out by no more than the hand's precision (the weld, a hundredth of the drawing) at up to `Tol.leanDegrees`; or within `Tol.axisSnapDegrees` and out by no more than `Tol.wobbleShare` — a twentieth — of the drawing | squared, in every category |
+| `lean` | further out than a wobble, up to `Tol.leanDegrees` | squared in a standard design only where the drawing round it is square (*The standard rules*); kept in an angled one |
+| `slope` | further off than any lean | kept exactly, everywhere |
+
+What that changes: five degrees is a wobble on a rail and a lean on a jamb
+the height of a tall narrow drawing, so an **Angled / Asymmetrical** design
+now keeps a long side drawn up to five degrees out when it is a visible
+twentieth of the drawing, where it used to be squared — angled designs are
+still not made rectangular; a short bar drawn seven degrees out by less
+than the hand can place a line is squared, where the angle alone kept it;
+and the same drawing at any scale is read the same. **The pause to
+straighten and the straight-line tool still square by the snap angle
+alone** (`StrokeFitter.straightened`): that is the user asking, not the
+reading deciding.
+
+`test/domain/tolerance_based_detection_test.dart` holds it: a side drawn
+2, 10, 25, 60, 120, 140, 200, 280, 350, 600 and 1000 mm out, each measured
+and each done with in every category — tiny ones corrected everywhere, the
+leans in a standard design and not an angled one, the slopes kept exactly
+— with each correction recorded as what it was, and the same read from the
+sheet; the progression read the same at a tenth and ten times the size; a
+short and a long bar at one angle, one a wobble and one not; a tall narrow
+design's jamb kept in an angled design while a rail in it is squared;
+the same lean squared across a wide light and kept on a narrow one; slopes
+of 12° to 45° kept in every design; and a square line no deviation at all,
+while the pause to straighten still squares by angle. Putting the angle-only
+rule back fails three of them.
+
 `validateAngledGeometry` is not written yet: angled designs are the next
 phases' work, and the audit says where it belongs.
 

@@ -309,3 +309,31 @@ keep it.
 
 Faults 3–5 of §5 are still untouched: the ink as a second authority,
 hardware from the bounding box, and axis-only sizes.
+
+## 9. Tolerance-based detection (Phase 5)
+
+The first step of the normaliser now classifies each run with
+`Deviation.of(segment, span)` instead of squaring anything within 5°. Each
+run is measured three ways:
+- its angle off the nearest axis;
+- its distance error: how far one end is out against the other, across
+  that axis;
+- the drawing's own size, which is what the tolerances scale with.
+
+A run comes out as one of four kinds:
+- **none**: exactly level or upright.
+- **wobble**: squared in every category. This is a run out by no more than
+  the hand's precision (1% of the drawing) at up to 10°, or one within 5°
+  and out by no more than 5% of the drawing.
+- **lean**: settled by the standard rules of §8, in standard designs only.
+- **slope**: kept exactly.
+
+Consequences:
+- A long side 5° out by a visible twentieth of the drawing is kept in an
+  angled design.
+- A short bar out by less than the hand can place a line is squared at up
+  to 10°.
+- The same drawing at any scale is read the same.
+
+The user's own snaps (the pen's pause, the straight-line tool) are
+unchanged: they still square by angle.
