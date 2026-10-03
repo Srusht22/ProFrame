@@ -7,7 +7,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/canvas/design_preview.dart';
 import 'package:proframe/app/screens/customer_screen.dart';
-import 'package:proframe/app/screens/designs_screen.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
@@ -20,7 +19,6 @@ import 'package:proframe/infrastructure/design_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'a_customer_s_page_test.dart' as page;
-import 'customers_screen_test.dart' as customers;
 import 'opening_an_existing_design_test.dart' as existing;
 import 'the_designs_screen_test.dart' as screen;
 
@@ -137,11 +135,8 @@ Future<Customer> keepAdam() async {
 Future<Design> stored(WidgetTester tester, String id) async =>
     (await tester.runAsync(() => DesignStore().load(id)))!;
 
-Finder designCard(String id) => find.byWidgetPredicate(
-  (w) =>
-      (w is DesignCard && w.summary.id == id) ||
-      (w is CustomerDesignCard && w.design.id == id),
-);
+Finder designCard(String id) =>
+    find.byWidgetPredicate((w) => w is CustomerDesignCard && w.design.id == id);
 
 /// The painter drawing the picture on the card of design [id], or null
 /// where the card shows no drawing.
@@ -204,55 +199,50 @@ void main() {
 
   testWidgets('the Basement Door card shows the Basement Door and the Kitchen '
       'Window card the Kitchen Window — each drawn from its saved geometry, '
-      'on the designs list and on Adam\'s page', (tester) async {
+      'on Adam\'s page', (tester) async {
     await keepAdam();
     await screen.openTheApp(tester, size: phone);
+    // The app opens on the customers, with no design drawn on it at all.
+    expect(find.byType(DesignPreview), findsNothing);
+    await page.openCustomer(tester, 'Adam');
     final door = await stored(tester, 'basement-door');
     final window = await stored(tester, 'kitchen-window');
 
-    Future<void> check() async {
-      for (final design in [door, window]) {
-        final painter = painterOn(tester, design.id);
-        expect(painter, isNotNull, reason: design.name);
-        expect(
-          jsonEncode(painter!.design.toJson()),
-          jsonEncode(design.toJson()),
-          reason: '${design.name}: the saved design itself',
-        );
-      }
-      // Pixel for pixel, the card is the painter drawing that design and
-      // nothing laid over it.
-      final (size, onScreen) = await cardPixels(tester, 'basement-door');
-      expect(onScreen, await drawnAlone(tester, door, size));
-      final (_, other) = await cardPixels(tester, 'kitchen-window');
-      expect(other, isNot(onScreen), reason: 'two designs, two pictures');
-      expect(find.byType(Image), findsNothing);
-      expect(find.byType(RawImage), findsNothing);
-    }
-
-    await check();
-    await customers.toCustomers(tester);
-    await page.openCustomer(tester, 'Adam');
-    for (final id in ['kitchen-window', 'basement-door']) {
+    final pixels = <String, Uint8List>{};
+    for (final design in [window, door]) {
       await tester.scrollUntilVisible(
-        find.byKey(CustomerScreen.designKey(id)),
+        find.byKey(CustomerScreen.designKey(design.id)),
         100,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
-      final painter = painterOn(tester, id);
+      final painter = painterOn(tester, design.id);
+      expect(painter, isNotNull, reason: design.name);
       expect(
         jsonEncode(painter!.design.toJson()),
-        jsonEncode((await stored(tester, id)).toJson()),
+        jsonEncode(design.toJson()),
+        reason: '${design.name}: the saved design itself',
       );
+      // Pixel for pixel, the card is the painter drawing that design and
+      // nothing laid over it.
+      final (size, onScreen) = await cardPixels(tester, design.id);
+      expect(onScreen, await drawnAlone(tester, design, size));
+      pixels[design.id] = onScreen;
     }
+    expect(
+      pixels['kitchen-window'],
+      isNot(pixels['basement-door']),
+      reason: 'two designs, two pictures',
+    );
     expect(find.byType(Image), findsNothing);
+    expect(find.byType(RawImage), findsNothing);
   });
 
   testWidgets('a design with nothing drawn, or only a dot, says "Nothing '
       'drawn yet" — no geometry is made up for it', (tester) async {
     await keepAdam();
     await screen.openTheApp(tester, size: phone);
+    await page.openCustomer(tester, 'Adam');
     for (final id in ['third-floor', 'dot']) {
       await tester.scrollUntilVisible(
         designCard(id),
@@ -270,6 +260,7 @@ void main() {
   ) async {
     await keepAdam();
     await screen.openTheApp(tester, size: phone);
+    await page.openCustomer(tester, 'Adam');
     await tester.scrollUntilVisible(
       designCard('sketched'),
       100,
@@ -295,6 +286,7 @@ void main() {
       'that it is empty — and opening it begins nothing', (tester) async {
     await keepAdam();
     final c = await screen.openTheApp(tester, size: phone);
+    await page.openCustomer(tester, 'Adam');
     await tester.scrollUntilVisible(
       designCard('broken'),
       100,
@@ -311,7 +303,7 @@ void main() {
       findsNothing,
     );
     final inHand = c.read(workspaceProvider).design.id;
-    await tester.tap(find.byKey(DesignCard.openKey('broken')));
+    await tester.tap(find.byKey(CustomerDesignCard.openKey('broken')));
     await tester.pumpAndSettle();
     expect(find.byType(WorkspaceScreen), findsNothing);
     expect(find.text('Shed Door could not be opened.'), findsOneWidget);
@@ -323,6 +315,7 @@ void main() {
   ) async {
     final adam = await keepAdam();
     final c = await screen.openTheApp(tester, size: phone);
+    await page.openCustomer(tester, 'Adam');
     final (size, before) = await cardPixels(tester, 'kitchen-window');
 
     // The window kept again with one more line: a second mullion.
@@ -355,14 +348,15 @@ void main() {
       'saved design itself', (tester) async {
     await keepAdam();
     final c = await screen.openTheApp(tester, size: phone);
+    await page.openCustomer(tester, 'Adam');
     final saved = await stored(tester, 'basement-door');
     await tester.scrollUntilVisible(
-      find.byKey(DesignCard.openKey('basement-door')),
+      find.byKey(CustomerDesignCard.openKey('basement-door')),
       100,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(DesignCard.openKey('basement-door')));
+    await tester.tap(find.byKey(CustomerDesignCard.openKey('basement-door')));
     await tester.pumpAndSettle();
     expect(find.byType(WorkspaceScreen), findsOneWidget);
     final inHand = c.read(workspaceProvider).design;
@@ -418,7 +412,6 @@ void main() {
       await tester.pumpAndSettle();
       await screen.openTheApp(tester, size: size);
       expect(page.overflowing(tester), isEmpty, reason: 'list at $size');
-      await customers.toCustomers(tester);
       await page.openCustomer(tester, 'Adam');
       expect(page.overflowing(tester), isEmpty, reason: 'page at $size');
     }

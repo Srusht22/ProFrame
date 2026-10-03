@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import 'appearance_button.dart';
 import 'customer_screen.dart';
 import 'new_customer_screen.dart';
+import 'new_design_screen.dart';
 
 /// The two letters a customer is known by at a glance: the first letter of
 /// each of the first two words of [name], or its first letter alone.
@@ -23,11 +24,12 @@ String designsCount(int n) => switch (n) {
   _ => '$n designs',
 };
 
-/// Every person the workshop draws for, a search across them by name or
-/// phone, and **New Customer**.
+/// Where the app opens: every person the workshop draws for, a search
+/// across them by name or phone, **New Customer** and **New Design**.
 ///
 /// A customer is not a design: tapping one opens that customer — who they
-/// are, how to reach them, and their designs — never a drawing.
+/// are, how to reach them, and their designs as cards — never a drawing,
+/// even when they have only one design. The design is picked there.
 class CustomersScreen extends ConsumerStatefulWidget {
   const CustomersScreen({super.key});
 
@@ -40,6 +42,9 @@ class CustomersScreen extends ConsumerStatefulWidget {
 
   /// The **New Customer** button.
   static const newCustomerButton = ValueKey('new-customer');
+
+  /// The **New Design** button: who it is for, its name, its category.
+  static const newDesignButton = ValueKey('new-design');
 
   @override
   ConsumerState<CustomersScreen> createState() => _CustomersScreenState();
@@ -131,6 +136,11 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
   void _newCustomer() => Navigator.of(context)
       .push(MaterialPageRoute<void>(builder: (_) => const NewCustomerScreen()));
 
+  /// A new design, begun by saying who it is for — an existing customer by
+  /// name, or a new one — then its name and its category.
+  void _newDesign() => Navigator.of(context)
+      .push(MaterialPageRoute<void>(builder: (_) => const NewDesignScreen()));
+
   /// The customer's own page — who they are and their designs — and never
   /// a drawing.
   void _open(CustomerSummary customer) =>
@@ -158,6 +168,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                   search: _search,
                   onSearch: _searchFor,
                   onNewCustomer: _newCustomer,
+                  onNewDesign: _newDesign,
                 ),
               ),
               if (!_loaded)
@@ -230,9 +241,9 @@ class _Centred extends StatelessWidget {
   );
 }
 
-/// The band across the top: the way back, the title, how many customers
-/// there are, the search, and **New Customer** — laid out as the designs'
-/// band is, so the two read as one application.
+/// The band across the top: the title, how many customers there are, the
+/// search, **New Customer** and **New Design** — and the way back, where
+/// the screen was reached from somewhere.
 class _Header extends StatelessWidget {
   final bool phone;
   final double gutter;
@@ -240,6 +251,7 @@ class _Header extends StatelessWidget {
   final TextEditingController search;
   final ValueChanged<String> onSearch;
   final VoidCallback onNewCustomer;
+  final VoidCallback onNewDesign;
 
   const _Header({
     required this.phone,
@@ -248,6 +260,7 @@ class _Header extends StatelessWidget {
     required this.search,
     required this.onSearch,
     required this.onNewCustomer,
+    required this.onNewDesign,
   });
 
   @override
@@ -259,10 +272,32 @@ class _Header extends StatelessWidget {
         backgroundColor: AppTheme.accent,
         foregroundColor: AppTheme.primary,
         minimumSize: const Size(0, 52),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       icon: const Icon(Icons.person_add_alt_1_outlined, size: 22),
-      label: const Text('New Customer'),
+      // One line, made smaller rather than broken, where two buttons share
+      // a narrow phone's width.
+      label: const FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text('New Customer', maxLines: 1),
+      ),
+    );
+    final newDesign = OutlinedButton.icon(
+      key: CustomersScreen.newDesignButton,
+      onPressed: onNewDesign,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppTheme.accent,
+        side: BorderSide(color: AppTheme.accent.withValues(alpha: 0.6)),
+        minimumSize: const Size(0, 52),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      icon: const Icon(Icons.add, size: 22),
+      label: const FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text('New Design', maxLines: 1),
+      ),
     );
     final canGoBack = Navigator.of(context).canPop();
     final title = Column(
@@ -369,7 +404,13 @@ class _Header extends StatelessWidget {
                       const SizedBox(height: 20),
                       field,
                       const SizedBox(height: 12),
-                      newCustomer,
+                      Row(
+                        children: [
+                          Expanded(child: newCustomer),
+                          const SizedBox(width: 10),
+                          Expanded(child: newDesign),
+                        ],
+                      ),
                     ],
                   )
                 : Column(
@@ -385,6 +426,8 @@ class _Header extends StatelessWidget {
                             child: AppearanceButton(colour: AppTheme.accent),
                           ),
                           const SizedBox(width: 8),
+                          newDesign,
+                          const SizedBox(width: 10),
                           newCustomer,
                         ],
                       ),

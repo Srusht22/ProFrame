@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/app.dart';
-import 'package:proframe/app/screens/designs_screen.dart';
+import 'package:proframe/app/screens/customers_screen.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
@@ -169,12 +169,14 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: ProFrameApp()));
     await tester.pumpAndSettle();
 
-    expect(find.text('150 designs'), findsOneWidget);
+    // The app opens on the customers: a hundred and fifty of them, one a
+    // design, the newest first.
+    expect(find.text('150 customers'), findsOneWidget);
     expect(find.text('Customer 149'), findsOneWidget);
     // Only what is on the screen is built, not all a hundred and fifty.
     expect(
-      find.byType(DesignCard).evaluate().length,
-      lessThan(DesignsScreen.pageSize),
+      find.byType(CustomerCard).evaluate().length,
+      lessThan(CustomersScreen.pageSize),
     );
 
     // The oldest is there, by scrolling to it.

@@ -112,8 +112,8 @@ Finder inDialog(Finder finder) =>
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('Adam → Basement Door → ⋮: Open, Edit information and Delete '
-      '— and nothing that deletes a customer', (tester) async {
+  testWidgets('Adam → Basement Door → ⋮: Open, Edit information, Duplicate '
+      'and Delete — and nothing that deletes a customer', (tester) async {
     await keepAdam();
     await screen.openTheApp(tester, size: phone);
     await toAdam(tester);
@@ -130,13 +130,13 @@ void main() {
       find.descendant(of: sheet, matching: find.text('Basement Door')),
       findsOneWidget,
     );
-    for (final label in ['Open', 'Edit information', 'Delete']) {
+    for (final label in ['Open', 'Edit information', 'Duplicate', 'Delete']) {
       expect(
         find.descendant(of: sheet, matching: find.text(label)),
         findsOneWidget,
       );
     }
-    for (final label in ['Rename', 'Duplicate']) {
+    for (final label in ['Rename']) {
       expect(
         find.descendant(of: sheet, matching: find.text(label)),
         findsNothing,
@@ -308,32 +308,6 @@ void main() {
       if (key == DesignStore.indexKey) continue;
       expect(after[key], before[key], reason: key);
     }
-  });
-
-  testWidgets('from the designs list too, the confirmation names the design, '
-      'not the customer', (tester) async {
-    final kept = await keepAdam();
-    await screen.openTheApp(tester, size: laptop);
-    final before = await everythingKept(tester);
-    final card = find.byWidgetPredicate(
-      (w) => w is DesignCard && w.summary.id == 'adam-0',
-    );
-    await tester.tap(
-      find.descendant(of: card, matching: find.byIcon(Icons.more_vert)),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(ValueKey('design-action-${DesignAction.delete.name}')),
-    );
-    await tester.pumpAndSettle();
-    expect(inDialog(find.text('Delete Basement Door?')), findsOneWidget);
-    expect(find.text('Delete Adam?'), findsNothing);
-    await confirm(tester);
-    onlyThatDesignWent(before, await everythingKept(tester), 'adam-0');
-    expect(
-      await tester.runAsync(() => CustomerStore().load(kept['Adam']!.id)),
-      isNotNull,
-    );
   });
 
   testWidgets('it fits a phone, a tablet and a laptop', (tester) async {

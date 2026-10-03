@@ -8,7 +8,7 @@ import 'package:proframe/app/canvas/cad_style.dart';
 import 'package:proframe/app/canvas/design_painter.dart';
 import 'package:proframe/app/canvas/view_transform.dart';
 import 'package:proframe/app/screens/appearance_button.dart';
-import 'package:proframe/app/screens/designs_screen.dart';
+import 'package:proframe/app/screens/customers_screen.dart';
 import 'package:proframe/app/state/appearance.dart';
 import 'package:proframe/app/theme/app_theme.dart';
 import 'package:proframe/domain/geometry/polygon.dart';
@@ -39,7 +39,7 @@ Future<void> openTheApp(WidgetTester tester, {Brightness? device}) async {
 }
 
 Color shellOf(WidgetTester tester) =>
-    Theme.of(tester.element(find.byType(DesignsScreen)))
+    Theme.of(tester.element(find.byType(CustomersScreen)))
         .scaffoldBackgroundColor;
 
 void main() {

@@ -3,8 +3,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/app.dart';
+import 'package:proframe/app/screens/customer_screen.dart';
+import 'package:proframe/app/screens/customers_screen.dart';
 import 'package:proframe/app/screens/design_name_screen.dart';
-import 'package:proframe/app/screens/designs_screen.dart';
 import 'package:proframe/app/screens/new_design_screen.dart';
 import 'package:proframe/app/screens/start_screen.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
@@ -62,7 +63,7 @@ void main() {
     tester,
   ) async {
     await openTheApp(tester);
-    expect(find.byType(DesignsScreen), findsOneWidget);
+    expect(find.byType(CustomersScreen), findsOneWidget);
     await toTheCategories(tester, customer: 'Ahmed');
 
     expect(find.byType(StartScreen), findsOneWidget);
@@ -184,11 +185,19 @@ void main() {
     final made = c.read(workspaceProvider).design;
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
-    expect(find.byType(DesignsScreen), findsOneWidget);
+    expect(find.byType(CustomersScreen), findsOneWidget);
+
+    // Karwan's page first, with the design on it as a card to pick.
+    await tester.tap(find.text('Karwan'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CustomerScreen), findsOneWidget);
+    final card = find.byKey(CustomerDesignCard.openKey(made.id));
+    await tester.ensureVisible(card);
+    await tester.pumpAndSettle();
 
     // Every frame on the way in, not only where it ends up.
     final shown = <String>{};
-    await tester.tap(find.text('Karwan'));
+    await tester.tap(card);
     for (var frame = 0; frame < 40; frame++) {
       await tester.pump(const Duration(milliseconds: 16));
       if (find.byType(StartScreen).evaluate().isNotEmpty) shown.add('choice');

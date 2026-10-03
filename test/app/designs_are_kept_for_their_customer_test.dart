@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/screens/customer_screen.dart';
 import 'package:proframe/app/screens/customers_screen.dart';
-import 'package:proframe/app/screens/designs_screen.dart';
 import 'package:proframe/app/screens/new_customer_screen.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/app/state/workspace.dart';
@@ -77,14 +76,11 @@ Future<Design> drawAndSave(
   return saved;
 }
 
-/// Leaves the customer's page and the customers list, back to the designs.
+/// Leaves the customer's page, back to the customers the app opens on.
 Future<void> leaveTheCustomer(WidgetTester tester) async {
   await tester.pageBack();
   await tester.pumpAndSettle();
   expect(find.byType(CustomersScreen), findsOneWidget);
-  await tester.tap(find.byTooltip('Back'));
-  await tester.pumpAndSettle();
-  expect(find.byType(DesignsScreen), findsOneWidget);
 }
 
 /// Closes the app altogether and opens it again, with nothing carried over

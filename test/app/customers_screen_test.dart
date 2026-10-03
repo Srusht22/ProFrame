@@ -3,7 +3,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/screens/customer_screen.dart';
 import 'package:proframe/app/screens/customers_screen.dart';
-import 'package:proframe/app/screens/designs_screen.dart';
 import 'package:proframe/app/screens/new_customer_screen.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/domain/model/customer.dart';
@@ -69,8 +68,8 @@ Future<Map<String, Customer>> keepThreeCustomers() async {
   return {'Adam': adam, 'Sara': sara, 'Karwan': karwan};
 }
 
+/// The customers are where the app opens.
 Future<void> toCustomers(WidgetTester tester) async {
-  await tester.tap(find.byKey(CustomersButton.openKey));
   await tester.pumpAndSettle();
   expect(find.byType(CustomersScreen), findsOneWidget);
 }
@@ -97,17 +96,15 @@ List<String> overflowing(WidgetTester tester) => [
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('the designs lead to the customers, and with nobody kept the '
+  testWidgets('the app opens on the customers, and with nobody kept the '
       'screen says so and offers a new customer', (tester) async {
     await screen.openTheApp(tester, size: const Size(390, 844));
-    expect(find.byKey(CustomersButton.openKey), findsOneWidget);
     await toCustomers(tester);
     expect(find.text('No customers yet'), findsOneWidget);
     expect(find.byKey(CustomersScreen.newCustomerButton), findsOneWidget);
-    // And back to the designs.
-    await tester.tap(find.byTooltip('Back'));
-    await tester.pumpAndSettle();
-    expect(find.byType(DesignsScreen), findsOneWidget);
+    expect(find.byKey(CustomersScreen.newDesignButton), findsOneWidget);
+    // Nowhere to go back to: this is the start.
+    expect(find.byTooltip('Back'), findsNothing);
   });
 
   testWidgets('1 — every customer is shown with their name, phone and how '
@@ -313,12 +310,10 @@ void main() {
       await tester.tap(find.byKey(CustomersScreen.newCustomerButton));
       await tester.pumpAndSettle();
       expect(overflowing(tester), isEmpty, reason: 'form at $size');
-      // Back to the customers, and back to the designs for the next size.
+      // Back to the customers for the next size.
       await tester.pageBack();
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Back'));
-      await tester.pumpAndSettle();
-      expect(find.byType(DesignsScreen), findsOneWidget);
+      expect(find.byType(CustomersScreen), findsOneWidget);
     }
   });
 }

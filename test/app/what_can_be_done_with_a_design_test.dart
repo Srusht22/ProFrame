@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:proframe/app/screens/customer_screen.dart';
 import 'package:proframe/app/screens/designs_screen.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/app/state/workspace.dart';
@@ -12,16 +13,25 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'the_designs_screen_test.dart' as screen;
 
-// The user's screenshot of Recent Designs on a phone: *why is there nothing
+// The user's screenshot of their designs on a phone: *why is there nothing
 // here — what if I want to delete one of them, or other things?* So every
-// card has a ⋮, and pressing and holding a card does the same: open,
-// rename, duplicate and delete, each in words.
+// design's card — on its customer's page, which is where designs are shown
+// — has a ⋮, and pressing and holding a card does the same: open, edit
+// information, duplicate and delete, each in words.
 
 Future<List<Design>> kept(WidgetTester tester) async =>
     (await tester.runAsync(DesignStore().all))!;
 
+/// The ⋮ on [design]'s card, on its customer's page — opened from the
+/// customers the app opens on, unless that page is already showing.
 Future<void> actionsFor(WidgetTester tester, Design design) async {
-  await tester.tap(find.byKey(DesignCard.moreKey(design.id)));
+  if (find.byType(CustomerScreen).evaluate().isEmpty) {
+    await screen.openCustomer(tester, design.customer!);
+  }
+  final more = find.byKey(CustomerDesignCard.moreKey(design.id));
+  await tester.ensureVisible(more);
+  await tester.pumpAndSettle();
+  await tester.tap(more);
   await tester.pumpAndSettle();
 }
 
@@ -39,17 +49,19 @@ List<String> overflowing(WidgetTester tester) => [
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('every card offers open, rename, duplicate and delete', (
-    tester,
-  ) async {
+  testWidgets('every card offers open, edit information, duplicate and '
+      'delete', (tester) async {
     final designs = await screen.keepThree();
     await screen.openTheApp(tester, size: const Size(390, 844));
     for (final design in designs) {
-      expect(find.byKey(DesignCard.moreKey(design.id)), findsOneWidget);
+      await screen.openCustomer(tester, design.customer!);
+      expect(find.byKey(CustomerDesignCard.moreKey(design.id)), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
     }
     await actionsFor(tester, designs.first);
     expect(find.byType(DesignActionsSheet), findsOneWidget);
-    for (final label in ['Open', 'Rename', 'Duplicate', 'Delete']) {
+    for (final label in ['Open', 'Edit information', 'Duplicate', 'Delete']) {
       expect(
         find.descendant(
           of: find.byType(DesignActionsSheet),
@@ -58,13 +70,18 @@ void main() {
         findsOneWidget,
       );
     }
+    // Who a design is for is changed on the customer, not the design.
+    expect(find.text('Rename'), findsNothing);
     expect(overflowing(tester), isEmpty);
   });
 
   testWidgets('pressing and holding a card offers the same', (tester) async {
     final designs = await screen.keepThree();
     await screen.openTheApp(tester, size: const Size(390, 844));
-    await tester.longPress(find.text(designs.first.customer!));
+    await screen.openCustomer(tester, designs.first.customer!);
+    await tester.ensureVisible(find.byType(CustomerDesignCard));
+    await tester.pumpAndSettle();
+    await tester.longPress(find.byType(CustomerDesignCard));
     await tester.pumpAndSettle();
     expect(find.byType(DesignActionsSheet), findsOneWidget);
   });
@@ -81,7 +98,7 @@ void main() {
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       expect(await kept(tester), hasLength(3));
-      expect(find.text('Karwan'), findsOneWidget);
+      expect(screen.cardsShown(tester), [designs.first.id]);
     });
 
     testWidgets('removes that design and no other, from the list and the '
@@ -95,7 +112,9 @@ void main() {
 
       final left = await kept(tester);
       expect(left.map((d) => d.customer), unorderedEquals(['Ahmed', 'Sara']));
-      expect(find.byType(DesignCard), findsNWidgets(2));
+      // Karwan's only design: his page stays, and says so.
+      expect(find.byType(CustomerDesignCard), findsNothing);
+      expect(find.text('No designs yet'), findsOneWidget);
       expect(find.text('${designs.first.name} deleted'), findsOneWidget);
       // The other two are exactly as they were.
       for (final design in designs.skip(1)) {
@@ -119,50 +138,8 @@ void main() {
       expect(back, hasLength(3));
       final karwan = back.firstWhere((d) => d.id == designs.first.id);
       expect(jsonEncode(karwan.toJson()), jsonEncode(designs.first.toJson()));
-      expect(find.text('Karwan'), findsOneWidget);
+      expect(screen.cardsShown(tester), [designs.first.id]);
     });
-  });
-
-  testWidgets('rename changes who it is for and nothing else', (tester) async {
-    final designs = await screen.keepThree();
-    await screen.openTheApp(tester);
-    await actionsFor(tester, designs.first);
-    await choose(tester, DesignAction.rename);
-    final field = find.byKey(const ValueKey('rename-customer'));
-    expect(tester.widget<TextField>(field).controller!.text, 'Karwan');
-    await tester.enterText(field, '');
-    await tester.pump();
-    expect(
-      tester
-          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Save'))
-          .onPressed,
-      isNull,
-      reason: 'a design is always for somebody',
-    );
-    await tester.enterText(field, 'Karwan Ali');
-    await tester.pump();
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
-
-    final renamed = (await kept(tester))
-        .firstWhere((d) => d.id == designs.first.id);
-    expect(renamed.customer, 'Karwan Ali');
-    expect(find.text('Karwan Ali'), findsOneWidget);
-    // It now belongs to the customer of that name.
-    final owner = await tester.runAsync(
-      () => DesignStore().customers.load(renamed.customerId!),
-    );
-    expect(owner!.name, 'Karwan Ali');
-    // Only who it is for: the drawing and the geometry are as they were.
-    final before = designs.first.toJson()
-      ..remove('customer')
-      ..remove('customerId')
-      ..remove('updatedAt');
-    final after = renamed.toJson()
-      ..remove('customer')
-      ..remove('customerId')
-      ..remove('updatedAt');
-    expect(jsonEncode(after), jsonEncode(before));
   });
 
   testWidgets('duplicate keeps a copy with a number of its own — another '
@@ -196,7 +173,8 @@ void main() {
     expect(jsonEncode(content(copy)), jsonEncode(content(designs.first)));
     final original = all.firstWhere((d) => d.id == designs.first.id);
     expect(jsonEncode(original.toJson()), jsonEncode(designs.first.toJson()));
-    expect(find.text('Karwan'), findsNWidgets(2));
+    // Both on Karwan's page, the copy and the original.
+    expect(screen.cardsShown(tester), unorderedEquals([copy.id, original.id]));
   });
 
   testWidgets('open from the sheet opens it exactly as saved', (tester) async {

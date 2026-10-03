@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/inspector/inspector_panel.dart';
 import 'package:proframe/app/screens/customer_screen.dart';
-import 'package:proframe/app/screens/designs_screen.dart';
 import 'package:proframe/app/screens/new_customer_screen.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/app/state/workspace.dart';
@@ -337,32 +336,26 @@ void main() {
     expect(customers.shown(tester), ['Adam Karim']);
     await customers.search(tester, '');
 
-    // The designs list: his designs under his name as it is now, and a
-    // search for it finds all four of them and only them.
-    await tester.pageBack();
+    // His page, opened from the customers by his name as it is now: his
+    // four designs as cards, and only them.
+    await tester.tap(customers.cardOf('Adam Karim'));
     await tester.pumpAndSettle();
-    expect(find.byType(DesignsScreen), findsOneWidget);
-    await tester.enterText(find.byType(TextField).first, 'Karim');
-    await tester.pumpAndSettle();
-    final found = [
-      for (final card in tester.widgetList<DesignCard>(find.byType(DesignCard)))
-        card.summary,
-    ];
-    expect(found.map((s) => s.id).toSet(), {
-      'adam-0',
-      'adam-1',
-      'adam-2',
-      'adam-3',
-    });
-    expect(found.map((s) => s.title).toSet(), {'Adam Karim'});
+    expect(find.text('Customer · 4 designs'), findsOneWidget);
+    for (final id in ['adam-0', 'adam-1', 'adam-2', 'adam-3']) {
+      await tester.scrollUntilVisible(
+        find.byKey(CustomerDesignCard.openKey(id)),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+    }
     expect(await designsAsStored(tester), before);
 
     // His design's own panel names him as he is now.
-    await tester.tap(
-      find.byWidgetPredicate(
-        (w) => w is DesignCard && w.summary.id == 'adam-2',
-      ),
+    await tester.ensureVisible(
+      find.byKey(CustomerDesignCard.openKey('adam-2')),
     );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(CustomerDesignCard.openKey('adam-2')));
     await tester.pumpAndSettle();
     expect(find.byType(WorkspaceScreen), findsOneWidget);
     expect(c.read(workspaceProvider).design.customerId, kept['Adam']!.id);

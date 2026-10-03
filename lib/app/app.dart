@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'screens/designs_screen.dart';
+import 'screens/customers_screen.dart';
 import 'screens/launch_screen.dart';
 import 'state/appearance.dart';
 import 'theme/app_theme.dart';
@@ -18,7 +18,7 @@ class ProFrameApp extends ConsumerWidget {
     darkTheme: AppTheme.dark(),
     themeMode: ref.watch(appearanceProvider),
     // The workshop's mark plays once as the app opens, and then hands
-    // over to the designs: carry on with one, or begin another.
-    home: LaunchScreen(next: (_) => const DesignsScreen()),
+    // over to the customers: a customer, then their designs.
+    home: LaunchScreen(next: (_) => const CustomersScreen()),
   );
 }

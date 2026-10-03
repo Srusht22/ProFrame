@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/inspector/inspector_panel.dart';
 import 'package:proframe/app/screens/customer_screen.dart';
 import 'package:proframe/app/screens/design_information_screen.dart';
-import 'package:proframe/app/screens/designs_screen.dart';
 import 'package:proframe/app/screens/start_screen.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/app/state/workspace.dart';
@@ -285,40 +284,6 @@ void main() {
     expect(find.byType(CustomerScreen), findsOneWidget);
     expect(find.text('Basement Door'), findsOneWidget);
     expect(await everyStored(tester), before);
-  });
-
-  testWidgets('from the designs list: ⋮ → Edit information renames the same '
-      'design', (tester) async {
-    await keepAdam();
-    await screen.openTheApp(tester, size: laptop);
-    final before = await everyStored(tester);
-    final door = parse(before['basement-door']!);
-    final card = find.byWidgetPredicate(
-      (w) => w is DesignCard && w.summary.id == 'basement-door',
-    );
-    await tester.tap(
-      find.descendant(of: card, matching: find.byIcon(Icons.more_vert)),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(ValueKey('design-action-${DesignAction.information.name}')),
-    );
-    await tester.pumpAndSettle();
-    expect(typedName(tester), 'Basement Door');
-    await typeName(tester, renamed);
-    await save(tester);
-    expect(find.byType(DesignsScreen), findsOneWidget);
-
-    final after = await everyStored(tester);
-    expect(after.keys.toSet(), before.keys.toSet());
-    await onlyTheNameChanged(
-      tester,
-      door,
-      parse(after['basement-door']!),
-      renamed,
-    );
-    expect(after['sara-door'], before['sara-door']);
-    expect(after['kitchen-window'], before['kitchen-window']);
   });
 
   testWidgets('in the drawing: the design\'s own panel → Edit information '

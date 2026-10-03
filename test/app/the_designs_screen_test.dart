@@ -6,12 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/app.dart';
 import 'package:proframe/app/canvas/design_preview.dart';
+import 'package:proframe/app/screens/customer_screen.dart';
+import 'package:proframe/app/screens/customers_screen.dart';
 import 'package:proframe/app/screens/design_name_screen.dart';
 import 'package:proframe/app/screens/designs_screen.dart';
 import 'package:proframe/app/screens/new_design_screen.dart';
 import 'package:proframe/app/screens/start_screen.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
-import 'package:proframe/app/state/tools.dart';
 import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/dimensions/measurements.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
@@ -23,12 +24,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'new_design.dart';
 import 'pause_and_take_it_back_test.dart' as sheet;
 
-// The app opens on the designs, not on "door or window": a workshop draws
-// for hundreds of people, so the first choice is to carry on with one of
-// them or to begin another. Every design is shown by its own saved geometry,
-// found by who it is for or its number, and opened
-// exactly as it was left. The drawing, the CAD drawing and the model are
-// what they always were — this is only the way in to them.
+// The app opens on the customers, not on "door or window" and not on a
+// list of designs: the user's words, *only the name of the customer with
+// its info; when I click the customer name it goes to the design cards,
+// even if there is only one design, and I pick which design I want.* So a
+// tap on a customer is never a drawing. Their designs are on their page,
+// each shown by its own saved geometry and opened exactly as it was left.
+// The drawing, the CAD drawing and the model are what they always were —
+// this is only the way in to them.
 
 /// A design drawn and read the way the user makes one: an outline [wide]
 /// millimetres across, a mullion, and a `>` in the left light.
@@ -120,13 +123,15 @@ Future<ProviderContainer> openTheApp(
 
 /// The customers on the cards, in the order the screen shows them: by where
 /// each card is, row by row.
-List<String> shownInOrder(WidgetTester tester, List<String> customers) {
+List<String> shownInOrder(WidgetTester tester) {
+  final cards = tester
+      .widgetList<CustomerCard>(find.byType(CustomerCard))
+      .toList();
   final at = {
-    for (final who in customers)
-      if (find.text(who).evaluate().isNotEmpty)
-        who: tester.getTopLeft(
-          find.ancestor(of: find.text(who), matching: find.byType(DesignCard)),
-        ),
+    for (final card in cards)
+      card.customer.name: tester.getTopLeft(
+        find.byKey(CustomerCard.keyOf(card.customer.id)),
+      ),
   };
   return at.keys.toList()..sort((a, b) {
     final dy = at[a]!.dy.compareTo(at[b]!.dy);
@@ -134,141 +139,170 @@ List<String> shownInOrder(WidgetTester tester, List<String> customers) {
   });
 }
 
+/// A tap on the customer called [name], on the screen the app opens on.
+Future<void> openCustomer(WidgetTester tester, String name) async {
+  await tester.tap(
+    find.ancestor(of: find.text(name), matching: find.byType(CustomerCard)),
+  );
+  await tester.pumpAndSettle();
+}
+
+/// The designs shown as cards on the customer's page, by their ids.
+List<String> cardsShown(WidgetTester tester) => [
+  for (final card in tester.widgetList<CustomerDesignCard>(
+    find.byType(CustomerDesignCard),
+  ))
+    card.design.id,
+];
+
+Future<void> openCard(WidgetTester tester, String id) async {
+  await tester.ensureVisible(find.byKey(CustomerDesignCard.openKey(id)));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(CustomerDesignCard.openKey(id)));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  group('the app opens on the designs', () {
-    testWidgets('with nothing kept yet, it says so and offers one thing', (
-      tester,
-    ) async {
+  group('the app opens on the customers', () {
+    testWidgets('with nobody kept yet, it says so and offers a new customer '
+        'and a new design', (tester) async {
       await openTheApp(tester);
-      expect(find.byType(DesignsScreen), findsOneWidget);
-      expect(find.text('Designs'), findsOneWidget);
-      expect(find.text('Search designs...'), findsOneWidget);
-      expect(find.text('No recent designs yet'), findsOneWidget);
-      expect(
-        find.text('Create your first design to get started.'),
-        findsOneWidget,
-      );
-      expect(find.text('New Design'), findsWidgets);
-      // Not door or window, yet.
+      expect(find.byType(CustomersScreen), findsOneWidget);
+      expect(find.text('No customers yet'), findsOneWidget);
+      expect(find.byKey(CustomersScreen.newCustomerButton), findsOneWidget);
+      expect(find.byKey(CustomersScreen.newDesignButton), findsOneWidget);
+      // Not door or window, yet, and nowhere to go back to.
       expect(find.byType(StartScreen), findsNothing);
       expect(find.text('DOOR'), findsNothing);
+      expect(find.byTooltip('Back'), findsNothing);
     });
 
-    testWidgets('the recent designs, the most recently edited first', (
-      tester,
-    ) async {
-      await keepThree();
-      await openTheApp(tester);
-      expect(find.text('Recent Designs'), findsOneWidget);
-      expect(find.byType(DesignCard), findsNWidgets(3));
-      expect(shownInOrder(tester, ['Ahmed', 'Karwan', 'Sara']), [
-        'Ahmed',
-        'Karwan',
-        'Sara',
-      ]);
-      // Each card says who, how big, what kind and when.
-      expect(find.text('240 × 210 cm'), findsOneWidget);
-      expect(find.text('100 × 210 cm'), findsOneWidget);
-      expect(find.text('Door & window'), findsOneWidget);
-      expect(find.textContaining('Edited 1 hour ago'), findsOneWidget);
-      expect(find.textContaining('Edited yesterday'), findsOneWidget);
-    });
-
-    testWidgets('each picture is that design, drawn from what was saved', (
-      tester,
-    ) async {
+    testWidgets('each customer by their name and their information, and no '
+        'design on it', (tester) async {
       final kept = await keepThree();
       await openTheApp(tester);
+      expect(find.byType(CustomerCard), findsNWidgets(3));
+      expect(find.text('3 customers'), findsOneWidget);
+      for (final who in ['Ahmed', 'Karwan', 'Sara']) {
+        expect(find.text(who), findsOneWidget);
+      }
+      expect(find.text('1 design'), findsNWidgets(3));
+      // Not one design is on the screen: no card, no picture, no name.
+      expect(find.byType(CustomerDesignCard), findsNothing);
+      expect(find.byType(DesignPicture), findsNothing);
+      expect(find.byType(DesignPreview), findsNothing);
+      for (final design in kept) {
+        expect(find.text(design.name), findsNothing);
+      }
+      expect(find.text('Recent Designs'), findsNothing);
+      expect(find.byType(Image), findsNothing);
+    });
+  });
+
+  group('a customer opens on their designs, never on a drawing', () {
+    testWidgets('one design is still a card to pick, and picking it opens '
+        'exactly what was saved', (tester) async {
+      final kept = await keepThree();
+      final c = await openTheApp(tester);
+      await openCustomer(tester, 'Karwan');
+
+      expect(find.byType(CustomerScreen), findsOneWidget);
+      expect(find.byType(WorkspaceScreen), findsNothing);
+      expect(find.byType(StartScreen), findsNothing);
+      final karwan = kept.first;
+      expect(cardsShown(tester), [karwan.id]);
+      // Its picture is the saved design itself.
       final painters = [
         for (final paint in tester.widgetList<CustomPaint>(
           find.descendant(
-            of: find.byType(DesignCard),
+            of: find.byType(CustomerDesignCard),
             matching: find.byType(CustomPaint),
           ),
         ))
           if (paint.painter case final DesignPreviewPainter p) p,
       ];
-      expect(painters, hasLength(3));
-      for (final design in kept) {
-        final shown = painters.singleWhere((p) => p.design.id == design.id);
-        expect(
-          jsonEncode(shown.design.toJson()),
-          jsonEncode(design.toJson()),
-          reason: 'the saved design itself, not a picture of one',
-        );
-      }
-      // And no picture of anything at all.
-      expect(find.byType(Image), findsNothing);
-      expect(find.byType(RawImage), findsNothing);
+      expect(painters, hasLength(1));
+      expect(
+        jsonEncode(painters.single.design.toJson()),
+        jsonEncode(karwan.toJson()),
+      );
+
+      await openCard(tester, karwan.id);
+      expect(find.byType(WorkspaceScreen), findsOneWidget);
+      final open = c.read(workspaceProvider).design;
+      expect(
+        jsonEncode(open.toJson()),
+        jsonEncode(karwan.toJson()),
+        reason:
+            'the sketch, the geometry, the openings and every material '
+            'as they were saved — nothing read again, nothing redrawn',
+      );
+      expect(c.read(workspaceProvider).needsReading, isFalse);
+
+      // Back is to the customer's page, then to the customers.
+      await tester.tap(find.byIcon(Icons.arrow_back));
+      await tester.pumpAndSettle();
+      expect(find.byType(CustomerScreen), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.byType(CustomersScreen), findsOneWidget);
     });
 
-    testWidgets('three different designs are three different pictures', (
-      tester,
-    ) async {
-      await keepThree();
-      await openTheApp(tester);
-      Future<List<int>> pixels(String customer) async {
-        final card = find.ancestor(
-          of: find.text(customer),
-          matching: find.byType(DesignCard),
-        );
-        final preview = find.descendant(
-          of: card,
-          matching: find.byType(DesignPreview),
-        );
-        final boundary = tester.renderObject<RenderRepaintBoundary>(
-          find
-              .ancestor(of: preview, matching: find.byType(RepaintBoundary))
-              .first,
-        );
-        final image = await tester.runAsync(
-          () => boundary.toImage(pixelRatio: 1),
-        );
-        final bytes = await tester.runAsync(image!.toByteData);
-        return bytes!.buffer.asUint8List();
-      }
+    testWidgets('several designs are several cards, and the one picked is '
+        'the one opened', (tester) async {
+      final kept = await keepThree();
+      final karwan = kept.first;
+      final second = await DesignStore().save(
+        drawn(
+          customer: 'Karwan',
+          kind: DesignKind.window,
+          edited: now,
+          wide: 1800,
+        ).copyWith(customerId: karwan.customerId),
+      );
+      final c = await openTheApp(tester);
+      expect(find.text('2 designs'), findsOneWidget);
+      await openCustomer(tester, 'Karwan');
+      expect(cardsShown(tester), [second.id, karwan.id]);
+      expect(find.byType(WorkspaceScreen), findsNothing);
 
-      final ahmed = await pixels('Ahmed');
-      final karwan = await pixels('Karwan');
-      expect(ahmed, isNot(equals(karwan)));
+      await openCard(tester, karwan.id);
+      expect(c.read(workspaceProvider).design.id, karwan.id);
+      await tester.tap(find.byIcon(Icons.arrow_back));
+      await tester.pumpAndSettle();
+      await openCard(tester, second.id);
+      expect(c.read(workspaceProvider).design.id, second.id);
+    });
+
+    testWidgets('leaving straight after an edit keeps it, and it is the '
+        'first of the customer\'s cards', (tester) async {
+      final kept = await keepThree();
+      final second = await DesignStore().save(
+        drawn(
+          customer: 'Sara',
+          kind: DesignKind.door,
+          edited: now,
+        ).copyWith(customerId: kept.last.customerId),
+      );
+      final c = await openTheApp(tester);
+      await openCustomer(tester, 'Sara');
+      expect(cardsShown(tester), [second.id, kept.last.id]);
+      await openCard(tester, kept.last.id);
+      c.read(workspaceProvider.notifier).rename('Back door');
+      await tester.pump();
+      await tester.tap(find.byIcon(Icons.arrow_back));
+      await tester.pumpAndSettle();
+      final stored = (await tester.runAsync(DesignStore().all))!;
+      expect(stored.first.id, kept.last.id);
+      expect(stored.first.name, 'Back door');
+      expect(cardsShown(tester), [kept.last.id, second.id]);
+      expect(find.text('Back door'), findsOneWidget);
     });
   });
 
   group('search', () {
-    Future<void> search(WidgetTester tester, String query) async {
-      await tester.enterText(find.byType(TextField), query);
-      await tester.pumpAndSettle();
-    }
-
-    testWidgets('by customer and by design number', (tester) async {
-      final kept = await keepThree();
-      await openTheApp(tester);
-
-      await search(tester, 'ahm');
-      expect(find.byType(DesignCard), findsOneWidget);
-      expect(find.text('Ahmed'), findsOneWidget);
-
-      await search(tester, 'SAR');
-      expect(find.byType(DesignCard), findsOneWidget);
-      expect(find.text('Sara'), findsOneWidget);
-
-      final karwan = kept.first;
-      await search(tester, shortIdOf(karwan.id));
-      expect(find.byType(DesignCard), findsOneWidget);
-      expect(find.text('Karwan'), findsOneWidget);
-
-      await search(tester, 'nobody');
-      expect(find.byType(DesignCard), findsNothing);
-      expect(find.text('No designs match “nobody”'), findsOneWidget);
-
-      // Clearing it brings them all back.
-      await tester.tap(find.byTooltip('Clear search'));
-      await tester.pumpAndSettle();
-      expect(find.byType(DesignCard), findsNWidgets(3));
-    });
-
     test('what a search matches', () {
       final design = DesignSummary.of(
         Design.empty(
@@ -307,126 +341,14 @@ void main() {
       expect(older.title, 'Garden door');
       expect(older.matches('garden'), isTrue);
     });
-
-    test('how long ago, as a person says it', () {
-      final at = DateTime(2026, 9, 25, 12);
-      expect(editedAgo(at, at), 'Edited just now');
-      expect(
-        editedAgo(at.subtract(const Duration(minutes: 5)), at),
-        'Edited 5 minutes ago',
-      );
-      expect(
-        editedAgo(at.subtract(const Duration(minutes: 1)), at),
-        'Edited 1 minute ago',
-      );
-      expect(
-        editedAgo(at.subtract(const Duration(hours: 3)), at),
-        'Edited 3 hours ago',
-      );
-      expect(
-        editedAgo(at.subtract(const Duration(days: 1)), at),
-        'Edited yesterday',
-      );
-      expect(editedAgo(DateTime(2026, 3, 2), at), 'Edited 2 Mar');
-      expect(editedAgo(DateTime(2025, 3, 2), at), 'Edited 2 Mar 2025');
-    });
-  });
-
-  group('opening a design', () {
-    testWidgets('opens exactly what was saved, to carry on with', (
-      tester,
-    ) async {
-      final kept = await keepThree();
-      final c = await openTheApp(tester);
-      await tester.tap(find.text('Karwan'));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(WorkspaceScreen), findsOneWidget);
-      final open = c.read(workspaceProvider).design;
-      expect(
-        jsonEncode(open.toJson()),
-        jsonEncode(kept.first.toJson()),
-        reason:
-            'the sketch, the geometry, the openings and every material '
-            'as they were saved — nothing read again, nothing redrawn',
-      );
-      expect(c.read(workspaceProvider).needsReading, isFalse);
-    });
-
-    testWidgets('looking without editing leaves it where it is in the list', (
-      tester,
-    ) async {
-      await keepThree();
-      await openTheApp(tester);
-      await tester.tap(find.text('Sara'));
-      await tester.pumpAndSettle();
-      await tester.pump(const Duration(seconds: 2));
-      await tester.tap(find.byIcon(Icons.arrow_back));
-      await tester.pumpAndSettle();
-      expect(shownInOrder(tester, ['Ahmed', 'Karwan', 'Sara']), [
-        'Ahmed',
-        'Karwan',
-        'Sara',
-      ]);
-    });
-
-    testWidgets('an edit brings it back to the top, as edited', (tester) async {
-      final kept = await keepThree();
-      final c = await openTheApp(tester);
-      await tester.tap(find.text('Sara'));
-      await tester.pumpAndSettle();
-
-      final sara = kept.last;
-      c.read(workspaceProvider.notifier).addStroke(const [
-        StrokeSample(Vec2(100, 300)),
-        StrokeSample(Vec2(700, 300)),
-      ], tool: Tool.pen);
-      await tester.pumpAndSettle();
-      // Kept without being asked, once it has stood still.
-      await tester.pump(WorkspaceScreen.keepAfter);
-      await tester.pumpAndSettle();
-
-      final stored = (await tester.runAsync(DesignStore().all))!;
-      expect(stored.first.id, sara.id);
-      expect(stored.first.updatedAt.isAfter(sara.updatedAt), isTrue);
-      expect(
-        stored.first.sketch.length,
-        sara.sketch.length + 1,
-        reason: 'the edit is what was kept',
-      );
-
-      await tester.tap(find.byIcon(Icons.arrow_back));
-      await tester.pumpAndSettle();
-      expect(shownInOrder(tester, ['Ahmed', 'Karwan', 'Sara']), [
-        'Sara',
-        'Ahmed',
-        'Karwan',
-      ]);
-      expect(find.textContaining('Edited just now'), findsOneWidget);
-    });
-
-    testWidgets('leaving straight after an edit keeps it too', (tester) async {
-      final kept = await keepThree();
-      final c = await openTheApp(tester);
-      await tester.tap(find.text('Karwan'));
-      await tester.pumpAndSettle();
-      c.read(workspaceProvider.notifier).rename('Back door');
-      await tester.pump();
-      await tester.tap(find.byIcon(Icons.arrow_back));
-      await tester.pumpAndSettle();
-      final stored = (await tester.runAsync(DesignStore().all))!;
-      expect(stored.first.id, kept.first.id);
-      expect(stored.first.name, 'Back door');
-      expect(shownInOrder(tester, ['Ahmed', 'Karwan', 'Sara']).first, 'Karwan');
-    });
   });
 
   group('a new design', () {
-    testWidgets('who it is for, and nothing else, then door or window', (
+    testWidgets('who it is for, then its name, then door or window', (
       tester,
     ) async {
       final c = await openTheApp(tester);
-      await tester.tap(find.text('New Design').first);
+      await tester.tap(find.byKey(CustomersScreen.newDesignButton));
       await tester.pumpAndSettle();
 
       // One simple step, not the choice of door or window yet.
@@ -468,27 +390,25 @@ void main() {
         findsOneWidget,
       );
 
-      // Back is to the designs, where it now is.
+      // Back is to the customers, where Hawre now is, with one design.
       await tester.tap(find.byIcon(Icons.arrow_back));
       await tester.pumpAndSettle();
-      expect(find.byType(DesignsScreen), findsOneWidget);
-      expect(find.byType(DesignCard), findsOneWidget);
-      expect(find.text('Hawre'), findsOneWidget);
+      expect(find.byType(CustomersScreen), findsOneWidget);
+      expect(shownInOrder(tester), ['Hawre']);
+      expect(find.text('1 design'), findsOneWidget);
+      await openCustomer(tester, 'Hawre');
+      expect(cardsShown(tester), [design.id]);
     });
 
-    testWidgets('a new design goes to the top of the others', (tester) async {
+    testWidgets('a new customer goes to the top of the others', (tester) async {
       await keepThree();
       await openTheApp(tester);
       await toTheCategories(tester, customer: 'Dilan');
       await chooseDesign(tester, 'DOOR');
       await tester.tap(find.byIcon(Icons.arrow_back));
       await tester.pumpAndSettle();
-      expect(shownInOrder(tester, ['Dilan', 'Ahmed', 'Karwan', 'Sara']), [
-        'Dilan',
-        'Ahmed',
-        'Karwan',
-        'Sara',
-      ]);
+      expect(shownInOrder(tester).first, 'Dilan');
+      expect(shownInOrder(tester), hasLength(4));
     });
 
     testWidgets('without who it is for, it does not go on', (tester) async {
@@ -562,30 +482,29 @@ void main() {
       ) async {
         await keepThree();
         await openTheApp(tester, size: size);
-        final overflowing = [
+        List<String> overflowing() => [
           for (final r in tester.allRenderObjects)
             if (r is RenderFlex && r.toStringShort().contains('OVERFLOWING'))
               r.debugCreator.toString().split('\n').first,
         ];
-        expect(overflowing, isEmpty, reason: overflowing.join('\n'));
+        expect(overflowing(), isEmpty, reason: overflowing().join('\n'));
         expect(tester.takeException(), isNull);
 
-        final cards = tester
-            .widgetList<DesignCard>(find.byType(DesignCard))
-            .toList();
-        expect(cards, isNotEmpty);
-        final first = tester.getRect(find.byType(DesignCard).first);
+        final first = tester.getRect(find.byType(CustomerCard).first);
         if (size.width < 600) {
-          // A list a thumb works down: one card to a row, the picture
-          // beside the words.
-          expect(cards.every((card) => card.wide), isTrue);
+          // A list a thumb works down: one customer to a row.
           expect(first.width, greaterThan(size.width * 0.85));
         } else {
-          // A grid: more than one card to a row.
-          expect(cards.every((card) => !card.wide), isTrue);
-          final second = tester.getRect(find.byType(DesignCard).at(1));
+          // A grid: more than one customer to a row.
+          final second = tester.getRect(find.byType(CustomerCard).at(1));
           expect(second.top, closeTo(first.top, 1));
         }
+
+        // And their page, with their one design as a card.
+        await openCustomer(tester, 'Ahmed');
+        expect(find.byType(CustomerDesignCard), findsOneWidget);
+        expect(overflowing(), isEmpty, reason: overflowing().join('\n'));
+        expect(tester.takeException(), isNull);
       });
     }
   });

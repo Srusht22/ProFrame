@@ -203,8 +203,9 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
   Future<void> _editInformation(DesignSummary summary) =>
       editDesignInformation(context, ref, summary);
 
-  /// The **⋮** on a design's card: open it, edit its information, or
-  /// delete it. Deleting is that one design, asked about first by its name
+  /// The **⋮** on a design's card: open it, edit its information,
+  /// duplicate it, or delete it. A duplicate is another design of this same
+  /// customer, the original untouched (`DesignStore.duplicate`). Deleting is that one design, asked about first by its name
   /// — see `deleteDesign` — and never the customer, whose page this is and
   /// who stays with their other designs.
   Future<void> _moreFor(DesignSummary summary) async {
@@ -213,14 +214,7 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
       showDragHandle: true,
       isScrollControlled: true,
       backgroundColor: context.palette.surface,
-      builder: (context) => DesignActionsSheet(
-        summary: summary,
-        actions: const {
-          DesignAction.open,
-          DesignAction.information,
-          DesignAction.delete,
-        },
-      ),
+      builder: (context) => DesignActionsSheet(summary: summary),
     );
     if (chosen == null || !mounted) return;
     switch (chosen) {
@@ -230,9 +224,18 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
         await _editInformation(summary);
       case DesignAction.delete:
         await deleteDesign(context, ref, summary);
-      case DesignAction.rename || DesignAction.duplicate:
-        break;
+      case DesignAction.duplicate:
+        await _duplicate(summary);
     }
+  }
+
+  Future<void> _duplicate(DesignSummary summary) async {
+    final copy = await ref.read(designStoreProvider).duplicate(summary.id);
+    if (copy == null || !mounted) return;
+    ref.read(designsRevisionProvider.notifier).changed();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Copy made: ${DesignSummary.of(copy).shownName}')),
+    );
   }
 
   /// One of the customer's designs, opened exactly as it was kept — see
@@ -917,6 +920,8 @@ class CustomerDesignCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onOpen,
+        // Pressing and holding is the ⋮, as a thumb expects of a card.
+        onLongPress: onMore,
         child: Container(
           height: height,
           padding: const EdgeInsets.all(12),

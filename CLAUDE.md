@@ -968,7 +968,7 @@ to it.
 
 ### The launch
 
-The app opens on the workshop's mark, once, and then the designs —
+The app opens on the workshop's mark, once, and then the customers —
 `lib/app/screens/launch_screen.dart`. One emblem, three things the workshop
 makes and fits in one frame: a hinged door down the left, a four-pane window
 above on the right and a sliding panel below it. The frame draws itself in,
@@ -1027,11 +1027,11 @@ the pace of all of it together. The user asked for it longer, text and
 emblem both: at four the whole name stood for barely a third of a second
 before it began to leave, so the shares were moved as well as the total —
 everything arrives a little sooner in proportion, and the name then stands
-whole for over a second before the first line lifts away. It replaces itself with the designs
+whole for over a second before the first line lifts away. It replaces itself with the customers
 when it is done, so nothing navigates back to it and no rebuild starts it
 again. A device asking for less motion gets the finished mark and the name
 faded in and out over `reducedDuration`, with nothing moving or blurring,
-and then the designs; its clock is
+and then the customers; its clock is
 `AnimationBehavior.preserve`, because left to the controller that request
 squeezes the whole thing to a flicker. It is drawn in the app's own colours
 and nothing loops, so `pumpAndSettle` runs straight through it — which is
@@ -1089,80 +1089,78 @@ it sits on the user's finishes, which are usually light, not on the sheet.
 
 The launch has its own colours and is the same in both.
 
-### The designs, before door or window
+### The customers, before any design
 
 A workshop draws for hundreds of people, so the app does not open on *door
-or window*. It opens on **Designs** (`designs_screen.dart`): every design
-kept, the most recently edited first, a search, and **New Design**. The
-user's words: create a new design, or open an existing one.
+or window*, and it does not open on a list of designs either. It opens on
+**Customers** (`customers_screen.dart`): every person kept, by their name
+and their information, a search by name or phone, **New Customer** and
+**New Design**. The user's words, over a phone screenshot of the list of
+designs it used to open on: *I want only the name of the customer with its
+info; when I click the customer name it goes to the design cards — even if
+there is only one design — and I pick which design I want.*
 
 ```
-Designs  →  New Design  →  who it is for  →  Design name
-                                                 ↓
-          ←──── back ────  the workspace  ←  Choose your design
+Customers  →  a customer  →  their designs, as cards  →  the one picked
+    │                              │
+    │                              └→  New Design  →  Design name  →  Choose your design
+    └→  New Design  →  who it is for  →  Design name  →  Choose your design
 ```
 
-- **A card is the design itself, drawn.** `DesignPreview` draws a read
-  design with the same `CadPainter` as the technical drawing — figures,
-  grid and handles left off — and a design not read yet as its own strokes.
-  Nothing on the screen is a picture of doors in general
-  (`no_stock_content_test.dart` still holds), and a design with nothing
-  drawn — nothing read and no stroke that goes anywhere, so a dot does not
-  count — says *Nothing drawn yet* (`PreviewPlaceholder`); one whose
-  record cannot be read says *Preview unavailable*, so a spoiled design
-  never passes for an empty one, and while a design is being read the card
-  shows the bare sheet. No geometry is made up for any of them. The
-  picture is only a picture: `DesignPicture` reads the design by its id,
-  redraws it when it is edited, and opening the card reads the design
-  afresh. `test/app/real_design_previews_test.dart` holds it on the
-  pixels — the Basement Door card is exactly the preview painter drawing
-  the saved Basement Door, on the designs list and on the customer's page —
-  and on every fallback. Each card carries its size where it has
-  a frame and its number (`shortIdOf`: the moment it was made, to the
-  millisecond, in eight letters and figures — the web's clock stops at the
-  millisecond, so the last six digits of an id are always `000` there).
-- **Recent Designs are designs, not customers.** The list is the designs
-  kept, the most recently edited first, and every card says the four
-  things that tell one from another: **who it is for** (the customer's
-  name as it is now), **what it is called** (the design's own name, the
-  headline), **its category** and **when it was last edited** — so Adam's
-  Basement Door and Adam's Kitchen Window are two cards that say so. A tap
-  on a card, or its **Open** (`DesignCard.openKey`), opens that design as
-  kept: no New Design, no name, no category asked. A second tap while it
-  opens does nothing, and a design removed since the list was read says it
-  could not be opened and begins nothing. With nothing kept the screen says
-  *No recent designs yet* and offers New Design — no design is made up to
-  fill it. `test/app/recent_designs_test.dart` holds it on real kept
-  designs: the empty state, the four facts on each card at a phone and a
-  laptop, the order, the edited time as kept, opening exactly the design
-  kept, an edited design returning to the top, a removed one, and long
-  names fitting.
+- **The first screen holds no design.** A customer's card is their
+  initials, name, phone and how many designs are theirs (`CustomerCard`) —
+  no picture, no design's name, no **Open**. There used to be a list of
+  *Recent Designs* there, each card a design, and a tap on one opened that
+  drawing; the user did not want it, and it is not to come back.
+- **A tap on a customer is never a drawing**, however many designs they
+  have. It opens their page (`CustomerScreen`), where the designs are
+  cards and the user picks one — one design is still one card to pick.
+  See *Customers and their designs*.
+- **A card is the design itself, drawn.** On the customer's page
+  `DesignPreview` draws a read design with the same `CadPainter` as the
+  technical drawing — figures, grid and handles left off — and a design
+  not read yet as its own strokes. Nothing on the screen is a picture of
+  doors in general (`no_stock_content_test.dart` still holds), and a
+  design with nothing drawn — nothing read and no stroke that goes
+  anywhere, so a dot does not count — says *Nothing drawn yet*
+  (`PreviewPlaceholder`); one whose record cannot be read says *Preview
+  unavailable*, so a spoiled design never passes for an empty one, and
+  while a design is being read the card shows the bare sheet. No geometry
+  is made up for any of them. The picture is only a picture:
+  `DesignPicture` reads the design by its id, redraws it when it is
+  edited, and opening the card reads the design afresh.
+  `test/app/real_design_previews_test.dart` holds it on the pixels — the
+  Basement Door card is exactly the preview painter drawing the saved
+  Basement Door — and on every fallback. A design's number is `shortIdOf`:
+  the moment it was made, to the millisecond, in eight letters and figures
+  — the web's clock stops at the millisecond, so the last six digits of an
+  id are always `000` there.
 - **Who a design is for is `Design.customer`; what it is called is
   `Design.name`, and the two are never the same field.** Who it is for is
   metadata, nothing to do with the geometry, written to the file only when
   there is one, so every design saved before it still loads — and one
-  saved before is known in the list by its own name
-  (`DesignSummary.title`). The design's own name was once taken out
-  (*only the person / customer is enough*) and has since been asked for
-  again, required: see *A new design is named*.
-- **New Design asks who the design is for**, and needs it — **Continue**
-  waits for a name, because the customer is what finds the design again
-  among the rest. Then the design's own name (`DesignNameScreen`), then
-  **Choose your design** (`StartScreen`). Choosing keeps the design at
-  once, so it is in the list from the moment it exists, and goes into the
-  workspace with the designs underneath it — back is to the list, not
-  through the steps that began it.
+  saved before is known by its own name (`DesignSummary.title`). The
+  design's own name was once taken out (*only the person / customer is
+  enough*) and has since been asked for again, required: see *A new design
+  is named*.
+- **New Design on the first screen asks who the design is for**, and needs
+  it — **Continue** waits for a name; an existing customer is found by it
+  and a new one made. Then the design's own name (`DesignNameScreen`),
+  then **Choose your design** (`StartScreen`). Choosing keeps the design at
+  once and goes into the workspace with the customers underneath it — back
+  is to the customers, where that person now has one design more, not
+  through the steps that began it. From a customer's own page New Design
+  asks only the name and the category.
 - **Opening a design is `openDesign` on exactly what was saved** — nothing
   read again, nothing rebuilt — and the test compares the two as JSON.
-- **The list reads pages, never the whole store** — the user's words:
+- **The lists read pages, never the whole store** — the user's words:
   *the recent section must be able to have millions of customers*.
-  `DesignStore` keeps each design under a key of its own and an index
-  beside them of one `DesignSummary` a design — who, kind, size, dates, no
-  strokes. The screen asks `page(query, offset, limit)` for
-  `DesignsScreen.pageSize` at a time and the next page as the end comes
-  into view; searching is the same call with a query; and a card reads its
-  own design by `load` only when it is built, so only what is on the
-  screen is ever read in full. Designs kept in the old single list are
+  `CustomerStore` and `DesignStore` each keep a record a key and an index
+  beside them. The customers screen asks `page(query, offset, limit)` for
+  `CustomersScreen.pageSize` at a time and the next page as the end comes
+  into view, a customer's page does the same for their designs, and a card
+  reads its own design by `load` only when it is built, so only what is on
+  the screen is ever read in full. Designs kept in the old single list are
   moved over, whole, the first time the store is read.
   **The limit is the device, stated rather than hidden:** this store keeps
   designs in the browser's own storage, which holds a few megabytes. Every
@@ -1171,33 +1169,36 @@ Designs  →  New Design  →  who it is for  →  Design name
   changing. `test/infrastructure/many_customers_test.dart` holds the
   paging, a search among thousands, the migration, and the screen
   scrolling past its first page.
-- **An edit brings a design to the top, by being kept.** The workspace
-  keeps the design without being asked once it has stood still for
-  `WorkspaceScreen.keepAfter`, and again when it is left, through
-  `WorkspaceController.keep`, which swallows a failure to store: keeping is
-  never a reason for the work to stop. Only a change to the design counts —
-  looking at one, picking a part or swinging a leaf leaves it where it is
-  in the list. `Design.copyWith` stamps `updatedAt` on every edit, the
-  store sorts by it, and `designsRevisionProvider` tells the list to read
-  its page again.
-
+- **An edit brings a design to the top of its customer's cards, by being
+  kept.** The workspace keeps the design without being asked once it has
+  stood still for `WorkspaceScreen.keepAfter`, and again when it is left,
+  through `WorkspaceController.keep`, which swallows a failure to store:
+  keeping is never a reason for the work to stop. Only a change to the
+  design counts — looking at one, picking a part or swinging a leaf leaves
+  it where it is. `Design.copyWith` stamps `updatedAt` on every edit, the
+  store sorts by it, and `designsRevisionProvider` tells the lists to read
+  their page again.
 - **Everything else is on the card's ⋮**, or by pressing and holding the
-  card — the user's words, over a phone screenshot of the list: *what if I
-  want to delete one of them, or other things?* `DesignActionsSheet` rises
-  from the foot of the screen with **Open**, **Rename** (who it is for),
-  **Duplicate** (`DesignStore.duplicate`: the same design under an id and a
-  number of its own, the original untouched) and **Delete**, each in words.
-  Delete is asked about first, because the card simply goes, and can then
-  be undone for as long as the notice stands: the design is kept in hand
-  and saved back exactly as it was. Nothing on the sheet touches the
-  drawing or the geometry. `test/app/what_can_be_done_with_a_design_test.dart`
-  holds each of them, and that the other designs come back byte for byte.
+  card — the user's words, over a phone screenshot of their designs: *what
+  if I want to delete one of them, or other things?* `DesignActionsSheet`
+  rises from the foot of the screen with **Open**, **Edit information**,
+  **Duplicate** (`DesignStore.duplicate`: the same design for the same
+  customer, under an id and a number of its own, the original untouched)
+  and **Delete**, each in words. Delete is asked about first, because the
+  card simply goes, and can then be undone for as long as the notice
+  stands: the design is kept in hand and saved back exactly as it was.
+  Nothing on the sheet touches the drawing or the geometry. Who a design is
+  for is not changed from its card — that is the customer's, edited on
+  their page. `test/app/what_can_be_done_with_a_design_test.dart` holds
+  each of them, and that the other designs come back byte for byte.
 
-A phone gets a list of cards a thumb works down, the picture beside the
-words; anything wider a grid, every picture the same height.
-`test/app/the_designs_screen_test.dart` holds all of it, and
-`test/app/new_design.dart` is how every other app test now gets from the
-designs to the choice of door or window.
+A phone gets a list of customers a thumb works down; anything wider a grid.
+`test/app/the_designs_screen_test.dart` holds all of it — the first screen
+holding customers and no design, a customer with one design opening on
+their page with that one card, several designs several cards and the one
+picked the one opened, and every screen size — and `test/app/new_design.dart`
+is how every other app test gets from the first screen to the choice of
+door or window.
 
 ### Customers and their designs
 
@@ -1236,9 +1237,9 @@ customer its own name stands for, as the list already showed it. A
 duplicate is another design of the **same** customer, named `(copy)`; a
 design said to be for somebody else moves to that customer.
 
-**The customers screen** (`customers_screen.dart`) is reached by
-**Customers** on the designs' band, and is laid out as that screen is: a
-band with the count, a search and **New Customer**, then a card a customer
+**The customers screen** (`customers_screen.dart`) is where the app opens:
+a band with the count, a search, **New Customer** and **New Design**, then
+a card a customer
 — their initials, name, phone and how many designs are theirs
 (`DesignStore.countsByCustomer`, one pass over the index), newest first,
 read a page at a time. The search is the customer's own — name or phone,
@@ -1263,7 +1264,8 @@ cards (`CustomerDesignCard`), one above another on a phone and two or three
 across where there is room. A card is the design's picture, then its name,
 its category, *Last edited:* as a date and a time (`lastEdited`), and
 **Open**, which opens it exactly as kept. **The picture is the design
-itself**: `DesignPicture`, the same one the designs list uses, reads the
+itself**: `DesignPicture` (`designs_screen.dart`, with the other pieces
+a design's card is made of) reads the
 design and draws it with `DesignPreview` from its own geometry, or shows
 the empty sheet saying *Nothing drawn yet* — never an invented drawing and
 never an image. With no designs the page says *No designs yet*.
@@ -1293,7 +1295,7 @@ holds it.
 **A new design is named, and the name is required.** The user's words:
 *the customer name and design name are different — Adam is the customer,
 Basement Door is the design.* `DesignNameScreen` is the first step after
-**New Design**, from a customer's page and from the designs list alike.
+**New Design**, from a customer's page and from the first screen alike.
 Its field starts empty — never the customer's name, which
 `forCustomer` and `forPerson` both leave out of `name` — and nothing is
 ever numbered for the user (*Door 1*, *Window 1*) unless that is what
@@ -1374,7 +1376,7 @@ kitchen window, which his page never shows.
 **Deleting a design is one design, asked about by its name, and never
 the customer.** A design is deleted from the ⋮ on its card — on the
 customer's page (`CustomerDesignCard.moreKey`: Open, Edit information,
-Delete) and in the designs list — and both go through `deleteDesign` in
+Duplicate, Delete) — and goes through `deleteDesign` in
 `design_actions.dart`. It asks first, *Delete Basement Door?*, with the
 design's category, customer and number under it and a plain word that the
 customer, their phone, address and notes, and their other designs stay;
@@ -1421,7 +1423,7 @@ touch Basement Door and changing his address cannot touch Kitchen Window.
 rewritten.** `Design.customer` keeps the name typed when the design was
 begun, and it stays exactly as kept; where a name is shown the customer's
 own is asked for by `customerId` — `DesignStore.page` lists each design
-under `CustomerStore.namesNow`, so the designs list shows and searches the
+under `CustomerStore.namesNow`, so a design is listed and searched under the
 name as it is now, and the design's own panel reads `customerNameProvider`.
 `test/app/editing_a_customer_test.dart` holds it: every field edited and
 kept through a reload, every design's stored text and the index of them
@@ -1432,7 +1434,7 @@ phone, a tablet and a laptop.
 
 **A design's information is edited without touching the design.**
 **Edit information** — on a design's card on the customer's page
-(`CustomerDesignCard.editKey`), on the ⋮ sheet of the designs list, and on
+(`CustomerDesignCard.editKey`), on the ⋮ sheet of that card, and on
 the design's own panel in the workspace (`InspectorPanel.editInformationKey`)
 — opens `DesignInformationScreen`: the name, to be typed over, and the
 category, shown and not changeable, because everything drawn in the design
@@ -1445,7 +1447,7 @@ them, materials, sizes, drawn dimensions, the technical drawing and the
 solid all stay exactly as kept.
 `test/app/editing_a_design_s_information_test.dart` holds it on Adam's
 basement door, drawn, divided, glazed and measured: *Basement Door - New
-PVC* from all three places, the design's JSON the same but for its name
+PVC* from the card and from the workspace, the design's JSON the same but for its name
 and edited time, the technical drawing the same to the pixel and the solid
 facet for facet, every other design byte for byte, the name through a
 reload and the design opening as itself, an empty name refused, and the
@@ -1495,8 +1497,8 @@ two stores saving at once, one design saved twice at once still one,
 two designs for a new person making one customer, and customers made at
 once all kept.
 
-`Design.customer` — the name typed when the design was begun — is still
-what the designs list shows; the customer record is what is true of the
+`Design.customer` is the name typed when the design was begun; the
+customer record is what is true of the
 person.
 `test/infrastructure/customers_and_designs_test.dart` holds all of it: a
 customer with no designs, one with four, every kept design naming its
@@ -1526,10 +1528,10 @@ are `customers_screen`, `customer_screen`, `new_customer_screen`,
 `designs_screen`, `design_name_screen`, `start_screen` and
 `design_information_screen`; and what can be done with a design from its
 card — open it, edit its information, delete it — is `design_actions.dart`,
-one implementation that the designs list and a customer's page both call.
+which a customer's page calls.
 `kindIcon` is the one mark for a category. `Design.customer` is the name
 typed when a design was begun, kept for designs made before customers and
-for the designs list's own New Design; whatever shows a customer's name
+for the first screen's own New Design; whatever shows a customer's name
 asks the customer by `customerId`.
 
 The twelve things the restructuring was measured against, and where each
@@ -1538,12 +1540,12 @@ is held:
 | | Held by |
 | --- | --- |
 | One customer, many designs | `customers_and_designs_test`, `designs_are_kept_for_their_customer_test` |
-| Designs shown as cards | `a_customer_s_designs_as_cards_test`, `recent_designs_test`, `real_design_previews_test` |
+| Designs shown as cards | `a_customer_s_designs_as_cards_test`, `the_designs_screen_test`, `real_design_previews_test` |
 | Customer information available and editable | `a_customer_s_page_test`, `editing_a_customer_test` |
 | New Design makes a new design | `a_new_design_for_a_customer_test` |
 | A specific name is required | `a_design_is_named_test` |
 | A category is required | `a_new_design_s_category_test` |
-| Existing designs open directly, never asked the category | `opening_an_existing_design_test`, `recent_designs_test` |
+| Existing designs open directly, never asked the category | `opening_an_existing_design_test`, `the_designs_screen_test` |
 | Designs stay with their customer | `designs_are_kept_for_their_customer_test`, `finding_a_customer_s_designs_test` |
 | Design data preserved | `editing_a_design_s_information_test`, `deleting_a_design_test`, `customers_are_never_deleted_test` |
 | Draw, CAD and 3D preserved | `a_design_in_every_view_test`, and every test of the drawing itself |

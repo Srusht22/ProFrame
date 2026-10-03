@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/app.dart';
-import 'package:proframe/app/screens/designs_screen.dart';
+import 'package:proframe/app/screens/customers_screen.dart';
 import 'package:proframe/app/screens/launch_screen.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
 
@@ -231,7 +231,7 @@ void main() {
         expect(shown(part), lessThan(0.05), reason: '$part has gone');
       }
       await tester.pumpAndSettle();
-      expect(find.byType(DesignsScreen), findsOneWidget);
+      expect(find.byType(CustomersScreen), findsOneWidget);
     });
   });
 
@@ -313,7 +313,7 @@ void main() {
     ) async {
       await openTheApp(tester, const Size(390, 844));
       expect(find.byType(LaunchScreen), findsOneWidget);
-      expect(find.byType(DesignsScreen), findsNothing);
+      expect(find.byType(CustomersScreen), findsNothing);
 
       await tester.pump(LaunchScreen.duration * 0.5);
       expect(find.byType(LaunchScreen), findsOneWidget);
@@ -324,12 +324,12 @@ void main() {
         await tester.pump(LaunchScreen.handOver ~/ 5);
         expect(
           find.byType(LaunchScreen).evaluate().isNotEmpty ||
-              find.byType(DesignsScreen).evaluate().isNotEmpty,
+              find.byType(CustomersScreen).evaluate().isNotEmpty,
           isTrue,
         );
       }
       await tester.pumpAndSettle();
-      expect(find.byType(DesignsScreen), findsOneWidget);
+      expect(find.byType(CustomersScreen), findsOneWidget);
       expect(find.byType(LaunchScreen), findsNothing);
       expect(tester.hasRunningAnimations, isFalse);
     });
@@ -344,7 +344,7 @@ void main() {
       expect(find.byType(WorkspaceScreen), findsOneWidget);
       await tester.tap(find.byIcon(Icons.arrow_back));
       await tester.pumpAndSettle();
-      expect(find.byType(DesignsScreen), findsOneWidget);
+      expect(find.byType(CustomersScreen), findsOneWidget);
       expect(find.byType(LaunchScreen), findsNothing);
     });
 
@@ -371,7 +371,7 @@ void main() {
       }
       await tester.pump(LaunchScreen.reducedDuration);
       await tester.pump();
-      expect(find.byType(DesignsScreen), findsOneWidget);
+      expect(find.byType(CustomersScreen), findsOneWidget);
     });
   });
 
