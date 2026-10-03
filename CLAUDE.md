@@ -5601,6 +5601,62 @@ something read the list again. It reads the designs first now.
 Putting back the rewrite on adoption, dropping an unreadable entry, or
 reading the customers before the designs each fails it.
 
+### The geometry, tested end to end
+
+`test/comprehensive_geometry_test.dart` is the brief's eighteen geometry
+tests under the brief's own numbers. Each is held on the design, the
+technical drawing's figures and the solid. Each is also held through
+reading the same sheet again and through a save and a reload
+(`expectSound`): the file comes back identical, nothing in the solid
+stands outside the outline, every figure measures something, and an
+angled design validates.
+
+Standard designs (Door, Window, Sliding and Door & window):
+
+| Test | What is held |
+| --- | --- |
+| 1. A perfect rectangle | Read with no correction at all; nothing reported. |
+| 2. A side tilted 3, 8 or 16 cm | Squared; only that side moves; reported. |
+| 3. A head rising 2, 6 or 12 cm | Levelled, the transom too. |
+| 4. An inaccurate corner | Ends drawn apart are joined; lines drawn past each other are trimmed to their crossing with no stub left as a bar; a corner off square is squared. |
+| 5. Left and right a little apart | One height where it is the hand (2 cm); kept as drawn where it is a slope (40 cm). |
+| 6. Two openings | Neither shares a part with the other. A line drawn in one leaves the other identical. Swung, nothing outside them moves. |
+| 7. An opening and a divider | The divider is the opening's and inside it, through a second reading; the design's own bars and divisions are unchanged; the solid's bar is inside the leaf. |
+| 8. Glass and a panel | Frosted over brown, through a second reading, a wider frame, a moved mullion and a reload; glazing and a brown panel in the solid. |
+| 9. A handle and hinges | Door, window and door & window. The opening's and on its leaf: hinges down the hinge stile, the handle on the other. Held as made, read again, made wider, with the mullion moved and reloaded, and turning with the leaf. |
+
+Angled / Asymmetrical:
+
+| Test | What is held |
+| --- | --- |
+| 10. A sloped top | A 7° head kept exactly, which the same sheet as a window squares. |
+| 11. Left 200 cm, right 150 cm | Kept, with each side its own figure. |
+| 12. A trapezoid | Kept, with the solid's frame on the four corners drawn. |
+| 13. The under-stair shape | Its five corners kept. |
+| 14. Angled openings | The gable's two openings raked, each holding its mark. |
+| 15. Angled glass | The raked pane's glass at every corner of its fill. |
+| 16. An angled panel | A raked panel, panel in the solid and never glass. |
+| 17. An angled divider | A line at 15° inside a raked opening keeps its angle and divides it. |
+| 18. An angled handle | On the leaf, opposite the hinges, and turning with it: under the gable's slopes, on a leaning stile and under the stair. |
+
+**Test 4 found a fault in the reading, and it is fixed.** A head and a
+jamb drawn past each other at a corner, each 4 cm beyond it, came back
+square but a centimetre outside the corner. Joining (step 3 of the
+normaliser) averaged their two loose ends to a point on neither line. That
+left the trim (step 4) no loose ends to take back, and keeping square then
+carried both lines off where they were drawn. `_joined` now leaves two
+such ends apart for the trim, which takes each back to the crossing, on
+both lines. It does so only where it is plainly that:
+- judged in the ink, before anything was squared;
+- both ends past the crossing by more than a hand's precision;
+- no other end at that corner.
+
+So a line that wobbles a few millimetres through a corner is joined as it
+always was. A corner the user drew closed, which squaring each leg about
+its middle pushes past itself, is joined too. Leaving the guard out fails
+test 4; judging it after squaring instead of in the ink fails
+`standard_normalization_rules_test`.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the

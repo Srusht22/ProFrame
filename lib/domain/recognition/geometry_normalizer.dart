@@ -392,7 +392,7 @@ abstract final class GeometryNormalizer {
       note(CorrectionKind.carriedOnto, squared[i], carried[i]);
     }
 
-    final joined = _joined(carried);
+    final joined = _joined(carried, drawn: raw);
     final kept = <DrawnRun>[];
     for (var i = 0; i < carried.length; i++) {
       final run = joined[i];
@@ -819,8 +819,61 @@ abstract final class GeometryNormalizer {
   /// average of the ends that met there, so no one stroke wins over the
   /// others. A run's list place is kept: one with nothing left of it once
   /// its ends have met is null.
-  static List<DrawnRun?> _joined(List<DrawnRun> runs) {
+  static List<DrawnRun?> _joined(
+    List<DrawnRun> runs, {
+    required List<DrawnRun> drawn,
+  }) {
     final tolerance = _joinToleranceFor(spanOf(runs));
+
+    // **Two lines drawn past each other at a corner are not joined end to
+    // end.** Each runs on past the point where the two cross, so their ends
+    // lie out beyond the corner, a little way apart. Averaging them put the
+    // corner on neither line, the trim then had no loose ends to take back,
+    // and keeping the frame square carried both lines off where they were
+    // drawn: a head and a jamb each drawn 4 cm past their corner came back a
+    // centimetre outside it. Left apart here, they are trimmed back to the
+    // crossing, which is on both lines (`_trimmedAtCorners`).
+    //
+    // Only where it is plainly that, **in the ink** ([drawn], the runs
+    // before anything was squared — the same runs, in the same order): both
+    // ends past the crossing by more than the hand can place a line (the
+    // weld), and no other end at that corner. A line that wobbles a few
+    // millimetres through a corner other lines also meet is joined as it
+    // always was; and two legs that squaring each about its middle has
+    // pushed past a corner the user drew closed are joined too, because
+    // the user did not draw them past it.
+    final hand = Tol.weldFor(spanOf(drawn));
+    final allEnds = [
+      for (final run in drawn) ...[run.segment.a, run.segment.b],
+    ];
+    int endsNear(Vec2 p) =>
+        allEnds.where((q) => q.distanceTo(p) <= tolerance).length;
+    final drawnPast = <(int, int)>{};
+    for (var i = 0; i < drawn.length; i++) {
+      for (var j = i + 1; j < drawn.length; j++) {
+        final cross = drawn[i].segment.crossing(drawn[j].segment);
+        if (cross == null) continue;
+        final at = cross.at;
+        final ei = [drawn[i].segment.a, drawn[i].segment.b];
+        final ej = [drawn[j].segment.a, drawn[j].segment.b];
+        for (var e = 0; e < 2; e++) {
+          for (var f = 0; f < 2; f++) {
+            if (ei[e].distanceTo(ej[f]) > tolerance) continue;
+            final past = ei[e].distanceTo(at), over = ej[f].distanceTo(at);
+            // Ends on the crossing, or within a hand of it, meet there.
+            if (past <= hand || over <= hand) continue;
+            if (endsNear(ei[e]) != 2 || endsNear(ej[f]) != 2) continue;
+            if (past > Tol.overshootFraction * drawn[i].segment.length ||
+                over > Tol.overshootFraction * drawn[j].segment.length) {
+              continue;
+            }
+            drawnPast
+              ..add((i, e))
+              ..add((j, f));
+          }
+        }
+      }
+    }
 
     final anchors = <Vec2>[];
     Vec2 anchorFor(Vec2 point) {
@@ -837,8 +890,17 @@ abstract final class GeometryNormalizer {
     }
 
     final welded = [
-      for (final run in runs)
-        run.moved(Segment(anchorFor(run.segment.a), anchorFor(run.segment.b))),
+      for (final (i, run) in runs.indexed)
+        run.moved(
+          Segment(
+            drawnPast.contains((i, 0))
+                ? run.segment.a
+                : anchorFor(run.segment.a),
+            drawnPast.contains((i, 1))
+                ? run.segment.b
+                : anchorFor(run.segment.b),
+          ),
+        ),
     ];
 
     // Anchors moved while welding, so read them back to their final places.
@@ -853,14 +915,30 @@ abstract final class GeometryNormalizer {
     // stays in the list as null, so every run still lines up with the one
     // it was, and the caller says what became of it.
     return [
-      for (final run in welded)
-        if (settled(run.segment.a).distanceTo(settled(run.segment.b)) >=
+      for (final (i, run) in welded.indexed)
+        if (_endOf(run.segment.a, drawnPast.contains((i, 0)), settled)
+                .distanceTo(
+                  _endOf(run.segment.b, drawnPast.contains((i, 1)), settled),
+                ) >=
             Tol.minLineMm)
-          run.moved(Segment(settled(run.segment.a), settled(run.segment.b)))
+          run.moved(
+            Segment(
+              _endOf(run.segment.a, drawnPast.contains((i, 0)), settled),
+              _endOf(run.segment.b, drawnPast.contains((i, 1)), settled),
+            ),
+          )
         else
           null,
     ];
   }
+
+  /// [point], read back to the anchor it was joined into — unless it is an
+  /// end drawn past a corner, which was left where it was ([_joined]).
+  static Vec2 _endOf(
+    Vec2 point,
+    bool drawnPast,
+    Vec2 Function(Vec2) settled,
+  ) => drawnPast ? point : settled(point);
 
   /// Everything wrong with an angled [design]'s geometry — or any design's
   /// — and nothing changed.

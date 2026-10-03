@@ -662,3 +662,16 @@ Three faults in what already existed were fixed.
 close and reopen for all five categories, and older records loading
 unchanged.
 
+## 22. Comprehensive geometry testing (Phase 18)
+
+`test/comprehensive_geometry_test.dart` holds the eighteen standard and
+angled cases on the design, the figures and the solid, through a second
+reading and a save and reload.
+
+**It found one fault, in the join, and it is fixed.** Lines drawn past
+each other at a corner had their loose ends averaged to a point on
+neither line. The trim was then skipped, and keeping square moved both
+lines about a centimetre. `_joined` now leaves such ends for the trim.
+"Such ends" is judged in the ink: both ends past the crossing by more than
+the weld, and no other end at the corner. Everything else joins as before.
+
