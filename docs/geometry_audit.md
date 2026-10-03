@@ -370,3 +370,18 @@ In every case the frame, the CAD chain and the solid agree.
 Still open: a stated dimension's figure is not updated when the sizes form
 later stretches the design (`Measurements.stretch` moves its ends but keeps
 `statedMm`).
+
+## 11. The hierarchy through correction (Phase 7)
+
+When the frame is corrected, by the reading or by a stated figure, the
+opening's children stay attached. The opening is found again by its mark;
+its lines, panes and hardware follow from the model's `parentId`s, from
+`SectionBuilder`'s carry, and from `OpeningHardware`.
+
+One fault was found, in the sizes form. `Measurements.stretch` moved lines
+inside an opening by its axis map, and then the rebuild carried them again.
+Placed twice, a line came off its sash and the opening's panes were lost.
+
+`stretch` now places each child by one route:
+- by the carry, where its section changes;
+- by the map, where its section does not.

@@ -4881,6 +4881,52 @@ solid the same height, and no stated figure in conflict. An angled design
 keeps its slope whatever is stated. Taking the pins out fails sixteen of
 them, and taking `withStatedOverall` out eight.
 
+### Correcting the frame keeps the hierarchy
+
+The brief: *if the outer frame is normalised, child geometry stays
+attached — the opening correctly related, the glass and the panel inside
+it, the divider inside it, the handle and hinges attached; internal lines
+stay children of the opening and never become root-level geometry.*
+
+Through the reading it already did, because the hierarchy is in the model
+rather than in coordinates: an opening is its mark's region, so it is
+found again in the corrected frame; a line put inside it has no stroke to
+be re-read from, or is a child the reading does not re-read; its panes are
+cut from the opening's own outline every rebuild; the hardware is worked
+out from the leaf every rebuild; and a section whose outline changes
+carries its contents with it (`SectionBuilder._carryContents`). A line
+drawn on the sheet inside the opening joins it and is squared like any
+other.
+
+**The sizes form did not**, and testing it found why. `Measurements.stretch`
+moved every bar by its axis map — lines inside an opening included — and
+`SectionBuilder.rebuild` then carried those same lines from the opening's
+old outline to its new one. A child placed twice, and once by a map that
+does not follow the frame's inner face or a bar's, came off the sash: with
+the width given, the line in an opening ended four millimetres short of it
+at both ends; with the opening then given its own width, it ended nine
+centimetres short, divided nothing, and **the glass and the panel were
+gone**. That is *counting it twice* again. `stretch` now leaves a line
+inside a section to the rebuild's carry wherever that section changes, and
+stretches it by the map only where its section did not — where it is the
+bar the size moves, or bound to one.
+
+`test/domain/normalization_keeps_the_hierarchy_test.dart` holds it on a
+door, a window and a door & window set drawn by hand with the head sloping,
+a mullion and a `>`: the first reading correcting the frame, then a line
+inside the opening, glass above and a brown panel below, a handle and
+hinges; read again; corrected again by a figure the user states, the
+opening growing with the frame; a line drawn on the sheet inside the
+opening, leaning and stopped short, squared and joined and staying the
+opening's through another correction; and the sizes given in the form.
+Each time: the frame square, the opening bounded by the frame's daylight
+and the mullion and holding its mark, the mullion the only line of the
+design, every line inside the opening its child and within it, its panes
+its children and within it with the glass above and the panel below,
+every piece of ironmongery its child and on its leaf, `contentsOf` holding
+all of it, and the solid's glass and panel within the opening. The old
+`stretch` fails the sizes form for all three.
+
 `validateAngledGeometry` is not written yet: angled designs are the next
 phases' work, and the audit says where it belongs.
 

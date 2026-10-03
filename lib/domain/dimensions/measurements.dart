@@ -624,13 +624,24 @@ abstract final class Measurements {
     final across = axis == MeasureAxis.across;
     Vec2 point(Vec2 p) => across ? Vec2(map(p.x), p.y) : Vec2(p.x, map(p.y));
     Polygon shape(Polygon p) => Polygon([for (final c in p.corners) point(c)]);
+    DividerElement bar(DividerElement d) =>
+        d.copyWith(a: point(d.a), b: point(d.b));
 
-    return SectionBuilder.rebuild(
+    // **A line inside an opening is placed by one relationship, never two.**
+    // The design's own lines, the frame and the ink are stretched by the
+    // map. A line inside a section is the section's: where that section is
+    // resized or moved, `SectionBuilder.rebuild` carries it there from the
+    // section's old outline, and stretching it by the map as well put it
+    // twice — and by a map that does not follow the frame's inner face or
+    // a bar's, so its ends came off the sash and the panes it made were
+    // lost. So it is left for the rebuild first; and only where its section
+    // has not changed — the bar the size moves is in it, or bound to one
+    // that is — is it stretched by the map after all.
+    final stretched = SectionBuilder.rebuild(
       design.copyWith(
         frame: design.frame?.copyWith(outline: shape(design.frame!.outline)),
         dividers: [
-          for (final d in design.dividers)
-            d.copyWith(a: point(d.a), b: point(d.b)),
+          for (final d in design.dividers) d.parentId == null ? bar(d) : d,
         ],
         hardware: [
           for (final h in design.hardware) h.copyWith(at: point(h.at)),
@@ -660,7 +671,43 @@ abstract final class Measurements {
         ),
       ),
     );
+
+    final unchanged = <String>{
+      for (final was in design.topLevelSections)
+        if (stretched.sectionById(was.id) case final now?)
+          if (_sameOutline(was.outline, now.outline)) was.id,
+    };
+    String? mainOf(DividerElement d) {
+      var at = design.sectionHolding(d.parentId);
+      for (var i = 0; i < 16 && at != null; i++) {
+        final parent = design.sectionById(at)?.parentId;
+        if (parent == null) return at;
+        at = design.sectionHolding(parent);
+      }
+      return at;
+    }
+
+    final moved = {
+      for (final d in design.dividers)
+        if (d.parentId != null && unchanged.contains(mainOf(d))) d.id,
+    };
+    if (moved.isEmpty) return stretched;
+    final original = {for (final d in design.dividers) d.id: d};
+    return SectionBuilder.rebuild(
+      stretched.copyWith(
+        dividers: [
+          for (final d in stretched.dividers)
+            if (moved.contains(d.id)) bar(original[d.id]!) else d,
+        ],
+      ),
+    );
   }
+
+  static bool _sameOutline(Polygon a, Polygon b) =>
+      (a.left - b.left).abs() < 1e-6 &&
+      (a.right - b.right).abs() < 1e-6 &&
+      (a.top - b.top).abs() < 1e-6 &&
+      (a.bottom - b.bottom).abs() < 1e-6;
 
   /// How much of the sheet round a line moves with it: a hand's wobble
   /// either side, taken as a share of the design.
