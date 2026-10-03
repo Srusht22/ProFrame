@@ -470,7 +470,17 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   void openDesign(Design design) {
     _undo.clear();
     _redo.clear();
-    state = WorkspaceState(design: design, view: WorkspaceView.draw);
+    state = WorkspaceState(
+      design: design,
+      view: WorkspaceView.draw,
+      // Every stroke a kept design was built from was read when it was
+      // made, and anything that reading straightened is already the design
+      // the user kept. Reading the same sheet again after opening it says
+      // nothing; only a stroke drawn since is news (`NormalizedNote`).
+      correctedStrokes: design.frame == null
+          ? const {}
+          : {for (final stroke in design.sketch.strokes) stroke.id},
+    );
   }
 
   // ---------------------------------------------------------------- history

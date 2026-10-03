@@ -616,3 +616,26 @@ and no alert is up (`WorkspaceState.waitingOnAnAlert`, shared with
 
 `test/app/category_behaviour_is_clear_test.dart` holds it.
 
+## 20. The category outlasts the design being opened again (Phase 16)
+
+Audited: nothing that opens a design touches its geometry.
+- `Design.fromJson` reads the category back as it was kept.
+- `DesignStore.load` hands the design over as stored.
+- `WorkspaceController.openDesign` puts it into the workspace without
+  reading it.
+
+A later reading reads with the kept category, so an angled design stays
+raked and a standard one stays the same square design.
+
+Category conversion does not exist: the information form shows the
+category and does not let it be changed. None was added.
+
+One small fault was fixed. **Read again** on a reopened standard design
+brought up *Geometry normalized for standard design.* for lines it had
+straightened when it was first drawn. `openDesign` now marks those strokes
+as already reported.
+
+`test/app/reopening_keeps_the_category_test.dart` holds it. Six designs,
+four standard and two angled, are each kept, reopened, read again and
+drawn on.
+

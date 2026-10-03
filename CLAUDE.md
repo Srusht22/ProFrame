@@ -5471,6 +5471,57 @@ On the real app, at a phone, a tablet and a laptop:
 Saying it again for the same strokes, saying it for the hand's shake, or
 playing it out behind the sizes each fails it.
 
+### The category outlasts the design being opened again
+
+A design's category is kept in it (`category` in the file) and goes on
+deciding how its geometry behaves after it is opened again. Door, Window,
+Sliding and Door & window stay standard; Angled / Asymmetrical stays
+angled.
+
+- **Opening a design does nothing to its geometry.** `openDesign` puts the
+  kept design into the workspace as it is. Nothing is read, squared,
+  rebuilt or measured on the way in, so an angled design is never made a
+  rectangle by being opened, and a standard one is not straightened a
+  second time.
+- **A reading afterwards is the design's own category's.** **Read again**,
+  or anything drawn on the sheet, reads with `Design.kind` as kept. A
+  standard design comes back as the same square design, since its ink was
+  straightened to it the first time. An angled one comes back as the same
+  raked design. A new line two degrees out is squared in a standard design
+  and kept at its slope in an angled one.
+- **Nothing is said about what was straightened before.** `openDesign`
+  marks every stroke the kept design was built from as already reported
+  (`WorkspaceState.correctedStrokes`), so **Read again** on a reopened
+  standard design does not bring up *Geometry normalized for standard
+  design.* for lines it straightened the day it was drawn. Only a stroke
+  drawn since is news.
+- **There is no category conversion, and none was added.** The category
+  is shown on the design's information form and is not changeable,
+  because everything drawn in the design was drawn in it (*A design's
+  information is edited without touching the design*). There is no route
+  from Angled to Standard that could square a design, so there is nothing
+  to warn about. If conversion is ever added, Angled → Standard must warn
+  that the next reading straightens it, and Standard → Angled must keep
+  the geometry exactly.
+
+`test/app/reopening_keeps_the_category_test.dart` holds it on six designs:
+- a door and a window drawn by hand, each divided and furnished;
+- a sliding design and a door & window design;
+- an angled window, left side 200 cm and right side 150;
+- the window under a stair.
+
+Each is kept and read back with its text identical. Its frame, bars,
+sections, openings, ironmongery, figures and solid are the same. It is
+opened without being read, read again as its own category to the same
+geometry with nothing said, and a new leaning line on its sheet is read by
+that category. The angled design is kept, opened and read again three
+times over and is never a rectangle. On the real app a standard and an
+angled design are each opened from their card, looked at in Draw, CAD and
+3D, and found exactly as kept, in the workspace and on the device.
+
+Making opening read the design, making a reading ignore the category, or
+not marking the strokes reported on opening each fails it.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the
