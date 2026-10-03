@@ -825,11 +825,32 @@ abstract final class MeshBuilder {
     final towards = toward ? 1.0 : -1.0;
     final cos = math.cos(angle);
     final sin = math.sin(angle) * towards;
-    final box = section.outline;
 
     // It turns about the face it swings towards — the face its hinges are
     // screwed to — so it comes out of the frame rather than through it.
     final pivot = toward ? leaf.front : leaf.back;
+
+    // **About the line its hinges are on, not the side of its box.** The
+    // hinges run down the leaf's own stile ([OpeningHardware.stileOf]), or
+    // along its own head or sill, and [OpeningHardware.swingOf] gives the
+    // two ends of that edge — the one answer the hinges and both drawings
+    // read. On a rectangle it is the box's side, so nothing square turns
+    // differently; on a leaf hung on a stile drawn leaning, the axis leans
+    // with it. Turning such a leaf about the box's side swung its hinge
+    // stile round in an arc and tore it off its own hinges.
+    final (a, b, _) = OpeningHardware.swingOf(section.outline, edge);
+    // Each edge's axis runs the way that makes the turn below the one a
+    // left, right, top or bottom hung leaf makes: down a left stile, up a
+    // right one, leftwards along a head and rightwards along a sill.
+    final from = switch (edge) {
+      OpeningEdge.left || OpeningEdge.bottom => a,
+      OpeningEdge.right || OpeningEdge.top => b,
+    };
+    final to = from == a ? b : a;
+    final run = to - from;
+    final length = run.length;
+    if (length <= 0) return (p) => p;
+    final ux = run.x / length, uy = run.y / length;
 
     // A turn about the hinge, not a squash towards it. The leaf has depth,
     // so its far face has to come round with its near face: rotating the
@@ -839,43 +860,19 @@ abstract final class MeshBuilder {
     // swung. A door turns. Every distance within the leaf is the same
     // afterwards as before, which is what makes the glass, the panel, the
     // bars and the hardware inside it one thing that moves together.
-    return switch (edge) {
-      OpeningEdge.left => (p) {
-          final d = p.x - box.left;
-          final q = p.z - pivot;
-          return Vec3(
-            box.left + d * cos - q * sin,
-            p.y,
-            pivot + q * cos + d * sin,
-          );
-        },
-      OpeningEdge.right => (p) {
-          final d = p.x - box.right;
-          final q = p.z - pivot;
-          return Vec3(
-            box.right + d * cos + q * sin,
-            p.y,
-            pivot + q * cos - d * sin,
-          );
-        },
-      OpeningEdge.top => (p) {
-          final d = p.y - box.top;
-          final q = p.z - pivot;
-          return Vec3(
-            p.x,
-            box.top + d * cos - q * sin,
-            pivot + q * cos + d * sin,
-          );
-        },
-      OpeningEdge.bottom => (p) {
-          final d = p.y - box.bottom;
-          final q = p.z - pivot;
-          return Vec3(
-            p.x,
-            box.bottom + d * cos + q * sin,
-            pivot + q * cos - d * sin,
-          );
-        },
+    //
+    // Rodrigues' turn by `-sin` about the unit axis (ux, uy, 0) through
+    // (from, pivot): the part along the axis stays, the rest turns.
+    return (p) {
+      final vx = p.x - from.x, vy = p.y - from.y, vz = p.z - pivot;
+      final along = ux * vx + uy * vy;
+      // u × v, with u in the plane of the face.
+      final cx = uy * vz, cy = -ux * vz, cz = ux * vy - uy * vx;
+      return Vec3(
+        from.x + vx * cos - cx * sin + ux * along * (1 - cos),
+        from.y + vy * cos - cy * sin + uy * along * (1 - cos),
+        pivot + vz * cos - cz * sin,
+      );
     };
   }
 

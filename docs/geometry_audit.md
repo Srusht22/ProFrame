@@ -558,3 +558,36 @@ stair:
 
 Laying the swing on the box again, or drawing the outline as the box,
 fails it.
+
+## 18. The solid is the canonical geometry (Phase 14)
+
+`MeshBuilder` was audited for anything built from a bounding box rather
+than the design's own shapes. Everything it builds already read the shared
+geometry:
+- the frame is the profile swept round `outline` and `innerOutline`;
+- the sash is swept between `leafOuter` and `leafInner`;
+- the bars are on `barBody`;
+- the glass, the panel and the bead are on `fillOf` and `beadAround`;
+- the ironmongery is placed by `OpeningHardware` on the leaf's stiles.
+
+The floor's shadow blocks and the sliding tracks' spans use boxes for
+extents only, never for a face.
+
+**One box remained: the swing axis.** `_swingFor` turned a leaf about the
+side of its box, while its hinges run down its own stile. On a stile
+drawn leaning, the two are different lines. Swung, the hinge stile left
+its hinges. The leaf now turns about the line `OpeningHardware.swingOf`
+gives, the one its hinges and both drawings read. On a rectangle that is
+the box's side, so the pinned solids did not move.
+
+`test/domain/the_solid_is_the_canonical_geometry_test.dart` holds the
+solid to the canonical geometry, face by face, on four designs:
+- a rectangular door;
+- a standard window;
+- an angled window;
+- the window under a stair.
+
+It also holds the leaning leaf's swing. Three mutations fail it:
+- the box swing;
+- a box frame;
+- box glass.

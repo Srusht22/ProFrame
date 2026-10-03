@@ -5344,6 +5344,65 @@ and the picture is held to the canonical geometry:
 Laying the swing on the box again fails it, and so does drawing the
 outline as the box: a rectangular placeholder round an angled frame.
 
+### The solid is the canonical geometry
+
+```
+standard:  drawing → normalisation → canonical geometry → 3D
+angled:    drawing → canonical angled geometry          → 3D
+```
+
+`MeshBuilder` builds from the design and `DesignGeometry`, and works no
+shape out for itself:
+- the frame is its profile swept round `FrameElement.outline` and
+  `innerOutline`, corner to corner, so a slope is a sloped member;
+- a leaf is swept between `leafOuter` and `leafInner`;
+- every bar is built on `barBody`;
+- the glass and the panel fill `fillOf`, so a pane under a slope is
+  raked;
+- the ironmongery is placed by `OpeningHardware` on the leaf's own stiles.
+
+So a hand-drawn rectangle is built as the rectangle the reading corrected
+it to, and an angled design as the outline it is.
+
+**The swing was the last box in the solid.** A leaf turned about the side
+of its box: the x of a left or right hung leaf's box, the y of a top or
+bottom hung one's. Its hinges are not on the box. They run down the
+leaf's own stile (`stileOf`), and on a stile drawn leaning the box's side
+is a line the stile only touches at one end. Swung, that leaf's hinge
+stile came round in an arc and left its hinges behind.
+`MeshBuilder._swingFor` now turns the leaf about the line its hinges are
+on: the two ends `OpeningHardware.swingOf` gives, the one answer the
+hinges and both drawings already read, at the face it turns about. It is
+a turn about that axis (Rodrigues' formula), so every distance within the
+leaf is kept as before. On a rectangle the axis is the box's side, so
+nothing square turns differently, and the pinned solids did not move.
+
+`test/domain/the_solid_is_the_canonical_geometry_test.dart` holds it on
+the four designs: a rectangular door and a standard window, each drawn by
+hand a little out of square; an angled window, left side 200 cm and right
+side 150; and the window under a stair. Each has an opening divided into
+glass over a white panel and furnished.
+- Nothing is built outside the outline, and nothing at a corner of its
+  box the outline does not reach.
+- The frame lies in the ring between the outline and the daylight, has a
+  corner at every corner of both, has a member along every edge of the
+  outline, slope included, and runs the design's whole depth.
+- The sash lies between the leaf's own outer and inner outlines, with a
+  corner at each, and is raked where its region is.
+- Every bar is on its body, with a corner at each of the body's.
+- Every pane's glass or panel is within what it fills and has a corner at
+  each of its corners, the slope's included.
+- The ironmongery is on its leaf.
+- The solid builds exactly the parts the technical drawing draws, with a
+  corner at every end of every line it inks for the frame.
+- Swung, only the opening moves, and every point of its sash keeps its
+  distance from the hinge line.
+- On a leaf hung on a stile drawn leaning, that holds at three angles.
+
+Turning about the box's side again fails the leaning leaf. Building the
+frame or the glass to its box fails the angled window and the window
+under a stair.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the
