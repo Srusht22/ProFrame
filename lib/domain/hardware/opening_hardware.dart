@@ -149,7 +149,7 @@ abstract final class OpeningHardware {
         parentId: opening.id,
         at: sideHung ? Vec2(hingeX, at) : Vec2(at, hingeY),
         rotation: sideHung ? 90 : 0,
-        finish: _finishOf(design, id),
+        finish: _finishOf(design, id, setOf: (opening.id, HardwareKind.hinge)),
       ));
     }
 
@@ -223,9 +223,30 @@ abstract final class OpeningHardware {
   /// Only the finish is carried. Where a piece *is* is worked out from the
   /// leaf every time and must stay that way, or a resize would leave the
   /// handle where the old leaf had it.
-  static Finish _finishOf(Design design, String id, {Finish? fresh}) {
+  ///
+  /// A piece of a set — [setOf], the opening and the kind, as the hinges of
+  /// one leaf are — that is new this time takes the finish the rest of the
+  /// set carries, where they all carry one. A leaf made taller is given a
+  /// fourth hinge by its height, and the hinges the user made black are
+  /// what they said about this leaf's hinges: the new one coming in stock
+  /// grey would be the geometry changing a material. Where the set's
+  /// finishes differ, nobody has said which the new one is, and it takes
+  /// the stock finish as every new piece does.
+  static Finish _finishOf(
+    Design design,
+    String id, {
+    Finish? fresh,
+    (String, HardwareKind)? setOf,
+  }) {
     for (final piece in design.hardware) {
       if (piece.id == id) return piece.finish;
+    }
+    if (setOf case (final openingId, final kind)) {
+      final set = {
+        for (final piece in design.hardware)
+          if (piece.parentId == openingId && piece.kind == kind) piece.finish,
+      };
+      if (set.length == 1) return set.single;
     }
     if (fresh != null) return fresh;
     return const HardwareElement(

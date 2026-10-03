@@ -385,3 +385,20 @@ Placed twice, a line came off its sash and the opening's panes were lost.
 `stretch` now places each child by one route:
 - by the carry, where its section changes;
 - by the map, where its section does not.
+
+## 12. Materials through correction (Phase 8)
+
+Every material assignment lives on a part's own `Finish`: the frame, each
+bar, each pane, each piece of ironmongery, and the design's infill. A
+correction moves corners, never finishes, so all of them survive these
+four cases:
+- a second reading;
+- a stated figure;
+- the sizes form;
+- the outline drawn again.
+
+The rubber seal is built by the solid itself.
+
+One gap was found. A leaf made taller gains a hinge, which came in the
+stock finish. It now takes the finish the leaf's other hinges share
+(`OpeningHardware._finishOf`, `setOf`).

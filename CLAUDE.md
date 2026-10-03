@@ -4927,6 +4927,45 @@ every piece of ironmongery its child and on its leaf, `contentsOf` holding
 all of it, and the solid's glass and panel within the opening. The old
 `stretch` fails the sizes form for all three.
 
+### Correcting the geometry keeps every material
+
+The brief: *geometry normalisation must not modify material assignments —
+glass type and appearance, panel colour and material, PVC, aluminium, the
+frame's material, the handle, the hinges, metal, rubber. Geometry ≠
+material.*
+
+It held by construction almost everywhere, because a material is a part's
+own `Finish` and a correction moves corners, never finishes: the frame's
+finish rides on the frame through a reading, a bar keeps its finish by
+being paired with the bar its stroke made last time, a pane's by
+`SectionBuilder._carryIdentityForward`, a piece of ironmongery's by its
+settled id (`OpeningHardware._finishOf`), the design's own infill is the
+design's, and the rubber seal round every sealed unit is the solid's own.
+
+**One gap, and it was the geometry choosing a material.** A leaf made
+taller by the sizes hangs on one hinge more — its count follows its height
+— and that hinge had never existed, so it came in the stock grey while the
+leaf's other three were the black the user had made them. A new piece of a
+set — the hinges of one leaf — now takes the finish the rest of that set
+carries (`_finishOf`'s `setOf`), where they all carry one; where they
+differ, nobody has said which it is, and it takes the stock finish as any
+new piece does.
+
+`test/domain/normalization_keeps_the_materials_test.dart` holds it in all
+five categories, on a design drawn by hand with the head sloping, a
+mullion, a transom and a `>`, given a material for everything: an
+anthracite aluminium frame, a white uPVC mullion, a grey aluminium
+transom, an oak line inside the opening, tinted and frosted glass in the
+fixed lights, blue-grey glass over a white panel in the opening, a silver
+handle, black hinges, bronze for anything else, and a brown panel as the
+design's infill. It is then read again, corrected by a figure the user
+states, given its sizes, and drawn again more crooked — the geometry
+changing in all but the first — and every part's finish, glass look and
+panel colour is required back, by what the part is rather than where it
+is, in the design and on every face of the solid, the rubber seal
+included; a hinge the taller leaf gained is required to be black. Putting
+the stock finish back on a new hinge fails it in every hinged category.
+
 `validateAngledGeometry` is not written yet: angled designs are the next
 phases' work, and the audit says where it belongs.
 
