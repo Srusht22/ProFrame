@@ -40,12 +40,10 @@ List<DrawnRun> runsOf(String id, List<Vec2> corners) => [
 NormalizedGeometry normalize(
   List<DrawnRun> runs, {
   List<Stroke> ink = const [],
+  DesignKind kind = DesignKind.window,
 }) => GeometryNormalizer.normalizeStandardGeometry(
   runs,
-  NormalizationContext(
-    kind: DesignKind.window,
-    ink: {for (final s in ink) s.id: s},
-  ),
+  NormalizationContext(kind: kind, ink: {for (final s in ink) s.id: s}),
 );
 
 bool level(Segment s) => s.a.y == s.b.y;
@@ -186,9 +184,11 @@ void main() {
   });
 
   group('geometry that is meant stays as it was drawn', () {
-    test('a run well off an axis keeps its angle exactly', () {
-      // A head drawn at seven degrees: further off level than a hand
-      // wobbles, so a slope the user meant.
+    test('a slope keeps its angle exactly: past a lean in any design, and '
+        'at any angle in an angled one', () {
+      // A head drawn at seven degrees is a lean in a window (see
+      // standard_normalization_rules_test.dart); in a design begun as
+      // angled the user said slopes are meant, so it is kept.
       const pitched = [
         Vec2(0, 0),
         Vec2(2000, 245),
@@ -196,12 +196,31 @@ void main() {
         Vec2(0, 1600),
         Vec2(0, 0),
       ];
-      final out = normalize(runsOf('frame', pitched));
-      expect(out.changed, isFalse, reason: out.corrections.join('\n'));
-      final head = out.runs.first.segment;
-      expect(head.a, const Vec2(0, 0));
-      expect(head.b, const Vec2(2000, 245));
-      expect(out.runs.first.squaredTo, isNull);
+      final angled = normalize(
+        runsOf('frame', pitched),
+        kind: DesignKind.angled,
+      );
+      expect(angled.changed, isFalse, reason: angled.corrections.join('\n'));
+      expect(
+        angled.runs.first.segment,
+        const Segment(Vec2(0, 0), Vec2(2000, 245)),
+      );
+      expect(angled.runs.first.squaredTo, isNull);
+
+      // Twelve degrees is past any lean of the hand: a window keeps it too.
+      const steep = [
+        Vec2(0, 0),
+        Vec2(2000, 425),
+        Vec2(2000, 1600),
+        Vec2(0, 1600),
+        Vec2(0, 0),
+      ];
+      final window = normalize(runsOf('frame', steep));
+      expect(window.changed, isFalse, reason: window.corrections.join('\n'));
+      expect(
+        window.runs.first.segment,
+        const Segment(Vec2(0, 0), Vec2(2000, 425)),
+      );
     });
 
     test('a gable and a diagonal glazing bar are left exactly as drawn', () {

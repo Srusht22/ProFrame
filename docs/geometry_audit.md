@@ -273,3 +273,39 @@ crossings. It is relative to the two lengths now.
 
 Faults 3–5 of §5 — the ink as a second authority, hardware from the
 bounding box, and axis-only sizes — are untouched.
+
+## 8. The standard rules (Phase 4)
+
+These are for Door, Window, Sliding and Door & window. Two steps were added
+to the normaliser between joining and keeping square.
+
+**Trim a corner drawn past** (`_trimmedAtCorners`). Two loose ends whose
+runs cross within `Tol.overshootFraction` of each run's own length are cut
+back to the crossing.
+- Probe before the change: a head drawn 15 cm past its jamb came back as a
+  bar lying along the frame.
+- Probe now: a clean rectangle.
+- This step applies in every category.
+- An end that stops *short* of a line is not touched. That is an open side,
+  and the user is still asked about it.
+
+**Square a lean** (`_leansSquared`). This applies in standard designs only.
+A run is squared when all three hold:
+- it is 5–10° off an axis (`Tol.leanDegrees`);
+- the side opposite it is square, or it turns a corner from a square side;
+- squaring it changes the width of what it bounds by at most
+  `Tol.leanShare`.
+
+Probes:
+- A right side leaning 7° comes back upright where before it was kept.
+- A parallelogram and sides leaning opposite ways come back as rectangles.
+- A narrow light drawn tapering keeps its taper.
+- A rectangle turned 7° altogether is kept as drawn.
+- In an angled design every slope past 5° is kept.
+
+**Behaviour change.** A head drawn 5–10° off level in a door, window or
+sliding design is now squared. The Angled / Asymmetrical category is how to
+keep it.
+
+Faults 3–5 of §5 are still untouched: the ink as a second authority,
+hardware from the bounding box, and axis-only sizes.

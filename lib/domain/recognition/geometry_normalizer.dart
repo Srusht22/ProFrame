@@ -38,11 +38,12 @@ class DrawnRun {
 /// What the normaliser is told about the drawing beyond its lines: what is
 /// being drawn, and the ink every run was read from.
 class NormalizationContext {
-  /// The category the user began the design as. **No rule reads it yet**:
-  /// every correction made today is cleaning that is the same for a door,
-  /// a window and a sliding set. It is here so that a rule which does
-  /// depend on what is being built has the user's own answer to read,
-  /// rather than one worked out from the shape.
+  /// The category the user began the design as — the user's own answer to
+  /// what is being built, read rather than worked out from the shape.
+  ///
+  /// It decides one rule: a lean squared because the drawing round it is
+  /// square ([isStandard]). Everything else the normaliser does is cleaning
+  /// that is the same whatever is being drawn.
   final DesignKind kind;
 
   /// The strokes, by id: the ink, which says where an end was really drawn
@@ -50,6 +51,12 @@ class NormalizationContext {
   final Map<String, Stroke> ink;
 
   const NormalizationContext({required this.kind, this.ink = const {}});
+
+  /// Whether the design is a standard one — a door, a window, a sliding set
+  /// or a door & window set — whose lines the user means level, upright and
+  /// square. An angled design is not: choosing it is the user saying,
+  /// before a line is drawn, that the slopes they draw are meant.
+  bool get isStandard => kind != DesignKind.angled;
 }
 
 /// What a correction did.
@@ -71,6 +78,15 @@ enum CorrectionKind {
   /// A run whose two ends were joined into one point: a slip of the pen,
   /// left in the sketch and not built.
   absorbed,
+
+  /// Two runs drawn past the corner where they cross, each trimmed back to
+  /// it.
+  trimmed,
+
+  /// A run leaning further than [squared] takes, in a standard design,
+  /// squared because the side opposite it or the side it turns a corner
+  /// from is square.
+  leaning,
 }
 
 /// One change the normaliser made to one run, and the run before and after
@@ -126,12 +142,14 @@ class NormalizedGeometry {
 /// **It cleans and never redesigns** — the table *Where the line falls* in
 /// `CLAUDE.md`. It squares a run a hand drew a few degrees off level or
 /// upright, carries an end back onto the line it was drawn onto, joins ends
-/// drawn a little apart, and keeps a squared run square when its ends are
-/// joined. A run further off an axis than `Tol.axisSnapDegrees` keeps the
-/// angle it was drawn at, exactly; nothing is made equal, symmetrical or
-/// regular; no run is added; and every run comes out in the same order it
-/// went in, from the same stroke, so the reading can pair it with what it
-/// made last time.
+/// drawn a little apart, trims two runs drawn past their corner back to it,
+/// and keeps a squared run square when its ends are joined. In a standard
+/// design — not an angled one — it also squares a run leaning up to
+/// `Tol.leanDegrees` where the drawing round it is square. Any other run
+/// keeps the angle it was drawn at, exactly; nothing is made equal,
+/// symmetrical or regular; no run is added; an outline drawn open is not
+/// closed; and every run comes out in the same order it went in, from the
+/// same stroke, so the reading can pair it with what it made last time.
 abstract final class GeometryNormalizer {
   /// The runs of a drawing whose lines were meant level, upright or meeting,
   /// as the design is to be built from them.
@@ -143,10 +161,17 @@ abstract final class GeometryNormalizer {
   /// 2. **Carry onto the ink** an end drawn onto another stroke, along its
   ///    own line.
   /// 3. **Join** ends drawn a little apart into one point.
-  /// 4. **Keep square**: every run squared in step 1 is made square again
+  /// 4. **Trim** two runs drawn past the corner where they cross back to it
+  ///    (`Tol.overshootFraction`).
+  /// 5. **Square a lean**, in a standard design only: a run up to
+  ///    `Tol.leanDegrees` off an axis, where the side opposite it or the
+  ///    side it turns a corner from is square, and squaring it changes the
+  ///    width of what it bounds by no more than `Tol.leanShare`.
+  /// 6. **Keep square**: every run squared in step 1 or 5 is made square
   ///    with its ends still joined, by giving the joined points that a
   ///    level run runs between one height, and those an upright runs
-  ///    between one distance across.
+  ///    between one distance across. A closed outline is closed after it,
+  ///    because a point two runs share is moved as one point.
   static NormalizedGeometry normalizeStandardGeometry(
     List<DrawnRun> raw,
     NormalizationContext context,
@@ -181,9 +206,21 @@ abstract final class GeometryNormalizer {
       if (run != null) kept.add(run);
     }
 
-    final square = _keptSquare(kept);
+    final trimmed = _trimmedAtCorners(kept);
     for (var i = 0; i < kept.length; i++) {
-      note(CorrectionKind.keptSquare, kept[i], square[i]);
+      note(CorrectionKind.trimmed, kept[i], trimmed[i]);
+    }
+
+    final leaning = context.isStandard ? _leansSquared(trimmed) : trimmed;
+    final square = _keptSquare(leaning);
+    for (var i = 0; i < leaning.length; i++) {
+      note(
+        leaning[i].squaredTo == trimmed[i].squaredTo
+            ? CorrectionKind.keptSquare
+            : CorrectionKind.leaning,
+        trimmed[i],
+        square[i],
+      );
     }
     return NormalizedGeometry(square, corrections);
   }
@@ -197,6 +234,149 @@ abstract final class GeometryNormalizer {
         ? RunAxis.upright
         : null;
     return DrawnRun(to, run.strokeId, squaredTo: axis);
+  }
+
+  /// Two runs drawn past the corner where they cross, trimmed back to it.
+  ///
+  /// A hand drawing a frame side by side runs the head on past the jamb, or
+  /// closes the loop past where it began. The two lines cross a little way
+  /// from an end of each: that crossing is the corner the user drew, and
+  /// what lies beyond it is the pen not stopping. Left alone, the stub is a
+  /// bar lying along the frame that nobody drew.
+  ///
+  /// Only an end that meets no other end, only where the lines genuinely
+  /// cross, and only where each end is within `Tol.overshootFraction` of its
+  /// own run from the crossing. An end that stops *short* of the other line
+  /// further than the join reaches is not touched: that is an outline left
+  /// open, and the user is asked about it rather than having it closed for
+  /// them.
+  static List<DrawnRun> _trimmedAtCorners(List<DrawnRun> runs) {
+    final meeting = <Vec2, int>{};
+    for (final run in runs) {
+      for (final p in [run.segment.a, run.segment.b]) {
+        meeting[p] = (meeting[p] ?? 0) + 1;
+      }
+    }
+    final weld = Tol.weldFor(spanOf(runs));
+    final ends = [
+      for (final run in runs) [run.segment.a, run.segment.b],
+    ];
+    final done = <(int, int)>{};
+    bool loose(int run, int end) =>
+        !done.contains((run, end)) && meeting[ends[run][end]] == 1;
+
+    for (var i = 0; i < runs.length; i++) {
+      for (var j = i + 1; j < runs.length; j++) {
+        final cross = runs[i].segment.crossing(
+          runs[j].segment,
+          tolerance: weld,
+        );
+        if (cross == null) continue;
+        final at = cross.at;
+        for (var e = 0; e < 2; e++) {
+          for (var f = 0; f < 2; f++) {
+            if (!loose(i, e) || !loose(j, f)) continue;
+            final past = ends[i][e].distanceTo(at);
+            final over = ends[j][f].distanceTo(at);
+            if (past <= Tol.samePointMm && over <= Tol.samePointMm) continue;
+            if (past > Tol.overshootFraction * runs[i].segment.length ||
+                over > Tol.overshootFraction * runs[j].segment.length) {
+              continue;
+            }
+            ends[i][e] = at;
+            ends[j][f] = at;
+            done
+              ..add((i, e))
+              ..add((j, f));
+          }
+        }
+      }
+    }
+    return [
+      for (var i = 0; i < runs.length; i++)
+        runs[i].moved(Segment(ends[i][0], ends[i][1])),
+    ];
+  }
+
+  /// [runs], with every lean of the hand in a standard design marked to be
+  /// squared by [_keptSquare].
+  ///
+  /// A run further off an axis than `Tol.axisSnapDegrees` is ordinarily a
+  /// slope, and kept. But in a door or a window the drawing round it can
+  /// say otherwise, and a rectangle drawn with one leaning side is still a
+  /// rectangle: the brief's own example. So a run up to `Tol.leanDegrees`
+  /// off an axis is squared when either
+  ///
+  /// - **the side opposite it is square** — a run squared to the same axis,
+  ///   alongside it for at least half its length: a jamb leaning beside an
+  ///   upright jamb, a head tilted over a level sill; or
+  /// - **it turns a corner from a square side** — it shares an end with a
+  ///   run squared to the other axis: the jamb meeting a level head;
+  ///
+  /// and squaring it moves its far end by no more than `Tol.leanShare` of
+  /// the width of what it bounds — the gap to the side opposite, or the
+  /// length of the side it turns from. More than that and the lean is the
+  /// shape of the thing, not a wobble in drawing it.
+  ///
+  /// Only runs squared in the first step count as square here, so a lean
+  /// is never squared on the strength of another lean: two jambs leaning
+  /// the same way under a head that leans too have nothing square to go by,
+  /// and are kept as drawn.
+  static List<DrawnRun> _leansSquared(List<DrawnRun> runs) {
+    RunAxis? leanOf(DrawnRun run) {
+      if (run.squaredTo != null) return null;
+      final s = run.segment;
+      if (s.offAxisDegrees > Tol.leanDegrees) return null;
+      return (s.a.x - s.b.x).abs() < (s.a.y - s.b.y).abs()
+          ? RunAxis.upright
+          : RunAxis.level;
+    }
+
+    bool squarable(DrawnRun run, RunAxis axis) {
+      final s = run.segment;
+      final upright = axis == RunAxis.upright;
+      // How far squaring moves it: one end against the other, across.
+      final across = upright ? (s.a.x - s.b.x).abs() : (s.a.y - s.b.y).abs();
+      double along(Vec2 p) => upright ? p.y : p.x;
+      double side(Vec2 p) => upright ? p.x : p.y;
+
+      for (final other in runs) {
+        if (identical(other, run) || other.squaredTo == null) continue;
+        final o = other.segment;
+        final double room;
+        if (other.squaredTo == axis) {
+          final from = math.max(
+            math.min(along(s.a), along(s.b)),
+            math.min(along(o.a), along(o.b)),
+          );
+          final to = math.min(
+            math.max(along(s.a), along(s.b)),
+            math.max(along(o.a), along(o.b)),
+          );
+          final extent = (along(s.a) - along(s.b)).abs();
+          if (to - from < extent / 2) continue;
+          room = (side(o.a) - side(s.midpoint)).abs();
+        } else {
+          final corner = {s.a, s.b}.intersection({o.a, o.b}).isNotEmpty;
+          if (!corner) continue;
+          room = o.length;
+        }
+        if (across <= Tol.leanShare * room) return true;
+      }
+      return false;
+    }
+
+    return [
+      for (final run in runs)
+        switch (leanOf(run)) {
+          final RunAxis axis when squarable(run, axis) => DrawnRun(
+            run.segment,
+            run.strokeId,
+            squaredTo: axis,
+          ),
+          _ => run,
+        },
+    ];
   }
 
   /// Every run that was squared, square again — with every end that was

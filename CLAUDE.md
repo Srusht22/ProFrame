@@ -4686,14 +4686,18 @@ them in one order so a correction stays made:
    distance across, each the average of its group. A point no squared run
    ends at is not moved, so a slope keeps its angle.
 
+Phase 4 put two more steps between joining and keeping square — see *The
+standard rules* below — and keeping square now squares what either marked.
+
 **What it may not do is the table under *Where the line falls*.** A run
-further off an axis than five degrees keeps its angle exactly; nothing is
-made equal or symmetrical; no run is added; and every run comes out in the
-order it went in, from the same stroke, so the reading still pairs it with
-the bar it made last time. `NormalizationContext` carries the design's
-category for rules that will need the user's own answer about what is
-being built — no rule reads it yet — and the ink. Every change is a
-`GeometryCorrection` (kind, stroke, before, after), and
+further off an axis than five degrees keeps its angle exactly unless the
+standard rules below say the drawing round it is square; nothing is made
+equal or symmetrical; no run is added; an outline drawn open is not closed;
+and every run comes out in the order it went in, from the same stroke, so
+the reading still pairs it with the bar it made last time.
+`NormalizationContext` carries the design's category — the user's own
+answer about what is being built, which the lean rule reads — and the ink.
+Every change is a `GeometryCorrection` (kind, stroke, before, after), and
 `Interpretation.corrections` hands them on.
 
 **Making the geometry exact found a fault underneath it.**
@@ -4717,6 +4721,61 @@ inside it, glass over a brown panel, hinges, a handle, a dimension, its
 design id and its customer id all the same after a second reading; and the
 collinear edges and the square sections the crossing fix is for. Taking the
 keep-square step out fails four of them.
+
+### The standard rules
+
+The brief: *a rectangle drawn with a leaning right side is still a
+rectangle* — in a door, a window, a sliding set or a door & window set,
+slightly tilted sides come back upright, a slightly tilted top level, sides
+that should be parallel parallel, a slightly inaccurate corner square, and a
+closed outline closed; *but do not make every design rectangular, and do not
+destroy intentional geometry.* What is a lean and what is a slope is read
+from the category, the angle, how far the ends would move, the size of what
+the line bounds, the lines round it, the snap that already exists, and what
+the user said. Two steps were added to the normaliser, after joining:
+
+- **Trim a corner drawn past** (`_trimmedAtCorners`, `Tol.overshootFraction`,
+  `CorrectionKind.trimmed`). Two runs whose ends meet no other end, which
+  genuinely cross within a tenth of each one's length of those ends, are
+  trimmed back to the crossing — the head run on past a jamb, the loop
+  closed past where it began. Left alone the stub came back as **a bar
+  lying along the frame** that nobody drew. *Trimming a line drawn past its
+  corner* is cleaning, in every category. An end that stops *short* of a
+  line further than the join reaches is not touched: that is an outline
+  left open, and *A side left open* still asks about it.
+- **Square a lean** (`_leansSquared`, `Tol.leanDegrees` = 10,
+  `Tol.leanShare` = 0.3, `CorrectionKind.leaning`), **in a standard design
+  only** (`NormalizationContext.isStandard`). A run between five and ten
+  degrees off an axis is squared when the drawing round it says it was
+  meant square — **the side opposite it is square** (a run squared to the
+  same axis alongside at least half of it), or **it turns a corner from a
+  square side** (it shares an end with a run squared to the other axis) —
+  and squaring it moves its far end by no more than three tenths of the
+  width of what it bounds: the gap to that opposite side, or the length of
+  the side it turns from. It is only marked; keeping square then squares it
+  with every corner still joined, so the outline stays closed.
+
+Whatever the user drew on purpose is left: past ten degrees, a slope in any
+category; in an **Angled / Asymmetrical** design any slope past a hand's
+five, because choosing it said slopes are meant; a narrow light drawn
+tapering, whose lean is half its width; a rectangle drawn turned
+altogether, which has no square side to go by — a lean is never squared on
+the strength of another lean; a gable and a diagonal bar. **A seven-degree
+head in a window is now a lean, and squared**, where Phase 2 kept it; a
+slope that shallow is meant in an angled design, and kept there.
+
+`test/domain/standard_normalization_rules_test.dart` holds the brief's five
+tests, each in all four standard categories, in the normaliser and read as
+a design, as one stroke and side by side: a perfect rectangle untouched in
+every category; a right side leaning 3° and 7° upright between where its
+ends were drawn, the others where they were, and kept in an angled design;
+a head tilted 3° and 7° level, and one at 12° kept everywhere; a corner
+with ends apart joined, one drawn past trimmed with no bar left, a loop
+closed past its start trimmed, a corner off square square, and a door with
+no sill still asked about; jambs leaning opposite ways, one slightly and
+one further, and a parallelogram, each a rectangle. And what is not made
+rectangular, as above. Switching off the lean, the trim or the category
+each fails it.
 
 `validateAngledGeometry` is not written yet: angled designs are the next
 phases' work, and the audit says where it belongs.

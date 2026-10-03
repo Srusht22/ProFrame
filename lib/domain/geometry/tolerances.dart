@@ -23,6 +23,42 @@ abstract final class Tol {
   /// angle it was drawn at, exactly.
   static const double axisSnapDegrees = 5;
 
+  /// How far a line may lean off level or upright and still be read as a
+  /// lean of the hand **in a standard design** — a door, a window, a
+  /// sliding set, or both — rather than a slope.
+  ///
+  /// Beyond [axisSnapDegrees] a line is squared only when the drawing round
+  /// it says it was meant square: the side opposite it is square, or it
+  /// turns a corner from a square side (`GeometryNormalizer`). A finger
+  /// drawing a jamb the height of a phone leans it six or eight degrees as
+  /// often as not, and in a design the user began as a door or a window
+  /// that is the jamb of a rectangle drawn by hand. Ten, because past it the
+  /// lean is plain to the eye and so is likely meant; and never in an
+  /// angled design, where the user said before drawing that slopes are
+  /// meant.
+  static const double leanDegrees = 10;
+
+  /// How far squaring a lean may move the far end of the line, as a share
+  /// of the width of what it bounds — the gap to the square side opposite
+  /// it, or the length of the square side it turns a corner from.
+  ///
+  /// A lean that changes the width of what it bounds by more than this is a
+  /// shape, not a wobble: a narrow light drawn tapering is a tapering light,
+  /// whatever its angle. A tall door drawn on a phone leans its jamb a
+  /// quarter of its own width, so the share is set just above that.
+  static const double leanShare = 0.3;
+
+  /// How far a line may run past a corner and still be read as drawn past
+  /// it, as a fraction of its own length.
+  ///
+  /// Two lines that cross a little way from both their ends are a corner
+  /// the hand overshot — trimming them back is cleaning, *Trimming a line
+  /// drawn past its corner* — and left alone the stub is a bar lying along
+  /// the frame that nobody drew. A tenth, because a hand overshoots by a
+  /// finger's width on a line a hand long, and a stub a tenth of the line is
+  /// already far longer than the join tolerance catches.
+  static const double overshootFraction = 0.1;
+
   /// How far a sample may sit off the line between its neighbours before it
   /// counts as a corner, as a fraction of the stroke's own size.
   ///
