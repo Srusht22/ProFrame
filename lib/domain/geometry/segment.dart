@@ -77,7 +77,13 @@ class Segment {
     final r = direction;
     final s = other.direction;
     final denominator = r.cross(s);
-    if (denominator.abs() < 1e-12) return null; // Parallel.
+    // Parallel, as a share of the two lengths — the sine of the angle
+    // between them — never as an absolute figure. Two collinear edges in
+    // millimetres differ by rounding noise of a ten-billionth or so, which
+    // an absolute threshold read as a steep crossing a long way off: the
+    // body of a mullion lying along the frame's daylight edge, both exactly
+    // level, cut that edge six millimetres from where the mullion stands.
+    if (denominator.abs() <= 1e-9 * r.length * s.length) return null;
 
     final t = (other.a - a).cross(s) / denominator;
     final u = (other.a - a).cross(r) / denominator;

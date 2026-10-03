@@ -250,3 +250,26 @@ PlanarSubdivision → frame / dividers → SectionBuilder → _placeSymbols  (un
 Pinned by `test/domain/rendering_geometry_baseline_test.dart`: any change
 here that moves a facet of the pinned door, window or sliding pair is a
 change of geometry, and has to be said so on purpose.
+
+## 7. Since the audit — the normaliser (Phase 2)
+
+`lib/domain/recognition/geometry_normalizer.dart` is the place §6 asked
+for. `GeometryNormalizer.normalizeStandardGeometry` takes every run at once
+and does steps 3–5 of §1 in one order: square, carry onto the ink, join,
+then **keep square**. The new last step fixes faults 1 and 2 of §5. The
+probes now come back as follows:
+
+- the rectangle drawn about 1° out has every side exactly level or
+  upright;
+- the two transoms 15 mm apart are level and still meet.
+
+`SketchInterpreter` no longer holds any of those steps. Only the reading's
+own work is left in it: the outline, the completion of lines stopped short,
+scope, sections and marks.
+
+Making the geometry exact exposed a fault in `Segment.crossing`: its
+parallel test was absolute, and collinear edges looked like steep
+crossings. It is relative to the two lengths now.
+
+Faults 3–5 of §5 — the ink as a second authority, hardware from the
+bounding box, and axis-only sizes — are untouched.

@@ -762,7 +762,8 @@ millimetres decided it — a third of hand-wobbled copies of that drawing
 read wrong — which is the sign of a relationship being lost rather than a
 tolerance being a little off.
 
-`_ontoWhatTheyWereDrawnOn` asks the **ink** rather than the fit. An end
+`GeometryNormalizer._ontoWhatTheyWereDrawnOn` asks the **ink** rather than
+the fit. An end
 within a weld of another stroke's own samples was drawn onto it, and is
 carried along its own line to where that line meets the leg the stroke
 became — along its own line, so the angle it was drawn at is kept; never
@@ -4593,19 +4594,80 @@ traces drawing → geometry → saved design → CAD → 3D through the code, an
 records five faults found by running the reading on hand-drawn shapes:
 
 - the weld undoes the axis snap, so a rectangle drawn about 1° out comes
-  back with no square side;
-- the weld turns two level transoms into two sloped ones;
+  back with no square side — **fixed**, see below;
+- the weld turns two level transoms into two sloped ones — **fixed**;
 - a drag in CAD is undone by the next reading, because the ink is not
   moved;
 - a handle on a raked leaf is placed outside the leaf, because hardware is
   placed from the opening's bounding box;
 - sizes and the CAD snaps exist only for horizontal and vertical members.
 
-Its recommendation is the one place a normalisation system goes: inside
-`SketchInterpreter.interpret`, between `StrokeFitter.fit` and
-`PlanarSubdivision`, taking every run of the drawing at once. `Design`
-stays the only canonical geometry, and `DesignTree` and `DesignGeometry`
-stay the only things the views read.
+### Where the hand's inaccuracy comes out
+
+```
+strokes ─ StrokeFitter.fit ─► raw runs ─ GeometryNormalizer ─► runs
+  ─ PlanarSubdivision ─► frame, bars, sections ─► Design (canonical)
+  ─► DesignTree / DesignGeometry ─► Draw, CAD, 3D
+```
+
+`GeometryNormalizer.normalizeStandardGeometry`
+(`lib/domain/recognition/geometry_normalizer.dart`) is the **one place** a
+drawing is cleaned, and `SketchInterpreter.interpret` calls it between the
+fit and the subdivision with every run of the drawing at once. It is not a
+second geometry system: it holds nothing, it returns the runs the design is
+built from, and the design is still the only canonical geometry, so the
+correction reaches the sheet, the technical drawing and the solid because
+all three read the design. Nothing in it draws or knows there are views.
+
+It took over the steps the reading used to do as separate passes, and put
+them in one order so a correction stays made:
+
+1. **Square** a run within `Tol.axisSnapDegrees` of an axis
+   (`StrokeFitter.straightened`, still the one rule, shared with
+   *Pause to straighten*), and mark it `DrawnRun.squaredTo`.
+2. **Carry onto the ink** an end drawn onto another stroke
+   (`_ontoWhatTheyWereDrawnOn`, moved here unchanged).
+3. **Join** ends drawn a little apart (`_joined`, the old weld).
+4. **Keep square** (`_keptSquare`) — new. Joining averaged a level run's end
+   with an upright's, which is on neither; now the joined points a level run
+   runs between are given one height, and those an upright runs between one
+   distance across, each the average of its group. A point no squared run
+   ends at is not moved, so a slope keeps its angle.
+
+**What it may not do is the table under *Where the line falls*.** A run
+further off an axis than five degrees keeps its angle exactly; nothing is
+made equal or symmetrical; no run is added; and every run comes out in the
+order it went in, from the same stroke, so the reading still pairs it with
+the bar it made last time. `NormalizationContext` carries the design's
+category for rules that will need the user's own answer about what is
+being built — no rule reads it yet — and the ink. Every change is a
+`GeometryCorrection` (kind, stroke, before, after), and
+`Interpretation.corrections` hands them on.
+
+**Making the geometry exact found a fault underneath it.**
+`Segment.crossing` called two segments parallel when their cross product
+was under an absolute `1e-12`, and two collinear edges in millimetres
+carry rounding noise far above that: the body of a mullion lying exactly
+along the frame's daylight edge was read as crossing it steeply a long way
+off, and the light beside the mullion came back with a corner six
+millimetres inside the mullion's face. Parallel is now a share of the two
+lengths — the sine of the angle between them.
+
+`test/domain/geometry_normalizer_test.dart` holds it: an already correct
+rectangle back exactly with nothing corrected, in the normaliser and read
+as a design; a rectangle drawn a degree out square with every corner still
+joined and within the hand's wobble of where it was put; two transoms a
+hand apart level and still meeting; every change recorded against its
+stroke; a head at seven degrees, a gable and a diagonal glazing bar left
+exactly as drawn; unequal lights left unequal; the same drawing giving the
+same runs in the same order; a hand-drawn window with an opening, a line
+inside it, glass over a brown panel, hinges, a handle, a dimension, its
+design id and its customer id all the same after a second reading; and the
+collinear edges and the square sections the crossing fix is for. Taking the
+keep-square step out fails four of them.
+
+`validateAngledGeometry` is not written yet: angled designs are the next
+phases' work, and the audit says where it belongs.
 
 ## Working on this repository
 

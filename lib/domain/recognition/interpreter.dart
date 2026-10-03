@@ -13,6 +13,7 @@ import '../sections/planar_graph.dart';
 import '../sections/section_bands.dart';
 import '../sections/section_builder.dart';
 import '../sketch/stroke.dart';
+import 'geometry_normalizer.dart';
 import 'opening_symbol.dart';
 import 'stroke_fit.dart';
 
@@ -33,11 +34,16 @@ class Interpretation {
   /// placed in a section.
   final List<OpeningSymbol> symbols;
 
+  /// What `GeometryNormalizer` cleaned on the way to the design: every run
+  /// squared, carried onto a line, joined or kept square, before and after.
+  final List<GeometryCorrection> corrections;
+
   const Interpretation({
     required this.design,
     this.questions = const [],
     this.unusedStrokeIds = const [],
     this.symbols = const [],
+    this.corrections = const [],
   });
 
   bool get hasQuestions => questions.isNotEmpty;
@@ -111,12 +117,12 @@ abstract final class SketchInterpreter {
     }
 
     final fits = [for (final stroke in structural) StrokeFitter.fit(stroke)];
-    final runs = <_Run>[];
+    final runs = <DrawnRun>[];
     for (final fit in fits) {
       if (fit.kind == FitKind.mark) continue;
       for (final segment in fit.segments) {
         if (segment.length < Tol.minLineMm) continue;
-        runs.add(_Run(StrokeFitter.straightened(segment), fit.stroke.id));
+        runs.add(DrawnRun(segment, fit.stroke.id));
       }
     }
 
@@ -131,10 +137,18 @@ abstract final class SketchInterpreter {
       );
     }
 
-    final welded = _weld(_ontoWhatTheyWereDrawnOn(runs, {
-      for (final fit in fits) fit.stroke.id: fit.stroke,
-    }));
-    final span = _spanOf(welded);
+    // The shake of the hand comes out here, and only here: every run of the
+    // drawing at once, so a correction made to one line is never undone by
+    // the next. See `GeometryNormalizer`.
+    final normalized = GeometryNormalizer.normalizeStandardGeometry(
+      runs,
+      NormalizationContext(
+        kind: design.kind,
+        ink: {for (final fit in fits) fit.stroke.id: fit.stroke},
+      ),
+    );
+    final welded = normalized.runs;
+    final span = GeometryNormalizer.spanOf(welded);
     final weld = Tol.weldFor(span);
     final shape = PlanarSubdivision.subdivide(
       [for (final r in welded) r.segment],
@@ -285,7 +299,7 @@ abstract final class SketchInterpreter {
     final pairing = {
       for (final entry in madeBefore.entries) entry.key: [...entry.value],
     };
-    final scoped = <({_Run run, DividerElement? before, String? scope})>[];
+    final scoped = <({DrawnRun run, DividerElement? before, String? scope})>[];
     for (final run in welded) {
       if (_liesOn(run.segment, outline, weld)) continue;
       final made = pairing[run.strokeId];
@@ -451,6 +465,7 @@ abstract final class SketchInterpreter {
       design: read,
       questions: questions,
       symbols: symbols,
+      corrections: normalized.corrections,
       unusedStrokeIds: [
         for (final stroke in structural)
           if (!usedStrokes.contains(stroke.id)) stroke.id,
@@ -1004,7 +1019,7 @@ abstract final class SketchInterpreter {
   /// that way. Where nothing so simple would, it asks them to finish it.
   static Interpretation _unclosed(
     Design design,
-    List<_Run> runs,
+    List<DrawnRun> runs,
     List<Stroke> structural, {
     _Gap? gap,
   }) {
@@ -1084,7 +1099,7 @@ abstract final class SketchInterpreter {
   /// because that is the outline the user drew; a line from a jamb to the
   /// end of a hanging bar closes something smaller, and is not what was
   /// left undrawn. Nothing is added here: this only says where the gap is.
-  static _Gap? _gapIn(List<_Run> runs, double weld) {
+  static _Gap? _gapIn(List<DrawnRun> runs, double weld) {
     final loose = <Vec2>[];
     for (var i = 0; i < runs.length; i++) {
       for (final end in [runs[i].segment.a, runs[i].segment.b]) {
@@ -1259,164 +1274,6 @@ abstract final class SketchInterpreter {
     );
   }
 
-  /// Each end of a run that the user drew **onto** another line, carried
-  /// onto the straight line that other line became.
-  ///
-  /// **An end that touches a line on the sheet touches it in the design.**
-  /// That is a fact of the drawing, and straightening is not allowed to
-  /// break it. A hand's outline is straightened leg by leg — a kink of a few
-  /// centimetres in a metre-long jamb is wobble, and taking it out is the
-  /// cleaning this file exists to do — but the straight leg can then lie a
-  /// hand's width from where the user actually drew it, and a transom drawn
-  /// to their jamb now stops short of the straightened one. It divides
-  /// nothing on that side: the light above it and the light below run
-  /// together, and a `<` the user drew in a small upper light opened the
-  /// whole column from head to sill.
-  ///
-  /// So the question is asked of the **ink**, not of the fit. An end within
-  /// a weld of another stroke's own samples was drawn onto it, and is moved
-  /// along its own line to where that line meets the leg the stroke became.
-  /// Along its own line, so the angle the user drew it at is kept; never
-  /// further than that stroke's straightening was allowed to move it, so
-  /// this can only undo the fitter's own displacement and never reach
-  /// across the design; and only when the fit really did move the line
-  /// away, so an end already on its line is left exactly where it was.
-  static List<_Run> _ontoWhatTheyWereDrawnOn(
-    List<_Run> runs,
-    Map<String, Stroke> drawn,
-  ) {
-    final weld = Tol.weldFor(_spanOf(runs));
-    final legs = <String, List<Segment>>{};
-    for (final run in runs) {
-      legs.putIfAbsent(run.strokeId, () => []).add(run.segment);
-    }
-
-    double offTheInk(Vec2 point, Stroke stroke) {
-      final ink = stroke.points;
-      var nearest = double.infinity;
-      for (var i = 1; i < ink.length; i++) {
-        nearest =
-            math.min(nearest, Segment(ink[i - 1], ink[i]).distanceTo(point));
-      }
-      return nearest;
-    }
-
-    Vec2 follow(Vec2 end, Vec2 from, String own) {
-      final along = end - from;
-      if (along.length <= Tol.samePointMm) return end;
-
-      Vec2? best;
-      var nearest = double.infinity;
-      for (final entry in legs.entries) {
-        if (entry.key == own) continue;
-        final stroke = drawn[entry.key];
-        if (stroke == null || offTheInk(end, stroke) > weld) continue;
-
-        var already = double.infinity;
-        for (final leg in entry.value) {
-          already = math.min(already, leg.distanceTo(end));
-        }
-        if (already <= weld) continue;
-
-        // How far that stroke's own straightening could have moved it —
-        // the fitter's tolerance for it, not a figure chosen here.
-        final allowance = math.max(
-            stroke.diagonal * Tol.cornerFraction, Tol.cornerFloorMm);
-        for (final leg in entry.value) {
-          final hit = _whereLinesMeet(from, end, leg);
-          if (hit == null || leg.distanceTo(hit) > weld) continue;
-          if ((hit - from).dot(along) <= 0) continue;
-          final move = hit.distanceTo(end);
-          if (move > allowance + weld || move >= nearest) continue;
-          best = hit;
-          nearest = move;
-        }
-      }
-      return best ?? end;
-    }
-
-    return [
-      for (final run in runs)
-        _Run(
-          Segment(
-            follow(run.segment.a, run.segment.b, run.strokeId),
-            follow(run.segment.b, run.segment.a, run.strokeId),
-          ),
-          run.strokeId,
-        ),
-    ];
-  }
-
-  /// Where the line through [from] and [to] meets the line [leg] lies on.
-  static Vec2? _whereLinesMeet(Vec2 from, Vec2 to, Segment leg) {
-    final r = to - from;
-    final s = leg.direction;
-    final denominator = r.cross(s);
-    if (denominator.abs() < 1e-9) return null;
-    final t = (leg.a - from).cross(s) / denominator;
-    return from + r * t;
-  }
-
-  static List<_Run> _weld(List<_Run> runs) {
-    final span = _spanOf(runs);
-    final tolerance = math.max(span * Tol.joinFraction * 0.25, Tol.minLineMm);
-
-    final anchors = <Vec2>[];
-    Vec2 anchorFor(Vec2 point) {
-      for (var i = 0; i < anchors.length; i++) {
-        if (anchors[i].distanceTo(point) <= tolerance) {
-          // The anchor drifts to the average of the ends that met there, so
-          // no one stroke wins over the others.
-          anchors[i] = anchors[i].lerp(point, 0.5);
-          return anchors[i];
-        }
-      }
-      anchors.add(point);
-      return point;
-    }
-
-    final welded = [
-      for (final run in runs)
-        _Run(
-          Segment(anchorFor(run.segment.a), anchorFor(run.segment.b)),
-          run.strokeId,
-        ),
-    ];
-
-    // Anchors moved while welding, so read them back to their final places.
-    Vec2 settled(Vec2 point) {
-      for (final anchor in anchors) {
-        if (anchor.distanceTo(point) <= tolerance) return anchor;
-      }
-      return point;
-    }
-
-    return [
-      for (final run in welded)
-        if (settled(run.segment.a).distanceTo(settled(run.segment.b)) >=
-            Tol.minLineMm)
-          _Run(
-            Segment(settled(run.segment.a), settled(run.segment.b)),
-            run.strokeId,
-          ),
-    ];
-  }
-
-  static double _spanOf(List<_Run> runs) {
-    var left = double.infinity, right = -double.infinity;
-    var top = double.infinity, bottom = -double.infinity;
-    for (final run in runs) {
-      for (final p in [run.segment.a, run.segment.b]) {
-        left = math.min(left, p.x);
-        right = math.max(right, p.x);
-        top = math.min(top, p.y);
-        bottom = math.max(bottom, p.y);
-      }
-    }
-    final w = right - left, h = bottom - top;
-    return math.sqrt(w * w + h * h);
-  }
-
   /// True when a run is part of the outline rather than a line inside it.
   ///
   /// Tested along the whole run, not just at its ends, because a run that
@@ -1549,12 +1406,6 @@ class _Gap {
 
   /// Whether it is the foot of the shape — where a door meets the floor.
   bool get isFoot => side == 'the bottom';
-}
-
-class _Run {
-  final Segment segment;
-  final String strokeId;
-  const _Run(this.segment, this.strokeId);
 }
 
 class _Placed {
