@@ -522,3 +522,39 @@ it. So moving that bar sideways stretched the opening vertically:
   height now takes the rail with it, so the panel keeps its height.
 
 `test/domain/openings_inside_an_angled_design_test.dart` holds it.
+
+## 17. The technical drawing is the canonical geometry (Phase 13)
+
+`CadPainter` draws from the design and `DesignGeometry` and nothing else:
+- the frame from `FrameElement.lines` and `innerOutline`;
+- every bar from `DesignGeometry.barBody`;
+- every fill from `fillOf`, the leaf from `leafOuter` and `leafInner`;
+- the ironmongery from `hardwareOf`;
+- the figures from `DimensionChains`, each a section, a side or the frame
+  that is there.
+
+Nothing is rebuilt from the sketch, so a hand-drawn rectangle is drawn as
+the rectangle the reading corrected it to. An angled frame is drawn as
+the outline it is.
+
+**One rectangular placeholder was left: the swing.** The dashed triangle
+that says how a leaf opens was laid on the leaf's bounding box in both
+drawings. On a raked leaf it started at the box's corners, out past the
+slope and off the frame. It is now `OpeningHardware.swingOf`: the two ends
+of the stile or rail the leaf hangs on, by `stileOf` and the leaf's own
+head and sill, and the middle of the edge opposite. These are the same
+edges the hinges and the handle are placed on. A rectangle's swing is
+exactly what it was.
+
+`test/app/cad_is_the_canonical_geometry_test.dart` holds it on a standard
+rectangle, the same drawn by hand, an angled window and a window under a
+stair:
+- every line of the outline, the daylight and every bar body is inked
+  where the geometry puts it (except under a piece of ironmongery, which
+  stands in front);
+- nothing is inked outside the outline;
+- the hand's own leaning corners are not drawn;
+- every figure is a measure of something the design has.
+
+Laying the swing on the box again, or drawing the outline as the box,
+fails it.

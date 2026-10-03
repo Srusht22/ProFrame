@@ -499,28 +499,9 @@ class CadPainter extends CustomPainter {
         continue;
       }
 
-      final (Vec2 hingeA, Vec2 hingeB, Vec2 apex) = switch (edge) {
-        OpeningEdge.left => (
-            Vec2(box.left, box.top),
-            Vec2(box.left, box.bottom),
-            Vec2(box.right, (box.top + box.bottom) / 2),
-          ),
-        OpeningEdge.right => (
-            Vec2(box.right, box.top),
-            Vec2(box.right, box.bottom),
-            Vec2(box.left, (box.top + box.bottom) / 2),
-          ),
-        OpeningEdge.top => (
-            Vec2(box.left, box.top),
-            Vec2(box.right, box.top),
-            Vec2((box.left + box.right) / 2, box.bottom),
-          ),
-        OpeningEdge.bottom => (
-            Vec2(box.left, box.bottom),
-            Vec2(box.right, box.bottom),
-            Vec2((box.left + box.right) / 2, box.top),
-          ),
-      };
+      // On the leaf's own edges, so a raked leaf's swing starts on the
+      // stile it hangs on rather than at the corners of its box.
+      final (hingeA, hingeB, apex) = OpeningHardware.swingOf(box, edge);
 
       final swing = Path()
         ..moveTo(view.toScreen(hingeA).dx, view.toScreen(hingeA).dy)

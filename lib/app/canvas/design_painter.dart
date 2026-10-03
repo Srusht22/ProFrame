@@ -7,6 +7,7 @@ import '../../domain/dimensions/measurements.dart';
 import '../../domain/dimensions/units.dart';
 import '../../domain/geometry/segment.dart';
 import '../../domain/geometry/vec2.dart';
+import '../../domain/hardware/opening_hardware.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/design_geometry.dart';
 import '../../domain/model/elements.dart';
@@ -223,28 +224,8 @@ class DesignPainter extends CustomPainter {
         continue;
       }
 
-      final (Vec2 hingeA, Vec2 hingeB, Vec2 apex) = switch (edge) {
-        OpeningEdge.left => (
-            Vec2(box.left, box.top),
-            Vec2(box.left, box.bottom),
-            Vec2(box.right, (box.top + box.bottom) / 2),
-          ),
-        OpeningEdge.right => (
-            Vec2(box.right, box.top),
-            Vec2(box.right, box.bottom),
-            Vec2(box.left, (box.top + box.bottom) / 2),
-          ),
-        OpeningEdge.top => (
-            Vec2(box.left, box.top),
-            Vec2(box.right, box.top),
-            Vec2((box.left + box.right) / 2, box.bottom),
-          ),
-        OpeningEdge.bottom => (
-            Vec2(box.left, box.bottom),
-            Vec2(box.right, box.bottom),
-            Vec2((box.left + box.right) / 2, box.top),
-          ),
-      };
+      // On the leaf's own edges, as the technical drawing marks it.
+      final (hingeA, hingeB, apex) = OpeningHardware.swingOf(box, edge);
 
       canvas.drawLine(view.toScreen(hingeA), view.toScreen(apex), paint);
       canvas.drawLine(view.toScreen(hingeB), view.toScreen(apex), paint);

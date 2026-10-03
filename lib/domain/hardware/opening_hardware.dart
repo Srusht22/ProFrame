@@ -477,6 +477,43 @@ abstract final class OpeningHardware {
     return best.a.y <= best.b.y ? best : best.reversed;
   }
 
+  /// The swing a technical drawing marks on [leaf], hung on its [edge]:
+  /// the two ends of the edge it hangs on, and the middle of the edge
+  /// opposite, where the handle is.
+  ///
+  /// Read off the leaf's own edges — its stiles by [stileOf], its head and
+  /// sill by where they are at each end — so on a raked leaf the swing's
+  /// lines start at the ends of the stile it actually hangs on, not at the
+  /// corners of its box, which lie out past the slope. On a rectangle it is
+  /// exactly the box's.
+  static (Vec2, Vec2, Vec2) swingOf(Polygon leaf, OpeningEdge edge) {
+    switch (edge) {
+      case OpeningEdge.left || OpeningEdge.right:
+        final far = edge == OpeningEdge.left
+            ? OpeningEdge.right
+            : OpeningEdge.left;
+        final hinge = stileOf(leaf, edge);
+        final opposite = stileOf(leaf, far);
+        final x = edge == OpeningEdge.left ? leaf.left : leaf.right;
+        final farX = edge == OpeningEdge.left ? leaf.right : leaf.left;
+        return (
+          hinge?.a ?? Vec2(x, leaf.top),
+          hinge?.b ?? Vec2(x, leaf.bottom),
+          opposite?.midpoint ?? Vec2(farX, (leaf.top + leaf.bottom) / 2),
+        );
+      case OpeningEdge.top || OpeningEdge.bottom:
+        final far = edge == OpeningEdge.top
+            ? OpeningEdge.bottom
+            : OpeningEdge.top;
+        final middle = (leaf.left + leaf.right) / 2;
+        return (
+          Vec2(leaf.left, _railAt(leaf, leaf.left, edge)),
+          Vec2(leaf.right, _railAt(leaf, leaf.right, edge)),
+          Vec2(middle, _railAt(leaf, middle, far)),
+        );
+    }
+  }
+
   /// Where [stile] is across, at height [y].
   static double _xAt(Segment stile, double y) {
     final dy = stile.b.y - stile.a.y;

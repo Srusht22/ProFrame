@@ -5285,6 +5285,65 @@ gable:
 Carrying by the box again fails five of its tests, and not putting an end
 back on the edge fails four.
 
+### The technical drawing is the canonical geometry
+
+```
+standard:  drawing → normalisation → canonical geometry → CAD
+angled:    drawing → canonical angled geometry          → CAD
+```
+
+`CadPainter` draws the design and `DesignGeometry`, and works no shape
+out for itself:
+- the frame from `FrameElement.lines` and `innerOutline`;
+- every bar from `barBody`;
+- every pane's fill from `fillOf`, and the leaf from `leafOuter` and
+  `leafInner`;
+- the ironmongery from `hardwareOf`;
+- the figures from `DimensionChains`.
+
+It never reads the sketch for geometry: the sketch is a layer, off by
+default, and shown faded when on. So a rectangle drawn by hand is drawn as
+the rectangle the reading corrected it to. An angled design is drawn as
+the outline it is: its slope at its angle, its sides at their own
+heights, its edges as unparallel as they were drawn. Its figures are the
+frame's box, each side of its own (*Dimensions on an angled design*), and
+the sections that are there, so none is invented.
+
+**The swing was the last rectangular placeholder.** The dashed triangle
+that says how a leaf opens was laid on the leaf's bounding box, in the
+technical drawing and the drawing alike. On a raked leaf its lines started
+at the box's corners, which lie out past the slope, so the gable from
+*Openings inside an angled design* had dashed lines running up off its
+frame. `OpeningHardware.swingOf` reads it off the leaf's own edges: the
+two ends of the stile or rail it hangs on (`stileOf`, and its own head and
+sill), and the middle of the edge opposite. These are the edges its
+hinges and handle are placed on. Both painters call it, and on a rectangle
+it is exactly the box's.
+
+`test/app/cad_is_the_canonical_geometry_test.dart` holds it, on four
+designs:
+- a standard rectangle;
+- the same rectangle drawn by hand, every corner a little out;
+- an angled window, left side 200 cm and right side 150;
+- the window under a stair.
+
+Each is painted with its frame and parts alone — no grid, no figures —
+and the picture is held to the canonical geometry:
+- every line of the outline, the daylight and every bar's body is inked
+  where the geometry puts it, except under a piece of ironmongery, which
+  stands in front of what is behind it as on any elevation;
+- nothing at all is inked outside the outline;
+- the hand's own leaning corners are not inked;
+- the corrected rectangle is square, and its painter holds the design
+  itself;
+- the angled shapes are not rectangles;
+- a raked leaf's swing runs from the ends of its own stile;
+- every figure is the frame, a side or a section that is there, with a
+  side's figure on exactly the shapes that have one.
+
+Laying the swing on the box again fails it, and so does drawing the
+outline as the box: a rectangular placeholder round an angled frame.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the
