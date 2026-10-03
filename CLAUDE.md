@@ -4823,6 +4823,64 @@ of 12° to 45° kept in every design; and a square line no deviation at all,
 while the pause to straighten still squares by angle. Putting the angle-only
 rule back fails three of them.
 
+### A standard rectangle, and whose figure it is
+
+The brief: *a door, a window, a sliding set or a door & window set drawn as
+a slightly inaccurate rectangle — left side 200 cm, right side about 185 —
+comes back as a rectangle, its alignment, parallels, corners and closure
+corrected and its dimensions consistent. Do not blindly choose the larger
+dimension, do not blindly choose the smaller, do not invent one: use the
+existing dimension system and what the user entered, so the geometry, the
+dimensions, CAD and 3D agree.*
+
+The squaring is the rules above. What this added is **which figure the
+corrected side settles at**:
+
+- **A figure the user stated decides it.** Every stated dimension square
+  to an axis pins the coordinate it measures at the run ends within the
+  join tolerance of its two ends (`GeometryNormalizer._pinned`,
+  `DrawnRun.pinA`/`pinB`, `SizePin`), and the pins ride with those ends
+  through every step. The axis snap squares a run to its pinned figure
+  rather than about its middle, and keeping square gives a joined group
+  its pinned value rather than its average (`_Groups.settled`). So the left
+  side stated 200 cm gives a rectangle 200 cm high, the right side stated
+  185 cm one 185 cm high, and a figure drawn short and typed as 200 scales
+  the drawing (`DesignScale.toDimension`, as ever) and then gives exactly
+  200. The dimension's ends are on the frame's corners afterwards.
+- **Two of the user's figures that disagree are not overruled.** A run
+  whose two ends are pinned apart (`DrawnRun.pinnedApart`) is not squared,
+  by the snap or as a lean, and a joined group pinned to different values
+  keeps each point where it is. Both sides stated, 200 and 185, is a head
+  the user has said slopes, and it is kept; both figures stay true.
+- **Where nothing is stated, the side settles at the line that best fits
+  the ends as drawn** — the average of the group, neither the larger nor
+  the smaller — and **its size is `?`** until it is given, on the chains,
+  the panels and the form, as every size is (*Sizes are asked for, never
+  guessed*). That is a proportion, not a dimension.
+- **A stated figure that measures the whole frame is that size given.**
+  `Measurements.withStatedOverall`, run after every reading and when a
+  dimension's value is typed, marks the overall height or width known when
+  a stated dimension square to that axis runs between the frame's two
+  extremes and still measures what was typed. Before it, the chain beside
+  the user's own *200 cm* said `?` and the form asked for the height again.
+- **Sizes given in the form outlast every reading**, as they did:
+  `Measurements.keepAfterReading` keeps the frame they sized.
+
+`test/app/standard_rectangle_correction_test.dart` holds it on the brief's
+own rectangle, drawn by hand 90 and 200 cm wide with every side a little
+out, in a door, a window, a sliding set and a door & window set: nothing
+stated gives a rectangle at neither side's height, the fit of the ends as
+drawn, with its height and width `?`; the left side stated 200 gives 200
+high with the right side the same, the height known and written *200 cm*,
+the width not, and the figure's ends on the corners; the right side
+stated 185 gives 185; a figure drawn short and typed 200 gives exactly
+200; both stated is kept as drawn with both figures true; and sizes given
+in the form survive a second reading and a mullion drawn afterwards —
+each time the frame, the technical drawing's overall chain and the
+solid the same height, and no stated figure in conflict. An angled design
+keeps its slope whatever is stated. Taking the pins out fails sixteen of
+them, and taking `withStatedOverall` out eight.
+
 `validateAngledGeometry` is not written yet: angled designs are the next
 phases' work, and the audit says where it belongs.
 

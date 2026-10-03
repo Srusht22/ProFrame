@@ -1431,7 +1431,11 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       if (dimension.id != dimensionId) continue;
       _remember();
       state = state.copyWith(
-        design: DesignScale.toDimension(state.design, dimension, valueMm),
+        // The figure scales the design, and where it measures the whole
+        // frame it is that size given.
+        design: Measurements.withStatedOverall(
+          DesignScale.toDimension(state.design, dimension, valueMm),
+        ),
       );
       return;
     }

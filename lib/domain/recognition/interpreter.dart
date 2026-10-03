@@ -145,6 +145,10 @@ abstract final class SketchInterpreter {
       NormalizationContext(
         kind: design.kind,
         ink: {for (final fit in fits) fit.stroke.id: fit.stroke},
+        stated: [
+          for (final d in design.dimensions)
+            if (d.isStated) d,
+        ],
       ),
     );
     final welded = normalized.runs;

@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import '../geometry/segment.dart';
 import '../geometry/tolerances.dart';
 import '../geometry/vec2.dart';
-import '../model/elements.dart' show DesignKind;
+import '../model/elements.dart' show DesignKind, DimensionElement;
 import '../sketch/stroke.dart';
 
 /// Which axis a run was squared to, if any.
@@ -28,10 +28,54 @@ class DrawnRun {
   /// step, so a run squared once stays square whatever moves its ends.
   final RunAxis? squaredTo;
 
-  const DrawnRun(this.segment, this.strokeId, {this.squaredTo});
+  /// What the user has fixed about each end by stating a dimension that
+  /// measures it: [pinA] for [Segment.a], [pinB] for [Segment.b]. Carried by
+  /// every step, so the end keeps the figure whatever moves it.
+  final SizePin pinA;
+  final SizePin pinB;
+
+  const DrawnRun(
+    this.segment,
+    this.strokeId, {
+    this.squaredTo,
+    this.pinA = SizePin.none,
+    this.pinB = SizePin.none,
+  });
 
   /// The same run, its ends at [to].
-  DrawnRun moved(Segment to) => DrawnRun(to, strokeId, squaredTo: squaredTo);
+  DrawnRun moved(Segment to) => withAxis(to, squaredTo);
+
+  /// The same run, its ends at [to] and squared to [axis].
+  DrawnRun withAxis(Segment to, RunAxis? axis) =>
+      DrawnRun(to, strokeId, squaredTo: axis, pinA: pinA, pinB: pinB);
+
+  /// Whether the user's own figures put this run's two ends at different
+  /// heights — for [RunAxis.level] — or different distances across: two
+  /// stated sizes that say the line is not square, so it is not squared.
+  bool pinnedApart(RunAxis axis) {
+    final (a, b) = axis == RunAxis.level ? (pinA.y, pinB.y) : (pinA.x, pinB.x);
+    return a != null && b != null && (a - b).abs() > Tol.samePointMm;
+  }
+
+  /// The coordinate the user's figures fix for this run on [axis], if any.
+  double? pinnedOn(RunAxis axis) =>
+      axis == RunAxis.level ? (pinA.y ?? pinB.y) : (pinA.x ?? pinB.x);
+}
+
+/// A coordinate of one end of a run that a dimension the user stated
+/// measures: the end of a figure they typed, which the correction keeps
+/// rather than choosing one of its own.
+class SizePin {
+  /// The distance across that a dimension measuring across fixes.
+  final double? x;
+
+  /// The height that a dimension measuring down fixes.
+  final double? y;
+
+  const SizePin({this.x, this.y});
+
+  /// Nothing fixed.
+  static const none = SizePin();
 }
 
 /// How far a run is out from the axis it is nearest — what the normaliser
@@ -137,7 +181,17 @@ class NormalizationContext {
   /// when straightening has moved the line it lies on.
   final Map<String, Stroke> ink;
 
-  const NormalizationContext({required this.kind, this.ink = const {}});
+  /// The dimensions the user has stated a figure for: the sizes they have
+  /// said, which a correction keeps rather than choosing a size of its own.
+  /// An end of one of these, square to an axis, fixes the coordinate it
+  /// measures at the corner it was drawn to.
+  final List<DimensionElement> stated;
+
+  const NormalizationContext({
+    required this.kind,
+    this.ink = const {},
+    this.stated = const [],
+  });
 
   /// Whether the design is a standard one — a door, a window, a sliding set
   /// or a door & window set — whose lines the user means level, upright and
@@ -274,7 +328,8 @@ abstract final class GeometryNormalizer {
     }
 
     final span = spanOf(raw);
-    final squared = [for (final run in raw) _squared(run, span)];
+    final pinned = _pinned(raw, context.stated, span);
+    final squared = [for (final run in pinned) _squared(run, span)];
     for (var i = 0; i < raw.length; i++) {
       note(CorrectionKind.squared, raw[i], squared[i]);
     }
@@ -323,17 +378,77 @@ abstract final class GeometryNormalizer {
     final deviation = Deviation.of(s, spanMm);
     switch (deviation.kind) {
       case DeviationKind.none:
-        return DrawnRun(s, run.strokeId, squaredTo: deviation.axis);
-      case DeviationKind.wobble:
+        return run.withAxis(s, deviation.axis);
+      case DeviationKind.wobble when !run.pinnedApart(deviation.axis):
+        // To the figure the user stated where an end has one; about its
+        // middle where neither does.
         final middle = s.midpoint;
+        final fixed = run.pinnedOn(deviation.axis);
         final to = deviation.axis == RunAxis.upright
-            ? Segment(Vec2(middle.x, s.a.y), Vec2(middle.x, s.b.y))
-            : Segment(Vec2(s.a.x, middle.y), Vec2(s.b.x, middle.y));
-        return DrawnRun(to, run.strokeId, squaredTo: deviation.axis);
-      case DeviationKind.lean || DeviationKind.slope:
-        return DrawnRun(s, run.strokeId);
+            ? Segment(
+                Vec2(fixed ?? middle.x, s.a.y),
+                Vec2(fixed ?? middle.x, s.b.y),
+              )
+            : Segment(
+                Vec2(s.a.x, fixed ?? middle.y),
+                Vec2(s.b.x, fixed ?? middle.y),
+              );
+        return run.withAxis(to, deviation.axis);
+      case DeviationKind.wobble || DeviationKind.lean || DeviationKind.slope:
+        return run.withAxis(s, null);
     }
   }
+
+  /// [runs], each end carrying what the user's [stated] dimensions fix
+  /// there.
+  ///
+  /// A stated dimension square to an axis measures one coordinate — a
+  /// height for one running down, a distance across for one running across
+  /// — between its two ends, and those ends were put on the corners it
+  /// measures. So a run end within the join tolerance of one is pinned to
+  /// that coordinate: whatever the correction then does, that corner keeps
+  /// the figure the user typed, and the design, its dimensions and both
+  /// views agree. A dimension at a slope fixes no axis, and pins nothing.
+  static List<DrawnRun> _pinned(
+    List<DrawnRun> runs,
+    List<DimensionElement> stated,
+    double spanMm,
+  ) {
+    if (stated.isEmpty) return runs;
+    final reach = _joinToleranceFor(spanMm);
+    SizePin pinAt(Vec2 p) {
+      double? x, y;
+      for (final d in stated) {
+        if (d.measuredMm <= 0) continue;
+        if (Segment(d.a, d.b).offAxisDegrees > Tol.axisSnapDegrees) continue;
+        final down = (d.a.y - d.b.y).abs() > (d.a.x - d.b.x).abs();
+        for (final end in [d.a, d.b]) {
+          if (end.distanceTo(p) > reach) continue;
+          if (down) {
+            y ??= end.y;
+          } else {
+            x ??= end.x;
+          }
+        }
+      }
+      return x == null && y == null ? SizePin.none : SizePin(x: x, y: y);
+    }
+
+    return [
+      for (final run in runs)
+        DrawnRun(
+          run.segment,
+          run.strokeId,
+          squaredTo: run.squaredTo,
+          pinA: pinAt(run.segment.a),
+          pinB: pinAt(run.segment.b),
+        ),
+    ];
+  }
+
+  /// How near two ends must be to be joined, in a drawing [spanMm] across.
+  static double _joinToleranceFor(double spanMm) =>
+      math.max(spanMm * Tol.joinFraction * 0.25, Tol.minLineMm);
 
   /// Two runs drawn past the corner where they cross, trimmed back to it.
   ///
@@ -426,6 +541,7 @@ abstract final class GeometryNormalizer {
     RunAxis? leanOf(DrawnRun run) {
       if (run.squaredTo != null) return null;
       final deviation = Deviation.of(run.segment, span);
+      if (run.pinnedApart(deviation.axis)) return null;
       return switch (deviation.kind) {
         DeviationKind.lean || DeviationKind.wobble => deviation.axis,
         DeviationKind.none || DeviationKind.slope => null,
@@ -469,10 +585,9 @@ abstract final class GeometryNormalizer {
     return [
       for (final run in runs)
         switch (leanOf(run)) {
-          final RunAxis axis when squarable(run, axis) => DrawnRun(
+          final RunAxis axis when squarable(run, axis) => run.withAxis(
             run.segment,
-            run.strokeId,
-            squaredTo: axis,
+            axis,
           ),
           _ => run,
         },
@@ -517,8 +632,19 @@ abstract final class GeometryNormalizer {
           break;
       }
     }
-    final y = ys.averages([for (final p in points) p.y]);
-    final x = xs.averages([for (final p in points) p.x]);
+    // What the user's stated sizes fix at each point, from every run end
+    // that lies there.
+    final pinX = List<double?>.filled(points.length, null);
+    final pinY = List<double?>.filled(points.length, null);
+    for (var i = 0; i < runs.length; i++) {
+      final (a, b) = ends[i];
+      for (final (point, pin) in [(a, runs[i].pinA), (b, runs[i].pinB)]) {
+        pinX[point] ??= pin.x;
+        pinY[point] ??= pin.y;
+      }
+    }
+    final y = ys.settled([for (final p in points) p.y], pinY);
+    final x = xs.settled([for (final p in points) p.x], pinX);
     Vec2 at(int i) => Vec2(x[i], y[i]);
     return [
       for (var i = 0; i < runs.length; i++)
@@ -637,8 +763,7 @@ abstract final class GeometryNormalizer {
   /// others. A run's list place is kept: one with nothing left of it once
   /// its ends have met is null.
   static List<DrawnRun?> _joined(List<DrawnRun> runs) {
-    final span = spanOf(runs);
-    final tolerance = math.max(span * Tol.joinFraction * 0.25, Tol.minLineMm);
+    final tolerance = _joinToleranceFor(spanOf(runs));
 
     final anchors = <Vec2>[];
     Vec2 anchorFor(Vec2 point) {
@@ -715,18 +840,34 @@ class _Groups {
 
   void join(int a, int b) => _parent[_root(a)] = _root(b);
 
-  /// [values], with every point in a group of more than one given the
-  /// average of its group.
-  List<double> averages(List<double> values) {
+  /// [values], with every point in a group of more than one given one
+  /// value: the figure the user stated where any point of the group is
+  /// [pinned] to one, and otherwise the average of the group — the line
+  /// that best fits the ends as drawn, neither the larger nor the smaller.
+  ///
+  /// A group whose points the user's figures pin to *different* values
+  /// cannot be one line without overruling one of them, and which figure is
+  /// right is theirs to say: every point keeps its own value.
+  List<double> settled(List<double> values, List<double?> pinned) {
     final sum = <int, double>{};
     final count = <int, int>{};
+    final pins = <int, List<double>>{};
     for (var i = 0; i < values.length; i++) {
       final root = _root(i);
       sum[root] = (sum[root] ?? 0) + values[i];
       count[root] = (count[root] ?? 0) + 1;
+      if (pinned[i] case final pin?) (pins[root] ??= []).add(pin);
     }
-    return [
-      for (var i = 0; i < values.length; i++) sum[_root(i)]! / count[_root(i)]!,
-    ];
+    double valueOf(int i) {
+      final root = _root(i);
+      if (count[root]! < 2) return values[i];
+      final said = pins[root];
+      if (said == null) return sum[root]! / count[root]!;
+      final low = said.reduce(math.min), high = said.reduce(math.max);
+      if (high - low > Tol.samePointMm) return values[i];
+      return (low + high) / 2;
+    }
+
+    return [for (var i = 0; i < values.length; i++) valueOf(i)];
   }
 }

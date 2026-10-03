@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import '../editing/design_edits.dart';
 import '../geometry/polygon.dart';
+import '../geometry/segment.dart';
+import '../geometry/tolerances.dart';
 import '../geometry/vec2.dart';
 import '../model/design.dart';
 import '../model/elements.dart';
@@ -680,6 +682,52 @@ abstract final class Measurements {
   static Design keepAfterReading(Design before, Design read) {
     final said = before.measured;
     if (said == null) return read;
+    return withStatedOverall(_keptAfterReading(before, read, said));
+  }
+
+  /// [design], knowing every overall size a dimension the user stated
+  /// already gives.
+  ///
+  /// A figure the user typed on a dimension running the whole height of
+  /// the frame *is* the frame's height: asking for it again, or writing
+  /// `?` on the chain beside the very figure they typed, would be the
+  /// design disagreeing with itself. So a stated dimension square to an
+  /// axis, whose two ends are the frame's two extremes along it — to within
+  /// how exactly a stated figure is held (`DesignScale.conflicts`) — makes
+  /// that overall size known. One that measures anything less is a size of
+  /// something else, and gives nothing here.
+  static Design withStatedOverall(Design design) {
+    final said = design.measured;
+    final frame = design.frame;
+    if (said == null || frame == null) return design;
+    final outline = frame.outline;
+    final keys = <String>{};
+    for (final d in design.dimensions) {
+      final stated = d.statedMm;
+      if (stated == null || d.measuredMm <= 0) continue;
+      if (Segment(d.a, d.b).offAxisDegrees > Tol.axisSnapDegrees) continue;
+      final tolerance = math.max(1.0, stated * 0.002);
+      final down = (d.a.y - d.b.y).abs() > (d.a.x - d.b.x).abs();
+      final ends = down ? [d.a.y, d.b.y] : [d.a.x, d.b.x];
+      ends.sort();
+      final (low, high) = down
+          ? (outline.top, outline.bottom)
+          : (outline.left, outline.right);
+      if ((ends.first - low).abs() <= tolerance &&
+          (ends.last - high).abs() <= tolerance &&
+          (d.measuredMm - stated).abs() <= tolerance) {
+        keys.add(down ? heightKey : widthKey);
+      }
+    }
+    if (said.containsAll(keys)) return design;
+    return design.copyWith(measured: {...said, ...keys});
+  }
+
+  static Design _keptAfterReading(
+    Design before,
+    Design read,
+    Set<String> said,
+  ) {
     final keep = <String>{...said};
     var d = read;
 

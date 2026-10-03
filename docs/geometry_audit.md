@@ -337,3 +337,36 @@ Consequences:
 
 The user's own snaps (the pen's pause, the straight-line tool) are
 unchanged: they still square by angle.
+
+## 10. Standard rectangle correction (Phase 6)
+
+A corrected side used to settle at the average of its ends, whatever the
+user had said about sizes. It now settles at the size the user stated:
+- A stated dimension that is square to an axis pins the coordinate it
+  measures. The pin applies to the run ends within the join tolerance of
+  the dimension's ends (`SizePin`).
+- The pins ride with those ends through the snap, the join and the trim.
+- When keeping square, a pinned group takes the user's figure instead of
+  its average.
+- A run whose ends the user's figures pin to different values is not
+  squared. A group whose pins disagree keeps each point where it is.
+
+With nothing stated, a corrected side still settles at the average and its
+size stays `?`.
+
+`Measurements.withStatedOverall` makes the overall size known when a
+stated dimension spans the whole frame. Before this, the CAD chain showed
+`?` beside the user's own figure.
+
+Probe: the brief's example (left side 200 cm, right side 185 cm):
+- **nothing stated:** a rectangle at the fit of the drawn ends, with its
+  size `?`;
+- **left side stated 200:** 200 high;
+- **right side stated 185:** 185 high;
+- **both stated:** the head is kept sloping.
+
+In every case the frame, the CAD chain and the solid agree.
+
+Still open: a stated dimension's figure is not updated when the sizes form
+later stretches the design (`Measurements.stretch` moves its ends but keeps
+`statedMm`).
