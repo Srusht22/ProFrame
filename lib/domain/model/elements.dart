@@ -52,6 +52,25 @@ enum Construction {
 }
 
 /// A door or a window.
+/// What reading a drawing does with a line drawn a little out of square —
+/// the category's whole say over geometry (`DesignKind.geometryPolicy`).
+///
+/// One geometry engine serves every category: the same fitter, the same
+/// planar subdivision, the same canonical design, the same three views.
+/// The policy only decides how far the normaliser may go in calling a line
+/// the hand's rather than the user's.
+enum GeometryPolicy {
+  /// Squares what is plainly the hand — a wobble, a lean whose opposite
+  /// side is square, a corner drawn past — and keeps every real slope.
+  /// Says when it visibly put something right.
+  normalize,
+
+  /// Keeps every slope beyond the hand's own precision exactly as drawn,
+  /// and checks the result rather than mending it
+  /// (`GeometryNormalizer.validateAngledGeometry`).
+  preserve,
+}
+
 enum DesignKind {
   door('Door', Face.outside),
   window('Window', Face.inside),
@@ -119,6 +138,17 @@ enum DesignKind {
 
   /// Whether a mark in this design says a panel slides rather than swings.
   bool get slides => this == sliding;
+
+  /// What reading a drawing of this category does with a line drawn a
+  /// little off level or upright — the one place a category decides
+  /// anything about geometry. See [GeometryPolicy].
+  ///
+  /// Door, window, sliding and door & window are standard: their lines are
+  /// meant square, so what is plainly the hand is straightened. An angled
+  /// design is the user saying, before a line is drawn, that its slopes are
+  /// meant: they are kept, and the result is checked instead.
+  GeometryPolicy get geometryPolicy =>
+      this == angled ? GeometryPolicy.preserve : GeometryPolicy.normalize;
 
   /// Whether a new design of this kind is asked, as it starts, what it is
   /// built of — panel, glass, or both. See [Construction].

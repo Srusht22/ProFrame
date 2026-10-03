@@ -688,3 +688,34 @@ The full suite is the regression run: 2194 tests, all passing, with
 `flutter analyze` clean. Nothing in the application changed in this
 phase; nothing it found needed fixing.
 
+## 24. Final review (Phase 20)
+
+The review found two things worth changing, and both were changed. No
+behaviour changed.
+
+- **The category's say over geometry was asked in three places**: the
+  normaliser and twice in the reading, each as `kind == angled`. It is now
+  one property, `DesignKind.geometryPolicy` (`GeometryPolicy.normalize`
+  or `preserve`), and all three ask it. A test scans `lib/domain` so that
+  the question cannot be asked directly again.
+- **One tolerance was written twice as a bare 0.05.** Where a bar's end
+  is carried on to a line, and where a frame side is followed along a bar,
+  the same "lying along it, not ending on it" angle was a literal in each
+  file. It is `Tol.alongSine` now, with its reason.
+
+Checked and found right:
+- **One source of truth:** `Design`, read by `DesignGeometry` and
+  `DesignTree`, drawn by all three views.
+- **The reading runs on Read, never on a pointer event.** It takes 1–6 ms
+  and the solid 1–9 ms on the debug VM, even for a 12-light design with
+  six leaves.
+- **Serialization:** every field round-trips, and older files load
+  unchanged.
+
+The open faults from the first audit are now settled:
+- a drag in CAD undone by the next reading: still open, and not part of
+  this feature;
+- sizes and snaps only for horizontal and vertical members: sizes are
+  fixed for angled frames by the side figures (§15); the CAD snaps are
+  unchanged.
+

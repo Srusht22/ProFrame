@@ -639,7 +639,7 @@ abstract final class SectionBuilder {
       if (met == null) return 0;
       final sine = unit.cross(met.unit).abs();
       // Nearly along it: it does not end on that line so much as lie on it.
-      if (sine < 0.05) return 0;
+      if (sine < Tol.alongSine) return 0;
       final cosine = unit.dot(met.unit).abs();
       return widthMm / 2 * cosine / sine;
     }

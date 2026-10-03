@@ -4,7 +4,8 @@ import '../geometry/segment.dart';
 import '../geometry/tolerances.dart';
 import '../geometry/vec2.dart';
 import '../model/design.dart' show Design;
-import '../model/elements.dart' show DesignKind, DimensionElement;
+import '../model/elements.dart'
+    show DesignKind, DimensionElement, GeometryPolicy;
 import '../sketch/stroke.dart';
 import 'geometry_validation.dart';
 
@@ -223,7 +224,7 @@ class NormalizationContext {
   /// or a door & window set — whose lines the user means level, upright and
   /// square. An angled design is not: choosing it is the user saying,
   /// before a line is drawn, that the slopes they draw are meant.
-  bool get isStandard => kind != DesignKind.angled;
+  bool get isStandard => kind.geometryPolicy == GeometryPolicy.normalize;
 }
 
 /// What a correction did.

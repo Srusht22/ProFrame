@@ -485,12 +485,17 @@ abstract final class SketchInterpreter {
       questions: questions,
       symbols: symbols,
       corrections: normalized.corrections,
-      noticeablyCorrected: design.kind == DesignKind.angled
-          ? const {}
-          : normalized.noticeableStrokes,
-      problems: design.kind == DesignKind.angled
-          ? GeometryNormalizer.validateAngledGeometry(read)
-          : const [],
+      // The category's policy, and nothing else about it, decides which:
+      // what was put right is said, or what is wrong is reported.
+      noticeablyCorrected: switch (design.kind.geometryPolicy) {
+        GeometryPolicy.normalize => normalized.noticeableStrokes,
+        GeometryPolicy.preserve => const {},
+      },
+      problems: switch (design.kind.geometryPolicy) {
+        GeometryPolicy.normalize => const [],
+        GeometryPolicy.preserve =>
+          GeometryNormalizer.validateAngledGeometry(read),
+      },
       unusedStrokeIds: [
         for (final stroke in structural)
           if (!usedStrokes.contains(stroke.id)) stroke.id,

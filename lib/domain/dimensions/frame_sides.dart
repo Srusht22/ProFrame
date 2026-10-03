@@ -485,7 +485,9 @@ abstract final class FrameSides {
     final r = bar.direction, s = side.direction;
     final denominator = r.cross(s);
     if (denominator.abs() < 1e-9 * r.length * s.length) return null;
-    if ((denominator / (r.length * s.length)).abs() < 0.05) return null;
+    if ((denominator / (r.length * s.length)).abs() < Tol.alongSine) {
+      return null;
+    }
     final u = (side.a - bar.a).cross(r) / denominator;
     final slack = 1 / math.max(s.length, 1e-9);
     if (u < -slack || u > 1 + slack) return null;

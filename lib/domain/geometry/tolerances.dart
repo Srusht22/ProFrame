@@ -130,4 +130,16 @@ abstract final class Tol {
   /// percent of the door, and that is an overshoot to trim, not a side
   /// left open. A fifth separates the two with room either side.
   static const double openSideFraction = 0.2;
+
+  /// Below this sine of the angle between them — about three degrees — a
+  /// line meeting another runs along it rather than ending on it.
+  ///
+  /// Where a bar's end is carried on to the line it ends against, or a
+  /// frame's side is followed along a bar's own line, the meeting point is
+  /// where the two lines cross; two lines this close to parallel cross a
+  /// long way off, or nowhere sensible, and the bar lies on that line
+  /// rather than stopping at it. Three degrees is under the snap a hand's
+  /// wobble is squared by ([axisSnapDegrees]), so no line the user drew at
+  /// a meant angle is mistaken for one lying along another.
+  static const double alongSine = 0.05;
 }

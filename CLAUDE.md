@@ -5731,6 +5731,62 @@ anything any category straightens. The category's own behaviour is held
 by `reopening_keeps_the_category_test` and
 `comprehensive_geometry_test`, which do fail under that change.
 
+### The final architecture, and where each part of it is
+
+```
+                       USER DRAWING                 Sketch, Stroke
+                            │
+                   RAW DRAWING GEOMETRY             StrokeFitter.fit → DrawnRun
+                            │
+                  GEOMETRY INTERPRETER              SketchInterpreter.interpret
+                            │
+              DesignKind.geometryPolicy             GeometryPolicy
+                ┌───────────┴───────────┐
+       normalize (Door, Window,    preserve (Angled /
+       Sliding, Door & window)     Asymmetrical)
+                │                       │
+       GeometryNormalizer:         GeometryNormalizer, the hand's
+       squares the hand's          wobble only; then
+       wobble, leans, corners      GeometryValidation checks
+                └───────────┬───────────┘
+                   CANONICAL GEOMETRY               Design (frame, bars, sections,
+                            │                         openings, hardware, sizes),
+                            │                         read by DesignGeometry/DesignTree
+               ┌────────────┼────────────┐
+              2D           CAD           3D        DesignPainter, CadPainter,
+                                                     MeshBuilder
+```
+
+**A category's whole say over geometry is `DesignKind.geometryPolicy`.**
+One engine serves every category. The four standard categories normalise
+and Angled / Asymmetrical preserves. The normaliser
+(`NormalizationContext.isStandard`) and the reading (what was put right is
+said, or what is wrong is checked) both ask the policy and nothing else.
+Everything else a category decides is on `DesignKind` too, beside it:
+- `leafDefault`, what a leaf follows;
+- `asksConstruction`, whether glass or panel is asked;
+- `slides`, whether a mark means a sliding panel;
+- `seenFrom`, which face is drawn.
+
+A leaf's lever, lock or fastener is the leaf's own kind (`Design.kindOf`),
+not the design's. `test/domain/the_category_s_geometry_policy_test.dart`
+holds the mapping and that both follow it. It also scans `lib/domain` so
+that no geometry code asks *is this angled* for itself.
+
+**Performance.** The reading runs only when it is asked for: **Read**, or
+an answer that needs the sheet read again. Drawing a stroke only marks the
+drawing changed, and nothing runs on a pointer move. The one fit made
+while drawing is the pause to straighten, once, after the pen has rested
+a second. A reading takes a few milliseconds, as does building the solid
+(see *Every edit reaches every view at once, and looking does no work* for
+the rebuilds).
+
+**Known limit, stated rather than hidden.** A design saved with a category
+this version does not know — one added by a later version — loads as a
+window, as any unknown category always has. Opening it and saving it here
+would then keep it as a window. Nothing this version writes can produce
+such a file.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the
