@@ -213,6 +213,8 @@ void main() {
               expect(h.elementId, isNotNull);
             case DimensionOf.drawn:
               break;
+            case DimensionOf.side:
+              expect(h.elementId, startsWith('side:'));
           }
         }
       }

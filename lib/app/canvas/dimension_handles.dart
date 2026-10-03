@@ -27,6 +27,10 @@ enum DimensionOf {
 
   /// A measurement the user drew themselves.
   drawn,
+
+  /// One side of a frame that is not a rectangle; [DimensionHandle.elementId]
+  /// is its `FrameSide.key`.
+  side,
 }
 
 /// One figure on the drawing, and the geometry it stands for.
@@ -157,11 +161,25 @@ abstract final class CadDimensions {
       final run = placed.run;
       final across = placed.chain.axis == DimensionAxis.horizontal;
       final overall = run.of == ChainRunOf.overall;
+      if (run.sideKey case final key?) {
+        handles.add(
+          DimensionHandle(
+            rect: placed.rect.inflate(3),
+            of: DimensionOf.side,
+            elementId: key,
+            valueMm: run.valueMm,
+            label: run.sideLabel ?? 'Side',
+            known: placed.known,
+          ),
+        );
+        continue;
+      }
       final what = switch (run.of) {
         ChainRunOf.overall => 'Overall',
         ChainRunOf.daylight => 'Daylight',
         ChainRunOf.opening => 'Opening',
         ChainRunOf.division => 'Division',
+        ChainRunOf.side => 'Side',
       };
       handles.add(DimensionHandle(
         rect: placed.rect.inflate(3),

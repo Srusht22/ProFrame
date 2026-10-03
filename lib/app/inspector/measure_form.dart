@@ -263,9 +263,16 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
   /// A size that follows from the others, as the sizes typed so far make
   /// it — or `?` while something it follows from is still missing.
   String _followed(Design preview, List<Measure> previewAll, Measure m) {
-    final now = previewAll
-        .where((p) => p.sectionId == m.sectionId && p.axis == m.axis)
-        .firstOrNull;
+    final now =
+        previewAll.where((p) => p.key == m.key).firstOrNull ??
+        previewAll
+            .where(
+              (p) =>
+                  m.sectionId != null &&
+                  p.sectionId == m.sectionId &&
+                  p.axis == m.axis,
+            )
+            .firstOrNull;
     if (now == null || !Measurements.knows(preview, now, previewAll)) {
       return '? ${Units.symbol}';
     }

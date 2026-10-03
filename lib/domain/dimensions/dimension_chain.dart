@@ -4,6 +4,7 @@ import '../geometry/tolerances.dart';
 import '../model/design.dart';
 import '../model/design_tree.dart';
 import '../model/elements.dart';
+import 'frame_sides.dart';
 
 /// Which way a chain of dimensions runs.
 enum DimensionAxis { horizontal, vertical }
@@ -45,6 +46,10 @@ enum ChainRunOf {
   /// One pane of a divided part — a division made inside a section, such
   /// as the glass above a rail and the panel below it.
   division,
+
+  /// One side of a frame that is not a rectangle: a jamb shorter than the
+  /// whole, a level edge narrower than it. See `FrameSide`.
+  side,
 }
 
 /// One measurement in a chain: from here to there, along the axis.
@@ -61,12 +66,20 @@ class ChainRun {
   /// The section it measures, when it measures one. Null on an overall.
   final String? sectionId;
 
+  /// The side of the frame it measures, by `FrameSide.key`, on a side.
+  final String? sideKey;
+
+  /// What the side is called — *Right jamb height* — on a side.
+  final String? sideLabel;
+
   const ChainRun({
     required this.fromMm,
     required this.toMm,
     this.note = '',
     this.of = ChainRunOf.daylight,
     this.sectionId,
+    this.sideKey,
+    this.sideLabel,
   });
 
   double get valueMm => toMm - fromMm;
@@ -163,7 +176,93 @@ abstract final class DimensionChains {
     ));
 
     chains.addAll(_openingsAndDivisions(design));
+    chains.addAll(_sides(design, chains));
     return chains;
+  }
+
+  /// The sides of a frame that is not a rectangle, each on the side of the
+  /// drawing it stands on: a short left jamb down the left, a short right
+  /// jamb down the right, a level head along the head. Each is measured on
+  /// the edge that is there, from one of its corners to the other, so a
+  /// left side of 200 cm and a right side of 150 are two figures and never
+  /// one. On the foot and the left, nearest the drawing with the overall
+  /// beyond them, as the frame's own figures; along the head and down the
+  /// right, nearest the drawing, with the openings and divisions beyond.
+  static List<DimensionChain> _sides(
+    Design design,
+    List<DimensionChain> chains,
+  ) {
+    final frame = design.frame;
+    if (frame == null) return const [];
+    final outline = frame.outline;
+    final sides = FrameSides.of(design);
+    if (sides.isEmpty) return const [];
+    final middleX = (outline.left + outline.right) / 2;
+    final middleY = (outline.top + outline.bottom) / 2;
+    final bySide = <DimensionSide, List<ChainRun>>{};
+    for (final side in sides) {
+      final a = outline.corners[side.anchor];
+      final b = outline.corners[side.free];
+      final down = side.axis.name == 'down';
+      final where = down
+          ? ((a.x + b.x) / 2 < middleX
+                ? DimensionSide.left
+                : DimensionSide.right)
+          : ((a.y + b.y) / 2 < middleY
+                ? DimensionSide.top
+                : DimensionSide.bottom);
+      final (from, to) = down
+          ? (math.min(a.y, b.y), math.max(a.y, b.y))
+          : (math.min(a.x, b.x), math.max(a.x, b.x));
+      (bySide[where] ??= []).add(
+        ChainRun(
+          fromMm: from,
+          toMm: to,
+          note: 'Side',
+          of: ChainRunOf.side,
+          sideKey: side.key,
+          sideLabel: side.label,
+        ),
+      );
+    }
+    final out = <DimensionChain>[];
+    for (final MapEntry(key: where, value: runs) in bySide.entries) {
+      final rows = _packed([
+        for (final r in runs) [r],
+      ]);
+      final inner =
+          where == DimensionSide.left || where == DimensionSide.bottom;
+      // On the foot and the left the sides go between the divisions and the
+      // overall, which moves out past them; along the head and down the
+      // right they go nearest the drawing, the frame's own figures before
+      // its parts', and what was there moves out past them. So a phone,
+      // which keeps the right for the drawing, has to keep room for one row
+      // there and no more.
+      final there = [
+        for (final c in chains)
+          if (c.side == where) c,
+      ];
+      var row = inner
+          ? there.where((c) => c.runs.first.of != ChainRunOf.overall).length
+          : 0;
+      for (final runs in rows) {
+        out.add(
+          DimensionChain(axis: where.axis, runs: runs, row: row++, side: where),
+        );
+      }
+      for (var i = 0; i < chains.length; i++) {
+        final c = chains[i];
+        if (c.side != where) continue;
+        if (inner && c.runs.first.of != ChainRunOf.overall) continue;
+        chains[i] = DimensionChain(
+          axis: c.axis,
+          runs: c.runs,
+          row: inner ? row++ : c.row + rows.length,
+          side: c.side,
+        );
+      }
+    }
+    return out;
   }
 
   /// The chains along the head and down the right: nearest the drawing, what

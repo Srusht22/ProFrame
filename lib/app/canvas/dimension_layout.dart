@@ -141,6 +141,7 @@ class DimensionLayout {
   /// into, the openings, what each part is divided into.
   static int _rank(DimensionChain chain) => switch (chain.runs.first.of) {
     ChainRunOf.overall => 0,
+    ChainRunOf.side => 0,
     ChainRunOf.daylight => 1,
     ChainRunOf.opening => 2,
     ChainRunOf.division => 3,
@@ -400,6 +401,9 @@ class DimensionLayout {
     final along = axis == DimensionAxis.horizontal
         ? MeasureAxis.across
         : MeasureAxis.down;
+    if (run.sideKey case final key?) {
+      return Measurements.knowsMeasure(design, key, sizes);
+    }
     final section = run.sectionId;
     if (run.of == ChainRunOf.overall || section == null) {
       return Measurements.knowsOverall(design, along);
@@ -413,16 +417,23 @@ class DimensionLayout {
   ///
   /// [rightToo] false keeps the right for the drawing — on a narrow screen,
   /// where width is what there is least of — and its rows appear as the
-  /// drawing is looked at closer.
+  /// drawing is looked at closer. A side of the frame down the right is
+  /// the exception: it is the frame's own figure and always written.
   static EdgeInsets roomFor(Design design, {bool rightToo = true}) {
     var top = -1, right = -1;
     for (final chain in DimensionChains.of(design)) {
       if (chain.side == DimensionSide.top) top = math.max(top, chain.row);
-      if (chain.side == DimensionSide.right) right = math.max(right, chain.row);
+      // A side of the frame down the right is the frame's own figure, as
+      // the overall height is, and is always written, so its room is kept
+      // even where the right is otherwise left to the drawing.
+      if (chain.side == DimensionSide.right &&
+          (rightToo || chain.runs.first.of == ChainRunOf.side)) {
+        right = math.max(right, chain.row);
+      }
     }
     double rows(int last) => last < 0
         ? 0
         : Cad.dimensionGap + last * Cad.dimensionStep + 2 * figureOff + 12;
-    return EdgeInsets.only(top: rows(top), right: rightToo ? rows(right) : 0);
+    return EdgeInsets.only(top: rows(top), right: rows(right));
   }
 }

@@ -183,6 +183,10 @@ void main() {
         for (final c in DimensionChains.of(d)) {
           final across = c.axis == DimensionAxis.horizontal;
           for (final run in c.runs) {
+            if (run.of == ChainRunOf.side) {
+              expect(run.sideKey, isNotNull, reason: name);
+              continue;
+            }
             final box = run.of == ChainRunOf.overall
                 ? outline
                 : d.sectionById(run.sectionId!)!.outline;
@@ -197,6 +201,8 @@ void main() {
                 expect(d.openingOf(run.sectionId!), isNotNull, reason: name);
               case ChainRunOf.division:
                 expect(d.sectionById(run.sectionId!)!.parentId, isNotNull);
+              case ChainRunOf.side:
+                break;
             }
           }
         }
@@ -428,6 +434,7 @@ void main() {
             ChainRunOf.daylight => 'Daylight',
             ChainRunOf.opening => 'Opening',
             ChainRunOf.division => 'Division',
+            ChainRunOf.side => f.run.sideLabel!,
           };
           expect(hit.label, startsWith(what));
         }

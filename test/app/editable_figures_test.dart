@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/canvas/cad_layers.dart';
 import 'package:proframe/app/canvas/dimension_handles.dart';
 import 'package:proframe/app/canvas/view_transform.dart';
+import 'package:proframe/domain/dimensions/frame_sides.dart';
 import 'package:proframe/domain/dimensions/units.dart';
 import 'package:proframe/domain/editing/design_edits.dart';
 import 'package:proframe/domain/geometry/polygon.dart';
@@ -92,6 +93,9 @@ void main() {
           DimensionOf.sectionHeight =>
             design.sectionById(figure.elementId!)!.heightMm,
           DimensionOf.drawn => figure.valueMm,
+          DimensionOf.side => FrameSides.of(design)
+              .firstWhere((s) => s.key == figure.elementId)
+              .lengthOn(design.frame!.outline),
         };
         // A daylight chain measures the pane it names, so either way the
         // figure and the geometry are the same number.

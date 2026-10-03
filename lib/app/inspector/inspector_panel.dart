@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/dimensions/frame_sides.dart';
 import '../../domain/dimensions/measurements.dart';
 import '../../domain/dimensions/units.dart';
 import '../../domain/editing/design_edits.dart';
@@ -113,17 +114,51 @@ class InspectorPanel extends ConsumerWidget {
             ),
           ],
         FrameMemberElement() => [
-            _Readout(
-              'Length',
-              Measurements.figure(
-                element.lengthMm,
-                known: Measurements.complete(state.design),
+            // A side of a frame that is not a rectangle has a size of its
+            // own, typed here as on the drawing; any other side is read.
+            if (FrameSides.of(state.design)
+                    .where((s) => s.edge == element.index)
+                    .firstOrNull
+                case final side?)
+              _NumberField(
+                label: side.label,
+                valueMm: side.lengthOn(state.design.frame!.outline),
+                known: Measurements.knowsMeasure(state.design, side.key),
+                help: 'Moves this side\'s free end. The other sides keep '
+                    'their sizes, and the slope between them follows.',
+                onSet: (v) => controller.measure({side.key: v}),
+              )
+            else
+              _Readout(
+                'Length',
+                Measurements.figure(
+                  element.lengthMm,
+                  known: Measurements.complete(state.design),
+                ),
               ),
-            ),
             _Readout(
               'Angle',
               '${element.run.headingDegrees.toStringAsFixed(1)}°',
             ),
+            // A slope's rise and run: what it climbs and how far across,
+            // read off its own two ends.
+            if (!element.run.isHorizontalish &&
+                !element.run.isVerticalish) ...[
+              _Readout(
+                'Rise',
+                Measurements.figure(
+                  (element.run.b.y - element.run.a.y).abs(),
+                  known: Measurements.complete(state.design),
+                ),
+              ),
+              _Readout(
+                'Run',
+                Measurements.figure(
+                  (element.run.b.x - element.run.a.x).abs(),
+                  known: Measurements.complete(state.design),
+                ),
+              ),
+            ],
             if (Measurements.complete(state.design)) ...[
               _Readout(
                 'From',

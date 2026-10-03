@@ -9,6 +9,7 @@ import '../model/design.dart';
 import '../model/elements.dart';
 import '../sections/section_builder.dart';
 import '../sketch/stroke.dart';
+import 'frame_sides.dart';
 import 'units.dart';
 
 /// Which way a size runs.
@@ -78,6 +79,12 @@ class Measure {
       case Measurements.heightKey:
         return design.heightMm;
     }
+    if (FrameSides.edgeOf(key) case final edge?) {
+      final side = FrameSides.of(design).where((s) => s.edge == edge);
+      final outline = design.frame?.outline;
+      if (side.isEmpty || outline == null) return 0;
+      return side.first.lengthOn(outline);
+    }
     final section = design.sectionById(sectionId ?? '');
     if (section == null) return 0;
     return axis == MeasureAxis.across ? section.widthMm : section.heightMm;
@@ -133,6 +140,15 @@ abstract final class Measurements {
         const Measure(key: barsKey, group: 'Frame', label: 'Bar thickness'),
       const Measure(key: widthKey, group: 'Frame', label: 'Overall width'),
       const Measure(key: heightKey, group: 'Frame', label: 'Overall height'),
+      // A frame that is not a rectangle: each side with a size of its own.
+      for (final side in FrameSides.of(design))
+        Measure(
+          key: side.key,
+          group: 'Frame',
+          label: side.label,
+          axis: side.axis,
+          asked: FrameSides.askedOf(design).contains(side.edge),
+        ),
     ];
     final claimed = <String>{};
     var fixed = 0;
@@ -221,6 +237,22 @@ abstract final class Measurements {
     final said = design.measured;
     if (said == null) return true;
     if (measure.asked) return said.contains(measure.key);
+    // A side of the frame that follows is known once the overall size and
+    // every other side along the same axis are.
+    if (FrameSides.edgeOf(measure.key) != null) {
+      if (!said.contains(
+        measure.axis == MeasureAxis.across ? widthKey : heightKey,
+      )) {
+        return false;
+      }
+      return (all ?? of(design)).every(
+        (m) =>
+            !m.asked ||
+            m.axis != measure.axis ||
+            FrameSides.edgeOf(m.key) == null ||
+            said.contains(m.key),
+      );
+    }
     // What follows is known once everything it follows from is: the
     // frame's own figures, and every other size asked for along the same
     // axis in the same place.
@@ -254,6 +286,17 @@ abstract final class Measurements {
       at = parent;
     }
     return outer == null;
+  }
+
+  /// Whether the size kept under [key] is known.
+  static bool knowsMeasure(
+    Design design,
+    String key, [
+    List<Measure>? all,
+  ]) {
+    final measures = all ?? of(design);
+    final measure = measures.where((m) => m.key == key).firstOrNull;
+    return measure != null && knows(design, measure, measures);
   }
 
   /// Whether the overall size along [axis] is known.
@@ -390,8 +433,37 @@ abstract final class Measurements {
         problems[key] = 'Smaller than the frame around it.';
         continue;
       }
-      d = stretch(d, axis, [start, end], [start, start + value]);
+      if (FrameSides.isRectangle(box)) {
+        d = stretch(d, axis, [start, end], [start, start + value]);
+      } else {
+        // A frame that is not a rectangle: its far side moves, and each
+        // side standing on it keeps its own size.
+        final moved = FrameSides.overall(d, axis, value);
+        if (moved == null) {
+          problems[key] = 'That does not fit the parts inside it.';
+          continue;
+        }
+        d = moved;
+      }
       said.add(key);
+    }
+
+    // Each side of a frame that is not a rectangle, its free corner moved.
+    for (final first in of(d)) {
+      final edge = FrameSides.edgeOf(first.key);
+      final value = values[first.key];
+      if (edge == null || value == null) continue;
+      final side = FrameSides.of(d).where((s) => s.edge == edge).firstOrNull;
+      if (side == null) continue;
+      final moved = value <= d.frame!.profileMm * 2
+          ? null
+          : FrameSides.sized(d, side, value);
+      if (moved == null) {
+        problems[first.key] = 'That does not fit the parts inside it.';
+        continue;
+      }
+      d = moved;
+      if (first.asked) said.add(first.key);
     }
 
     // One light at a time, each read afresh: a light's own section is
@@ -856,12 +928,14 @@ abstract final class Measurements {
       } else {
         keep
           ..remove(widthKey)
-          ..remove(heightKey);
+          ..remove(heightKey)
+          ..removeWhere((k) => FrameSides.edgeOf(k) != null);
       }
     } else if (now == null) {
       keep
         ..remove(widthKey)
-        ..remove(heightKey);
+        ..remove(heightKey)
+        ..removeWhere((k) => FrameSides.edgeOf(k) != null);
     }
 
     final barWidth = said.contains(barsKey) && before.dividers.isNotEmpty
@@ -878,6 +952,7 @@ abstract final class Measurements {
     keep.removeWhere((key) {
       final colon = key.indexOf(':');
       if (colon < 0 || key.startsWith('follows')) return false;
+      if (FrameSides.edgeOf(key) != null) return false;
       final id = key.substring(colon + 1);
       return !d.dividers.any((b) => b.id == id);
     });

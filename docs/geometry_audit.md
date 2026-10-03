@@ -462,3 +462,37 @@ the way, all where a bar meets a raked side:
 Still open:
 - Faults 3 and 5 of §5.
 - Validation problems are not shown in the app.
+
+## 15. Dimensions on an angled design (Phase 11)
+
+Before: an angled frame had an overall width and height and nothing else,
+the bounding box. A sloped head with a left side of 200 cm and a right of
+150 had no figure for the 150. Typing the overall height stretched the
+whole sheet, so the 150 became 165.
+
+Now (`lib/domain/dimensions/frame_sides.dart`):
+- **Each side has its own figure.** On a frame that is not a rectangle,
+  every upright side shorter than the frame and every level side narrower
+  than it is a `FrameSide`. It is asked for in the sizes form, written on
+  the technical drawing (`ChainRunOf.side`), tappable there, and typed on
+  the frame member's own panel. A slope is not a side: its length, angle,
+  rise and run are read on its panel.
+- **Typing a side moves its free corner**, and only that
+  (`FrameSides.sized`). The slope that joins it follows and stays a
+  straight slope.
+- **Typing the overall size of an angled frame moves its far side**, with
+  every side standing on it (`FrameSides.overall`). Each side keeps its own
+  figure.
+- **Everything that met the frame still meets it**
+  (`FrameSides.reshaped`). A bar's end goes to where its own line meets the
+  new outline. A line inside an opening is not carried in proportion. The
+  ink moves with what was read from it, so a fresh reading gives the same
+  design. A stated figure on a side that moved reads its new length.
+- **Sides that add up to another are not both asked.** On a stepped frame,
+  `FrameSides.askedOf` asks only one of them.
+
+Still open:
+- Faults 3 and 5 of §5. Fault 5's sizes now exist for a frame's own upright
+  and level sides, but not for a bar at a slope.
+- No aligned figure is drawn along a slope.
+- Validation problems are not shown in the app.

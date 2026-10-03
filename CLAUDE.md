@@ -5107,6 +5107,98 @@ found five places where a bar meeting a raked side went wrong:
 
 Taking out the subdivision's fix or the identity fix fails it.
 
+### Dimensions on an angled design
+
+The brief's own case:
+
+```
+┌╲
+│  ╲          left side 200 cm, right side 150 cm, 100 cm wide:
+│    │        three figures, each the side that is there, and never
+│    │        made equal to one another
+└────┘
+```
+
+A rectangle's overall width and height say everything about its sides.
+Another shape's do not. They are the bounding box: the overall height is
+its tallest side and says nothing about the others. So
+`lib/domain/dimensions/frame_sides.dart` gives each side its own figure.
+
+- **A `FrameSide` is an upright side shorter than the frame, or a level
+  side narrower than it.** A side running the whole height or width is the
+  overall figure, not a second figure saying the same thing.
+- **A slope is not a side.** It is what joins the sides, and it follows
+  them. Its length, angle, rise and run are read on the frame member's own
+  panel; no figure along it is invented.
+- **Each side is a size like any other**, under `side:<edge>` in
+  `Design.measured`. It is asked for in the sizes form (*Right jamb
+  height*, *Left jamb height*, *Head width*) and `?` until given. It is
+  written on the technical drawing as its own row (`ChainRunOf.side`),
+  named SIDE. On the foot and the left that row sits between the divisions
+  and the overall. Along the head and down the right it sits nearest the
+  drawing, so a phone, which keeps its right edge for the drawing, keeps
+  room for that one row (`DimensionLayout.roomFor`). It can be tapped
+  there (`DimensionOf.side`) and typed on the frame member's panel. All
+  three go through `Measurements.apply`.
+- **Typing a side moves its free corner and nothing else of the frame**
+  (`FrameSides.sized`).
+  - The side's **anchor** stays where the frame stands: on the sill for an
+    upright side, at the right-hand jamb for a level one.
+  - The slope joining it to the next side follows and stays one straight
+    slope.
+  - A level edge running from the moved corner is carried with it, so it
+    stays level.
+  - Right side 150 → 170 cm moves the right side's top corner up 20 cm.
+    The left side stays 200, the width 100, and the head is still a slope.
+- **Typing the overall size of an angled frame moves its far side, and
+  every side standing on it** (`FrameSides.overall`). Each side keeps its
+  own figure, and the slope takes the difference: overall height 200 → 220
+  makes the left side 220 and leaves the right side 150. A rectangle is
+  stretched as it always was (`Measurements.stretch`).
+- **Everything that met the frame still meets it** (`FrameSides.reshaped`),
+  by the relationship, never an offset.
+  - A bar that ended on a side that moved now ends where its own line meets
+    the new outline. A mullion dropped from the slope still reaches the
+    slope, at the place and angle it was drawn. A transom whose side has
+    drawn back below it now meets the slope, at its own height.
+  - A bar that ended on a side that did not move is where it was.
+  - A line inside an opening is not stretched in proportion, as a resize
+    would carry it, so the panel below a line keeps its height.
+  - The ink moves with what was read from it: the frame's along each side,
+    a bar's along the bar. A fresh reading gives the same design.
+  - A figure the user stated on a side that moved reads the side's new
+    length, since a stated figure is held at the next reading.
+  - A side shorter than the frame's own border is refused, as is a shape
+    that crosses itself or loses a light or an opening.
+- **Two sides that add up to a third are not both asked.** On a stepped
+  frame, the step and the jamb beyond it make up the height, so only one is
+  free and the other follows (`FrameSides.askedOf`). It is the same rule as
+  the last light of a row.
+
+`test/domain/angled_dimensions_test.dart` holds the brief's design, drawn
+with a transom, a mullion from the slope, an opening, and glass over a
+panel inside it:
+- three figures, the right side asked and `?` until given;
+- right side 150 → 170: only that edge and the slope above it change, and
+  the mullion still meets the slope halfway along it;
+- every other figure the same, the solid's frame reaching the new corner,
+  and the same after a fresh reading, a save and a load;
+- 150 → 100 and 150 → 50, and a side too short refused;
+- the overall height and width each leaving the sides their own, and all
+  three given at once;
+- a rectangle unchanged;
+- the under-stair window's short jamb and level head;
+- the opening's own figures and a pane's height;
+- a stepped frame.
+
+`test/app/angled_dimensions_on_the_drawing_test.dart` holds the figure on
+the technical drawing: down the right, `?`, tappable, named for its side,
+170.0 cm once typed, never overlapping another figure, and its room kept
+on a phone.
+
+Putting back the overall's stretch, leaving the ink behind, or leaving a
+bar's end where it was each fails it.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the

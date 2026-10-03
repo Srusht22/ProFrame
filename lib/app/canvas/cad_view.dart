@@ -573,6 +573,8 @@ class _CadViewState extends ConsumerState<CadView> {
         if (id != null) controller.setSectionHeight(id, valueMm);
       case DimensionOf.drawn:
         if (id != null) controller.setDimensionValue(id, valueMm);
+      case DimensionOf.side:
+        if (id != null) controller.measure({id: valueMm});
     }
   }
 
