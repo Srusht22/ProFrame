@@ -86,9 +86,13 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
     int kept;
     Map<String, int> designs;
     try {
+      // The designs first: reading them is what gives a design kept before
+      // customers existed its customer, so the people listed below include
+      // the ones the designs on the device were made for, the first time
+      // the app is opened after an upgrade.
+      designs = await ref.read(designStoreProvider).countsByCustomer();
       page = await _customers.page(query: _query, limit: pageSize);
       kept = _query.trim().isEmpty ? page.total : await _customers.count();
-      designs = await ref.read(designStoreProvider).countsByCustomer();
     } on Object {
       page = const CustomerPage([], 0);
       kept = 0;

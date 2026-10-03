@@ -5522,6 +5522,85 @@ angled design are each opened from their card, looked at in Draw, CAD and
 Making opening read the design, making a reading ignore the category, or
 not marking the strokes reported on opening each fails it.
 
+### Everything a design is, kept — and every older design still opens
+
+**Kept in full.** A design's file holds everything it is:
+- its category (`category`);
+- its canonical geometry: the frame with its open sides, every bar,
+  section and opening;
+- its sizes (`measured`) and the dimensions drawn on it;
+- the lines inside each opening, with their parents;
+- what every part is made of;
+- its handles and hinges, with their finishes and the opening's own
+  figures for them;
+- the sliding switches;
+- whose it is, its id and its name.
+
+Every field of the design and of each of its elements is written by its
+`toJson` and read back by `fromJson`. The geometry is kept as built, not
+read again from the ink, so an angled design is kept raked and a standard
+one square. Nothing about the new category or the corrected geometry
+needed a new field or a migration.
+
+**Older designs load, and are not rewritten to load.** A file from any
+version since the rebuild opens:
+- `kind` where it now says `category`;
+- no customer;
+- no sizes, shown as they always were;
+- no construction;
+- an opening that never said what it is;
+- ironmongery naming the section it is on, which `openingHolding`
+  understands as the opening's.
+
+Opening such a design, listing it or looking at it in any view writes
+nothing.
+
+**The two moves that do write are as narrow as they can be:**
+- **A design kept before customers existed is given its customer by
+  adding `customerId` to its record, and nothing else.** Every other key
+  is written back exactly as it was read, including one this version has
+  never heard of. It is never parsed into today's model and written out
+  again. Doing that dropped whatever the model did not know and wrote in
+  whatever loading the file settled: a rewrite of a design nobody touched.
+  Once the field is there, nothing writes the record again until the user
+  edits it.
+- **The oldest list of designs (`proframe.designs.v1`) is moved over
+  without losing an entry.** An entry this version cannot read used to be
+  skipped, and then the list was removed with it still in it. It is now
+  kept, verbatim, under `proframe.designs.v1.unread`, never read by the app
+  and there to be recovered.
+
+**The first screen lists the customers older designs belong to.** Reading
+the designs is what gives a design kept before customers its customer.
+The customers screen used to read the customers first, so after an
+upgrade the people the designs were made for were not on it until
+something read the list again. It reads the designs first now.
+
+`test/app/persistence_and_old_designs_test.dart` holds it.
+- **Create → save → close → reopen**, for Door, Window, Sliding, Door &
+  window and Angled / Asymmetrical. Each is begun through the screens for
+  Adam, drawn and read, then given:
+  - a line inside its opening, with glass above and a white panel below;
+  - an anthracite aluminium frame;
+  - a silver handle and black hinges, or a pull and a pleated screen on a
+    sliding panel;
+  - a dimension drawn along the sill;
+  - every size.
+
+  It is saved with the Save button, the app closed and opened from
+  nothing but the device, and opened from its card. Each listed field
+  must come back as it was, then the whole file, then the solid, facet by
+  facet.
+- **Older records.** Every category loads as itself in the older words.
+  Adoption adds `customerId` and nothing else, keeps an unknown key, and
+  writes nothing on a second read. An older angled design stays raked.
+  The oldest list moves over keeping an unreadable entry and one that is
+  not even JSON. On the real app an older design is found under its
+  customer, opens as itself, and the device is unchanged by looking at it.
+
+Putting back the rewrite on adoption, dropping an unreadable entry, or
+reading the customers before the designs each fails it.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the

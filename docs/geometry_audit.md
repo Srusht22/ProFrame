@@ -639,3 +639,26 @@ as already reported.
 four standard and two angled, are each kept, reopened, read again and
 drawn on.
 
+## 21. Persistence and backward compatibility (Phase 17)
+
+Audited field by field: every field of `Design` and of each of its
+elements is written and read back. The category and the canonical
+geometry are kept as built, so no new field or migration was needed.
+
+Three faults in what already existed were fixed.
+
+- **Adoption rewrote untouched designs.** A design kept before customers
+  was parsed into today's model and written back whole. Now only
+  `customerId` is added to the stored record, and every other key is kept
+  exactly.
+- **The oldest list could lose a design.** An unreadable entry was skipped
+  and then deleted along with the list. It is now kept verbatim under
+  `proframe.designs.v1.unread`.
+- **The first screen missed the customers of older designs.** It read the
+  customers before the designs, and reading the designs is what makes
+  those customers. It reads the designs first now.
+
+`test/app/persistence_and_old_designs_test.dart` holds it: create, save,
+close and reopen for all five categories, and older records loading
+unchanged.
+

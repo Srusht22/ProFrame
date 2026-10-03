@@ -206,6 +206,12 @@ class DesignStore {
   /// over, and removed, the first time the store is read.
   static const legacyKey = 'proframe.designs.v1';
 
+  /// Where an entry of [legacyKey] that could not be read is kept, exactly
+  /// as it was, when the list is moved over — so moving the list never
+  /// loses a design, even one this version cannot open. Never read by the
+  /// app; it is there to be recovered by hand.
+  static const legacyUnreadKey = 'proframe.designs.v1.unread';
+
   /// The index as last read, and the text it was read from — reused while
   /// that text is unchanged, so paging through it does not parse it again
   /// for every page.
@@ -302,6 +308,13 @@ class DesignStore {
   /// Every design in [index] kept before customers existed, given its
   /// customer and kept again — the file and its line in the index — with
   /// nothing else about it changed.
+  ///
+  /// **The file is given its customer and nothing else.** The one field is
+  /// added to the record as it is stored, and every other key is written
+  /// back exactly as it was read. The record is never parsed into today's
+  /// model and written out again: that would drop anything this version
+  /// does not know and write in whatever reading the file settles, which
+  /// is rewriting a design the user did not touch.
   Future<List<DesignSummary>> _adoptAll(
     SharedPreferences prefs,
     List<DesignSummary> index,
@@ -314,15 +327,20 @@ class DesignStore {
       }
       final text = prefs.getString(_designKey(s.id));
       final Design design;
+      final Map<String, Object?> stored;
       try {
-        design = Design.fromJson(jsonDecode(text!));
+        stored = jsonDecode(text!) as Map<String, Object?>;
+        design = Design.fromJson(stored);
       } on Object {
         _unadoptable.add(s.id);
         adopted.add(s);
         continue;
       }
       final owned = await _owned(design);
-      await prefs.setString(_designKey(s.id), jsonEncode(owned.toJson()));
+      await prefs.setString(
+        _designKey(s.id),
+        jsonEncode({...stored, 'customerId': owned.customerId}),
+      );
       _recent.remove(s.id);
       adopted.add(DesignSummary.of(owned));
     }
@@ -359,6 +377,7 @@ class DesignStore {
     // Nothing is waited on until all of it is written, so a second read
     // arriving meanwhile finds the move done rather than doing it again.
     final writes = <Future<bool>>[];
+    final unread = <String>[];
     for (final entry in legacy) {
       try {
         final design = Design.fromJson(jsonDecode(entry));
@@ -366,10 +385,17 @@ class DesignStore {
         writes.add(prefs.setString(_designKey(design.id), entry));
         index.add(DesignSummary.of(design));
       } on Object {
-        continue;
+        // Not readable by this version: kept as it was, not dropped.
+        unread.add(entry);
       }
     }
     index.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    if (unread.isNotEmpty) {
+      writes.add(prefs.setStringList(legacyUnreadKey, [
+        ...?prefs.getStringList(legacyUnreadKey),
+        ...unread,
+      ]));
+    }
     writes
       ..add(_write(prefs, index))
       ..add(prefs.remove(legacyKey));
