@@ -4586,6 +4586,27 @@ grid). Round metal already had its own (`_smooth`). Nothing in the geometry
 moved and every other test of how the model looks passed unchanged; taking
 it back fails the board's metal and rubber.
 
+## Geometry correction and angled designs
+
+`docs/geometry_audit.md` is the audit written before this work began. It
+traces drawing → geometry → saved design → CAD → 3D through the code, and
+records five faults found by running the reading on hand-drawn shapes:
+
+- the weld undoes the axis snap, so a rectangle drawn about 1° out comes
+  back with no square side;
+- the weld turns two level transoms into two sloped ones;
+- a drag in CAD is undone by the next reading, because the ink is not
+  moved;
+- a handle on a raked leaf is placed outside the leaf, because hardware is
+  placed from the opening's bounding box;
+- sizes and the CAD snaps exist only for horizontal and vertical members.
+
+Its recommendation is the one place a normalisation system goes: inside
+`SketchInterpreter.interpret`, between `StrokeFitter.fit` and
+`PlanarSubdivision`, taking every run of the drawing at once. `Design`
+stays the only canonical geometry, and `DesignTree` and `DesignGeometry`
+stay the only things the views read.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the
