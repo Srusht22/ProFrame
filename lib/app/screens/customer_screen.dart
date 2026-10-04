@@ -4,10 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/model/customer.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/new_design_setup.dart';
+import '../../domain/pricing/design_price_state.dart';
 import '../../infrastructure/design_store.dart';
+import '../inspector/price_actions.dart';
+import '../inspector/price_panel.dart';
+import '../state/pricing.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
-import 'customer_price_card.dart';
+import 'customer_finance.dart';
 import 'customers_screen.dart';
 import 'design_actions.dart';
 import 'design_name_screen.dart';
@@ -258,6 +262,15 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
         backgroundColor: p.band,
         foregroundColor: AppTheme.accent,
         title: Text(customer?.name ?? ''),
+        // Their money at a glance, beside their name: how they stand and
+        // what is due. The whole of it is under their designs.
+        actions: [
+          if (customer != null && _all > 0)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 12),
+              child: CustomerMoneyGlance(customer: customer),
+            ),
+        ],
       ),
       // Where the customer has designs, New Design stands at the foot of the
       // screen whatever is scrolled past — a customer with forty designs can
@@ -358,13 +371,14 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
                               .addPostFrameCallback((_) => _more()),
                         ),
                       ),
-                    // What all of their designs come to, together — under
-                    // the cards, so it moves none of them.
+                    // What all of their designs come to, what they have paid
+                    // and what is due — under the cards, so it moves none of
+                    // them.
                     if (_all > 0)
                       SliverPadding(
                         padding: EdgeInsets.fromLTRB(across, 16, across, 0),
                         sliver: SliverToBoxAdapter(
-                          child: CustomerPriceCard(customerId: customer.id),
+                          child: CustomerFinancialSummary(customer: customer),
                         ),
                       ),
                     // Room under the last card for New Design, so it never
@@ -925,6 +939,16 @@ class CustomerDesignCard extends StatelessWidget {
   /// The **⋮** on the card of the design [id].
   static ValueKey<String> moreKey(String id) => ValueKey('card-more-$id');
 
+  /// The **Price** on the card of the design [id].
+  static ValueKey<String> priceKey(String id) => ValueKey('price-design-$id');
+
+  /// What the card of the design [id] says its price is.
+  static ValueKey<String> priceValueKey(String id) =>
+      ValueKey('price-value-$id');
+
+  /// Whether the card of the design [id] says it is complete.
+  static ValueKey<String> statusKey(String id) => ValueKey('price-status-$id');
+
   /// The **Edit information** on the card of the design [id].
   static ValueKey<String> editKey(String id) => ValueKey('edit-design-$id');
 
@@ -1040,17 +1064,31 @@ class CustomerDesignCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    // Whether it can be priced: the same answer the
+                    // workspace's price button reads.
+                    Flexible(child: CardPriceStatus(designId: design.id)),
                   ],
                 ),
               ),
               const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  'Last edited: ${lastEdited(design.updatedAt, now)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12.5, color: p.muted),
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Last edited: ${lastEdited(design.updatedAt, now)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12.5, color: p.muted),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Its price, where one is current, and otherwise why
+                    // not.
+                    CardPriceValue(designId: design.id),
+                  ],
                 ),
               ),
               const Spacer(),
@@ -1076,6 +1114,8 @@ class CustomerDesignCard extends StatelessWidget {
                     )
                   else
                     const Spacer(),
+                  CardPriceButton(design: design),
+                  const SizedBox(width: 4),
                   TextButton.icon(
                     key: openKey(design.id),
                     onPressed: onOpen,
@@ -1093,6 +1133,113 @@ class CustomerDesignCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Complete or incomplete, on a design's card: [DesignPriceState.label],
+/// the one answer the workspace's price button reads too.
+class CardPriceStatus extends ConsumerWidget {
+  final String designId;
+
+  const CardPriceStatus({super.key, required this.designId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(keptDesignPriceProvider(designId)).value?.state;
+    // An unknown category is said by the category itself.
+    if (state == null || state.status == DesignPriceStatus.unsupported) {
+      return const SizedBox.shrink();
+    }
+    final p = context.palette;
+    final complete =
+        state.status != DesignPriceStatus.incomplete &&
+        state.status != DesignPriceStatus.unsupported;
+    final colour = complete ? p.primary : Theme.of(context).colorScheme.error;
+    return Text(
+      state.label,
+      key: CustomerDesignCard.statusKey(designId),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: colour,
+      ),
+    );
+  }
+}
+
+/// What a design's card says its price is: the price while the one
+/// calculated is current, and otherwise why not — never a previous
+/// calculation as the price.
+class CardPriceValue extends ConsumerWidget {
+  final String designId;
+
+  const CardPriceValue({super.key, required this.designId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(keptDesignPriceProvider(designId)).value?.state;
+    final p = context.palette;
+    final words = switch (state) {
+      null => 'Price: …',
+      _ when state.total != null =>
+        'Price: ${PricePanel.money(state.total!, state.record!.result.currency)}',
+      DesignPriceState(status: DesignPriceStatus.notCalculated) =>
+        'Price: not calculated',
+      DesignPriceState(status: DesignPriceStatus.needsRecalculation) =>
+        'Price: recalculate',
+      _ => 'Price: unavailable',
+    };
+    return Text(
+      words,
+      key: CustomerDesignCard.priceValueKey(designId),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: 12.5,
+        fontWeight: FontWeight.w700,
+        color: state?.total != null ? p.ink : p.muted,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
+  }
+}
+
+/// **Price** on a design's card, enabled by the same [DesignPriceState] as
+/// the workspace's **Calculate price**. Pressed, it shows the price,
+/// calculating it from the kept design first where it is not current. It
+/// writes nothing to the design.
+class CardPriceButton extends ConsumerWidget {
+  final DesignSummary design;
+
+  const CardPriceButton({super.key, required this.design});
+
+  Future<void> _price(
+    BuildContext context,
+    WidgetRef ref,
+    KeptDesignPrice kept,
+  ) async {
+    var record = kept.state.isCurrent ? kept.state.record : null;
+    record ??= await ref.calculatePrice(kept.design);
+    if (record == null || !context.mounted) return;
+    await DesignPriceSheet.show(
+      context,
+      name: kept.design.shownName,
+      result: record.result,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kept = ref.watch(keptDesignPriceProvider(design.id)).value;
+    return PriceButton(
+      key: CustomerDesignCard.priceKey(design.id),
+      state: kept?.state,
+      label: 'Price',
+      withIcon: false,
+      onPressed: () => _price(context, ref, kept!),
     );
   }
 }

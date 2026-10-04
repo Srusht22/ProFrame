@@ -6241,8 +6241,8 @@ Everything is in `lib/domain/pricing/`, and no widget holds a figure.
   colour, glass look and panel colour. A later category is a strategy
   registered and a rate in the list; nothing here changes.
 - **A design that cannot be priced says why** (`PriceStatus`): nothing
-  drawn; the width or height not given — a sketch has no scale, so a price
-  off it would be a guess; a category this version does not know —
+  drawn; a size it asks for not given — a sketch has no scale, so a price
+  off it would be a guess; something else not complete (`incomplete`); a category this version does not know —
   *Unsupported category*, *Price unavailable*, never a window's; a category
   with no strategy or no rate; the list having no price for something the
   design has; or a size of nothing or not a number. No figure is shown
@@ -6258,12 +6258,9 @@ Everything is in `lib/domain/pricing/`, and no widget holds a figure.
   switch it on — a discount and a kept snapshot, written only when
   something is chosen. Material, colour, glass, panel and ironmongery were
   already the design's.
-- **A customer's total is worked out, never kept** (`CustomerPricing.of`).
-  Each of their designs is priced on its own from what is kept; the total
-  is the sum of the designs that could be priced, the measurements the
-  sum of theirs, and a design that could not be priced is listed with its
-  reason and keeps the total marked incomplete. Nothing is written to the
-  customer.
+- **A customer's total is worked out, never kept** — from each design's
+  calculated price, and final only when every one is current. See
+  *Calculate price, and the customer's money*.
 - **The list is kept on the device, and only the owner changes it**
   (`PriceListStore`, `proframe.pricelist.v2` — the factory model's rates
   are not the first engine's, so the old key is not read; `WorkshopRole`).
@@ -6272,15 +6269,10 @@ Everything is in `lib/domain/pricing/`, and no widget holds a figure.
   list, the example list (`PriceList.starter`, in US dollars, uPVC $7 a
   metre normal and $12 opening) is used and the panel says *Example prices
   — the workshop owner sets the real ones.*
-- **On the screen.** **Price** in the design's own panel (`PricePanel`,
-  `designPriceProvider`): normal, opening and total profile in metres,
-  panel and glass in square metres (`MeasurementRows`), then the total,
-  the breakdown folded under it, and **Include installation** — priced
-  afresh whenever the design or the list changes. On a customer's page,
-  under their design cards so it moves none of them, **All designs**
-  (`CustomerPriceCard`, `customerPricingProvider`): the total and the total
-  profile, and unfolded each design's price and the combined
-  measurements. It reads again when a design is kept.
+- **On the screen**: the workspace's **Calculate price**, a design card's
+  **Price** and the customer's financial summary — see *Calculate price,
+  and the customer's money*. A design is priced only once it is complete
+  (`PriceReadiness`), every size it asks for given.
 
 `test/domain/pricing_engine_test.dart` holds the brief's tests under its
 own numbers, each on a list whose every rate the test sets:
@@ -6309,6 +6301,191 @@ a width changed and kept reaching the total, and Sara's total hers alone.
 Pricing the opening at the normal rate, counting a line inside an opening
 twice, measuring an area by its box, or pricing an unknown category as a
 window each fails it.
+
+### Calculate price, and the customer's money
+
+The brief: *a price button in the design workspace and on every design
+card, disabled while the design is incomplete and saying exactly what is
+missing; never a partial price; a price that changes with the design is
+not shown as current once the design has moved on; and on the customer's
+page what all their designs come to, what they have paid and what is
+still due.*
+
+```
+Design ─ PriceReadiness ─ PricingEngine ─ PriceRecord? ─ DesignPriceState
+                                                              │
+               workspace: Calculate price ◄───────────────────┤
+               design card: Price ◄───────────────────────────┤
+               customer: CustomerPricing ─ CustomerFinance ◄──┘
+                                              ▲
+                                       Customer.paid
+```
+
+- **Whether a design can be priced is one answer** (`PriceReadiness.of`,
+  `lib/domain/pricing/price_readiness.dart`). The engine asks it before it
+  prices anything. The workspace's button, a card's button and a
+  customer's total are all enabled by it, so no two screens can disagree.
+  It decides nothing new: each requirement is a question the application
+  already asks, read from where it is kept:
+
+  | Requirement | Read from |
+  | --- | --- |
+  | A category this version can price | `Design.isUnsupported` |
+  | An outer frame | `Design.frame` |
+  | Geometry that can be measured | `PricingTakeoff.problemWith`; the angled check's errors (`GeometryFeedback`) |
+  | What a door is built of | `Design.construction` (not `pending`) |
+  | Which parts are glass and which panel | `Design.partsAsked`, where it is both |
+  | What each opening is, door or window | `Design.kindOf` (in a door & window or an angled design) |
+  | **Every size the design asks for** | `Measurements.of`, against `Design.measured` |
+
+  The last one is stricter than before: not only the width and height but
+  the frame's border, the bars and each light's and pane's own sizes.
+  Until a size is given it is the sketch's proportion, and an opening's
+  perimeter or a pane's area worked out from a guess is a guessed price. A
+  design kept before sizes were asked has nothing outstanding, as
+  everywhere else. Each requirement is said in words that name it: *Please
+  give the overall height to calculate the price.*, *Please complete the
+  dimensions of Opening 1 — Clear glass 1 (its height) to calculate the
+  price.*, *Please say whether Opening 1 is a door or a window…*,
+  *Please complete the panel/glass selection…*.
+- **A calculated price is kept beside the design, never in it**
+  (`PriceRecord`, `PriceRecordStore`, under `proframe.price.v1.<id>`).
+  `PriceRecord.inputs` (`PriceInputs.of`) says what it was calculated
+  from: the design as kept, less its name, customer, dates, ink, notes and
+  arrows, plus the price list. `DesignPriceState.of` reads it against the
+  design as it is now:
+
+  | State | When | Shown |
+  | --- | --- | --- |
+  | `current` | the inputs are the same | the price |
+  | `notCalculated` | complete, never calculated | *Not calculated yet* |
+  | `needsRecalculation` | complete, but the design or the list changed | *Price needs recalculation*, the old figure struck through as *previous* |
+  | `incomplete` | `PriceReadiness` says no | *Price unavailable until design is completed*, and why |
+  | `unsupported` | a category this version does not know | *Unsupported category. Price unavailable.* |
+  | `unavailable` | the list has no price for something in it | the engine's reason |
+
+  So a width, a line, a material, a colour, a glass, a hinge, an option or
+  a rate changed makes the kept price stale, and nothing shows a stale
+  figure as the price. Calculating writes nothing to the design: not its
+  geometry, its materials or when it was edited.
+- **Calculate price** (`WorkspacePriceButton`, `PriceButton`) stands on
+  the workspace's bar beside Save in every design — its icon alone on a
+  phone — and in the design's own **Price** panel. It is never hidden.
+  - Where the design cannot be priced it is drawn disabled, and a press on
+    it says the exact thing to complete (`PriceButton.explain`).
+  - Pressed while enabled, it keeps the design as it is, calculates by the
+    one engine, keeps the price, and shows `DesignPriceSheet`: **MATERIAL
+    MEASUREMENTS** (profile in metres, panel and glass in m², never added
+    together), **COST BREAKDOWN** by group with each line's quantity and
+    rate, and **DESIGN TOTAL**.
+  - It follows every edit at once (`workspacePriceStateProvider`): a size
+    given enables it, a size taken away or a line drawn in a sash disables
+    it.
+- **A design's card** shows *Complete* or *Incomplete* beside its
+  category (`CardPriceStatus`). At the end of *Last edited* it shows
+  *Price: 189.98 USD*, *not calculated*, *recalculate* or *unavailable*
+  (`CardPriceValue`). **Price** sits beside **Open** (`CardPriceButton`).
+  All three read `keptDesignPriceProvider`, the same `DesignPriceState`
+  of the kept design. Pressed, Price shows the current price, or calculates
+  one from the kept design first; disabled, it says why. The card is the
+  height it was. A design of an unknown category says nothing more than
+  its category already does, and its Price is disabled.
+- **The customer's total is the designs' prices, summed, and never kept**
+  (`CustomerPricing` in `design_price_state.dart`).
+  - It is final only when every design has a current price.
+  - Where one is incomplete or cannot be priced, it is *not final* and says
+    why: *Customer price is not final. 1 design is incomplete.*
+  - Where one is complete but not calculated, or changed since, it says so
+    too.
+  - In both cases only *Priced so far (not the total)* is shown, never as
+    the total.
+  - Its measurements are the priced designs', with metres and square metres
+    kept apart.
+- **What was paid is the one money figure kept on a customer**
+  (`Customer.paid`, written only when not nothing, so an older customer
+  loads having paid nothing recorded). `CustomerFinance` works out what is
+  due — the total less what was paid, never below nothing — and the
+  status:
+
+  | Status | When |
+  | --- | --- |
+  | *Total not final* | some design has no current price |
+  | *Not paid* | nothing paid |
+  | *Amount due* | some paid |
+  | *Paid in full* | all paid |
+  | *Paid exceeds total* | the total fell below what was paid, by a design deleted or made cheaper; said, never a debt below nothing |
+
+  **Record payment** (`recordPayment`) asks what has been paid in all.
+  Against a final total, more than it is refused: *Paid amount cannot
+  exceed the total price.* While the total is not final, a deposit is
+  taken, and what is due is not said until the total is. Paying touches no
+  design and no price.
+- **On the customer's page**, under the cards so it moves none of them:
+  - **CUSTOMER FINANCIAL SUMMARY** (`CustomerFinancialSummary`): the
+    designs and how many are priced, the total price, paid, *Amount due /
+    loan*, the status, and **Record payment**.
+  - Unfolded, each design's own price and the **CUSTOMER MATERIAL
+    SUMMARY**.
+  - On the bar beside the name, the money at a glance
+    (`CustomerMoneyGlance`): *Due 1,350.00 USD*, *Paid in full*, *Total
+    not final*. It is on the bar because anything added to the
+    information card pushed the design cards off a phone's screen.
+- **Price rows wrap** (`PriceRow`): a figure is short, but *Price
+  unavailable until design is completed* is not, and on a phone it ran off
+  the screen.
+
+`test/domain/price_readiness_test.dart` holds it:
+- **completeness**: a complete design; nothing drawn; an outline not
+  closed; a missing overall size, with no price and no measurement given;
+  an opening's sizes missing, named; an opening nobody said is a door or a
+  window; construction and the panel/glass selection not said, never
+  assumed; a bow tie; a complete angled design priced at its polygon's own
+  area; an unknown category; a design kept before sizes; and asking
+  writing nothing;
+- **the kept price**: current through a save and a load and a rename;
+  stale after a geometry change, a material, a colour, a glass, a panel, a
+  hinge, an option or a new list; incomplete with the old figure only as
+  previous; and a record that cannot be read is no price;
+- **the customer**: 800 + 500 + 700 = 2,000, then 500 → 600 and
+  calculated = 2,100, with *needs recalculation* in between; an incomplete
+  design making the total not final, with 1,300 only as priced so far; a
+  design deleted and one added; the measurements summed by unit; an
+  unknown category;
+- **payment**: 2,100 with 1,000 paid is 1,100 due, *Amount due*; with
+  2,100 paid it is 0 and *Paid in full*; nothing paid; more than the total,
+  less than nothing and not a number refused; paid exceeding a fallen
+  total; `paid` kept on the customer and nothing else; and payment
+  touching no design.
+
+`test/app/the_price_button_test.dart` holds it on the real app:
+- **in the workspace**: an incomplete design's button there and disabled,
+  saying *Please give the overall height…*, no record written; the height
+  given, enabled and calculating the engine's price; a calculated price
+  going stale on a width change, disabled when a line makes a pane's size
+  unknown, enabled again once the sizes are given, with a new price;
+- **on the cards**: complete designs enabled and the incomplete one
+  disabled, saying why, by the same state as the domain; Price showing
+  that design's own price and writing no design;
+- **the customer**: not final with priced so far; the total the sum of
+  three; one design changed and calculated in the workspace moving the
+  total by it alone; payment recorded, refused over the total, *Amount
+  due* and *Paid in full*, all through two reloads of the app; the
+  incomplete design still disabled after a reload;
+- **an unknown category**, disabled on the card and in the workspace with
+  the device unchanged;
+- **a phone**, with nothing overflowing.
+
+Three older tests moved with it, and say so where they do:
+- `the_price_on_screen_test` presses **Calculate price** after each edit,
+  and requires *Price needs recalculation* with the old figure struck
+  through in between.
+- `opening_an_existing_design_test` and `the_whole_customer_workflow_test`
+  scroll the customer's page back to the top before looking for a card,
+  because the summary under the cards lets the page scroll past the
+  first.
+
+The pricing tests' `given` gives every size a design asks for, not only
+the width and the height.
 
 ## Working on this repository
 

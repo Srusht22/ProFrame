@@ -1,7 +1,7 @@
 import '../model/design.dart';
 import '../model/materials.dart';
-import 'measurement.dart';
 import 'price_list.dart';
+import 'price_readiness.dart';
 import 'price_result.dart';
 import 'takeoff.dart';
 
@@ -79,19 +79,20 @@ class PricingEngine {
         'The price list has no prices for ${design.kind.label} designs.',
       );
     }
-    if (design.frame == null) {
+    // Nothing is priced that is not complete: the one answer every screen
+    // reads, so the engine cannot price what a button says cannot be.
+    final readiness = PriceReadiness.of(design);
+    if (!readiness.isPriceCalculable) {
       return unavailable(
-        PriceStatus.nothingToPrice,
-        'Nothing has been drawn yet.',
-      );
-    }
-    if (PricingTakeoff.problemWith(design) case final problem?) {
-      return unavailable(PriceStatus.invalid, problem);
-    }
-    if (!PricingTakeoff.sizesGiven(design)) {
-      return unavailable(
-        PriceStatus.needsSizes,
-        'Give the width and the height to price this design.',
+        switch (readiness.missing.first.kind) {
+          PriceRequirementKind.unsupportedCategory =>
+            PriceStatus.unsupportedCategory,
+          PriceRequirementKind.frame => PriceStatus.nothingToPrice,
+          PriceRequirementKind.geometry => PriceStatus.invalid,
+          PriceRequirementKind.sizes => PriceStatus.needsSizes,
+          _ => PriceStatus.incomplete,
+        },
+        readiness.message,
       );
     }
 
@@ -402,67 +403,4 @@ class SlidingPricing extends FramedPricing {
       list.rollerEach,
     );
   }
-}
-
-/// What a customer's designs come to: each priced on its own, and the
-/// totals of all of them.
-///
-/// **Worked out from the designs, never kept on the customer**, so it is
-/// never out of date: a design changed is priced afresh, and the customer's
-/// total with it. A design that cannot be priced — sizes not given, a
-/// category this version does not know — is listed and left out of the
-/// total, and [complete] says so.
-class CustomerPricing {
-  final List<DesignPrice> designs;
-  final String currency;
-
-  const CustomerPricing(this.designs, this.currency);
-
-  static CustomerPricing of(
-    Iterable<Design> designs,
-    PriceList list, {
-    PricingEngine engine = const PricingEngine(),
-  }) => CustomerPricing([
-    for (final d in designs)
-      DesignPrice(
-        designId: d.id,
-        name: d.shownName,
-        result: engine.price(d, list),
-      ),
-  ], list.currency);
-
-  List<DesignPrice> get priced => [
-    for (final d in designs)
-      if (d.result.isPriced) d,
-  ];
-
-  List<DesignPrice> get unpriced => [
-    for (final d in designs)
-      if (!d.result.isPriced) d,
-  ];
-
-  /// Whether every design was priced, so [total] is the whole.
-  bool get complete => unpriced.isEmpty;
-
-  /// The sum of the priced designs' totals.
-  double get total => priced.fold(0, (sum, d) => sum + (d.result.total ?? 0));
-
-  /// Everything the measured designs measure, together.
-  MeasurementSummary get measurements => designs.fold(
-    MeasurementSummary.none,
-    (sum, d) => sum + d.result.measurements,
-  );
-}
-
-/// One design's price, among a customer's.
-class DesignPrice {
-  final String designId;
-  final String name;
-  final PriceResult result;
-
-  const DesignPrice({
-    required this.designId,
-    required this.name,
-    required this.result,
-  });
 }

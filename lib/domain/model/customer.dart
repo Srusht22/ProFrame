@@ -23,6 +23,15 @@ class Customer {
   final String phone;
   final String address;
   final String notes;
+
+  /// What the customer has paid towards their designs, in the price list's
+  /// currency — the one money figure kept on a customer. What their designs
+  /// come to is never kept: it is worked out from the designs
+  /// (`CustomerPricing`), so it cannot go out of date, and what is due is
+  /// that total less this (`CustomerFinance`). A customer kept before
+  /// payments were recorded has paid nothing recorded.
+  final double paid;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -34,6 +43,7 @@ class Customer {
     this.phone = '',
     this.address = '',
     this.notes = '',
+    this.paid = 0,
   });
 
   /// [name] said the same way twice, whatever the spacing and the case —
@@ -49,6 +59,7 @@ class Customer {
     String? phone,
     String? address,
     String? notes,
+    double? paid,
     DateTime? updatedAt,
   }) => Customer(
     id: id,
@@ -56,6 +67,7 @@ class Customer {
     phone: phone ?? this.phone,
     address: address ?? this.address,
     notes: notes ?? this.notes,
+    paid: paid ?? this.paid,
     createdAt: createdAt,
     updatedAt: updatedAt ?? DateTime.now(),
   );
@@ -92,6 +104,7 @@ class Customer {
     if (phone.isNotEmpty) 'phone': phone,
     if (address.isNotEmpty) 'address': address,
     if (notes.isNotEmpty) 'notes': notes,
+    if (paid != 0) 'paid': paid,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
   };
@@ -102,7 +115,13 @@ class Customer {
     phone: map['phone'] as String? ?? '',
     address: map['address'] as String? ?? '',
     notes: map['notes'] as String? ?? '',
+    paid: _paidOf(map['paid']),
     createdAt: DateTime.parse(map['createdAt']! as String),
     updatedAt: DateTime.parse(map['updatedAt']! as String),
   );
+
+  /// A paid figure as kept: a number no less than nothing, or nothing paid
+  /// for a record without one or with one that is not a figure.
+  static double _paidOf(Object? value) =>
+      value is num && value.isFinite && value > 0 ? value.toDouble() : 0;
 }

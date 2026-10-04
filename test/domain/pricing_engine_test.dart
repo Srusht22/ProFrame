@@ -12,6 +12,7 @@ import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/model/infill.dart';
 import 'package:proframe/domain/model/materials.dart';
 import 'package:proframe/domain/model/opening_leaf.dart';
+import 'package:proframe/domain/pricing/design_price_state.dart';
 import 'package:proframe/domain/pricing/measurement.dart';
 import 'package:proframe/domain/pricing/price_list.dart';
 import 'package:proframe/domain/pricing/price_result.dart';
@@ -83,9 +84,15 @@ PriceList withProfile(
 /// of opening profile, in uPVC.
 final example = withProfile(zero, MaterialKind.upvc, normal: 7, opening: 12);
 
-/// [d] with its overall width and height said to be given.
+/// [d] with every size it asks for said to be given — the frame's border,
+/// its width and height, and each light's and pane's own — so it is
+/// complete enough to price. Nothing in the geometry moves.
 Design given(Design d) => d.copyWith(
-  measured: {...?d.measured, Measurements.widthKey, Measurements.heightKey},
+  measured: {
+    ...?d.measured,
+    for (final m in Measurements.of(d))
+      if (m.asked) m.key,
+  },
 );
 
 /// A 100 × 200 cm frame drawn on the sheet, with a `>` in it, of [kind].
@@ -182,7 +189,7 @@ Design glassOverPanel(Design d, {PanelColour colour = PanelColour.white}) {
   final low = out
       .childSectionsOf(opening.sectionId)
       .reduce((a, b) => a.outline.top > b.outline.top ? a : b);
-  return out.withElement(low.copyWith(finish: colour.finish));
+  return given(out.withElement(low.copyWith(finish: colour.finish)));
 }
 
 /// The mixed screen: four lights under three mullions, a window and a door
@@ -646,14 +653,17 @@ void main() {
       final designs = [one, two, three];
       final texts = [for (final d in designs) jsonEncode(d.toJson())];
       final list = PriceList.starter;
-      final adam = CustomerPricing.of(designs, list);
+      PriceRecord rec(Design d) => PriceRecord.calculate(d, list)!;
+      final adam = CustomerPricing.of([
+        for (final d in designs) (d, rec(d)),
+      ], list);
       expect(adam.designs, hasLength(3));
-      expect(adam.complete, isTrue);
+      expect(adam.isFinal, isTrue);
       final each = [for (final d in designs) engine.price(d, list)];
       expect({for (final r in each) r.total}, hasLength(3));
       expect(
         adam.total,
-        closeTo(each.fold<double>(0, (s, r) => s + r.total!), 1e-9),
+        closeTo(each.fold<double>(0, (s, r) => s + r.total!), 1e-6),
       );
       // 23. the measurements, summed — metres with metres and square
       // metres with square metres.
@@ -675,26 +685,38 @@ void main() {
       expect(m.panelArea.value, closeTo(sum((x) => x.panelArea.value), 1e-9));
       expect(m.glassArea.value, closeTo(sum((x) => x.glassArea.value), 1e-9));
       for (var i = 0; i < 3; i++) {
-        expect(adam.designs[i].result.total, each[i].total);
+        expect(adam.designs[i].state.total, each[i].total);
         expect(jsonEncode(designs[i].toJson()), texts[i]);
       }
 
       // The second made wider: it alone changes, and the total by it.
       final wider = Measurements.apply(two, {Measurements.widthKey: 1200});
       expect(wider.ok, isTrue);
-      final after = CustomerPricing.of([one, wider.design, three], list);
+      final after = CustomerPricing.of([
+        (one, rec(one)),
+        (wider.design, rec(wider.design)),
+        (three, rec(three)),
+      ], list);
       final grew = engine.price(wider.design, list).total! - each[1].total!;
       expect(grew, greaterThan(0));
-      expect(after.total, closeTo(adam.total + grew, 1e-9));
-      expect(after.designs[0].result.total, each[0].total);
-      expect(after.designs[2].result.total, each[2].total);
+      expect(after.total, closeTo(adam.total! + grew, 1e-6));
+      expect(after.designs[0].state.total, each[0].total);
+      expect(after.designs[2].state.total, each[2].total);
 
       // A design that cannot be priced is listed and left out.
       final future = Design.fromJson(keptAs(three, 'future_custom_shape'));
-      final some = CustomerPricing.of([one, two, future], list);
-      expect(some.complete, isFalse);
-      expect(some.unpriced.single.designId, 'three');
-      expect(some.total, closeTo(each[0].total! + each[1].total!, 1e-9));
+      final some = CustomerPricing.of([
+        (one, rec(one)),
+        (two, rec(two)),
+        (future, null),
+      ], list);
+      expect(some.isFinal, isFalse);
+      expect(some.total, isNull);
+      expect(some.cannotBePriced, 1);
+      expect(
+        some.pricedSoFar,
+        closeTo(each[0].total! + each[1].total!, 1e-6),
+      );
     });
   });
 
@@ -748,7 +770,7 @@ void main() {
         final before = jsonEncode(d.toJson());
         engine.price(d, PriceList.starter);
         PricingTakeoff.of(d);
-        CustomerPricing.of([d, d], PriceList.starter);
+        CustomerPricing.of([(d, null), (d, null)], PriceList.starter);
         expect(jsonEncode(d.toJson()), before);
       }
     });

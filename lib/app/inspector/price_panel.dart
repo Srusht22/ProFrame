@@ -1,23 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/pricing/design_price_state.dart';
 import '../../domain/pricing/measurement.dart';
+import '../../domain/pricing/price_readiness.dart';
 import '../../domain/pricing/price_result.dart';
 import '../state/pricing.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
+import 'price_actions.dart';
 
 /// What the design open comes to, under **Price** in its own panel.
 ///
-/// It shows the result the pricing engine gives for the design as it is
-/// now (`designPriceProvider`) and works nothing out itself: no figure is
-/// in this widget, and it changes nothing in the design but the one choice
-/// it offers — whether installation is included, which is the user's to
-/// make and never made for them. Where the design cannot be priced it says
-/// why, in words, and shows no figure at all.
-///
-/// The full breakdown is folded under the total, by group. How a price is
-/// presented will be refined later; what it is made of is already all here.
+/// It shows where the design's price stands (`workspacePriceStateProvider`,
+/// the same state its card and its customer's total read): what it
+/// measures while it can be measured, the price while the one calculated
+/// is current, **Calculate price** — enabled only while the design can be
+/// priced — and why not where it cannot. A price calculated before the
+/// design changed is shown only as a previous calculation, struck through.
+/// No figure is in this widget, and it changes nothing in the design but
+/// the one choice it offers — whether installation is included.
 class PricePanel extends ConsumerStatefulWidget {
   const PricePanel({super.key});
 
@@ -25,6 +27,9 @@ class PricePanel extends ConsumerStatefulWidget {
   static const totalKey = ValueKey('price-total');
   static const installationKey = ValueKey('price-installation');
   static const breakdownKey = ValueKey('price-breakdown');
+  static const calculateKey = ValueKey('price-calculate');
+  static const stateKey = ValueKey('price-state');
+  static const previousKey = ValueKey('price-previous');
 
   /// [amount] in [currency], to the hundredth, with the thousands marked:
   /// `1,150.00 USD`.
@@ -65,12 +70,53 @@ class PricePanel extends ConsumerStatefulWidget {
   ConsumerState<PricePanel> createState() => _PricePanelState();
 }
 
+/// Calculates the price of the design open in the workspace, keeps it, and
+/// shows it: what **Calculate price** does, on the bar and in the panel.
+Future<void> calculateOpenDesign(BuildContext context, WidgetRef ref) async {
+  final design = ref.read(workspaceProvider).design;
+  // Kept as it is — nothing in it changed — so its card shows the price
+  // just calculated.
+  await ref.read(workspaceProvider.notifier).keep();
+  final record = await ref.calculatePrice(design);
+  if (record == null || !context.mounted) return;
+  await DesignPriceSheet.show(
+    context,
+    name: design.shownName,
+    result: record.result,
+  );
+}
+
+/// **Calculate price** on the workspace's bar, beside Save: always there,
+/// and enabled only while the design open can be priced.
+class WorkspacePriceButton extends ConsumerWidget {
+  final bool compact;
+  final Color? colour;
+
+  const WorkspacePriceButton({super.key, this.compact = false, this.colour});
+
+  static const buttonKey = ValueKey('workspace-calculate-price');
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => PriceButton(
+    key: buttonKey,
+    state: ref.watch(workspacePriceStateProvider),
+    compact: compact,
+    colour: colour,
+    onPressed: () => calculateOpenDesign(context, ref),
+  );
+}
+
 class _PricePanelState extends ConsumerState<PricePanel> {
   bool _open = false;
 
+  Future<void> _calculate() => calculateOpenDesign(context, ref);
+
   @override
   Widget build(BuildContext context) {
-    final result = ref.watch(designPriceProvider);
+    final state = ref.watch(workspacePriceStateProvider);
+    // What the design measures, while it can be measured: a fact about
+    // its geometry, never a price.
+    final live = ref.watch(designPriceProvider);
     final starter = ref.watch(
       priceListProvider.select((l) => l.value?.isStarter ?? false),
     );
@@ -82,6 +128,8 @@ class _PricePanelState extends ConsumerState<PricePanel> {
     );
     final text = Theme.of(context).textTheme;
     final p = context.palette;
+    final result = state?.isCurrent ?? false ? state!.record!.result : null;
+    final currency = live?.currency ?? result?.currency ?? '';
 
     return Column(
       key: PricePanel.panelKey,
@@ -89,42 +137,110 @@ class _PricePanelState extends ConsumerState<PricePanel> {
       children: [
         Text('PRICE', style: text.labelLarge),
         const SizedBox(height: 6),
-        if (result == null)
+        if (state == null)
           Text('Reading the price list…', style: text.bodySmall)
-        else if (!result.isPriced) ...[
-          Text(
-            result.status == PriceStatus.unsupportedCategory
-                ? 'Price unavailable'
-                : 'Not priced yet',
-            style: text.titleMedium,
-          ),
-          const SizedBox(height: 4),
-          for (final issue in result.issues)
-            Text(issue.message, style: text.bodySmall),
-        ] else ...[
-          MeasurementRows(result.measurements),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(child: Text('Total', style: text.titleMedium)),
-              Text(
-                PricePanel.money(result.total!, result.currency),
-                key: PricePanel.totalKey,
-                style: text.titleMedium?.copyWith(
-                  fontFeatures: const [FontFeature.tabularFigures()],
+        else ...[
+          if (live != null && live.isPriced) ...[
+            MeasurementRows(live.measurements),
+            const SizedBox(height: 6),
+          ],
+          if (result != null)
+            Row(
+              children: [
+                Expanded(child: Text('Total', style: text.titleMedium)),
+                Text(
+                  PricePanel.money(result.total!, result.currency),
+                  key: PricePanel.totalKey,
+                  style: text.titleMedium?.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            )
+          else ...[
+            Text(
+              state.note,
+              key: PricePanel.stateKey,
+              style: text.titleMedium,
+            ),
+            if (state.status != DesignPriceStatus.notCalculated &&
+                state.message.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  // A problem with the geometry is said in full under the
+                  // drawing; here it is pointed to, not said twice.
+                  state.readiness.missing.firstOrNull?.kind ==
+                          PriceRequirementKind.geometry
+                      ? 'Please correct the geometry shown under the '
+                            'drawing to calculate the price.'
+                      : state.message,
+                  style: text.bodySmall,
                 ),
               ),
-            ],
+            // A price calculated before the design changed is that, and
+            // never the price.
+            if (state.previous case final previous?)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Previous calculation: '
+                  '${PricePanel.money(previous, currency)} — not current',
+                  key: PricePanel.previousKey,
+                  style: text.bodySmall?.copyWith(
+                    color: p.muted,
+                    decoration: TextDecoration.lineThrough,
+                  ),
+                ),
+              ),
+          ],
+          const SizedBox(height: 8),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: PriceButton(
+              key: PricePanel.calculateKey,
+              state: state,
+              onPressed: _calculate,
+            ),
           ),
-          if (result.discountAmount > 0) ...[
-            _Row(
-              'Subtotal',
-              PricePanel.money(result.subtotal, result.currency),
+          if (result != null) ...[
+            if (result.discountAmount > 0) ...[
+              PriceRow(
+                'Subtotal',
+                PricePanel.money(result.subtotal, result.currency),
+              ),
+              PriceRow(
+                'Discount',
+                '− ${PricePanel.money(result.discountAmount, result.currency)}',
+              ),
+            ],
+            TextButton.icon(
+              key: PricePanel.breakdownKey,
+              onPressed: () => setState(() => _open = !_open),
+              icon: Icon(
+                _open ? Icons.expand_less : Icons.expand_more,
+                size: 18,
+              ),
+              label: Text(_open ? 'Hide the breakdown' : 'Show the breakdown'),
+              style: TextButton.styleFrom(alignment: Alignment.centerLeft),
             ),
-            _Row(
-              'Discount',
-              '− ${PricePanel.money(result.discountAmount, result.currency)}',
-            ),
+            if (_open)
+              for (final group in PriceGroup.values)
+                if (result.lines.any((l) => l.group == group)) ...[
+                  const SizedBox(height: 6),
+                  Text(group.label, style: text.labelMedium),
+                  for (final line in result.lines)
+                    if (line.group == group)
+                      PriceRow(
+                        '${line.label} · ${PricePanel.quantity(line)}',
+                        PricePanel.money(line.amount, result.currency),
+                      ),
+                  PriceRow(
+                    '${group.label} in all',
+                    PricePanel.money(result.sumOf(group), result.currency),
+                    strong: true,
+                  ),
+                ],
           ],
           if (starter)
             Padding(
@@ -134,30 +250,6 @@ class _PricePanelState extends ConsumerState<PricePanel> {
                 style: text.bodySmall?.copyWith(color: p.muted),
               ),
             ),
-          TextButton.icon(
-            key: PricePanel.breakdownKey,
-            onPressed: () => setState(() => _open = !_open),
-            icon: Icon(_open ? Icons.expand_less : Icons.expand_more, size: 18),
-            label: Text(_open ? 'Hide the breakdown' : 'Show the breakdown'),
-            style: TextButton.styleFrom(alignment: Alignment.centerLeft),
-          ),
-          if (_open)
-            for (final group in PriceGroup.values)
-              if (result.lines.any((l) => l.group == group)) ...[
-                const SizedBox(height: 6),
-                Text(group.label, style: text.labelMedium),
-                for (final line in result.lines)
-                  if (line.group == group)
-                    _Row(
-                      '${line.label} · ${PricePanel.quantity(line)}',
-                      PricePanel.money(line.amount, result.currency),
-                    ),
-                _Row(
-                  '${group.label} in all',
-                  PricePanel.money(result.sumOf(group), result.currency),
-                  strong: true,
-                ),
-              ],
         ],
         Row(
           children: [
@@ -196,30 +288,36 @@ class MeasurementRows extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Row('Normal profile', m.normalProfile.label),
-        _Row('Opening profile', m.openingProfile.label),
+        PriceRow('Normal profile', m.normalProfile.label),
+        PriceRow('Opening profile', m.openingProfile.label),
         if (m.otherProfile.value > 0)
-          _Row('Other profile', m.otherProfile.label),
-        _Row(
+          PriceRow('Other profile', m.otherProfile.label),
+        PriceRow(
           'Total profile',
           m.totalProfile.label,
           strong: true,
           valueKey: totalProfileKey,
         ),
-        _Row('Panel', m.panelArea.label),
-        _Row('Glass', m.glassArea.label),
+        PriceRow('Panel', m.panelArea.label),
+        PriceRow('Glass', m.glassArea.label),
       ],
     );
   }
 }
 
-class _Row extends StatelessWidget {
+class PriceRow extends StatelessWidget {
   final String label;
   final String value;
   final bool strong;
   final Key? valueKey;
 
-  const _Row(this.label, this.value, {this.strong = false, this.valueKey});
+  const PriceRow(
+    this.label,
+    this.value, {
+    super.key,
+    this.strong = false,
+    this.valueKey,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -232,9 +330,22 @@ class _Row extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: Text(label, style: style)),
+          Expanded(flex: 3, child: Text(label, style: style)),
           const SizedBox(width: 12),
-          Text(value, key: valueKey, style: style),
+          // A figure is short; words — why there is no price — wrap
+          // rather than run off a narrow screen.
+          Flexible(
+            flex: 2,
+            child: Align(
+              alignment: AlignmentDirectional.topEnd,
+              child: Text(
+                value,
+                key: valueKey,
+                style: style,
+                textAlign: TextAlign.end,
+              ),
+            ),
+          ),
         ],
       ),
     );

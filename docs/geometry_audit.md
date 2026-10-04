@@ -1002,3 +1002,68 @@ two rates, and fills by area.
   35.22 m).
 - The customer card loads every design of that customer to price it. That
   is fine for a workshop's customer, but it is not paged.
+
+## 31. Calculate price, completeness and the customer's money (Phase 26)
+
+**What was there.** The design panel showed a live price. It was worked out
+whenever the width and height were given, even where other sizes were
+still `?`, or an opening's kind or the panel/glass parts were not said. A
+customer's total summed whatever priced. Nothing recorded a payment.
+
+**What was done.**
+- **`PriceReadiness`** is the one answer to whether a design can be priced.
+  It reads the requirements the application already asks: category, frame,
+  measurable geometry and the angled check's errors, construction, the
+  panel/glass parts, each opening's kind, and every asked size. The engine
+  refuses anything it rejects, with a new `PriceStatus.incomplete` for the
+  questions not answered.
+- **`PriceRecord`** (`design_price_state.dart`) is a calculated price with
+  a fingerprint of its inputs (`PriceInputs`). It is kept by
+  `PriceRecordStore` beside the design, never in it.
+- **`DesignPriceState`** is current, not calculated, needs recalculation,
+  incomplete, unsupported or unavailable. The workspace, the cards and the
+  customer total all read it.
+- **`CustomerPricing`** (moved and rebuilt) is final only when every
+  design is current. **`CustomerFinance`** gives the total, paid, due and
+  status from `Customer.paid`, the one new kept field.
+- **The screens:**
+  - **Calculate price** on the workspace bar and in the Price panel.
+  - **Price**, the status and the price on each card.
+  - **CUSTOMER FINANCIAL SUMMARY** with **Record payment** under the cards.
+  - The money at a glance on the customer page's bar.
+- `PriceRow` wraps a long value.
+
+**Layout found by the tests.**
+- A taller card pushed **Open** off a 900-px screen, so the card keeps its
+  height: the price goes at the end of *Last edited*, and **Price** joins
+  the bottom row.
+- A line added to the information card, or beside the name, pushed the
+  cards off a phone, so the glance went to the bar.
+- The summary under the cards lets the page scroll past the first card.
+  Two older tests' helpers now scroll to the top first.
+
+**Verified.**
+- `test/domain/price_readiness_test.dart` (29), including 800 + 500 + 700 =
+  2,000 → 2,100, and 2,100 with 1,000 paid = 1,100 due.
+- `test/app/the_price_button_test.dart` (9).
+- The pricing tests updated; the full suite passes (2361).
+- In the browser at 1440 × 900, on Adam's three designs:
+  - Basement Door is *Incomplete*. Its Price is disabled and, pressed,
+    says *Please give the overall height to calculate the price.*
+  - Kitchen Window calculated at 240.41 USD, and Front Entrance Door at
+    189.98 USD.
+  - The summary showed *Not final* with 430.39 priced so far.
+  - A 100 USD deposit was recorded.
+  - In the workspace, Basement Door's **Calculate price** was disabled
+    until the height was typed into the sizes form. It then calculated
+    189.98 USD.
+- At 390 × 844 the page, the cards and the summary fit.
+
+**Not done.**
+- A payment is one figure, not a history: there are no dates, methods or
+  receipts.
+- Overpayment is refused against a final total but is not recorded as
+  credit.
+- A deleted design's kept price stays on the device, unread.
+- The customer summary reads every design of that customer, not a page.
+- A sheet drawn but not yet read is priced as the design last read.

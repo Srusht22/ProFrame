@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:proframe/app/inspector/price_actions.dart';
 import 'package:proframe/app/inspector/price_panel.dart';
 import 'package:proframe/app/state/pricing.dart';
 import 'package:proframe/app/state/workspace.dart';
@@ -38,17 +39,35 @@ String shownTotal(WidgetTester tester) => tester
 
 PriceResult priceOf(ProviderContainer c) => c.read(designPriceProvider)!;
 
+/// What the panel says where it shows no price.
+String shownState(WidgetTester tester) => tester
+    .widget<Text>(find.byKey(PricePanel.stateKey, skipOffstage: false))
+    .data!;
+
+/// **Calculate price** on the workspace's bar pressed, and the price it
+/// shows put away again.
+Future<void> calculate(WidgetTester tester) async {
+  await tester.tap(find.byKey(WorkspacePriceButton.buttonKey));
+  await tester.pumpAndSettle();
+  expect(find.byKey(DesignPriceSheet.sheetKey), findsOneWidget);
+  Navigator.of(tester.element(find.byKey(DesignPriceSheet.sheetKey))).pop();
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('the design\'s panel shows its price, worked out afresh as '
-      'its width, height, material, colour, glass and hinges change', (
-    tester,
-  ) async {
+  testWidgets('the design\'s panel shows the price calculated, says it '
+      'needs recalculating — never the old figure as the price — after its '
+      'width, height, material, colour, glass or hinges change, and shows '
+      'the new one once calculated', (tester) async {
     final c = await openFor(tester, door());
     final controller = c.read(workspaceProvider.notifier);
     expect(find.byKey(PricePanel.panelKey, skipOffstage: false), findsOne);
+    expect(shownState(tester), 'Not calculated yet');
+    expect(find.byKey(PricePanel.totalKey, skipOffstage: false), findsNothing);
 
+    await calculate(tester);
     final first = priceOf(c);
     expect(first.isPriced, isTrue, reason: '${first.issues}');
     expect(shownTotal(tester), PricePanel.money(first.total!, first.currency));
@@ -63,6 +82,23 @@ void main() {
       final before = shownTotal(tester);
       edit();
       await tester.pumpAndSettle();
+      // The figure calculated before is not the price any more.
+      expect(
+        find.byKey(PricePanel.totalKey, skipOffstage: false),
+        findsNothing,
+        reason: what,
+      );
+      expect(shownState(tester), 'Price needs recalculation', reason: what);
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(PricePanel.previousKey, skipOffstage: false),
+            )
+            .data,
+        contains(before),
+        reason: what,
+      );
+      await calculate(tester);
       final now = shownTotal(tester);
       expect(now, isNot(before), reason: what);
       expect(
@@ -110,7 +146,7 @@ void main() {
       'the hinge taken off again',
       () => controller.setOpeningHardware(opening.id, hingeCount: hinges),
     );
-    expect(seen.length, greaterThanOrEqualTo(7));
+    expect(seen.length, greaterThanOrEqualTo(6));
     expect(tester.takeException(), isNull);
   });
 

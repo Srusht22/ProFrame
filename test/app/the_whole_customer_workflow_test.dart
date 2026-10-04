@@ -326,6 +326,9 @@ Future<void> theWholeWorkflow(WidgetTester tester, Size size) async {
   // ------------------------------------------------------------ TEST 8
   // Kitchen Window deleted; every other design, and Adam, remain.
   final more = find.byKey(CustomerDesignCard.moreKey(kitchen));
+  // From the top: the customer's money under the cards can leave the page
+  // scrolled past the first of them.
+  await toTop(tester);
   await tester.scrollUntilVisible(
     more.hitTestable(),
     100,

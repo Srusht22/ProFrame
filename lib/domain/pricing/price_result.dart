@@ -29,6 +29,11 @@ enum PriceStatus {
 
   /// The geometry cannot be measured: a size of nothing, or not a number.
   invalid,
+
+  /// Something the price depends on has not been said yet: what a door is
+  /// built of, which parts are glass and which panel, or what an opening
+  /// is. See `PriceReadiness`.
+  incomplete,
 }
 
 /// Which part of the breakdown a line belongs to.

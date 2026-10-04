@@ -158,6 +158,20 @@ Future<void> toAdam(
 /// Brings the card's Open into reach, clear of anything standing over it,
 /// and presses it.
 Future<void> pressOpen(WidgetTester tester, String id) async {
+  // From the top of the page: the customer's money stands under the cards,
+  // so coming back from one can leave the page scrolled past the first.
+  tester
+      .state<ScrollableState>(
+        find
+            .descendant(
+              of: find.byType(CustomScrollView),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      )
+      .position
+      .jumpTo(0);
+  await tester.pumpAndSettle();
   final open = find.byKey(CustomerDesignCard.openKey(id)).hitTestable();
   await tester.scrollUntilVisible(
     open,

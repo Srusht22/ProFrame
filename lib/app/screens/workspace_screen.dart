@@ -15,6 +15,7 @@ import '../inspector/material_form.dart';
 import '../inspector/measure_form.dart';
 import '../inspector/opening_kind_alert.dart';
 import '../inspector/outline_gap_alert.dart';
+import '../inspector/price_panel.dart';
 import '../inspector/questions_panel.dart';
 import '../inspector/unsupported_category_note.dart';
 import '../state/everything_shown.dart';
@@ -245,6 +246,18 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                 onPressed: controller.canRedo ? controller.redo : null,
               ),
             ),
+          // The price, beside Save: there in every design, and enabled only
+          // while the design can be priced.
+          BarArrival(
+            order: 3,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: WorkspacePriceButton(
+                compact: phone,
+                colour: AppTheme.accent,
+              ),
+            ),
+          ),
           BarArrival(
             order: 3,
             child: SaveIcon(
