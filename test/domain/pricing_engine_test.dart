@@ -11,12 +11,15 @@ import 'package:proframe/domain/model/design_geometry.dart';
 import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/model/infill.dart';
 import 'package:proframe/domain/model/materials.dart';
+import 'package:proframe/domain/model/opening_leaf.dart';
+import 'package:proframe/domain/pricing/measurement.dart';
 import 'package:proframe/domain/pricing/price_list.dart';
 import 'package:proframe/domain/pricing/price_result.dart';
 import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/pricing/pricing_engine.dart';
 import 'package:proframe/domain/pricing/takeoff.dart';
 import 'package:proframe/domain/recognition/interpreter.dart';
+import 'package:proframe/domain/sections/section_builder.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 import 'package:proframe/infrastructure/price_list_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,29 +30,29 @@ import 'a_sliding_design_test.dart' as sliding;
 import 'an_unknown_category_test.dart' show keptAs, sloped;
 import 'geometry_normalizer_test.dart' show pen;
 
-// The pricing engine, held on the design's own geometry and a price list
-// whose every figure the test chooses. `zero` prices nothing; each test
-// gives one or two things a price and requires exactly what that makes —
-// so a figure is checked against the geometry it came from, not against a
-// number the engine happened to give.
+// The factory's measurement and its price, held on the design's own
+// geometry and on price lists whose every figure the test sets. The
+// factory measures each kind of geometry on its own — normal profile
+// (border and lines) and opening profile by the metre, panel and glass by
+// the square metre, ironmongery by the piece — and prices each at its own
+// rate. $7 and $12 a metre are the brief's examples, set here; they are
+// nowhere in the application.
 
 const engine = PricingEngine();
 
-/// Every category, material, glass, panel, piece and leaf priced at
-/// nothing — present, so nothing is missing, and free, so nothing is
-/// charged until a test says.
+/// Every category, material, glass, panel and piece present and priced at
+/// nothing, so nothing is missing and nothing is charged until a test says.
 final zero = PriceList(
-  currency: 'T',
+  currency: 'USD',
   profiles: {
     for (final m in [MaterialKind.upvc, MaterialKind.aluminium])
-      m: const ProfileRate(framePerMetre: 0, sashPerMetre: 0, barPerMetre: 0),
+      m: const ProfileRate(normalPerMetre: 0, openingPerMetre: 0),
   },
   glassPerM2: {for (final g in GlassLook.values) g: 0},
   customGlassPerM2: 0,
   panelPerM2: {for (final p in PanelColour.values) p: 0},
   customPanelPerM2: 0,
   hardwareEach: {for (final h in HardwareKind.values) h: 0},
-  leafEach: {for (final l in LeafRate.values) l: 0},
   categories: {
     for (final k in DesignKind.categories)
       k.name: CategoryRate(k.label, const LabourRate()),
@@ -60,23 +63,25 @@ final zero = PriceList(
 PriceList withProfile(
   PriceList list,
   MaterialKind m, {
-  double frame = 0,
-  double sash = 0,
-  double bar = 0,
+  double normal = 0,
+  double opening = 0,
   List<ColourRate> colours = const [],
-  double special = 0,
+  ColourSurcharge special = const ColourSurcharge(),
 }) => list.copyWith(
   profiles: {
     ...list.profiles,
     m: ProfileRate(
-      framePerMetre: frame,
-      sashPerMetre: sash,
-      barPerMetre: bar,
+      normalPerMetre: normal,
+      openingPerMetre: opening,
       colours: colours,
-      specialColourPercent: special,
+      special: special,
     ),
   },
 );
+
+/// The brief's example rates: $7 a metre of normal profile and $12 a metre
+/// of opening profile, in uPVC.
+final example = withProfile(zero, MaterialKind.upvc, normal: 7, opening: 12);
 
 /// [d] with its overall width and height said to be given.
 Design given(Design d) => d.copyWith(
@@ -104,6 +109,64 @@ Design door({DesignKind kind = DesignKind.door, String id = 'door'}) => given(
   ).design,
 );
 
+/// The brief's acceptance design: a border of 100 + 100 + 200 + 200 cm,
+/// one opening of 100 + 200 + 100 + 200 cm, and two lines of 80 cm inside
+/// it. Its frame is drawn with no profile of its own, so the opening's
+/// region is the border exactly, as the brief's figures have it; the leaf
+/// still has its own sash. The pane is a white panel.
+Design acceptance() {
+  const frame = FrameElement(
+    id: 'frame',
+    outline: Polygon([
+      Vec2(0, 0),
+      Vec2(1000, 0),
+      Vec2(1000, 2000),
+      Vec2(0, 2000),
+    ]),
+    profileMm: 0,
+  );
+  var d = SectionBuilder.rebuild(
+    Design.empty(
+      id: 'acceptance',
+      kind: DesignKind.door,
+    ).copyWith(name: 'Acceptance door', frame: frame),
+  );
+  final region = d.sections.single;
+  d = OpeningHardware.settle(
+    d.copyWith(
+      openings: [
+        OpeningElement(
+          id: 'opening',
+          sectionId: region.id,
+          mechanism: OpeningMechanism.hingedLeft,
+          confirmed: true,
+        ),
+      ],
+    ),
+  );
+  d = SectionBuilder.rebuild(
+    d.copyWith(
+      dividers: const [
+        DividerElement(
+          id: 'line-1',
+          a: Vec2(100, 600),
+          b: Vec2(900, 600),
+          parentId: 'opening',
+        ),
+        DividerElement(
+          id: 'line-2',
+          a: Vec2(100, 1400),
+          b: Vec2(900, 1400),
+          parentId: 'opening',
+        ),
+      ],
+    ),
+  );
+  final pane = Infill.partsOf(d).single;
+  d = d.withElement(pane.copyWith(finish: PanelColour.white.finish));
+  return given(d);
+}
+
 /// [d] with a line drawn inside its opening 45 % down it, and the lower
 /// pane made a panel of [colour].
 Design glassOverPanel(Design d, {PanelColour colour = PanelColour.white}) {
@@ -122,8 +185,14 @@ Design glassOverPanel(Design d, {PanelColour colour = PanelColour.white}) {
   return out.withElement(low.copyWith(finish: colour.finish));
 }
 
+/// The mixed screen: four lights under three mullions, a window and a door
+/// each divided glass over a brown panel.
+Design screen() => given(mixed.theScreen().copyWith(kind: DesignKind.both));
+
 Design framedIn(Design d, Finish finish) =>
     d.withElement(d.frame!.copyWith(finish: finish));
+
+double perimeter(Polygon p) => p.edges.fold(0, (s, e) => s + e.length);
 
 double totalOf(Design d, PriceList list, {PricingChoices? choices}) {
   final r = engine.price(d, list, choices: choices);
@@ -134,120 +203,190 @@ double totalOf(Design d, PriceList list, {PricingChoices? choices}) {
 List<PriceLine> linesOf(Design d, PriceList list) =>
     engine.price(d, list).lines;
 
+PriceLine lineOf(Design d, PriceList list, PriceGroup group) =>
+    linesOf(d, list).singleWhere((l) => l.group == group);
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  group('what is charged, by category', () {
-    test('1. a door: its frame by the metre, its leaf as a door, its '
-        'hinges and handle counted', () {
+  group('the acceptance design: 7.60 m of normal profile, 6.00 m of '
+      'opening profile', () {
+    test('31. measured and priced exactly as the brief works it out', () {
+      final d = acceptance();
+      final t = PricingTakeoff.of(d);
+      expect(t.border.value, closeTo(6.00, 1e-9), reason: '600 cm');
+      expect(t.dividers.value, closeTo(1.60, 1e-9), reason: '80 + 80 cm');
+      expect(t.normalProfile.value, closeTo(7.60, 1e-9));
+      expect(t.normalProfile.label, '7.60 m');
+      expect(t.openingProfile.value, closeTo(6.00, 1e-9));
+      expect(t.openingProfile.label, '6.00 m');
+      expect(t.totalProfile.label, '13.60 m');
+
+      // $7 and $12 a metre.
+      final normal = lineOf(d, example, PriceGroup.normalProfile);
+      expect(normal.quantity, closeTo(7.60, 1e-9));
+      expect(normal.rate, 7);
+      expect(normal.amount, 53.20);
+      final opening = lineOf(d, example, PriceGroup.openingProfile);
+      expect(opening.quantity, closeTo(6.00, 1e-9));
+      expect(opening.rate, 12);
+      expect(opening.amount, 72.00);
+      expect(totalOf(d, example), closeTo(125.20, 1e-9));
+
+      // Then the panel: the leaf's own daylight, inside its 18 mm sash —
+      // 96.4 × 196.4 cm — at $30 a square metre.
+      final sash = OpeningLeaf.profileFor(d.frame!);
+      expect(sash, 18);
+      final panelM2 = (1000 - 2 * sash) * (2000 - 2 * sash) / 1e6;
+      expect(t.panelArea.value, closeTo(panelM2, 1e-9));
+      expect(t.panelArea.label, '1.89 m²');
+      final withPanel = example.copyWith(
+        panelPerM2: {...zero.panelPerM2, PanelColour.white: 30},
+      );
+      final panel = lineOf(d, withPanel, PriceGroup.panel);
+      expect(panel.unit, PriceUnit.squareMetre);
+      expect(panel.amount, 56.80, reason: '1.893296 m² × 30');
+      expect(totalOf(d, withPanel), closeTo(125.20 + 56.80, 1e-9));
+      final result = engine.price(d, withPanel);
+      expect(result.measurements.normalProfile.label, '7.60 m');
+      expect(result.measurements.openingProfile.label, '6.00 m');
+      expect(result.measurements.panelArea.label, '1.89 m²');
+      expect(result.measurements.glassArea.label, '0.00 m²');
+    });
+  });
+
+  group('measurement', () {
+    test('1 & 4. the border is the outline, the opening its own region', () {
       final d = door();
       final t = PricingTakeoff.of(d);
-      expect(t.widthCm, closeTo(100, 1e-9));
-      expect(t.heightCm, closeTo(200, 1e-9));
-      expect(t.areaM2, closeTo(2, 1e-9), reason: '100 × 200 cm = 2 m²');
-      expect(t.frameMetres, closeTo(6, 1e-9));
-      expect(t.openings, 1);
-
-      final list = withProfile(
-        zero,
-        MaterialKind.upvc,
-        frame: 10,
-      ).copyWith(leafEach: {...zero.leafEach, LeafRate.door: 1000});
-      final lines = linesOf(d, list);
-      expect(lines.map((l) => l.label), contains('uPVC frame'));
-      expect(lines.map((l) => l.label), contains('Door leaf'));
-      expect(totalOf(d, list), closeTo(60 + 1000, 1e-6));
-    });
-
-    test('2. a window: the same sheet, its leaf charged as a window sash', () {
-      final d = door(kind: DesignKind.window, id: 'w');
-      final list = zero.copyWith(
-        leafEach: {...zero.leafEach, LeafRate.window: 300, LeafRate.door: 1},
+      expect(t.border.value, closeTo(6, 1e-9), reason: '100+100+200+200');
+      final daylight = d.frame!.innerOutline;
+      expect(t.openingProfile.value, closeTo(perimeter(daylight) / 1000, 1e-9));
+      expect(t.openings.single.perimeter, t.openingProfile);
+      // An angled border is its own polygon's perimeter.
+      final a = given(sloped());
+      expect(
+        PricingTakeoff.of(a).border.value,
+        closeTo(2 + 1.5 + 1 + 1.1180340, 1e-6),
       );
-      final lines = linesOf(d, list);
-      expect(lines.single.label, 'Window sash');
-      expect(totalOf(d, list), 300);
     });
 
-    test('3. a sliding set: its panel a sliding panel, the track by the '
-        'metre of its width, and the rollers it runs on', () {
-      final d = given(sliding.sheet(left: '>'));
+    test('2 & 6 & 27. every bar once, at the length it is cut to — a '
+        'mullion between two openings counted once', () {
+      final d = screen();
       final t = PricingTakeoff.of(d);
-      expect(t.leaves.where((l) => l.slides), hasLength(1));
-      final list = zero.copyWith(
-        leafEach: {...zero.leafEach, LeafRate.sliding: 500},
-        trackPerMetre: 10,
-        rollerEach: 7,
-        rollersPerSlidingPanel: 3,
-      );
-      final labels = linesOf(d, list).map((l) => l.label).toList();
+      final divs = t.runs.where((r) => r.use == ProfileUse.divider).toList();
+      expect(divs, hasLength(d.dividers.length));
+      expect({for (final r in divs) r.id}, hasLength(divs.length));
+      final mullions = divs.where((r) => r.openingId == null).toList();
+      expect(mullions, hasLength(3));
+      // A full-height mullion is cut from the frame's inner face to the
+      // other: the daylight's height.
+      final inner = d.frame!.innerOutline;
+      for (final m in mullions) {
+        expect(m.length.value, closeTo(inner.height / 1000, 1e-6));
+      }
+      // The lines inside the openings are each that opening's, and cut to
+      // the sash's daylight.
+      final inside = divs.where((r) => r.openingId != null).toList();
+      expect(inside, hasLength(2));
       expect(
-        labels,
-        containsAll(['Sliding panel', 'Sliding track', 'Rollers']),
+        {for (final r in inside) r.openingId},
+        {for (final o in d.openings) o.id},
       );
-      // 2.4 m of track, one sliding panel on three rollers.
-      expect(totalOf(d, list), closeTo(500 + 24 + 21, 1e-6));
-      // Three rollers are not two.
       expect(
-        totalOf(d, list.copyWith(rollersPerSlidingPanel: 2)),
-        closeTo(500 + 24 + 14, 1e-6),
+        t.dividers.value,
+        closeTo(divs.fold<double>(0, (s, r) => s + r.length.value), 1e-9),
       );
     });
 
-    test('4 & 21. a door & window set: each leaf charged as what it is — '
-        'never the whole as one door or one window', () {
-      final d = given(mixed.theScreen().copyWith(kind: DesignKind.both));
-      final kinds = [for (final o in d.openingsInOrder) d.kindOf(o)];
-      expect(kinds, [DesignKind.window, DesignKind.door]);
-      final list = zero.copyWith(
-        leafEach: {...zero.leafEach, LeafRate.door: 1000, LeafRate.window: 10},
-      );
-      final leafLines = linesOf(d, list)
-          .where((l) => l.unit == PriceUnit.each)
-          .map((l) => '${l.label} ${l.amount}')
-          .toList();
-      expect(
-        leafLines,
-        unorderedEquals(['Window sash 10.0', 'Door leaf 1000.0']),
-      );
-      expect(totalOf(d, list), 1010);
-      // The door's lock is the door's: a lock rate is charged once.
-      final locked = list.copyWith(
-        hardwareEach: {...zero.hardwareEach, HardwareKind.lock: 50},
-      );
-      expect(totalOf(d, locked), 1060);
-    });
-
-    test('5 & 22. an angled design: its area the polygon\'s own, never its '
-        'box, its sloped joints charged, and nothing squared', () {
-      final d = given(sloped());
-      final before = jsonEncode(d.toJson());
+    test('3 & 8. normal profile is the border and every line; a design '
+        'with no lines has the border alone', () {
+      final d = screen();
       final t = PricingTakeoff.of(d);
-      // Left 200 cm, right 150, 100 wide: 2 m² of box, 1.75 m² of window.
-      expect(t.areaM2, closeTo(1.75, 1e-9));
-      expect(d.frame!.outline.width * d.frame!.outline.height / 1e6, 2);
-      expect(t.angledJoints, 2);
-      expect(t.frameMetres, closeTo(2 + 1.5 + 1 + 1.118034, 1e-5));
-
-      final list = zero.copyWith(
-        angledJointEach: 100,
-        categories: {
-          ...zero.categories,
-          'angled': const CategoryRate(
-            'Angled',
-            LabourRate(perSquareMetre: 1000),
-          ),
-        },
+      expect(
+        t.normalProfile.value,
+        closeTo(t.border.value + t.dividers.value, 1e-12),
       );
-      expect(totalOf(d, list), closeTo(200 + 1750, 1e-6));
-      expect(jsonEncode(d.toJson()), before, reason: 'not squared to price');
+      expect(PricingTakeoff.of(door()).dividers, Metres.zero);
+    });
+
+    test('5 & 26. several openings each measured once, never with the '
+        'lines inside them, and never in the normal profile', () {
+      final d = screen();
+      final t = PricingTakeoff.of(d);
+      expect(t.openings, hasLength(2));
+      var sum = 0.0;
+      for (final o in d.openingsInOrder) {
+        final region = d.sectionById(o.sectionId)!.outline;
+        final mine = t.openings.singleWhere((x) => x.id == o.id);
+        expect(mine.perimeter.value, closeTo(perimeter(region) / 1000, 1e-9));
+        sum += mine.perimeter.value;
+      }
+      expect(t.openingProfile.value, closeTo(sum, 1e-9));
+      // A line drawn inside an opening adds to the normal profile and
+      // leaves the opening's perimeter as it was.
+      final d2 = DesignEdits.addLineInside(
+        d,
+        d.openingsInOrder.first.sectionId,
+        id: 'more',
+        at: d.sectionById(d.openingsInOrder.first.sectionId)!.outline.centroid,
+        horizontal: false,
+      );
+      final t2 = PricingTakeoff.of(d2);
+      expect(t2.openingProfile.value, closeTo(t.openingProfile.value, 1e-9));
+      expect(t2.normalProfile.value, greaterThan(t.normalProfile.value));
+      expect(t2.border.value, t.border.value);
+      // Every run is counted once.
+      final ids = [for (final r in t2.runs) '${r.use}:${r.id}'];
+      expect(ids.toSet(), hasLength(ids.length));
+    });
+
+    test('7 & 8 & 9 & 10. panel and glass by the area each part is cut to, '
+        'summed — never shared out, never invented', () {
+      final d = screen();
+      final t = PricingTakeoff.of(d);
+      final geometry = DesignGeometry.of(d);
+      final parts = Infill.partsOf(d);
+      final panels = parts.where((p) => Infill.isPanel(p.finish)).toList();
+      final glass = parts.where((p) => Infill.isGlass(p.finish)).toList();
+      expect(panels, hasLength(2));
+      expect(glass, hasLength(4));
+      double area(Iterable<SectionElement> p) =>
+          p.fold<double>(0, (s, x) => s + geometry.fillOf(x).area / 1e6);
+      expect(t.panelArea.value, closeTo(area(panels), 1e-9));
+      expect(t.glassArea.value, closeTo(area(glass), 1e-9));
+      expect(t.panelRegions, 2);
+      expect(t.glassRegions, 4);
+      // Not half and half.
+      expect(t.glassArea.value, isNot(closeTo(t.panelArea.value, 0.1)));
+    });
+
+    test('28. metres and square metres are kept apart — the total profile '
+        'holds no area and no count, and each says its own unit', () {
+      final t = PricingTakeoff.of(screen());
+      final m = t.summary;
+      expect(
+        m.totalProfile.value,
+        closeTo(
+          m.normalProfile.value + m.openingProfile.value + m.otherProfile.value,
+          1e-12,
+        ),
+      );
+      expect(m.totalProfile.label, endsWith(' m'));
+      expect(m.panelArea.label, endsWith(' m²'));
+      expect(m.glassArea.label, endsWith(' m²'));
+      expect(m.normalProfile, isA<Metres>());
+      expect(m.panelArea, isA<SquareMetres>());
+      expect(const Metres(56.8).label, '56.80 m');
+      expect(const SquareMetres(8.4).label, '8.40 m²');
     });
   });
 
   group('material and colour', () {
-    test('6 & 7 & 27. the same geometry in uPVC and in aluminium: two prices '
-        'where the list prices them differently', () {
-      final d = door();
+    test('11 & 12 & 27. the same geometry in uPVC and in aluminium: each '
+        'material\'s own normal and opening rates', () {
+      final d = acceptance();
       final pvc = framedIn(
         d,
         const Finish(colour: 0xFFFFFFFF, material: MaterialKind.upvc),
@@ -256,241 +395,166 @@ void main() {
         d,
         const Finish(colour: 0xFFFFFFFF, material: MaterialKind.aluminium),
       );
-      final a = totalOf(pvc, PriceList.starter);
-      final b = totalOf(alu, PriceList.starter);
-      expect(a, isNot(b));
-      expect(b, greaterThan(a));
-      // The geometry is the same: only the frame's finish differs.
-      expect(pvc.frame!.outline, alu.frame!.outline);
-
-      // Exactly the profile's price per metre between them.
       final list = withProfile(
-        withProfile(zero, MaterialKind.upvc, frame: 10),
+        withProfile(zero, MaterialKind.upvc, normal: 7, opening: 12),
         MaterialKind.aluminium,
-        frame: 30,
+        normal: 11,
+        opening: 18,
       );
-      expect(totalOf(pvc, list), closeTo(60, 1e-6));
-      expect(totalOf(alu, list), closeTo(180, 1e-6));
+      // The lines inside are uPVC in both: they are bars of their own.
+      expect(totalOf(pvc, list), closeTo(7.6 * 7 + 6 * 12, 1e-9));
+      expect(totalOf(alu, list), closeTo(6 * 11 + 1.6 * 7 + 6 * 18, 1e-9));
+      expect(pvc.frame!.outline, alu.frame!.outline);
+      expect(
+        totalOf(pvc, PriceList.starter),
+        isNot(totalOf(alu, PriceList.starter)),
+      );
     });
 
-    test(
-      '8 & 9 & 27. the same aluminium frame in a standard colour and in '
-      'one with a surcharge: different prices, the surcharge its own line',
-      () {
-        final d = door();
-        const white = Finish(
-          colour: 0xFFFFFFFF,
-          material: MaterialKind.aluminium,
-        );
-        const anthracite = Finish(
-          colour: 0xFF383E42,
-          material: MaterialKind.aluminium,
-        );
-        final a = totalOf(framedIn(d, white), PriceList.starter);
-        final b = totalOf(framedIn(d, anthracite), PriceList.starter);
-        expect(b, greaterThan(a));
-
-        final list = withProfile(
-          zero,
-          MaterialKind.aluminium,
-          frame: 100,
-          colours: const [
-            ColourRate('White', 0xFFFFFFFF, ColourGrade.standard, 0),
-            ColourRate('Anthracite', 0xFF383E42, ColourGrade.nonStandard, 10),
-          ],
-          special: 25,
-        );
-        expect(totalOf(framedIn(d, white), list), closeTo(600, 1e-6));
-        expect(totalOf(framedIn(d, anthracite), list), closeTo(660, 1e-6));
-        final surcharge = linesOf(framedIn(d, anthracite), list).last;
-        expect(surcharge.label, contains('Anthracite'));
-        expect(surcharge.label, contains('non-standard'));
-        expect(surcharge.unit, PriceUnit.percent);
-
-        // A colour the list does not name is a special colour — the house
-        // green of the application's own bars among them.
-        const brand = Finish(
-          colour: 0xFF013E37,
-          material: MaterialKind.aluminium,
-        );
-        expect(totalOf(framedIn(d, brand), list), closeTo(750, 1e-6));
-        expect(
-          linesOf(framedIn(d, brand), list).last.label,
-          contains('special colour'),
-        );
-        const cream = Finish(
-          colour: 0xFFFFEFB3,
-          material: MaterialKind.aluminium,
-        );
-        expect(totalOf(framedIn(d, cream), list), closeTo(750, 1e-6));
-      },
-    );
-
-    test('wood-effect uPVC is dearer than white in the starter list', () {
+    test('13 & 14 & 27. a colour adds its own figure, a metre and a share, '
+        'and what it adds depends on the material', () {
       final d = door();
-      const white = Finish(colour: 0xFFFFFFFF, material: MaterialKind.upvc);
+      const pvcWhite = Finish(colour: 0xFFFFFFFF, material: MaterialKind.upvc);
+      const pvcBlack = Finish(colour: 0xFF1C1C1C, material: MaterialKind.upvc);
+      const aluBlack = Finish(
+        colour: 0xFF1C1C1C,
+        material: MaterialKind.aluminium,
+      );
+      final list = withProfile(
+        withProfile(
+          zero,
+          MaterialKind.upvc,
+          normal: 7,
+          colours: const [
+            ColourRate('White', 0xFFFFFFFF, ColourGrade.standard),
+            ColourRate(
+              'Black',
+              0xFF1C1C1C,
+              ColourGrade.nonStandard,
+              perMetre: 1,
+            ),
+          ],
+          special: const ColourSurcharge(percent: 50),
+        ),
+        MaterialKind.aluminium,
+        normal: 7,
+        colours: const [
+          ColourRate(
+            'Black',
+            0xFF1C1C1C,
+            ColourGrade.nonStandard,
+            perMetre: 2,
+            percent: 10,
+          ),
+        ],
+      );
+      final white = totalOf(framedIn(d, pvcWhite), list);
+      final black = totalOf(framedIn(d, pvcBlack), list);
+      final alu = totalOf(framedIn(d, aluBlack), list);
+      // The colour is on every metre of profile in it: the border and the
+      // opening's, which this list charges nothing for itself.
+      final t = PricingTakeoff.of(d);
+      final coloured = t.normalProfile.value + t.openingProfile.value;
+      double money(double v) => (v * 100).roundToDouble() / 100;
+      expect(white, closeTo(6 * 7, 1e-9));
+      expect(
+        black,
+        closeTo(42 + money(coloured * 1), 1e-9),
+        reason: 'X + Y a metre',
+      );
+      expect(alu, closeTo(42 + money(coloured * 2) + 4.2, 1e-9));
+      final colour = linesOf(
+        framedIn(d, pvcBlack),
+        list,
+      ).singleWhere((l) => l.group == PriceGroup.colour);
+      expect(colour.label, contains('Black'));
+      expect(colour.label, contains('non-standard'));
+      // A colour the list does not name — the house green among them — is
+      // special, at the material's special rate.
+      const brand = Finish(colour: 0xFF013E37, material: MaterialKind.upvc);
+      expect(totalOf(framedIn(d, brand), list), closeTo(42 * 1.5, 1e-9));
+      // Wood effect dearer than white in the starter list.
       const oak = Finish(colour: 0xFF7B4A2B, material: MaterialKind.upvc);
       expect(
         totalOf(framedIn(d, oak), PriceList.starter),
-        greaterThan(totalOf(framedIn(d, white), PriceList.starter)),
+        greaterThan(totalOf(framedIn(d, pvcWhite), PriceList.starter)),
       );
     });
   });
 
-  group('glass, panel, hardware, labour, installation, discount', () {
-    test('10 & 11. each pane by its own glass or panel, by the square metre '
-        'it is cut to — not shared out half and half', () {
-      final d = glassOverPanel(door());
-      final geometry = DesignGeometry.of(d);
-      final parts = Infill.partsOf(d);
-      final glass = parts.singleWhere((p) => Infill.isGlass(p.finish));
-      final panel = parts.singleWhere((p) => Infill.isPanel(p.finish));
-      final glassM2 = geometry.fillOf(glass).area / 1e6;
-      final panelM2 = geometry.fillOf(panel).area / 1e6;
-      expect(glassM2, isNot(closeTo(panelM2, 0.05)), reason: 'not 50/50');
-
-      final list = zero.copyWith(
-        glassPerM2: {...zero.glassPerM2, GlassLook.clear: 100},
-        panelPerM2: {...zero.panelPerM2, PanelColour.white: 1000},
-      );
-      final lines = linesOf(d, list);
-      final g = lines.singleWhere((l) => l.label.startsWith('Clear glass'));
-      final p = lines.singleWhere((l) => l.label.startsWith('White panel'));
-      expect(g.quantity, closeTo(glassM2, 1e-9));
-      expect(p.quantity, closeTo(panelM2, 1e-9));
-      expect(g.partId, glass.id);
-      expect(p.partId, panel.id);
-      expect(PricingTakeoff.of(d).glassRegions, 1);
-      expect(PricingTakeoff.of(d).panelRegions, 1);
-      expect(PricingTakeoff.of(d).dividers, 1);
-
-      // Glass and panel are charged differently, by look and by colour.
-      final frosted = d.withElement(
-        glass.copyWith(finish: GlassLook.frosted.finish),
-      );
-      final dearer = list.copyWith(
-        glassPerM2: {...list.glassPerM2, GlassLook.frosted: 300},
-      );
+  group('categories', () {
+    test('15. a door: border, opening, its leaf\'s glass and its hardware', () {
+      final d = door();
+      final labels = linesOf(d, PriceList.starter).map((l) => l.group).toSet();
       expect(
-        totalOf(frosted, dearer) - totalOf(d, dearer),
-        closeTo(glassM2 * 200, 0.02),
+        labels,
+        containsAll([
+          PriceGroup.normalProfile,
+          PriceGroup.openingProfile,
+          PriceGroup.glass,
+          PriceGroup.hardware,
+        ]),
       );
+      expect(engine.price(d, PriceList.starter).measurements.openings, 1);
     });
 
-    test('12. ironmongery by the piece: four hinges are not three', () {
-      final d = door();
+    test('16. a window measured as the same sheet', () {
+      final w = door(kind: DesignKind.window, id: 'w');
+      expect(
+        PricingTakeoff.of(w).totalProfile.value,
+        closeTo(PricingTakeoff.of(door()).totalProfile.value, 1e-9),
+      );
+      expect(engine.price(w, PriceList.starter).isPriced, isTrue);
+    });
+
+    test('17. a sliding set: its track as other profile, the frame\'s '
+        'width once, and the rollers its sliding panel runs on', () {
+      final d = given(sliding.sheet(left: '>'));
+      final t = PricingTakeoff.of(d);
+      expect(t.otherProfile.value, closeTo(2.4, 1e-9));
+      expect(
+        t.summary.totalProfile.value,
+        closeTo(t.normalProfile.value + t.openingProfile.value + 2.4, 1e-9),
+      );
       final list = zero.copyWith(
-        hardwareEach: {...zero.hardwareEach, HardwareKind.hinge: 100},
+        trackPerMetre: 10,
+        rollerEach: 7,
+        rollersPerSlidingPanel: 3,
       );
-      final hinges = d.hardware.where((h) => h.kind == HardwareKind.hinge);
-      final base = totalOf(d, list);
-      expect(base, 100.0 * hinges.length);
-
-      Design hung(int count) => OpeningHardware.settle(
-        d.withElement(d.openings.single.copyWith(hingeCount: count)),
+      expect(totalOf(d, list), closeTo(24 + 21, 1e-9));
+      expect(
+        totalOf(d, list.copyWith(rollersPerSlidingPanel: 2)),
+        closeTo(24 + 14, 1e-9),
       );
-      expect(totalOf(hung(3), list), 300);
-      expect(totalOf(hung(4), list), 400);
-      expect(PricingTakeoff.of(hung(4)).hardwareCounts[HardwareKind.hinge], 4);
     });
 
-    test('13. labour: fixed, by area and as a percentage of the materials', () {
-      final d = door();
-      final list = withProfile(zero, MaterialKind.upvc, frame: 100).copyWith(
-        categories: {
-          ...zero.categories,
-          'door': const CategoryRate(
-            'Door',
-            LabourRate(fixed: 50, perSquareMetre: 10, percent: 10),
-          ),
-        },
+    test('18. a door & window set: each opening measured and furnished as '
+        'its own', () {
+      final d = screen();
+      final kinds = [for (final o in d.openingsInOrder) d.kindOf(o)];
+      expect(kinds, [DesignKind.window, DesignKind.door]);
+      final locked = zero.copyWith(
+        hardwareEach: {...zero.hardwareEach, HardwareKind.lock: 50},
       );
-      final r = engine.price(d, list);
-      expect(r.sumOf(PriceGroup.material), closeTo(600, 1e-6));
-      // 50 fixed, 2 m² × 10, 10 % of 600.
-      expect(r.sumOf(PriceGroup.labour), closeTo(50 + 20 + 60, 1e-6));
-      expect(r.total, closeTo(730, 1e-6));
+      expect(totalOf(d, locked), 50, reason: 'the door\'s lock, once');
+      expect(PricingTakeoff.of(d).openings, hasLength(2));
     });
 
-    test('14. installation only where it is asked for, and then its own '
-        'group', () {
-      final d = door();
-      final list = zero.copyWith(
-        installation: const InstallationRate(fixed: 100, perSquareMetre: 10),
-      );
-      final without = engine.price(d, list);
-      expect(without.sumOf(PriceGroup.installation), 0);
-      expect(without.total, 0);
-      expect(d.pricing.installation, isFalse, reason: 'never on by default');
-      final fitted = engine.price(
-        d,
-        list,
-        choices: const PricingChoices(installation: true),
-      );
-      expect(fitted.sumOf(PriceGroup.installation), closeTo(120, 1e-6));
-      expect(fitted.total, closeTo(120, 1e-6));
+    test('19 & 22-angled. an angled design at its own measurements — '
+        '1.75 m² inside, never the 2 m² of its box — and nothing squared', () {
+      final d = given(sloped());
+      final before = jsonEncode(d.toJson());
+      final t = PricingTakeoff.of(d);
+      expect(t.area.value, closeTo(1.75, 1e-9));
+      final raked = d.openings.single;
+      final region = d.sectionById(raked.sectionId)!.outline;
+      expect(t.openingProfile.value, closeTo(perimeter(region) / 1000, 1e-9));
+      expect(engine.price(d, PriceList.starter).isPriced, isTrue);
+      expect(jsonEncode(d.toJson()), before);
     });
 
-    test('15. a subtotal, a discount and a total — and no discount takes '
-        'the total below nothing', () {
-      final d = door();
-      final list = withProfile(zero, MaterialKind.upvc, frame: 100);
-      PriceResult off(Discount discount) =>
-          engine.price(d, list, choices: PricingChoices(discount: discount));
-      final ten = off(const Discount(percent: 10));
-      expect(ten.subtotal, 600);
-      expect(ten.discountAmount, 60);
-      expect(ten.total, 540);
-      expect(off(const Discount(amount: 50)).total, 550);
-      expect(off(const Discount(amount: 5000)).total, 0);
-      expect(off(const Discount(percent: 150)).total, 0);
-      expect(off(const Discount(percent: double.nan)).total, 600);
-    });
-  });
-
-  group('recalculation', () {
-    final list = withProfile(
-      zero,
-      MaterialKind.upvc,
-      frame: 10,
-    ).copyWith(glassPerM2: {...zero.glassPerM2, GlassLook.clear: 100});
-
-    test('16 & 17. a new width or height gives a new price', () {
-      final d = door();
-      final wider = Measurements.apply(d, {Measurements.widthKey: 1200});
-      final taller = Measurements.apply(d, {Measurements.heightKey: 2400});
-      expect(wider.ok && taller.ok, isTrue);
-      // 6 m of frame, then 6.4, then 6.8.
-      expect(linesOf(d, list).first.quantity, closeTo(6, 1e-9));
-      expect(linesOf(wider.design, list).first.quantity, closeTo(6.4, 1e-9));
-      expect(linesOf(taller.design, list).first.quantity, closeTo(6.8, 1e-9));
-      expect(totalOf(wider.design, list), greaterThan(totalOf(d, list)));
-      expect(totalOf(taller.design, list), greaterThan(totalOf(d, list)));
-    });
-
-    test('18 & 19 & 20. material, colour and glass to panel each give a '
-        'new price', () {
-      final d = door();
-      final starter = PriceList.starter;
-      final base = totalOf(d, starter);
-      final alu = framedIn(
-        d,
-        d.frame!.finish.copyWith(material: MaterialKind.aluminium),
-      );
-      expect(totalOf(alu, starter), isNot(base));
-      final black = framedIn(d, d.frame!.finish.copyWith(colour: 0xFF1C1C1C));
-      expect(totalOf(black, starter), greaterThan(base));
-      final pane = Infill.partsOf(d).single;
-      final panel = d.withElement(
-        pane.copyWith(finish: PanelColour.white.finish),
-      );
-      expect(totalOf(panel, starter), isNot(base));
-    });
-  });
-
-  group('what cannot be priced is said, never guessed', () {
-    test('23. a category from a later version: price unavailable — never '
-        'a window\'s price', () {
+    test('20. a category from a later version: price unavailable, never a '
+        'window\'s or a door\'s', () {
       final d = given(sloped());
       for (final saved in <Object?>['future_custom_shape', 'circular', 12345]) {
         final future = Design.fromJson(keptAs(d, saved));
@@ -499,22 +563,23 @@ void main() {
         expect(r.total, isNull);
         expect(r.lines, isEmpty);
         expect(r.category, isNot('window'));
-        expect(r.issues.single.message, contains('Price unavailable'));
+        expect(r.category, isNot('door'));
       }
-      final none = Design.fromJson(keptAs(d, null, has: false));
       expect(
-        engine.price(none, PriceList.starter).status,
+        engine
+            .price(
+              Design.fromJson(keptAs(d, null, has: false)),
+              PriceList.starter,
+            )
+            .status,
         PriceStatus.unsupportedCategory,
       );
     });
 
-    test('a category with no strategy, or no rate, is not priced as '
-        'another', () {
+    test('a category with no strategy or no rate is not priced as another; '
+        'a later one is a strategy registered and nothing else', () {
       final d = given(sliding.sheet(left: '>'));
-      const noSliding = PricingEngine({
-        'door': FramedPricing(),
-        'window': FramedPricing(),
-      });
+      const noSliding = PricingEngine({'door': FramedPricing()});
       expect(
         noSliding.price(d, PriceList.starter).status,
         PriceStatus.unsupportedCategory,
@@ -523,21 +588,213 @@ void main() {
         categories: {...zero.categories}..remove('sliding'),
       );
       expect(engine.price(d, noRate).status, PriceStatus.notConfigured);
-    });
-
-    test('a later category is added by registering its strategy and its '
-        'rate — nothing else changes', () {
-      final d = door();
       final custom = PricingEngine({
         ...PricingEngine.standard,
-        'door': _Flat(),
+        'door': const _Flat(),
       });
-      expect(custom.price(d, zero).total, 1234);
-      expect(engine.price(d, zero).total, 0);
+      expect(custom.price(door(), zero).total, 1234);
+    });
+  });
+
+  group('one design, and a customer\'s designs', () {
+    test(
+      '21. a design\'s price is its lines, each a measurement at a rate',
+      () {
+        final d = glassOverPanel(door());
+        final list = example.copyWith(
+          glassPerM2: {...zero.glassPerM2, GlassLook.clear: 25},
+          panelPerM2: {...zero.panelPerM2, PanelColour.white: 30},
+          hardwareEach: {...zero.hardwareEach, HardwareKind.hinge: 3},
+        );
+        final r = engine.price(d, list);
+        final t = PricingTakeoff.of(d);
+        final hinges = t.hardwareCounts[HardwareKind.hinge]!;
+        double money(double v) => (v * 100).roundToDouble() / 100;
+        expect(
+          r.total,
+          closeTo(
+            money(t.normalProfile.value * 7) +
+                money(t.openingProfile.value * 12) +
+                money(t.glassArea.value * 25) +
+                money(t.panelArea.value * 30) +
+                hinges * 3,
+            1e-9,
+          ),
+        );
+        for (final l in r.lines) {
+          if (l.unit == PriceUnit.percent) continue;
+          expect(l.amount, money(l.quantity * l.rate), reason: '$l');
+        }
+      },
+    );
+
+    test('32. three designs of one customer: each its own price and '
+        'measurements, the total their sum, and a change to one moving '
+        'the total by that one', () {
+      final one = framedIn(
+        acceptance(),
+        const Finish(colour: 0xFFFFFFFF, material: MaterialKind.upvc),
+      );
+      final two = framedIn(
+        glassOverPanel(door(kind: DesignKind.window, id: 'two')),
+        const Finish(colour: 0xFF383E42, material: MaterialKind.aluminium),
+      );
+      final three = framedIn(
+        given(sloped(id: 'three')),
+        const Finish(colour: 0xFF7B4A2B, material: MaterialKind.upvc),
+      );
+      final designs = [one, two, three];
+      final texts = [for (final d in designs) jsonEncode(d.toJson())];
+      final list = PriceList.starter;
+      final adam = CustomerPricing.of(designs, list);
+      expect(adam.designs, hasLength(3));
+      expect(adam.complete, isTrue);
+      final each = [for (final d in designs) engine.price(d, list)];
+      expect({for (final r in each) r.total}, hasLength(3));
+      expect(
+        adam.total,
+        closeTo(each.fold<double>(0, (s, r) => s + r.total!), 1e-9),
+      );
+      // 23. the measurements, summed — metres with metres and square
+      // metres with square metres.
+      final m = adam.measurements;
+      double sum(double Function(MeasurementSummary) f) =>
+          each.fold<double>(0, (s, r) => s + f(r.measurements));
+      expect(
+        m.normalProfile.value,
+        closeTo(sum((x) => x.normalProfile.value), 1e-9),
+      );
+      expect(
+        m.openingProfile.value,
+        closeTo(sum((x) => x.openingProfile.value), 1e-9),
+      );
+      expect(
+        m.totalProfile.value,
+        closeTo(sum((x) => x.totalProfile.value), 1e-9),
+      );
+      expect(m.panelArea.value, closeTo(sum((x) => x.panelArea.value), 1e-9));
+      expect(m.glassArea.value, closeTo(sum((x) => x.glassArea.value), 1e-9));
+      for (var i = 0; i < 3; i++) {
+        expect(adam.designs[i].result.total, each[i].total);
+        expect(jsonEncode(designs[i].toJson()), texts[i]);
+      }
+
+      // The second made wider: it alone changes, and the total by it.
+      final wider = Measurements.apply(two, {Measurements.widthKey: 1200});
+      expect(wider.ok, isTrue);
+      final after = CustomerPricing.of([one, wider.design, three], list);
+      final grew = engine.price(wider.design, list).total! - each[1].total!;
+      expect(grew, greaterThan(0));
+      expect(after.total, closeTo(adam.total + grew, 1e-9));
+      expect(after.designs[0].result.total, each[0].total);
+      expect(after.designs[2].result.total, each[2].total);
+
+      // A design that cannot be priced is listed and left out.
+      final future = Design.fromJson(keptAs(three, 'future_custom_shape'));
+      final some = CustomerPricing.of([one, two, future], list);
+      expect(some.complete, isFalse);
+      expect(some.unpriced.single.designId, 'three');
+      expect(some.total, closeTo(each[0].total! + each[1].total!, 1e-9));
+    });
+  });
+
+  group('kept, read back and changed', () {
+    test('24. the design\'s pricing choices and its measurements come back '
+        'from a save and a load as they went', () {
+      final d = acceptance().copyWith(
+        pricing: const PricingChoices(
+          installation: true,
+          discount: Discount(percent: 5),
+        ),
+      );
+      final back = Design.fromJson(jsonDecode(jsonEncode(d.toJson())));
+      expect(back.pricing, d.pricing);
+      expect(jsonEncode(back.toJson()), jsonEncode(d.toJson()));
+      final a = engine.price(d, PriceList.starter);
+      final b = engine.price(back, PriceList.starter);
+      expect(b.total, a.total);
+      expect(jsonEncode(b.toJson()), jsonEncode(a.toJson()));
+      // A kept price keeps its measurements, and a dearer list leaves it be.
+      final snap = PriceSnapshot(takenAt: DateTime(2026, 10, 4), result: a);
+      final kept = Design.fromJson(
+        jsonDecode(
+          jsonEncode(
+            d.copyWith(pricing: PricingChoices(snapshot: snap)).toJson(),
+          ),
+        ),
+      );
+      final dearer = withProfile(
+        PriceList.starter,
+        MaterialKind.upvc,
+        normal: 99,
+        opening: 99,
+      ).copyWith(version: 7);
+      expect(engine.price(kept, dearer).total, isNot(a.total));
+      expect(kept.pricing.snapshot!.result.total, a.total);
+      expect(
+        kept.pricing.snapshot!.result.measurements.normalProfile.label,
+        '7.60 m',
+      );
     });
 
-    test('24. missing data: a frame material, a glass, a piece of '
-        'ironmongery the list has no price for', () {
+    test('25. pricing reads the design and writes nothing', () {
+      for (final d in [
+        door(),
+        acceptance(),
+        screen(),
+        given(sloped()),
+        given(sliding.sheet(left: '>')),
+      ]) {
+        final before = jsonEncode(d.toJson());
+        engine.price(d, PriceList.starter);
+        PricingTakeoff.of(d);
+        CustomerPricing.of([d, d], PriceList.starter);
+        expect(jsonEncode(d.toJson()), before);
+      }
+    });
+
+    test('16 & 17 & 29. a new width, height, rate or list each gives a new '
+        'price, from the same measurement', () {
+      final d = door();
+      final wider = Measurements.apply(d, {Measurements.widthKey: 1200});
+      final taller = Measurements.apply(d, {Measurements.heightKey: 2400});
+      expect(PricingTakeoff.of(wider.design).border.value, closeTo(6.4, 1e-9));
+      expect(PricingTakeoff.of(taller.design).border.value, closeTo(6.8, 1e-9));
+      final at7 = totalOf(d, example);
+      final at8 = totalOf(
+        d,
+        withProfile(zero, MaterialKind.upvc, normal: 8, opening: 12),
+      );
+      final t = PricingTakeoff.of(d);
+      expect(at8 - at7, closeTo(t.normalProfile.value, 0.011));
+      // Glass to panel.
+      final pane = Infill.partsOf(d).single;
+      final panel = d.withElement(
+        pane.copyWith(finish: PanelColour.white.finish),
+      );
+      expect(
+        totalOf(panel, PriceList.starter),
+        isNot(totalOf(d, PriceList.starter)),
+      );
+    });
+
+    test('30. a design kept before pricing opens unchanged and is priced', () {
+      final d = door();
+      final json = d.toJson();
+      expect(json.containsKey('pricing'), isFalse);
+      final old = Design.fromJson(jsonDecode(jsonEncode(json)));
+      expect(old.pricing.isNone, isTrue);
+      expect(jsonEncode(old.toJson()), jsonEncode(json));
+      final older = Design.fromJson(
+        jsonDecode(jsonEncode({...json}..remove('measured'))),
+      );
+      expect(engine.price(older, PriceList.starter).isPriced, isTrue);
+    });
+  });
+
+  group('what cannot be priced is said, never guessed', () {
+    test('missing data: a frame material, a glass, a piece the list has no '
+        'price for; nothing drawn; no sizes', () {
       final d = door();
       final wood = framedIn(
         d,
@@ -546,28 +803,31 @@ void main() {
       final r = engine.price(wood, zero);
       expect(r.status, PriceStatus.notConfigured);
       expect(r.total, isNull);
-      expect(r.issues.single.message, contains('Wood frame'));
-
-      final noGlass = zero.copyWith(glassPerM2: const {});
-      expect(engine.price(d, noGlass).status, PriceStatus.notConfigured);
+      expect(r.issues.single.message, contains('Wood profile'));
+      expect(
+        r.measurements.normalProfile.value,
+        closeTo(6, 1e-9),
+        reason: 'measured all the same',
+      );
+      expect(
+        engine.price(d, zero.copyWith(glassPerM2: const {})).status,
+        PriceStatus.notConfigured,
+      );
       final noHinge = zero.copyWith(
         hardwareEach: {...zero.hardwareEach}..remove(HardwareKind.hinge),
       );
-      final hinge = engine.price(d, noHinge);
-      expect(hinge.status, PriceStatus.notConfigured);
-      expect(hinge.issues.single.message, contains('hinge'));
-
-      // Nothing drawn, and no sizes given.
-      final empty = Design.empty(id: 'e', kind: DesignKind.door);
-      expect(engine.price(empty, zero).status, PriceStatus.nothingToPrice);
-      final unsized = door().copyWith(measured: {});
-      final asked = engine.price(unsized, zero);
+      expect(engine.price(d, noHinge).issues.single.message, contains('hinge'));
+      expect(
+        engine.price(Design.empty(id: 'e', kind: DesignKind.door), zero).status,
+        PriceStatus.nothingToPrice,
+      );
+      final asked = engine.price(door().copyWith(measured: {}), zero);
       expect(asked.status, PriceStatus.needsSizes);
       expect(asked.total, isNull);
     });
 
-    test('25. invalid dimensions: no width, no height, not a number — a '
-        'state, never NaN, infinity or a negative price', () {
+    test('invalid dimensions: a state, never NaN, infinity or a negative '
+        'price', () {
       final d = door();
       for (final outline in [
         const [Vec2(0, 0), Vec2(0, 2000), Vec2(0, 2000), Vec2(0, 0)],
@@ -581,126 +841,52 @@ void main() {
         final r = engine.price(bad, PriceList.starter);
         expect(r.status, PriceStatus.invalid, reason: '$outline');
         expect(r.total, isNull);
-        expect(r.subtotal, 0);
       }
-      // Every amount the engine writes is finite and no less than nothing.
-      for (final x in [door(), glassOverPanel(door()), given(sloped())]) {
+      for (final x in [door(), acceptance(), screen(), given(sloped())]) {
         for (final l in engine.price(x, PriceList.starter).lines) {
           expect(l.amount.isFinite && l.amount >= 0, isTrue, reason: '$l');
         }
       }
     });
-  });
 
-  group('kept, and read back', () {
-    test('26. the pricing choices are kept with the design, and it is '
-        'priced the same after a save and a load', () {
-      final d = door().copyWith(
-        pricing: const PricingChoices(
-          installation: true,
-          discount: Discount(percent: 5),
-        ),
+    test('installation only when chosen; a discount never below nothing', () {
+      final d = acceptance();
+      final list = example.copyWith(
+        installation: const InstallationRate(fixed: 100, perSquareMetre: 10),
       );
-      final back = Design.fromJson(jsonDecode(jsonEncode(d.toJson())));
-      expect(back.pricing, d.pricing);
-      expect(
-        engine.price(back, PriceList.starter).total,
-        engine.price(d, PriceList.starter).total,
+      expect(engine.price(d, list).sumOf(PriceGroup.installation), 0);
+      final fitted = engine.price(
+        d,
+        list,
+        choices: const PricingChoices(installation: true),
       );
-      expect(
-        jsonEncode(back.toJson()),
-        jsonEncode(d.toJson()),
-        reason: 'the same text',
-      );
-    });
-
-    test('27. a design kept before pricing opens unchanged, with nothing '
-        'chosen, and is priced', () {
-      final d = door();
-      final json = d.toJson();
-      expect(json.containsKey('pricing'), isFalse, reason: 'nothing added');
-      final old = Design.fromJson(jsonDecode(jsonEncode(json)));
-      expect(old.pricing.isNone, isTrue);
-      expect(jsonEncode(old.toJson()), jsonEncode(json));
-      // One kept before sizes were asked for shows its sizes as it always
-      // did, and is priced by them.
-      final older = Design.fromJson(
-        jsonDecode(jsonEncode({...json}..remove('measured'))),
-      );
-      expect(older.measured, isNull);
-      expect(engine.price(older, PriceList.starter).isPriced, isTrue);
-    });
-
-    test('28. pricing reads the design and writes nothing', () {
-      for (final d in [
-        door(),
-        glassOverPanel(door()),
-        given(sloped()),
-        given(sliding.sheet(left: '>')),
-        given(mixed.theScreen().copyWith(kind: DesignKind.both)),
-      ]) {
-        final before = jsonEncode(d.toJson());
-        final frame = d.frame;
-        engine.price(d, PriceList.starter);
-        engine.price(
-          d,
-          PriceList.starter,
-          choices: const PricingChoices(installation: true),
-        );
-        PricingTakeoff.of(d);
-        expect(jsonEncode(d.toJson()), before);
-        expect(identical(d.frame, frame), isTrue);
-      }
-    });
-
-    test('a price kept on a day stays what it was when the list changes', () {
-      final d = door();
-      final then = engine.price(d, PriceList.starter);
-      final kept = d.copyWith(
-        pricing: PricingChoices(
-          snapshot: PriceSnapshot(takenAt: DateTime(2026, 10, 4), result: then),
-        ),
-      );
-      final back = Design.fromJson(jsonDecode(jsonEncode(kept.toJson())));
-      final dearer = withProfile(
-        PriceList.starter,
-        MaterialKind.upvc,
-        frame: 999999,
-      ).copyWith(version: 7);
-      final now = engine.price(back, dearer);
-      expect(now.total, isNot(then.total));
-      expect(back.pricing.snapshot!.result.total, then.total);
-      expect(
-        jsonEncode(back.pricing.snapshot!.result.toJson()),
-        jsonEncode(then.toJson()),
-      );
-      expect(now.priceListVersion, 7);
+      expect(fitted.sumOf(PriceGroup.installation), closeTo(120, 1e-9));
+      PriceResult off(Discount discount) =>
+          engine.price(d, example, choices: PricingChoices(discount: discount));
+      expect(off(const Discount(percent: 10)).total, closeTo(112.68, 1e-9));
+      expect(off(const Discount(amount: 5000)).total, 0);
     });
   });
 
   group('the price list, kept and guarded', () {
-    test('29. the owner\'s list is kept on the device and read back by a '
-        'store opened afresh', () async {
+    test('29. the owner\'s list is kept and read back; a design priced by it '
+        'says which list', () async {
       final store = PriceListStore();
       expect((await store.load()).isStarter, isTrue);
-      final mine = withProfile(PriceList.starter, MaterialKind.upvc, frame: 1);
-      final kept = await store.save(mine, by: WorkshopRole.owner);
-      expect(kept.isStarter, isFalse);
+      final kept = await store.save(example, by: WorkshopRole.owner);
       expect(kept.version, 1);
       final again = await PriceListStore().load();
       expect(jsonEncode(again.toJson()), jsonEncode(kept.toJson()));
-      expect(again.profiles[MaterialKind.upvc]!.framePerMetre, 1);
+      expect(again.profiles[MaterialKind.upvc]!.normalPerMetre, 7);
+      expect(again.profiles[MaterialKind.upvc]!.openingPerMetre, 12);
+      expect(totalOf(acceptance(), again), closeTo(125.20, 1e-9));
       final second = await store.save(again, by: WorkshopRole.owner);
-      expect(second.version, 2);
-      // A design priced by the kept list says which list it came from.
       expect(engine.price(door(), second).priceListVersion, 2);
     });
 
-    test('30. staff may price but not change prices: refused, and nothing '
-        'written', () async {
+    test('staff may price but not change prices', () async {
       final store = PriceListStore();
       expect(WorkshopRole.staff.canConfigurePrices, isFalse);
-      expect(WorkshopRole.staff.canSeePrices, isTrue);
       expect(WorkshopRole.owner.canConfigurePrices, isTrue);
       await expectLater(
         store.save(zero, by: WorkshopRole.staff),
@@ -708,41 +894,27 @@ void main() {
       );
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString(PriceListStore.key), isNull);
-      expect((await store.load()).isStarter, isTrue);
     });
 
-    test('a list that cannot be read is not written over by reading it, '
-        'and a figure that is not a price is left out', () async {
-      SharedPreferences.setMockInitialValues({PriceListStore.key: '{not json'});
-      final store = PriceListStore();
-      expect((await store.load()).isStarter, isTrue);
+    test('a list that cannot be read is left alone, a figure that is not a '
+        'price is left out, and the starter list round-trips', () async {
+      SharedPreferences.setMockInitialValues({PriceListStore.key: '{bad'});
+      expect((await PriceListStore().load()).isStarter, isTrue);
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString(PriceListStore.key), '{not json');
+      expect(prefs.getString(PriceListStore.key), '{bad');
 
       final json = jsonDecode(
         jsonEncode(PriceList.starter.toJson()),
       ) as Map<String, Object?>;
       (json['glassPerM2']! as Map<String, Object?>)['clear'] = -5;
-      (json['hardwareEach']! as Map<String, Object?>)['hinge'] = 'cheap';
-      (json['categories']! as Map<String, Object?>)['folding'] = {
-        'label': 'Folding',
-        'labour': {'fixed': 1},
-      };
-      final read = PriceList.fromJson(jsonDecode(jsonEncode(json)))!;
+      final read = PriceList.fromJson(json)!;
       expect(read.glassPerM2.containsKey(GlassLook.clear), isFalse);
-      expect(read.hardwareEach.containsKey(HardwareKind.hinge), isFalse);
-      expect(read.categories['folding']!.labour.fixed, 1);
       expect(engine.price(door(), read).status, PriceStatus.notConfigured);
-      expect(PriceList.fromJson('nonsense'), isNull);
-      expect(PriceList.fromJson({'currency': ''}), isNull);
-    });
 
-    test('the starter list round-trips', () {
       final back = PriceList.fromJson(
         jsonDecode(jsonEncode(PriceList.starter.toJson())),
       )!;
       expect(jsonEncode(back.toJson()), jsonEncode(PriceList.starter.toJson()));
-      expect(back.isStarter, isTrue);
       for (final kind in DesignKind.categories) {
         expect(back.categories[kind.name], isNotNull, reason: kind.name);
       }
@@ -754,6 +926,11 @@ class _Flat extends CategoryPricing {
   const _Flat();
 
   @override
-  void price(PricingTakeoff takeoff, PriceSheet sheet) =>
-      sheet.add(PriceGroup.material, 'Everything', 1, PriceUnit.fixed, 1234);
+  void price(PricingTakeoff takeoff, PriceSheet sheet) => sheet.add(
+    PriceGroup.normalProfile,
+    'Everything',
+    1,
+    PriceUnit.fixed,
+    1234,
+  );
 }

@@ -15,7 +15,7 @@ import '../domain/pricing/pricing_access.dart';
 /// cannot be read is never written over by reading it: it stays where it
 /// is, and the example list stands in until the owner keeps one.
 class PriceListStore {
-  static const key = 'proframe.pricelist.v1';
+  static const key = 'proframe.pricelist.v2';
 
   /// The list designs are priced by now.
   Future<PriceList> load() async {

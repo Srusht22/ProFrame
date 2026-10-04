@@ -6,6 +6,8 @@
 /// has changed, without being worked out again.
 library;
 
+import 'measurement.dart';
+
 /// How a price came out.
 enum PriceStatus {
   /// Every part was priced; [PriceResult.total] is the price.
@@ -31,7 +33,19 @@ enum PriceStatus {
 
 /// Which part of the breakdown a line belongs to.
 enum PriceGroup {
-  material('Material'),
+  /// The frame's border and every line cut from the same profile.
+  normalProfile('Normal profile'),
+
+  /// The profile round each opening.
+  openingProfile('Opening profile'),
+
+  /// Any other profile by the metre — a sliding track.
+  otherProfile('Other profile'),
+
+  /// What a colour adds to the profile it is on.
+  colour('Colour'),
+  glass('Glass'),
+  panel('Panel'),
   hardware('Hardware'),
   labour('Labour'),
   installation('Installation');
@@ -188,6 +202,12 @@ class PriceResult {
 
   final Discount? discount;
 
+  /// What the design measures — profile by the metre, glass and panel by
+  /// the square metre — kept with the price so the two are read together,
+  /// and so a kept price says what it was a price for. Nothing where the
+  /// design could not be measured.
+  final MeasurementSummary measurements;
+
   const PriceResult({
     required this.status,
     required this.currency,
@@ -196,6 +216,7 @@ class PriceResult {
     this.issues = const [],
     this.priceListVersion = 0,
     this.discount,
+    this.measurements = MeasurementSummary.none,
   });
 
   /// A result with no price, for [status], saying why.
@@ -240,6 +261,7 @@ class PriceResult {
     'lines': [for (final l in lines) l.toJson()],
     'issues': [for (final i in issues) i.toJson()],
     if (discount != null) 'discount': discount!.toJson(),
+    'measurements': measurements.toJson(),
   };
 
   static PriceResult fromJson(Map<String, Object?> map) => PriceResult(
@@ -256,6 +278,7 @@ class PriceResult {
         PriceIssue.fromJson(i! as Map<String, Object?>),
     ],
     discount: Discount.fromJson(map['discount']),
+    measurements: MeasurementSummary.fromJson(map['measurements']),
   );
 }
 

@@ -934,3 +934,71 @@ material ignored, the colour dropped.
   model them as pieces.
 - Glass is priced by its look; the sealed unit every pane is built as has
   no separate rate.
+
+## 30. Factory measurement and a customer's total (Phase 25, reworked)
+
+**What was there.** §29's engine priced a frame, sash and bar by the metre
+and charged each leaf by what it is, with an angled joint as its own line.
+That is not how the workshop prices: it measures profile in two kinds, at
+two rates, and fills by area.
+
+**What was done.**
+- **`measurement.dart`**: `Metres`, `SquareMetres` and `MeasurementSummary`.
+  The two units are two types, and `totalProfile` is metres alone.
+- **`PricingTakeoff`, rewritten.** Every run of profile is measured once, in
+  one `ProfileUse`:
+  - **border**: the outline's members;
+  - **divider**: each bar, the design's or an opening's, at its body's cut
+    length;
+  - **opening**: each opening's own region's perimeter;
+  - **track**: a sliding design's track.
+
+  Panel and glass are each part's `fillOf` area, the polygon's own. A line
+  inside an opening is the opening's on the list, but its metres are normal
+  profile, never added to the perimeter again.
+- **`PriceList`, rewritten.** `ProfileRate` has a normal and an opening rate
+  per metre, and `ColourRate` / `ColourSurcharge` add so much a metre and a
+  percentage. `LeafRate` and the angled joint are gone. The starter list is
+  in US dollars; the store key moved to `proframe.pricelist.v2`.
+- **The engine.** `FramedPricing` (door, window, both, angled) and
+  `SlidingPricing` give lines by material and use, colour, glass look, panel
+  colour and piece. `PriceResult` carries the measurements, and
+  `CustomerPricing` sums a customer's designs.
+- **On the screen.**
+  - The design panel's **Price** shows the measurement rows.
+  - `CustomerPriceCard` stands under the cards on a customer's page.
+
+  It was put above the cards first, and that moved every card down. Five
+  older tests that tap a card's ⋮ or picture failed, so it went under them.
+
+**Verified.**
+- `test/domain/pricing_engine_test.dart` (28): the acceptance design gives
+  7.60 m × $7 = $53.20 and 6.00 m × $12 = $72.00, which is $125.20.
+- `test/app/the_price_on_screen_test.dart` (5) and
+  `test/app/a_customer_s_total_test.dart` (3).
+- The full suite: 2326 passed.
+- In the browser at 1440 × 900:
+  - Adam's three designs were 155.99 + 240.41 + 189.98 = 586.38 USD, with
+    35.22 m of profile.
+  - Sara's one design was 162.98 USD.
+  - The door's own panel read 6.00 m normal, 5.52 m opening and 11.52 m
+    total profile, 1.43 m² of glass, and 189.98 USD — the same figure as
+    its line on Adam's card.
+
+**Mutations caught.**
+- The opening priced at the normal rate fails 8 tests.
+- Inside lines counted twice fails 5.
+- Areas by the box fails 1.
+- An unknown category priced as a window fails 4.
+
+**Not done.**
+- No price editor and no sign-in.
+- No quotation takes a snapshot.
+- The discount has no control.
+- Rollers are counted from the panels.
+- The sealed unit has no rate of its own.
+- Shown figures are rounded each on its own, so two rows can differ by a
+  hundredth from the total under them (20.98 + 14.23 shown against
+  35.22 m).
+- The customer card loads every design of that customer to price it. That
+  is fine for a workshop's customer, but it is not paged.

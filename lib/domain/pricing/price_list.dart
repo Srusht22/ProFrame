@@ -6,29 +6,29 @@ import '../model/materials.dart';
 ///
 /// **Prices live here and only here.** No widget, no geometry and no
 /// strategy holds a figure of its own: a strategy says *what* is charged —
-/// a metre of frame, a square metre of glass, a hinge — and reads *how
-/// much* from the list. So the owner changes a price by changing the list,
-/// and nothing that draws or builds a design is touched.
+/// a metre of normal profile, a metre of opening profile, a square metre of
+/// glass, a hinge — and reads *how much* from the list. The owner changes a
+/// price by changing the list, and nothing that draws or builds a design is
+/// touched. The measurement is never stored with the rate: a design is
+/// measured afresh (`PricingTakeoff`) and multiplied by the list as it is.
 ///
 /// Every amount is in [currency], per the unit it names: a metre of
 /// profile, a square metre of glass or panel, one piece of ironmongery.
-/// Sizes come in from the design in millimetres and are turned into metres
-/// and square metres once, by the takeoff, so a centimetre is never
-/// multiplied by a price per metre.
 class PriceList {
   /// Bumped every time the list is changed and kept, so a price worked out
   /// from it can say which list it came from.
   final int version;
 
   /// True for the example list the application starts with, until the
-  /// owner keeps one of their own. Its figures are examples, and the screen
-  /// says so.
+  /// owner keeps a list of their own. Its figures are examples, and the
+  /// screen says so.
   final bool isStarter;
 
   final String currency;
 
-  /// What each frame material's profile costs, and its colours. A design
-  /// framed in a material with no entry here is not priced.
+  /// What each frame material's profile costs — the normal profile and the
+  /// opening profile, each by the metre — and its colours. A design framed
+  /// in a material with no entry here is not priced.
   final Map<MaterialKind, ProfileRate> profiles;
 
   /// Glass, by the look the user chose, a square metre of what is cut.
@@ -48,19 +48,12 @@ class PriceList {
   /// One piece of each kind of ironmongery.
   final Map<HardwareKind, double> hardwareEach;
 
-  /// Making one leaf, by what it is: [LeafRate].
-  final Map<LeafRate, double> leafEach;
-
   /// A sliding design's track, a metre of the frame's width.
   final double trackPerMetre;
 
   /// One roller, and how many a sliding panel runs on.
   final double rollerEach;
   final int rollersPerSlidingPanel;
-
-  /// One joint of the frame that is not square, which an angled design is
-  /// cut with.
-  final double angledJointEach;
 
   /// How each category is made — its labour — by category name. A
   /// category with no entry is not priced.
@@ -74,7 +67,6 @@ class PriceList {
     required this.glassPerM2,
     required this.panelPerM2,
     required this.hardwareEach,
-    required this.leafEach,
     required this.categories,
     required this.installation,
     this.version = 1,
@@ -84,109 +76,119 @@ class PriceList {
     this.trackPerMetre = 0,
     this.rollerEach = 0,
     this.rollersPerSlidingPanel = 2,
-    this.angledJointEach = 0,
   });
 
   /// The example list the application starts with. Its figures are
-  /// examples in Iraqi dinars, there to show how a price is made up until
-  /// the owner keeps the workshop's own; the screen says so while it is in
-  /// use ([isStarter]).
+  /// examples in US dollars, there to show how a price is made up until the
+  /// owner keeps the workshop's own; the screen says so while it is in use
+  /// ([isStarter]).
   static final PriceList starter = PriceList(
     isStarter: true,
-    currency: 'IQD',
+    currency: 'USD',
     profiles: {
       MaterialKind.upvc: const ProfileRate(
-        framePerMetre: 20000,
-        sashPerMetre: 18000,
-        barPerMetre: 14000,
+        normalPerMetre: 7,
+        openingPerMetre: 12,
         colours: [
-          ColourRate('White', 0xFFFFFFFF, ColourGrade.standard, 0),
-          ColourRate('Off white', 0xFFF3F4F2, ColourGrade.standard, 0),
-          ColourRate('Cream', 0xFFD8D5CC, ColourGrade.nonStandard, 10),
-          ColourRate('Grey', 0xFF6E7472, ColourGrade.nonStandard, 12),
-          ColourRate('Graphite', 0xFF3A3A38, ColourGrade.nonStandard, 12),
-          ColourRate('Black', 0xFF1C1C1C, ColourGrade.nonStandard, 12),
-          ColourRate('Oak effect', 0xFF7B4A2B, ColourGrade.nonStandard, 20),
-          ColourRate('Walnut effect', 0xFF4A2F1E, ColourGrade.nonStandard, 20),
+          ColourRate('White', 0xFFFFFFFF, ColourGrade.standard),
+          ColourRate('Off white', 0xFFF3F4F2, ColourGrade.standard),
+          ColourRate(
+            'Cream',
+            0xFFD8D5CC,
+            ColourGrade.nonStandard,
+            perMetre: 0.8,
+          ),
+          ColourRate('Grey', 0xFF6E7472, ColourGrade.nonStandard, perMetre: 1),
+          ColourRate(
+            'Graphite',
+            0xFF3A3A38,
+            ColourGrade.nonStandard,
+            perMetre: 1,
+          ),
+          ColourRate('Black', 0xFF1C1C1C, ColourGrade.nonStandard, perMetre: 1),
+          ColourRate(
+            'Oak effect',
+            0xFF7B4A2B,
+            ColourGrade.nonStandard,
+            perMetre: 1.5,
+          ),
+          ColourRate(
+            'Walnut effect',
+            0xFF4A2F1E,
+            ColourGrade.nonStandard,
+            perMetre: 1.5,
+          ),
         ],
-        specialColourPercent: 30,
+        special: ColourSurcharge(perMetre: 2.5),
       ),
       MaterialKind.aluminium: const ProfileRate(
-        framePerMetre: 35000,
-        sashPerMetre: 30000,
-        barPerMetre: 24000,
+        normalPerMetre: 11,
+        openingPerMetre: 18,
         colours: [
-          ColourRate('Silver', 0xFF9C9C9C, ColourGrade.standard, 0),
-          ColourRate('White', 0xFFFFFFFF, ColourGrade.standard, 0),
-          ColourRate('Off white', 0xFFF3F4F2, ColourGrade.standard, 0),
-          ColourRate('Black', 0xFF1C1C1C, ColourGrade.nonStandard, 8),
-          ColourRate('Anthracite', 0xFF383E42, ColourGrade.nonStandard, 8),
-          ColourRate('Graphite', 0xFF3A3A38, ColourGrade.nonStandard, 8),
-          ColourRate('Oak effect', 0xFF7B4A2B, ColourGrade.nonStandard, 18),
+          ColourRate('Silver', 0xFF9C9C9C, ColourGrade.standard),
+          ColourRate('White', 0xFFFFFFFF, ColourGrade.standard),
+          ColourRate('Off white', 0xFFF3F4F2, ColourGrade.standard),
+          ColourRate('Black', 0xFF1C1C1C, ColourGrade.nonStandard, perMetre: 1),
+          ColourRate(
+            'Anthracite',
+            0xFF383E42,
+            ColourGrade.nonStandard,
+            perMetre: 1,
+          ),
+          ColourRate(
+            'Graphite',
+            0xFF3A3A38,
+            ColourGrade.nonStandard,
+            perMetre: 1,
+          ),
+          ColourRate(
+            'Oak effect',
+            0xFF7B4A2B,
+            ColourGrade.nonStandard,
+            perMetre: 2,
+          ),
         ],
-        specialColourPercent: 25,
+        special: ColourSurcharge(perMetre: 3),
       ),
     },
     glassPerM2: const {
-      GlassLook.clear: 30000,
-      GlassLook.frosted: 38000,
-      GlassLook.tinted: 40000,
-      GlassLook.dark: 42000,
-      GlassLook.blueGrey: 42000,
+      GlassLook.clear: 25,
+      GlassLook.frosted: 32,
+      GlassLook.tinted: 34,
+      GlassLook.dark: 36,
+      GlassLook.blueGrey: 36,
     },
-    customGlassPerM2: 45000,
+    customGlassPerM2: 40,
     panelPerM2: const {
-      PanelColour.white: 35000,
-      PanelColour.grey: 40000,
-      PanelColour.black: 40000,
-      PanelColour.brown: 42000,
+      PanelColour.white: 30,
+      PanelColour.grey: 34,
+      PanelColour.black: 34,
+      PanelColour.brown: 36,
     },
-    customPanelPerM2: 48000,
+    customPanelPerM2: 40,
     hardwareEach: const {
-      HardwareKind.handle: 15000,
-      HardwareKind.lever: 20000,
-      HardwareKind.knob: 12000,
-      HardwareKind.lock: 30000,
-      HardwareKind.hinge: 4000,
-      HardwareKind.letterplate: 15000,
-      HardwareKind.peephole: 8000,
-      HardwareKind.closer: 35000,
-      HardwareKind.pull: 18000,
-      HardwareKind.screen: 60000,
-      HardwareKind.sensor: 150000,
+      HardwareKind.handle: 10,
+      HardwareKind.lever: 15,
+      HardwareKind.knob: 8,
+      HardwareKind.lock: 22,
+      HardwareKind.hinge: 3,
+      HardwareKind.letterplate: 12,
+      HardwareKind.peephole: 6,
+      HardwareKind.closer: 28,
+      HardwareKind.pull: 14,
+      HardwareKind.screen: 45,
+      HardwareKind.sensor: 110,
     },
-    leafEach: const {
-      LeafRate.door: 40000,
-      LeafRate.window: 20000,
-      LeafRate.sliding: 30000,
-      LeafRate.unnamed: 20000,
-    },
-    trackPerMetre: 22000,
-    rollerEach: 6000,
-    angledJointEach: 7000,
+    trackPerMetre: 9,
+    rollerEach: 4,
     categories: const {
-      'door': CategoryRate(
-        'Door',
-        LabourRate(fixed: 25000, perSquareMetre: 10000, percent: 5),
-      ),
-      'window': CategoryRate(
-        'Window',
-        LabourRate(fixed: 15000, perSquareMetre: 8000),
-      ),
-      'sliding': CategoryRate(
-        'Sliding',
-        LabourRate(fixed: 30000, perSquareMetre: 10000, percent: 5),
-      ),
-      'both': CategoryRate(
-        'Door & window',
-        LabourRate(fixed: 30000, perSquareMetre: 10000, percent: 5),
-      ),
-      'angled': CategoryRate(
-        'Angled / Asymmetrical',
-        LabourRate(fixed: 25000, perSquareMetre: 12000, percent: 10),
-      ),
+      'door': CategoryRate('Door', LabourRate()),
+      'window': CategoryRate('Window', LabourRate()),
+      'sliding': CategoryRate('Sliding', LabourRate()),
+      'both': CategoryRate('Door & window', LabourRate()),
+      'angled': CategoryRate('Angled / Asymmetrical', LabourRate()),
     },
-    installation: const InstallationRate(fixed: 25000, perSquareMetre: 10000),
+    installation: const InstallationRate(fixed: 20, perSquareMetre: 8),
   );
 
   PriceList copyWith({
@@ -199,11 +201,9 @@ class PriceList {
     Map<PanelColour, double>? panelPerM2,
     double? customPanelPerM2,
     Map<HardwareKind, double>? hardwareEach,
-    Map<LeafRate, double>? leafEach,
     double? trackPerMetre,
     double? rollerEach,
     int? rollersPerSlidingPanel,
-    double? angledJointEach,
     Map<String, CategoryRate>? categories,
     InstallationRate? installation,
   }) => PriceList(
@@ -216,12 +216,10 @@ class PriceList {
     panelPerM2: panelPerM2 ?? this.panelPerM2,
     customPanelPerM2: customPanelPerM2 ?? this.customPanelPerM2,
     hardwareEach: hardwareEach ?? this.hardwareEach,
-    leafEach: leafEach ?? this.leafEach,
     trackPerMetre: trackPerMetre ?? this.trackPerMetre,
     rollerEach: rollerEach ?? this.rollerEach,
     rollersPerSlidingPanel:
         rollersPerSlidingPanel ?? this.rollersPerSlidingPanel,
-    angledJointEach: angledJointEach ?? this.angledJointEach,
     categories: categories ?? this.categories,
     installation: installation ?? this.installation,
   );
@@ -234,15 +232,13 @@ class PriceList {
       for (final e in profiles.entries) e.key.name: e.value.toJson(),
     },
     'glassPerM2': {for (final e in glassPerM2.entries) e.key.name: e.value},
-    'customGlassPerM2': customGlassPerM2,
+    if (customGlassPerM2 != null) 'customGlassPerM2': customGlassPerM2,
     'panelPerM2': {for (final e in panelPerM2.entries) e.key.name: e.value},
-    'customPanelPerM2': customPanelPerM2,
+    if (customPanelPerM2 != null) 'customPanelPerM2': customPanelPerM2,
     'hardwareEach': {for (final e in hardwareEach.entries) e.key.name: e.value},
-    'leafEach': {for (final e in leafEach.entries) e.key.name: e.value},
     'trackPerMetre': trackPerMetre,
     'rollerEach': rollerEach,
     'rollersPerSlidingPanel': rollersPerSlidingPanel,
-    'angledJointEach': angledJointEach,
     'categories': {for (final e in categories.entries) e.key: e.value.toJson()},
     'installation': installation.toJson(),
   };
@@ -291,12 +287,10 @@ class PriceList {
         json['hardwareEach'],
         (k) => _byName(HardwareKind.values, k),
       ),
-      leafEach: rates(json['leafEach'], (k) => _byName(LeafRate.values, k)),
       trackPerMetre: price(json['trackPerMetre']) ?? 0,
       rollerEach: price(json['rollerEach']) ?? 0,
       rollersPerSlidingPanel: (price(json['rollersPerSlidingPanel']) ?? 2)
           .round(),
-      angledJointEach: price(json['angledJointEach']) ?? 0,
       categories: {
         if (json['categories'] case final Map<String, Object?> raw)
           for (final e in raw.entries) e.key: ?CategoryRate.fromJson(e.value),
@@ -313,22 +307,6 @@ class PriceList {
       values.where((v) => v.name == name).firstOrNull;
 }
 
-/// What making one leaf is charged as. The leaf's own kind decides it — a
-/// door leaf as a door, a window sash as a window — never the category of
-/// the design round it.
-enum LeafRate {
-  door('Door leaf'),
-  window('Window sash'),
-  sliding('Sliding panel'),
-
-  /// A leaf nobody has said is a door or a window yet — in a door & window
-  /// set or an angled design, before the question is answered.
-  unnamed('Opening leaf');
-
-  const LeafRate(this.label);
-  final String label;
-}
-
 /// How dear a colour is, against the material's own standard colours.
 enum ColourGrade {
   standard('Standard colour'),
@@ -339,6 +317,30 @@ enum ColourGrade {
 
   const ColourGrade(this.label);
   final String label;
+}
+
+/// What a colour adds to a profile: so much a metre, and so much in a
+/// hundred on the profile's own price. Either, both or neither — the
+/// factory's own formula.
+class ColourSurcharge {
+  final double perMetre;
+  final double percent;
+
+  const ColourSurcharge({this.perMetre = 0, this.percent = 0});
+
+  bool get isNone => perMetre <= 0 && percent <= 0;
+
+  Map<String, Object?> toJson() => {
+    if (perMetre != 0) 'perMetre': perMetre,
+    if (percent != 0) 'percent': percent,
+  };
+
+  static ColourSurcharge fromJson(Object? json) => json is Map<String, Object?>
+      ? ColourSurcharge(
+          perMetre: PriceList.price(json['perMetre']) ?? 0,
+          percent: PriceList.price(json['percent']) ?? 0,
+        )
+      : const ColourSurcharge();
 }
 
 /// One colour a profile is sold in, and what it adds.
@@ -352,16 +354,31 @@ class ColourRate {
   final int colour;
   final ColourGrade grade;
 
-  /// What it adds to the profile's price, as a percentage.
-  final double surchargePercent;
+  /// What it adds a metre of profile, and as a share of the profile's own
+  /// price.
+  final double perMetre;
+  final double percent;
 
-  const ColourRate(this.name, this.colour, this.grade, this.surchargePercent);
+  const ColourRate(
+    this.name,
+    this.colour,
+    this.grade, {
+    this.perMetre = 0,
+    this.percent = 0,
+  });
+
+  ColourRate._(this.name, this.colour, this.grade, ColourSurcharge surcharge)
+    : perMetre = surcharge.perMetre,
+      percent = surcharge.percent;
+
+  ColourSurcharge get surcharge =>
+      ColourSurcharge(perMetre: perMetre, percent: percent);
 
   Map<String, Object?> toJson() => {
     'name': name,
     'colour': colour,
     'grade': grade.name,
-    'surchargePercent': surchargePercent,
+    'surcharge': surcharge.toJson(),
   };
 
   static ColourRate? fromJson(Object? json) {
@@ -372,67 +389,65 @@ class ColourRate {
       ColourGrade.values,
       json['grade'] as String? ?? '',
     );
-    final percent = PriceList.price(json['surchargePercent']);
-    if (name is! String || colour is! int || grade == null || percent == null) {
-      return null;
-    }
-    return ColourRate(name, colour, grade, percent);
+    if (name is! String || colour is! int || grade == null) return null;
+    return ColourRate._(
+      name,
+      colour,
+      grade,
+      ColourSurcharge.fromJson(json['surcharge']),
+    );
   }
 }
 
-/// What a frame material's profile costs — the frame, a sash and a bar,
-/// each a metre of it — and the colours it comes in.
+/// What a frame material's profile costs — the normal profile (the border
+/// and every line cut from it) and the opening profile, each a metre — and
+/// the colours it comes in.
 class ProfileRate {
-  final double framePerMetre;
-  final double sashPerMetre;
-  final double barPerMetre;
+  final double normalPerMetre;
+  final double openingPerMetre;
   final List<ColourRate> colours;
 
-  /// What a colour not on [colours] adds, as a percentage.
-  final double specialColourPercent;
+  /// What a colour not on [colours] adds.
+  final ColourSurcharge special;
 
   const ProfileRate({
-    required this.framePerMetre,
-    required this.sashPerMetre,
-    required this.barPerMetre,
+    required this.normalPerMetre,
+    required this.openingPerMetre,
     this.colours = const [],
-    this.specialColourPercent = 0,
+    this.special = const ColourSurcharge(),
   });
 
   /// The colour [colour] is sold as: the one on the list with that value,
   /// or a special colour.
   ColourRate colourOf(int colour) =>
       colours.where((c) => c.colour == colour).firstOrNull ??
-      ColourRate(
+      ColourRate._(
         ColourGrade.special.label,
         colour,
         ColourGrade.special,
-        specialColourPercent,
+        special,
       );
 
   Map<String, Object?> toJson() => {
-    'framePerMetre': framePerMetre,
-    'sashPerMetre': sashPerMetre,
-    'barPerMetre': barPerMetre,
+    'normalPerMetre': normalPerMetre,
+    'openingPerMetre': openingPerMetre,
     'colours': [for (final c in colours) c.toJson()],
-    'specialColourPercent': specialColourPercent,
+    'special': special.toJson(),
   };
 
   static ProfileRate? fromJson(Object? json) {
     if (json is! Map<String, Object?>) return null;
-    final frame = PriceList.price(json['framePerMetre']);
-    final sash = PriceList.price(json['sashPerMetre']);
-    final bar = PriceList.price(json['barPerMetre']);
-    if (frame == null || sash == null || bar == null) return null;
+    final normal = PriceList.price(json['normalPerMetre']);
+    final opening = PriceList.price(json['openingPerMetre']);
+    if (normal == null || opening == null) return null;
     return ProfileRate(
-      framePerMetre: frame,
-      sashPerMetre: sash,
-      barPerMetre: bar,
+      normalPerMetre: normal,
+      openingPerMetre: opening,
       colours: [
         if (json['colours'] case final List<Object?> raw)
           for (final c in raw) ?ColourRate.fromJson(c),
       ],
-      specialColourPercent: PriceList.price(json['specialColourPercent']) ?? 0,
+      special: ColourSurcharge.fromJson(json['special']),
     );
   }
 }

@@ -1,5 +1,6 @@
 import '../model/design.dart';
 import '../model/materials.dart';
+import 'measurement.dart';
 import 'price_list.dart';
 import 'price_result.dart';
 import 'takeoff.dart';
@@ -8,10 +9,11 @@ import 'takeoff.dart';
 ///
 /// ```
 /// Design ─ PricingTakeoff ─ CategoryPricing ─ lines ─ labour,
-///        (canonical          (what is charged,          installation,
-///         geometry,           by category)              discount
-///         read only)                                         │
-///                                                       PriceResult
+///        (canonical          (each measurement        installation,
+///         geometry,           at its own rate)        discount
+///         read only)                                       │
+///                                                     PriceResult
+///                                              (measurements + breakdown)
 /// ```
 ///
 /// **It reads and never writes.** The design goes in and comes out exactly
@@ -28,15 +30,16 @@ class PricingEngine {
 
   const PricingEngine([this.strategies = standard]);
 
-  /// The strategies for the five categories this version has.
+  /// The strategies for the five categories this version has. Door, window
+  /// and door & window differ in the design — which openings it has, and
+  /// what each is — not in a rule, so they share one; a sliding design adds
+  /// the rollers its panels run on.
   static const Map<String, CategoryPricing> standard = {
     'door': FramedPricing(),
     'window': FramedPricing(),
-    // Each leaf of a door & window set is charged as what it is, which is
-    // what FramedPricing already does leaf by leaf.
     'both': FramedPricing(),
     'sliding': SlidingPricing(),
-    'angled': AngledPricing(),
+    'angled': FramedPricing(),
   };
 
   /// The name [design]'s category is priced under: its own, or — for one
@@ -66,8 +69,7 @@ class PricingEngine {
     if (strategy == null) {
       return unavailable(
         PriceStatus.unsupportedCategory,
-        'This version of ProFrame cannot price a design of this category. '
-        'Price unavailable.',
+        'This version of ProFrame cannot price a design of this category.',
       );
     }
     final rate = list.categories[category];
@@ -98,15 +100,14 @@ class PricingEngine {
     strategy.price(takeoff, sheet);
 
     // Labour, by the category's own rate.
-    final made =
-        sheet.sumOf(PriceGroup.material) + sheet.sumOf(PriceGroup.hardware);
+    final made = sheet.lines.fold<double>(0, (sum, l) => sum + l.amount);
     final labour = rate.labour;
     sheet
       ..add(PriceGroup.labour, 'Making', 1, PriceUnit.fixed, labour.fixed)
       ..add(
         PriceGroup.labour,
         'Making, by area',
-        takeoff.areaM2,
+        takeoff.area.value,
         PriceUnit.squareMetre,
         labour.perSquareMetre,
       )
@@ -131,7 +132,7 @@ class PricingEngine {
         ..add(
           PriceGroup.installation,
           'Installation, by area',
-          takeoff.areaM2,
+          takeoff.area.value,
           PriceUnit.squareMetre,
           fit.perSquareMetre,
         );
@@ -146,6 +147,7 @@ class PricingEngine {
       lines: sheet.lines,
       issues: sheet.issues,
       discount: said.discount,
+      measurements: takeoff.summary,
     );
   }
 }
@@ -231,15 +233,19 @@ abstract class CategoryPricing {
   void price(PricingTakeoff takeoff, PriceSheet sheet);
 }
 
-/// A framed design: its frame and bars by the metre of their own material,
-/// with what their colour adds; each pane by its own glass or panel, by the
-/// square metre it is cut to; each leaf by what it is; and every piece of
-/// ironmongery it actually carries.
+/// A framed design, the factory's way: each measurement at its own rate.
 ///
-/// Door, window and door & window are priced this way: the difference
-/// between them is in the design — which leaves it has and what each is —
-/// not in a rule here, so a door & window set is charged leaf by leaf as
-/// the leaves it has, never as one door or one window.
+/// - **Normal profile** — the frame's border and every bar and line, each
+///   in its own material — by the metre at that material's normal rate.
+/// - **Opening profile** — round each opening, in the frame's material —
+///   by the metre at that material's opening rate. Never the normal rate,
+///   and never added into the normal profile.
+/// - **Colour** — what each colour on each material adds, by the metre of
+///   profile in it and as a share of that profile's price.
+/// - **Glass** by its look and **panel** by its colour, each by the square
+///   metre as cut.
+/// - **Hardware**, every piece the design carries, counted.
+/// - **Other profile** — a sliding track — by the metre.
 class FramedPricing extends CategoryPricing {
   const FramedPricing();
 
@@ -247,114 +253,116 @@ class FramedPricing extends CategoryPricing {
   void price(PricingTakeoff takeoff, PriceSheet sheet) {
     final list = sheet.list;
 
-    // The frame, by the metre of its own material.
-    final frameFinish = takeoff.frameFinish;
-    final frame = list.profiles[frameFinish.material];
-    if (frame == null) {
-      sheet.missing('a ${frameFinish.material.label} frame');
-    } else {
-      final before = sheet.lines.length;
-      sheet.add(
-        PriceGroup.material,
-        '${frameFinish.material.label} frame',
-        takeoff.frameMetres,
-        PriceUnit.metre,
-        frame.framePerMetre,
-      );
-      for (final leaf in takeoff.leaves) {
-        sheet.add(
-          PriceGroup.material,
-          '${frameFinish.material.label} sash — ${leaf.name}',
-          leaf.metres,
-          PriceUnit.metre,
-          frame.sashPerMetre,
-          partId: leaf.id,
-        );
-      }
-      _colour(sheet, frame, frameFinish, 'frame', before);
-    }
-
-    // Each bar, by the metre of its own material.
-    for (final bar in takeoff.bars) {
-      final profile = list.profiles[bar.finish.material];
-      if (profile == null) {
-        sheet.missing('a ${bar.finish.material.label} bar');
+    // Profile, by material and use; and by material and colour for what
+    // the colour adds.
+    final normal = <MaterialKind, double>{};
+    final opening = <MaterialKind, double>{};
+    final byColour = <(MaterialKind, int), ({double metres, double cost})>{};
+    var track = 0.0;
+    for (final run in takeoff.runs) {
+      final metres = run.length.value;
+      if (run.use == ProfileUse.track) {
+        track += metres;
         continue;
       }
-      final before = sheet.lines.length;
-      sheet.add(
-        PriceGroup.material,
-        bar.openingId == null
-            ? '${bar.finish.material.label} bar'
-            : '${bar.finish.material.label} divider inside an opening',
-        bar.metres,
-        PriceUnit.metre,
-        profile.barPerMetre,
-        partId: bar.id,
+      final material = run.finish.material;
+      final profile = list.profiles[material];
+      if (profile == null) {
+        sheet.missing('${material.label} profile');
+        continue;
+      }
+      final isOpening = run.use == ProfileUse.opening;
+      final into = isOpening ? opening : normal;
+      into[material] = (into[material] ?? 0) + metres;
+      final rate = isOpening ? profile.openingPerMetre : profile.normalPerMetre;
+      final key = (material, run.finish.colour);
+      final was = byColour[key] ?? (metres: 0.0, cost: 0.0);
+      byColour[key] = (
+        metres: was.metres + metres,
+        cost: was.cost + metres * rate,
       );
-      _colour(sheet, profile, bar.finish, 'bar', before);
     }
+    for (final MapEntry(key: m, value: metres) in normal.entries) {
+      sheet.add(
+        PriceGroup.normalProfile,
+        'Normal profile — ${m.label}',
+        metres,
+        PriceUnit.metre,
+        list.profiles[m]!.normalPerMetre,
+      );
+    }
+    for (final MapEntry(key: m, value: metres) in opening.entries) {
+      sheet.add(
+        PriceGroup.openingProfile,
+        'Opening profile — ${m.label}',
+        metres,
+        PriceUnit.metre,
+        list.profiles[m]!.openingPerMetre,
+      );
+    }
+    for (final MapEntry(key: (m, colour), value: used) in byColour.entries) {
+      final rate = list.profiles[m]!.colourOf(colour);
+      final what =
+          '${rate.name} ${m.label} (${rate.grade.label.toLowerCase()})';
+      sheet
+        ..add(
+          PriceGroup.colour,
+          what,
+          used.metres,
+          PriceUnit.metre,
+          rate.surcharge.perMetre,
+        )
+        ..addPercent(
+          PriceGroup.colour,
+          what,
+          rate.surcharge.percent,
+          used.cost,
+        );
+    }
+    sheet.add(
+      PriceGroup.otherProfile,
+      'Sliding track',
+      track,
+      PriceUnit.metre,
+      list.trackPerMetre,
+    );
 
-    // Each pane, by what fills it.
-    for (final pane in takeoff.panes) {
-      if (pane.isGlass) {
-        final look = GlassLook.of(pane.finish);
+    // Glass by look and panel by colour, each by its whole area.
+    final glass = <String, ({double area, double? rate})>{};
+    final panel = <String, ({double area, double? rate})>{};
+    for (final region in takeoff.regions) {
+      if (region.isGlass) {
+        final look = GlassLook.of(region.finish);
+        final name = '${look?.label ?? 'Custom'} glass';
         final rate = look == null
             ? list.customGlassPerM2
             : list.glassPerM2[look];
-        if (rate == null) {
-          sheet.missing('${look?.label ?? 'custom'} glass');
-          continue;
-        }
-        sheet.add(
-          PriceGroup.material,
-          '${look?.label ?? 'Custom'} glass — ${pane.name}',
-          pane.areaM2,
-          PriceUnit.squareMetre,
-          rate,
-          partId: pane.id,
-        );
-      } else if (pane.isPanel) {
-        final colour = PanelColour.of(pane.finish);
+        final was = glass[name]?.area ?? 0;
+        glass[name] = (area: was + region.area.value, rate: rate);
+      } else if (region.isPanel) {
+        final colour = PanelColour.of(region.finish);
+        final name = '${colour?.label ?? 'Custom'} panel';
         final rate = colour == null
             ? list.customPanelPerM2
             : list.panelPerM2[colour];
+        final was = panel[name]?.area ?? 0;
+        panel[name] = (area: was + region.area.value, rate: rate);
+      } else {
+        sheet.missing('${region.finish.material.label.toLowerCase()} infill');
+      }
+    }
+    for (final (group, by) in [
+      (PriceGroup.glass, glass),
+      (PriceGroup.panel, panel),
+    ]) {
+      for (final MapEntry(key: name, value: v) in by.entries) {
+        final rate = v.rate;
         if (rate == null) {
-          sheet.missing('a ${colour?.label.toLowerCase() ?? 'custom'} panel');
+          sheet.missing(name.toLowerCase());
           continue;
         }
-        sheet.add(
-          PriceGroup.material,
-          '${colour?.label ?? 'Custom'} panel — ${pane.name}',
-          pane.areaM2,
-          PriceUnit.squareMetre,
-          rate,
-          partId: pane.id,
-        );
-      } else {
-        sheet.missing('${pane.finish.material.label.toLowerCase()} infill');
+        sheet.add(group, name, v.area, PriceUnit.squareMetre, rate);
       }
-    }
-
-    // Each leaf, as what it is.
-    final leaves = <LeafRate, int>{};
-    for (final leaf in takeoff.leaves) {
-      final rate = leafRateOf(leaf);
-      leaves[rate] = (leaves[rate] ?? 0) + 1;
-    }
-    for (final MapEntry(key: kind, value: count) in leaves.entries) {
-      final each = list.leafEach[kind];
-      if (each == null) {
-        sheet.missing('a ${kind.label.toLowerCase()}');
-        continue;
-      }
-      sheet.add(
-        PriceGroup.material,
-        count == 1 ? kind.label : '${kind.label}s',
-        count.toDouble(),
-        PriceUnit.each,
-        each,
-      );
     }
 
     // Every piece of ironmongery it carries, counted.
@@ -374,43 +382,10 @@ class FramedPricing extends CategoryPricing {
       );
     }
   }
-
-  /// What [leaf] is charged as: a sliding panel where it slides, otherwise
-  /// its own kind — and a leaf nobody has named yet as just a leaf, never
-  /// guessed to be a door or a window.
-  LeafRate leafRateOf(LeafTakeoff leaf) {
-    if (leaf.slides) return LeafRate.sliding;
-    return switch (leaf.kind) {
-      DesignKind.door => LeafRate.door,
-      DesignKind.window => LeafRate.window,
-      _ => LeafRate.unnamed,
-    };
-  }
-
-  /// What [finish]'s colour adds to the profile lines written since
-  /// [from], as one line of its own so the breakdown says why.
-  static void _colour(
-    PriceSheet sheet,
-    ProfileRate profile,
-    Finish finish,
-    String what,
-    int from,
-  ) {
-    final colour = profile.colourOf(finish.colour);
-    final profileCost = sheet.lines
-        .skip(from)
-        .fold<double>(0, (sum, l) => sum + l.amount);
-    sheet.addPercent(
-      PriceGroup.material,
-      '${colour.name} $what (${colour.grade.label.toLowerCase()})',
-      colour.surchargePercent,
-      profileCost,
-    );
-  }
 }
 
-/// A sliding design: framed like the rest, its panels charged as sliding
-/// panels, and the track and the rollers they run on.
+/// A sliding design: framed like the rest, its track priced as other
+/// profile, and the rollers its sliding panels run on.
 class SlidingPricing extends FramedPricing {
   const SlidingPricing();
 
@@ -418,14 +393,7 @@ class SlidingPricing extends FramedPricing {
   void price(PricingTakeoff takeoff, PriceSheet sheet) {
     super.price(takeoff, sheet);
     final list = sheet.list;
-    sheet.add(
-      PriceGroup.material,
-      'Sliding track',
-      takeoff.widthM,
-      PriceUnit.metre,
-      list.trackPerMetre,
-    );
-    final sliders = takeoff.leaves.where((l) => l.slides).length;
+    final sliders = takeoff.openings.where((o) => o.slides).length;
     sheet.add(
       PriceGroup.hardware,
       'Rollers',
@@ -436,20 +404,65 @@ class SlidingPricing extends FramedPricing {
   }
 }
 
-/// An angled design: framed like the rest — every area its own polygon's,
-/// never a box round it — and each joint cut at an angle charged.
-class AngledPricing extends FramedPricing {
-  const AngledPricing();
+/// What a customer's designs come to: each priced on its own, and the
+/// totals of all of them.
+///
+/// **Worked out from the designs, never kept on the customer**, so it is
+/// never out of date: a design changed is priced afresh, and the customer's
+/// total with it. A design that cannot be priced — sizes not given, a
+/// category this version does not know — is listed and left out of the
+/// total, and [complete] says so.
+class CustomerPricing {
+  final List<DesignPrice> designs;
+  final String currency;
 
-  @override
-  void price(PricingTakeoff takeoff, PriceSheet sheet) {
-    super.price(takeoff, sheet);
-    sheet.add(
-      PriceGroup.material,
-      'Angled joints',
-      takeoff.angledJoints.toDouble(),
-      PriceUnit.each,
-      sheet.list.angledJointEach,
-    );
-  }
+  const CustomerPricing(this.designs, this.currency);
+
+  static CustomerPricing of(
+    Iterable<Design> designs,
+    PriceList list, {
+    PricingEngine engine = const PricingEngine(),
+  }) => CustomerPricing([
+    for (final d in designs)
+      DesignPrice(
+        designId: d.id,
+        name: d.shownName,
+        result: engine.price(d, list),
+      ),
+  ], list.currency);
+
+  List<DesignPrice> get priced => [
+    for (final d in designs)
+      if (d.result.isPriced) d,
+  ];
+
+  List<DesignPrice> get unpriced => [
+    for (final d in designs)
+      if (!d.result.isPriced) d,
+  ];
+
+  /// Whether every design was priced, so [total] is the whole.
+  bool get complete => unpriced.isEmpty;
+
+  /// The sum of the priced designs' totals.
+  double get total => priced.fold(0, (sum, d) => sum + (d.result.total ?? 0));
+
+  /// Everything the measured designs measure, together.
+  MeasurementSummary get measurements => designs.fold(
+    MeasurementSummary.none,
+    (sum, d) => sum + d.result.measurements,
+  );
+}
+
+/// One design's price, among a customer's.
+class DesignPrice {
+  final String designId;
+  final String name;
+  final PriceResult result;
+
+  const DesignPrice({
+    required this.designId,
+    required this.name,
+    required this.result,
+  });
 }

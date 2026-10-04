@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/pricing/measurement.dart';
 import '../../domain/pricing/price_result.dart';
 import '../state/pricing.dart';
 import '../state/workspace.dart';
@@ -25,13 +26,10 @@ class PricePanel extends ConsumerStatefulWidget {
   static const installationKey = ValueKey('price-installation');
   static const breakdownKey = ValueKey('price-breakdown');
 
-  /// [amount] in [currency], in whole units with the thousands marked:
-  /// `1,234,500 IQD`. Below a hundred, to the hundredth.
+  /// [amount] in [currency], to the hundredth, with the thousands marked:
+  /// `1,150.00 USD`.
   static String money(double amount, String currency) {
-    final whole = amount.abs() >= 100;
-    final text = whole
-        ? amount.round().toString()
-        : amount.toStringAsFixed(amount == amount.roundToDouble() ? 0 : 2);
+    final text = amount.toStringAsFixed(2);
     final parts = text.split('.');
     final digits = parts.first;
     final grouped = StringBuffer();
@@ -44,6 +42,24 @@ class PricePanel extends ConsumerStatefulWidget {
     final fraction = parts.length > 1 ? '.${parts[1]}' : '';
     return '$grouped$fraction $currency';
   }
+
+  /// What a line counts and at what: `7.60 m × 7.00`, `2.00 m² × 30.00`,
+  /// `3 × 3.00`, `10% of 600.00`.
+  static String quantity(PriceLine line) => switch (line.unit) {
+    PriceUnit.metre =>
+      '${Metres(line.quantity).label} × '
+          '${line.rate.toStringAsFixed(2)}',
+    PriceUnit.squareMetre =>
+      '${SquareMetres(line.quantity).label} × '
+          '${line.rate.toStringAsFixed(2)}',
+    PriceUnit.each =>
+      '${line.quantity.round()} × '
+          '${line.rate.toStringAsFixed(2)}',
+    PriceUnit.percent =>
+      '${line.quantity}% of '
+          '${line.rate.toStringAsFixed(2)}',
+    PriceUnit.fixed => 'fixed',
+  };
 
   @override
   ConsumerState<PricePanel> createState() => _PricePanelState();
@@ -86,6 +102,8 @@ class _PricePanelState extends ConsumerState<PricePanel> {
           for (final issue in result.issues)
             Text(issue.message, style: text.bodySmall),
         ] else ...[
+          MeasurementRows(result.measurements),
+          const SizedBox(height: 6),
           Row(
             children: [
               Expanded(child: Text('Total', style: text.titleMedium)),
@@ -131,7 +149,7 @@ class _PricePanelState extends ConsumerState<PricePanel> {
                 for (final line in result.lines)
                   if (line.group == group)
                     _Row(
-                      line.label,
+                      '${line.label} · ${PricePanel.quantity(line)}',
                       PricePanel.money(line.amount, result.currency),
                     ),
                 _Row(
@@ -162,12 +180,46 @@ class _PricePanelState extends ConsumerState<PricePanel> {
   }
 }
 
+/// What a design, or a customer's designs, measure: each kind of profile
+/// and the total profile in metres, then panel and glass in square metres —
+/// two kinds of figure, each with its own unit, never added together.
+class MeasurementRows extends StatelessWidget {
+  final MeasurementSummary measurements;
+
+  const MeasurementRows(this.measurements, {super.key});
+
+  static const totalProfileKey = ValueKey('measure-total-profile');
+
+  @override
+  Widget build(BuildContext context) {
+    final m = measurements;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _Row('Normal profile', m.normalProfile.label),
+        _Row('Opening profile', m.openingProfile.label),
+        if (m.otherProfile.value > 0)
+          _Row('Other profile', m.otherProfile.label),
+        _Row(
+          'Total profile',
+          m.totalProfile.label,
+          strong: true,
+          valueKey: totalProfileKey,
+        ),
+        _Row('Panel', m.panelArea.label),
+        _Row('Glass', m.glassArea.label),
+      ],
+    );
+  }
+}
+
 class _Row extends StatelessWidget {
   final String label;
   final String value;
   final bool strong;
+  final Key? valueKey;
 
-  const _Row(this.label, this.value, {this.strong = false});
+  const _Row(this.label, this.value, {this.strong = false, this.valueKey});
 
   @override
   Widget build(BuildContext context) {
@@ -182,7 +234,7 @@ class _Row extends StatelessWidget {
         children: [
           Expanded(child: Text(label, style: style)),
           const SizedBox(width: 12),
-          Text(value, style: style),
+          Text(value, key: valueKey, style: style),
         ],
       ),
     );

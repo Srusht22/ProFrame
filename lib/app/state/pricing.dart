@@ -56,3 +56,21 @@ extension PriceListSaver on WidgetRef {
     return kept;
   }
 }
+
+/// What customer [customerId]'s designs come to — each design priced on
+/// its own from what is kept, and the totals of them all. Worked out afresh
+/// whenever a design is kept or the price list changes; nothing of it is
+/// kept on the customer, so it is never out of date.
+final customerPricingProvider = FutureProvider.autoDispose
+    .family<CustomerPricing, String>((ref, customerId) async {
+      ref.watch(designsRevisionProvider);
+      final list = await ref.watch(priceListProvider.future);
+      final store = ref.read(designStoreProvider);
+      final page = await store.page(customerId: customerId, limit: 1 << 20);
+      final designs = [for (final s in page.items) ?await store.load(s.id)];
+      return CustomerPricing.of(
+        designs,
+        list,
+        engine: ref.read(pricingEngineProvider),
+      );
+    });

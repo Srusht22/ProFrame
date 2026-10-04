@@ -6169,127 +6169,146 @@ through the state setter fails the on-screen one.
 
 ### The price
 
-The brief: *a professional, extensible pricing engine for every design
-category, today's and later ones, built on the canonical design; it must
-not redraw, guess or modify geometry; PVC and aluminium, colour, glass,
-panel, hardware, labour, installation and discount; a structured
-breakdown; configurable prices the owner changes and staff only use; a
-kept price that outlives a change to the list; and an unknown category
-never priced as a window.*
+The brief, twice. First: *a pricing engine for every design category, today's
+and later ones, built on the canonical design, that never redraws, guesses
+or modifies geometry.* Then, as the workshop actually prices: *measure the
+design the way the factory does — normal profile and opening profile in
+metres, panel and glass in square metres, hardware by the piece, each at its
+own configurable rate, per material and colour — and give each design its
+price and each customer the total of theirs.*
 
 ```
 Design ─ PricingTakeoff ─ CategoryPricing ─ labour ─ installation ─ discount
-       (canonical geometry,   (what is charged,                     │
-        read only)             by category)                  PriceResult
-                                       ▲                    (lines, groups,
-                                   PriceList                 subtotal, total)
-                         (every figure, kept by PriceListStore)
+       (canonical geometry,   (lines: a measurement                 │
+        read only, measured    at a rate)                    PriceResult
+        once per piece)               ▲                   (lines, groups,
+                                  PriceList                measurements,
+                        (every rate, kept by PriceListStore)  total)
+
+Customer's designs ─ each priced as above ─ CustomerPricing (sum, worked out)
 ```
 
 Everything is in `lib/domain/pricing/`, and no widget holds a figure.
 
 - **The takeoff reads the design; nothing else does** (`PricingTakeoff`).
   It measures through the geometry every view draws from — the frame's
-  outline, `DesignGeometry.barBody`, `fillOf`, `leafOuter`,
-  `Infill.partsOf` — and turns millimetres into metres and square metres
-  in one place: the frame's members by the metre (a side left open is no
-  member), each bar's body over its width, each pane as it is cut, each
-  leaf's sash and area, every piece of ironmongery counted. An angled
-  design's area is its polygon's own — left 200 cm, right 150, 100 wide is
-  1.75 m², never the 2 m² of its box — and nothing is squared, measured
-  afresh or stored. Pricing writes nothing: the design that goes in comes
-  out as it was.
-- **The price list holds every figure** (`PriceList`): per frame
-  material, a metre of frame, sash and bar, with that material's colours;
-  glass by look and panel by colour, a square metre each, with a rate for
-  the user's own colour; each piece of ironmongery; a leaf by what it is
-  (`LeafRate`: door, window, sliding, or one nobody has named); a sliding
-  track and rollers; an angled joint; each category's labour — fixed, by
-  area and as a percentage of the materials (`LabourRate`); and
-  installation. A figure that is not a price — below nothing, not a
-  number — is dropped as it is read, so that thing is unpriced and says
-  so, never priced at nonsense.
-- **Colour is a price of its own, apart from what is drawn.** A profile's
-  `ColourRate`s name the finish values it is sold in, each standard or
-  non-standard with its surcharge; a colour the list does not name is a
-  special colour at the material's special rate. It is its own line
-  (*Anthracite frame (non-standard colour)*) so the breakdown says why. The
-  application's own house green and cream are on no list, so a frame in
-  one is priced as special.
+  outline, `DesignGeometry.barBody` and `fillOf`, `Infill.partsOf`, each
+  opening's own section — and turns millimetres into `Metres` and
+  `SquareMetres` (`measurement.dart`) in one place. Nothing is squared,
+  boxed, measured afresh or stored: pricing writes nothing, and the design
+  that goes in comes out as it was.
+- **Each piece is measured once, in one category** (`ProfileUse`):
+
+  | Category | What | Unit |
+  | --- | --- | --- |
+  | Normal profile | the frame's border (a side left open is no member) and every bar — the design's own and every line inside an opening | m |
+  | Opening profile | the perimeter of each opening's own region | m |
+  | Other profile | a sliding design's track, the frame's width once | m |
+  | Panel, glass | each part as it is cut — its `fillOf`, the polygon's own area | m² |
+  | Hardware | each piece | each |
+
+  A line inside an opening is listed against that opening but cut from the
+  normal profile, so it is never also in the opening's perimeter. An
+  opening's perimeter is its region's outline, so two openings either side
+  of a mullion each count their own side and the mullion is counted once,
+  as a bar. A bar's length is its body's reach along its own line — what it
+  is cut to. An angled design is measured as the polygon it is: left
+  200 cm, right 150, 100 wide is 1.75 m², never its box's 2.
+- **Metres and square metres never mix.** `MeasurementSummary` keeps
+  normal, opening and other profile, panel area, glass area, the pieces and
+  the openings apart; `totalProfile` is the profile alone, in metres, and
+  the two units are two types, so adding one to the other does not compile.
+- **The price list holds every rate** (`PriceList`): per frame material a
+  `ProfileRate` — a metre of normal profile and a metre of opening profile,
+  each its own figure — with that material's colours; glass by look and
+  panel by colour, a square metre each, with a rate for the user's own
+  colour; each piece of ironmongery; a sliding track by the metre and
+  rollers each; each category's labour — fixed, by area and as a
+  percentage (`LabourRate`) — and installation. A figure that is not a
+  price — below nothing, not a number — is dropped as it is read, so that
+  thing is unpriced and says so, never priced at nonsense.
+- **Colour is its own line, by the metre and by a share.** A material's
+  `ColourRate`s name the finish values it is sold in, standard or not, each
+  with a `ColourSurcharge` — so much a metre on every metre of profile in
+  that colour, and a percentage of what that profile costs. A colour the
+  list does not name takes the material's special surcharge; the
+  application's own house green and cream are on no list. It is its own
+  line (*uPVC · Brown colour*) so the breakdown says why.
 - **A category is priced by the strategy registered for it, by name**
-  (`PricingEngine.standard`): door, window and door & window by
-  `FramedPricing`, sliding by `SlidingPricing` (track and rollers too),
-  angled by `AngledPricing` (each joint cut at an angle too). A door &
-  window set is charged leaf by leaf as the leaves it has — the leaf's
-  own kind, never the design's — so it is never one door or one window.
-  A later category is a strategy registered and a rate in the list;
-  nothing here changes. A category with no strategy, or no rate, is not
-  priced at all.
+  (`PricingEngine.standard`): door, window, door & window and angled by
+  `FramedPricing`, sliding by `SlidingPricing` (the track and the rollers
+  too). The lines are the measurements at their rates, summed by material,
+  colour, glass look and panel colour. A later category is a strategy
+  registered and a rate in the list; nothing here changes.
 - **A design that cannot be priced says why** (`PriceStatus`): nothing
   drawn; the width or height not given — a sketch has no scale, so a price
-  off it would be a guess; a category this version does not know (Phase
-  24's `unsupported`) — *Price unavailable*, never a window's; the list
-  having no price for something the design has; or a size of nothing or
-  not a number. No figure is shown then, and every amount written is
-  finite and no less than nothing.
-- **The result is a breakdown** (`PriceResult`): lines in groups —
-  Material, Hardware, Labour, Installation — each a quantity, a unit, a
-  rate and an amount, then the subtotal, a `Discount` (a percentage, an
-  amount, never below nothing) and the total. It serialises, so a price
-  can be kept as it stood: `PriceSnapshot`, which a later price list does
-  not change. Nothing takes a snapshot yet; the model is there for
-  quotations.
+  off it would be a guess; a category this version does not know —
+  *Unsupported category*, *Price unavailable*, never a window's; a category
+  with no strategy or no rate; the list having no price for something the
+  design has; or a size of nothing or not a number. No figure is shown
+  then, and every amount written is finite and no less than nothing.
+- **The result is a breakdown** (`PriceResult`): lines in groups — normal
+  profile, opening profile, other profile, colour, glass, panel, hardware,
+  labour, installation — each a quantity, a unit, a rate and an amount;
+  the measurements; a subtotal, a `Discount` (never below nothing) and the
+  total. Money is rounded to the cent line by line. It serialises, so a
+  price can be kept as it stood (`PriceSnapshot`); nothing takes one yet.
 - **What the user chooses about the price is the design's**
   (`Design.pricing`, `PricingChoices`): installation — never on until they
-  switch it on — a discount and a kept snapshot. It is written only when
-  something is chosen, so every design kept before has no new key and
-  loads exactly as it did. Material, colour, glass, panel and ironmongery
-  were already the design's, so nothing else needed a field.
+  switch it on — a discount and a kept snapshot, written only when
+  something is chosen. Material, colour, glass, panel and ironmongery were
+  already the design's.
+- **A customer's total is worked out, never kept** (`CustomerPricing.of`).
+  Each of their designs is priced on its own from what is kept; the total
+  is the sum of the designs that could be priced, the measurements the
+  sum of theirs, and a design that could not be priced is listed with its
+  reason and keeps the total marked incomplete. Nothing is written to the
+  customer.
 - **The list is kept on the device, and only the owner changes it**
-  (`PriceListStore`, `proframe.pricelist.v1`; `WorkshopRole`). The store
-  refuses a change from anybody but the owner and writes nothing. ProFrame
-  has no sign-in, so the device starts as staff, who can price but not
-  change prices; there is no price editor yet. Until the owner keeps a
-  list, the example list (`PriceList.starter`, in Iraqi dinars) is used
-  and the panel says *Example prices — the workshop owner sets the real
-  ones.* A kept list that cannot be read is never written over by reading
-  it.
-- **On the screen**: **Price** in the design's own panel (`PricePanel`):
-  the total, the breakdown folded under it, and **Include installation**.
-  It is `designPriceProvider` — the open design priced afresh whenever it
-  or the list changes — so a width, a height, a material, a colour, glass
-  to panel or a hinge changes the figure at once.
+  (`PriceListStore`, `proframe.pricelist.v2` — the factory model's rates
+  are not the first engine's, so the old key is not read; `WorkshopRole`).
+  ProFrame has no sign-in, so the device starts as staff, who can price but
+  not change prices; there is no price editor yet. Until the owner keeps a
+  list, the example list (`PriceList.starter`, in US dollars, uPVC $7 a
+  metre normal and $12 opening) is used and the panel says *Example prices
+  — the workshop owner sets the real ones.*
+- **On the screen.** **Price** in the design's own panel (`PricePanel`,
+  `designPriceProvider`): normal, opening and total profile in metres,
+  panel and glass in square metres (`MeasurementRows`), then the total,
+  the breakdown folded under it, and **Include installation** — priced
+  afresh whenever the design or the list changes. On a customer's page,
+  under their design cards so it moves none of them, **All designs**
+  (`CustomerPriceCard`, `customerPricingProvider`): the total and the total
+  profile, and unfolded each design's price and the combined
+  measurements. It reads again when a design is kept.
 
-`test/domain/pricing_engine_test.dart` holds the brief's thirty, each on a
-price list whose every figure the test sets, so each amount is checked
-against the geometry it came from:
-- a door, a window, a sliding set (three rollers not two), a door &
-  window set charged leaf by leaf with the door's lock once, and an angled
-  design at 1.75 m² with two angled joints and its geometry untouched;
-- uPVC against aluminium on the same geometry, and a standard against a
-  surcharged and a special colour, the brand's own colours special;
-- glass and panel by the area each is cut to, not shared out; four hinges
-  not three; labour three ways; installation only when chosen; a discount
-  that never goes below nothing;
-- a new width, height, material, colour, and glass to panel each a new
-  price;
-- a later category, a missing strategy or rate, a missing material, glass
-  or piece, nothing drawn, no sizes, and sizes of nothing or not a number —
-  each a state and never a figure;
-- the choices kept and read back, an older design opening unchanged, the
-  design written nothing by pricing, a snapshot unchanged by a dearer
-  list, and the list kept, refused to staff, left alone when unreadable,
-  and read back.
+`test/domain/pricing_engine_test.dart` holds the brief's tests under its
+own numbers, each on a list whose every rate the test sets:
+- **the acceptance design**: a 600 cm border, two internal lines of 80 cm
+  and a 600 cm opening — 7.60 m × $7 = $53.20 and 6.00 m × $12 = $72.00,
+  $125.20 before infill — then a panel priced at its own area;
+- the border the outline, every bar once at its cut length, several
+  openings each once and never sharing the mullion, panel and glass by
+  what each is cut to, metres and square metres apart;
+- uPVC against aluminium on one geometry, and a colour's metre and share;
+- a door, a window, a sliding set, a door & window set and an angled
+  design at its own measurements;
+- a later category, a missing strategy, rate, material, glass or piece,
+  nothing drawn, no sizes and impossible sizes — each a state, never a
+  figure;
+- three designs of one customer and their sum; and the choices, a design
+  kept before pricing, pricing writing nothing, and the list kept and
+  refused to staff.
 
-`test/app/the_price_on_screen_test.dart` holds it on the real app: the
-panel's total changing with each of seven edits; installation switched
-on, kept, read back and undone; a list kept by the owner pricing the open
-design at once while staff are refused; a later category's design showing
-*Price unavailable* with no figure; and pricing writing nothing to the
-design or the device.
+`test/app/the_price_on_screen_test.dart` holds the panel on the real app,
+and `test/app/a_customer_s_total_test.dart` the customer's page: Adam's
+three designs each their own price and the total their sum, the profile
+in metres and the infill in square metres, nothing written to the device,
+a width changed and kept reaching the total, and Sara's total hers alone.
 
-Pricing an unknown category as a window, ignoring the frame's material, or
-dropping the colour each fails it.
+Pricing the opening at the normal rate, counting a line inside an opening
+twice, measuring an area by its box, or pricing an unknown category as a
+window each fails it.
 
 ## Working on this repository
 

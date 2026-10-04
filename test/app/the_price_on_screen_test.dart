@@ -164,12 +164,9 @@ void main() {
       profiles: {
         ...PriceList.starter.profiles,
         MaterialKind.upvc: const ProfileRate(
-          framePerMetre: 100000,
-          sashPerMetre: 18000,
-          barPerMetre: 14000,
-          colours: [
-            ColourRate('Off white', 0xFFF3F4F2, ColourGrade.standard, 0),
-          ],
+          normalPerMetre: 100,
+          openingPerMetre: 12,
+          colours: [ColourRate('Off white', 0xFFF3F4F2, ColourGrade.standard)],
         ),
       },
     );

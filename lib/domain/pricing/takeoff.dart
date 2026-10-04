@@ -1,69 +1,88 @@
 import '../dimensions/measurements.dart';
 import '../geometry/polygon.dart';
 import '../geometry/segment.dart';
+import '../geometry/vec2.dart';
 import '../model/design.dart';
 import '../model/design_geometry.dart';
 import '../model/elements.dart';
 import '../model/infill.dart';
 import '../model/materials.dart';
+import 'measurement.dart';
 
-/// What a design is made of, measured: the quantities a price multiplies.
+/// What a design is made of, measured the way the factory measures it.
 ///
-/// **It reads the canonical design and nothing else**, through the same
-/// geometry every view draws from — `DesignGeometry` for a bar's body, a
-/// pane's fill and a leaf's outline, `Infill.partsOf` for the parts — so
-/// what is priced is what is drawn and built. It works nothing out that the
-/// design does not already say, holds nothing, and changes nothing: no
-/// geometry is made, squared or tidied for it. An angled design's area is
-/// its outline's own, not its box's.
+/// **It reads the canonical design and nothing else**, through the
+/// geometry every view draws from — the frame's outline, `DesignGeometry`
+/// for a bar's body and a pane's fill, the opening's own region — so what
+/// is priced is what is drawn and built. It holds nothing, changes nothing,
+/// and makes no geometry: an angled design is measured as the polygon it
+/// is, never squared or boxed.
 ///
-/// Every figure comes out in the units a price is quoted in — metres of
-/// profile, square metres of glass — turned from the design's millimetres
-/// here and only here.
+/// Each piece of geometry is counted **once**, in **one** category:
+///
+/// | Category | What | Measured |
+/// | --- | --- | --- |
+/// | Normal profile | the frame's border, every bar of the design and every line inside an opening | metres |
+/// | Opening profile | the profile round each opening | metres, each opening once |
+/// | Other profile | a sliding design's track | metres |
+/// | Panel, glass | each part, as it is cut | square metres |
+/// | Hardware | each piece | by the piece |
+///
+/// A line inside an opening is the opening's — it is listed against it —
+/// and is cut from the normal profile, so it is in the normal profile and
+/// never in the opening's perimeter. An opening's perimeter is its own
+/// region's outline, so two openings either side of a mullion each count
+/// their own side and the mullion is counted once, as a bar.
 class PricingTakeoff {
   /// The frame's overall size, in centimetres, as the user reads it.
   final double widthCm;
   final double heightCm;
 
-  /// The area inside the frame's outline — the polygon's own, square or
-  /// not — in square metres.
-  final double areaM2;
-
-  /// The length of the frame's members: every side of the outline that
-  /// carries one, so a side left open is not charged as profile.
-  final double frameMetres;
+  /// The area inside the frame's outline — the polygon's own.
+  final SquareMetres area;
 
   /// The frame's own finish: its material and its colour.
   final Finish frameFinish;
 
-  /// Joints of the frame that are not square: corners where a side meets
-  /// the next at anything but a right angle, or along a slope.
-  final int angledJoints;
-
-  final List<BarTakeoff> bars;
-  final List<PaneTakeoff> panes;
-  final List<LeafTakeoff> leaves;
+  final List<ProfileRun> runs;
+  final List<RegionTakeoff> regions;
+  final List<OpeningTakeoff> openings;
   final List<PieceTakeoff> pieces;
 
   const PricingTakeoff({
     required this.widthCm,
     required this.heightCm,
-    required this.areaM2,
-    required this.frameMetres,
+    required this.area,
     required this.frameFinish,
-    required this.angledJoints,
-    required this.bars,
-    required this.panes,
-    required this.leaves,
+    required this.runs,
+    required this.regions,
+    required this.openings,
     required this.pieces,
   });
 
-  double get widthM => widthCm / 100;
+  Metres _sum(bool Function(ProfileRun) which) =>
+      runs.where(which).fold(Metres.zero, (sum, r) => sum + r.length);
 
-  int get openings => leaves.length;
-  int get glassRegions => panes.where((p) => p.isGlass).length;
-  int get panelRegions => panes.where((p) => p.isPanel).length;
-  int get dividers => bars.length;
+  /// The frame's border alone.
+  Metres get border => _sum((r) => r.use == ProfileUse.border);
+
+  /// Every bar and every line inside an opening.
+  Metres get dividers => _sum((r) => r.use == ProfileUse.divider);
+
+  Metres get normalProfile => _sum((r) => r.use.isNormal);
+  Metres get openingProfile => _sum((r) => r.use == ProfileUse.opening);
+  Metres get otherProfile => _sum((r) => r.use == ProfileUse.track);
+  Metres get totalProfile => normalProfile + openingProfile + otherProfile;
+
+  SquareMetres get glassArea => regions
+      .where((r) => r.isGlass)
+      .fold(SquareMetres.zero, (sum, r) => sum + r.area);
+  SquareMetres get panelArea => regions
+      .where((r) => r.isPanel)
+      .fold(SquareMetres.zero, (sum, r) => sum + r.area);
+
+  int get glassRegions => regions.where((r) => r.isGlass).length;
+  int get panelRegions => regions.where((r) => r.isPanel).length;
 
   /// How many pieces of ironmongery of each kind.
   Map<HardwareKind, int> get hardwareCounts {
@@ -74,10 +93,20 @@ class PricingTakeoff {
     return counts;
   }
 
+  MeasurementSummary get summary => MeasurementSummary(
+    normalProfile: normalProfile,
+    openingProfile: openingProfile,
+    otherProfile: otherProfile,
+    panelArea: panelArea,
+    glassArea: glassArea,
+    hardwarePieces: pieces.length,
+    openings: openings.length,
+  );
+
   /// Why [design] cannot be measured, or null where it can.
   ///
   /// A frame of nothing, or a coordinate that is not a number, has no size
-  /// to price; that is said rather than priced at zero or at NaN.
+  /// to measure; that is said rather than measured as zero or as NaN.
   static String? problemWith(Design design) {
     final frame = design.frame;
     if (frame == null) return 'Nothing has been drawn yet.';
@@ -104,49 +133,93 @@ class PricingTakeoff {
     final geometry = DesignGeometry.of(design);
     final outline = frame.outline;
 
-    var frameMm = 0.0;
+    // The border: every side of the outline that carries a member, so a
+    // side left open is not charged as profile.
+    var borderMm = 0.0;
     final edges = outline.edges;
     for (var i = 0; i < edges.length; i++) {
-      if (frame.hasMember(i)) frameMm += edges[i].length;
+      if (frame.hasMember(i)) borderMm += edges[i].length;
     }
 
-    final bars = <BarTakeoff>[
+    final runs = <ProfileRun>[
+      ProfileRun(
+        id: frame.id,
+        use: ProfileUse.border,
+        label: 'Frame border',
+        length: Metres.ofMm(borderMm),
+        finish: frame.finish,
+      ),
+      // Every bar, once — the design's own and those inside an opening —
+      // at the length its body is cut to: the canonical body every view
+      // draws, from the face it starts at to the face it ends at.
       for (final bar in design.dividers)
-        BarTakeoff(
+        ProfileRun(
           id: bar.id,
-          // The bar's body as every view draws it — trimmed to the frame's
-          // inner face, or to its sash's daylight — over its width.
-          metres: _finite(geometry.barBody(bar).area / bar.widthMm / 1000),
+          use: ProfileUse.divider,
+          label: bar.isInternal ? 'Line inside an opening' : 'Bar',
+          length: Metres.ofMm(_cutLength(geometry.barBody(bar), bar.segment)),
           finish: bar.finish,
           openingId: design.openingHolding(bar.parentId)?.id,
         ),
     ];
 
-    final panes = <PaneTakeoff>[
+    final openings = <OpeningTakeoff>[];
+    for (final opening in design.openingsInOrder) {
+      final section = design.sectionById(opening.sectionId);
+      if (section == null) continue;
+      // The opening's own region, as the drawing and the solid hang its
+      // leaf in it.
+      final perimeter = Metres.ofMm(_perimeter(section.outline));
+      final slides = opening.mechanism.slideEdge != null;
+      runs.add(
+        ProfileRun(
+          id: opening.id,
+          use: ProfileUse.opening,
+          label: design.nameOf(opening),
+          length: perimeter,
+          // A leaf is made in the frame's profile.
+          finish: frame.finish,
+          openingId: opening.id,
+        ),
+      );
+      openings.add(
+        OpeningTakeoff(
+          id: opening.id,
+          name: design.nameOf(opening),
+          kind: design.kindOf(opening),
+          slides: slides,
+          perimeter: perimeter,
+          area: SquareMetres.ofMm2(section.outline.area),
+        ),
+      );
+    }
+
+    // A sliding design's track runs the frame's width, once, however many
+    // panels run on it.
+    if (openings.any((o) => o.slides)) {
+      runs.add(
+        ProfileRun(
+          id: '${frame.id}-track',
+          use: ProfileUse.track,
+          label: 'Sliding track',
+          length: Metres.ofMm(outline.width),
+          finish: frame.finish,
+        ),
+      );
+    }
+
+    final regions = <RegionTakeoff>[
       for (final part in Infill.partsOf(design))
-        PaneTakeoff(
+        RegionTakeoff(
           id: part.id,
           name: Infill.nameOf(design, part),
           // What it is cut to: the fill, stopping at the sash or the bar.
-          areaM2: _finite(geometry.fillOf(part).area / 1e6),
+          area: SquareMetres.ofMm2(geometry.fillOf(part).area),
           finish: part.finish,
           openingId:
               design.openingHolding(part.parentId)?.id ??
               design.openingOf(part.id)?.id,
         ),
-    ];
-
-    final leaves = <LeafTakeoff>[
-      for (final opening in design.openingsInOrder)
-        if (design.sectionById(opening.sectionId) case final section?)
-          LeafTakeoff(
-            id: opening.id,
-            name: design.nameOf(opening),
-            kind: design.kindOf(opening),
-            slides: opening.mechanism.slideEdge != null,
-            metres: _finite(_perimeter(geometry.leafOuter(section)) / 1000),
-            areaM2: _finite(geometry.leafOuter(section).area / 1e6),
-          ),
     ];
 
     final pieces = <PieceTakeoff>[
@@ -161,13 +234,11 @@ class PricingTakeoff {
     return PricingTakeoff(
       widthCm: outline.width / 10,
       heightCm: outline.height / 10,
-      areaM2: outline.area / 1e6,
-      frameMetres: frameMm / 1000,
+      area: SquareMetres.ofMm2(outline.area),
       frameFinish: frame.finish,
-      angledJoints: _angledJoints(outline),
-      bars: bars,
-      panes: panes,
-      leaves: leaves,
+      runs: runs,
+      regions: regions,
+      openings: openings,
       pieces: pieces,
     );
   }
@@ -175,52 +246,74 @@ class PricingTakeoff {
   static double _perimeter(Polygon shape) =>
       shape.edges.fold(0, (sum, e) => sum + e.length);
 
-  static double _finite(double v) => v.isFinite && v > 0 ? v : 0;
-
-  /// Corners whose two sides are not level and upright: every end of a
-  /// sloped side is a joint cut at an angle.
-  static int _angledJoints(Polygon outline) {
-    final edges = outline.edges;
-    var joints = 0;
-    for (var i = 0; i < edges.length; i++) {
-      final a = edges[i];
-      final b = edges[(i + 1) % edges.length];
-      bool square(Segment e) => e.a.x == e.b.x || e.a.y == e.b.y;
-      if (!square(a) || !square(b)) joints++;
-    }
-    return joints;
+  /// How long a bar is cut: its body's reach along its own line, long
+  /// point to long point where an end is cut at an angle.
+  static double _cutLength(Polygon body, Segment line) {
+    if (line.length <= 0) return 0;
+    final along = line.unit;
+    double at(Vec2 p) => (p - line.a).dot(along);
+    final ats = [for (final c in body.corners) at(c)];
+    if (ats.isEmpty) return line.length;
+    final reach =
+        ats.reduce((a, b) => a > b ? a : b) -
+        ats.reduce((a, b) => a < b ? a : b);
+    return reach.isFinite && reach > 0 ? reach : line.length;
   }
 }
 
-/// A bar, measured.
-class BarTakeoff {
+/// What a run of profile is.
+enum ProfileUse {
+  /// The frame's border.
+  border,
+
+  /// A bar of the design, or a line inside an opening.
+  divider,
+
+  /// The profile round an opening.
+  opening,
+
+  /// A sliding design's track.
+  track;
+
+  /// Cut from the normal profile.
+  bool get isNormal => this == border || this == divider;
+}
+
+/// One run of profile, measured.
+class ProfileRun {
   final String id;
-  final double metres;
+  final ProfileUse use;
+  final String label;
+  final Metres length;
+
+  /// What it is made of: the material and colour it is priced by.
   final Finish finish;
 
-  /// The opening it is drawn inside, or null for a bar of the design.
+  /// The opening it belongs to, if it does.
   final String? openingId;
 
-  const BarTakeoff({
+  const ProfileRun({
     required this.id,
-    required this.metres,
+    required this.use,
+    required this.label,
+    required this.length,
     required this.finish,
     this.openingId,
   });
 }
 
 /// A part — a pane of glass or a panel — measured as it is cut.
-class PaneTakeoff {
+class RegionTakeoff {
   final String id;
   final String name;
-  final double areaM2;
+  final SquareMetres area;
   final Finish finish;
   final String? openingId;
 
-  const PaneTakeoff({
+  const RegionTakeoff({
     required this.id,
     required this.name,
-    required this.areaM2,
+    required this.area,
     required this.finish,
     this.openingId,
   });
@@ -229,27 +322,25 @@ class PaneTakeoff {
   bool get isPanel => Infill.isPanel(finish);
 }
 
-/// A leaf, measured: its sash's run of profile and its area.
-class LeafTakeoff {
+/// An opening, measured.
+class OpeningTakeoff {
   final String id;
   final String name;
 
   /// What the leaf is — the user's answer, or the design's kind it follows
   /// — or null where nobody has said.
   final DesignKind? kind;
-
-  /// Whether it slides rather than turns.
   final bool slides;
-  final double metres;
-  final double areaM2;
+  final Metres perimeter;
+  final SquareMetres area;
 
-  const LeafTakeoff({
+  const OpeningTakeoff({
     required this.id,
     required this.name,
     required this.kind,
     required this.slides,
-    required this.metres,
-    required this.areaM2,
+    required this.perimeter,
+    required this.area,
   });
 }
 

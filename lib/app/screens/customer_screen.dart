@@ -7,6 +7,7 @@ import '../../domain/model/new_design_setup.dart';
 import '../../infrastructure/design_store.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
+import 'customer_price_card.dart';
 import 'customers_screen.dart';
 import 'design_actions.dart';
 import 'design_name_screen.dart';
@@ -355,6 +356,15 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
                           onMore: _moreFor,
                           onNearEnd: () => WidgetsBinding.instance
                               .addPostFrameCallback((_) => _more()),
+                        ),
+                      ),
+                    // What all of their designs come to, together — under
+                    // the cards, so it moves none of them.
+                    if (_all > 0)
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(across, 16, across, 0),
+                        sliver: SliverToBoxAdapter(
+                          child: CustomerPriceCard(customerId: customer.id),
                         ),
                       ),
                     // Room under the last card for New Design, so it never
