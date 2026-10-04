@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/dimensions/measurements.dart';
 import '../../domain/dimensions/units.dart';
+import '../../domain/editing/cad_snap.dart';
 import '../../domain/editing/design_edits.dart';
 import '../../domain/geometry/polygon.dart';
 import '../../domain/geometry/segment.dart';
@@ -593,29 +594,40 @@ class _CadViewState extends ConsumerState<CadView> {
     final design = state.design;
     final within = view.lengthToSheet(11);
 
-    double? snapX;
-    double? snapY;
-    if (state.layers.snap) {
-      snapX = DesignEdits.snapTo(
-        DesignEdits.snapCandidates(
-          design,
-          horizontal: true,
-          ignoreId: grip.elementId,
-        ),
-        raw.x,
-        withinMm: within,
-      );
-      snapY = DesignEdits.snapTo(
-        DesignEdits.snapCandidates(
-          design,
-          horizontal: false,
-          ignoreId: grip.elementId,
-        ),
-        raw.y,
-        withinMm: within,
-      );
+    final Vec2 at;
+    final bool snapped;
+    if (state.layers.snap && CadSnap.byGeometry(design)) {
+      // An angled design snaps to its geometry as it is, slopes and all:
+      // see [CadSnap].
+      final landed = _byGeometry(design, grip, raw, within);
+      at = landed?.at ?? raw;
+      snapped = landed != null;
+    } else {
+      double? snapX;
+      double? snapY;
+      if (state.layers.snap) {
+        snapX = DesignEdits.snapTo(
+          DesignEdits.snapCandidates(
+            design,
+            horizontal: true,
+            ignoreId: grip.elementId,
+          ),
+          raw.x,
+          withinMm: within,
+        );
+        snapY = DesignEdits.snapTo(
+          DesignEdits.snapCandidates(
+            design,
+            horizontal: false,
+            ignoreId: grip.elementId,
+          ),
+          raw.y,
+          withinMm: within,
+        );
+      }
+      at = Vec2(snapX ?? raw.x, snapY ?? raw.y);
+      snapped = snapX != null || snapY != null;
     }
-    final at = Vec2(snapX ?? raw.x, snapY ?? raw.y);
 
     switch (grip.kind) {
       case GripKind.boundary:
@@ -627,7 +639,7 @@ class _CadViewState extends ConsumerState<CadView> {
             DesignEdits.frameMemberOffset(design, grip.memberIndex!, at),
           );
         }
-        setState(() => _snapped = snapX != null || snapY != null ? at : null);
+        setState(() => _snapped = snapped ? at : null);
       case GripKind.move:
         final element = design.elementById(grip.elementId);
         if (element is DividerElement) {
@@ -636,7 +648,7 @@ class _CadViewState extends ConsumerState<CadView> {
           controller.select(grip.elementId);
           controller.dragElement(grip.elementId, at - element.anchor);
         }
-        setState(() => _snapped = snapX != null || snapY != null ? at : null);
+        setState(() => _snapped = snapped ? at : null);
       case GripKind.endStart:
       case GripKind.endFinish:
         final start = grip.kind == GripKind.endStart;
@@ -659,10 +671,67 @@ class _CadViewState extends ConsumerState<CadView> {
           default:
             break;
         }
-        setState(() => _snapped = snapX != null || snapY != null ? at : null);
+        setState(() => _snapped = snapped ? at : null);
       case GripKind.offset:
         controller.setDimensionOffset(grip.elementId, raw);
         setState(() => _snapped = null);
+    }
+  }
+
+  /// Where a drag on an angled design lands, snapped to the design's own
+  /// geometry — the point, the line or the alignment nearest it — or null
+  /// where nothing is near. Each grip snaps the way it moves: an end as a
+  /// point, a bar or a side of the frame square to itself, a whole element
+  /// by alignment.
+  Snapped? _byGeometry(Design design, Grip grip, Vec2 raw, double within) {
+    switch (grip.kind) {
+      case GripKind.boundary:
+        if (grip.dividerId case final id?) {
+          final bar = design.dividerById(id);
+          if (bar == null) return null;
+          return CadSnap.across(
+            design,
+            bar.segment,
+            raw,
+            withinMm: within,
+            bandMm: bar.widthMm / 2 + Tol.samePointMm,
+            ignoreId: id,
+            insideOf: design.sectionHolding(bar.parentId),
+          );
+        }
+        final frame = design.frame;
+        final index = grip.memberIndex;
+        if (frame == null || index == null) return null;
+        final corners = frame.outline.corners;
+        if (index < 0 || index >= corners.length) return null;
+        return CadSnap.across(
+          design,
+          Segment(corners[index], corners[(index + 1) % corners.length]),
+          raw,
+          withinMm: within,
+          bandMm: frame.profileMm + Tol.samePointMm,
+        );
+      case GripKind.endStart:
+      case GripKind.endFinish:
+        final element = design.elementById(grip.elementId);
+        return CadSnap.point(
+          design,
+          raw,
+          withinMm: within,
+          ignoreId: grip.elementId,
+          insideOf: element is DividerElement
+              ? design.sectionHolding(element.parentId)
+              : null,
+        );
+      case GripKind.move:
+        return CadSnap.aligned(
+          design,
+          raw,
+          withinMm: within,
+          ignoreId: grip.elementId,
+        );
+      case GripKind.offset:
+        return null;
     }
   }
 

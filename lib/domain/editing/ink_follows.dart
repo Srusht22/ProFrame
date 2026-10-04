@@ -151,10 +151,33 @@ abstract final class InkFollows {
       if (own.every(still) && (!frameInk || frameEdges.every(still))) {
         return stroke;
       }
+      // **An end the edit put somewhere is where the ink ends.** A bar's
+      // stroke seldom ends exactly at the bar's end — the hand stops a few
+      // millimetres short or long, and the reading closed that gap by
+      // joining the end to the corner or the line it met. Carried with
+      // the bar, the gap goes too; and once the user has dragged an end
+      // along a raking side, nothing is there to close it, so the next
+      // reading built the bar from where the ink stopped — off the slope.
+      // So where an edit moved one end of a line relative to the other —
+      // an end dragged or snapped, a length or an angle typed — the ink's
+      // end on that side is carried to the new end exactly, and the ink
+      // between follows in proportion. A line moved whole keeps its ink's
+      // own ends, as before.
+      final ends = own.length == 1 && !frameInk
+          ? _endsOf(stroke, own.single)
+          : null;
       return stroke.copyWith(
         samples: [
-          for (final s in stroke.samples)
+          for (final (i, s) in stroke.samples.indexed)
             s.movedTo(() {
+              if (ends != null) {
+                final u = stroke.samples.length < 2
+                    ? 0.0
+                    : i / (stroke.samples.length - 1);
+                return _carried(s.at, own.single) +
+                    ends.$1 * (1 - u) +
+                    ends.$2 * u;
+              }
               // Its own element first: a bar's end lying on the jamb it
               // meets is the bar's, not the jamb's.
               (Segment, Segment)? by;
@@ -204,6 +227,27 @@ abstract final class InkFollows {
     }
     final w = right - left, h = bottom - top;
     return math.sqrt(w * w + h * h);
+  }
+
+  /// What the ink's first and last samples need besides being carried, to
+  /// end exactly where an edit put [pair]'s ends — nothing where the line
+  /// was only moved whole, and nothing for an end that stayed.
+  static (Vec2, Vec2)? _endsOf(Stroke stroke, (Segment, Segment) pair) {
+    final (from, to) = pair;
+    final shiftA = to.a - from.a, shiftB = to.b - from.b;
+    if (shiftA.distanceTo(shiftB) < 1e-9) return null;
+    if (stroke.samples.length < 2) return null;
+    final first = stroke.samples.first.at, last = stroke.samples.last.at;
+    final firstIsA =
+        first.distanceTo(from.a) + last.distanceTo(from.b) <=
+        first.distanceTo(from.b) + last.distanceTo(from.a);
+    Vec2 endFor(Vec2 sample, bool isA) {
+      final moved = isA ? shiftA.length > 1e-9 : shiftB.length > 1e-9;
+      if (!moved) return Vec2.zero;
+      return (isA ? to.a : to.b) - _carried(sample, pair);
+    }
+
+    return (endFor(first, firstIsA), endFor(last, !firstIsA));
   }
 
   /// [p], carried as the line it lies against moved from `pair.$1` to

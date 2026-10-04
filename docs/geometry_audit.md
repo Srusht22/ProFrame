@@ -716,8 +716,8 @@ The open faults from the first audit are now settled:
 - a drag in CAD undone by the next reading: still open here, fixed in
   Phase 21 (§25);
 - sizes and snaps only for horizontal and vertical members: sizes are
-  fixed for angled frames by the side figures (§15); the CAD snaps are
-  unchanged.
+  fixed for angled frames by the side figures (§15); the CAD snaps were
+  unchanged here, and are fixed for angled designs in Phase 23 (§27).
 
 ## 25. CAD edits persist through Read (Phase 21)
 
@@ -794,4 +794,50 @@ it; Undo cleared both. The tests are
 `test/domain/angled_geometry_feedback_test.dart` (24) and
 `test/app/angled_geometry_feedback_on_screen_test.dart` (7). Silencing the
 feedback fails 16 of them.
+
+## 27. Angled CAD snapping (Phase 23)
+
+**What was there.** `CadView._move` snapped a drag's x and y separately,
+when the Snap layer was on (`DesignEdits.snapTo` over
+`DesignEdits.snapCandidates`). Then it handed the point to the grip's edit:
+`moveDividerAcross`, `moveFrameMember` through `frameMemberOffset`,
+`moveDividerEnd`, `moveDimensionEnd`, `moveArrowEnd`, `dragElement`. The
+candidates were the x and y values of the frame's and the daylight's
+corners, the centres and faces of upright and level bars, and every
+section's bounding box.
+
+**Why angled snapping failed.**
+- No line was ever a target, so an end dragged near a raking side stayed
+  off it.
+- Sloped bars were skipped.
+- A raked light's bounding box gave values at corners no geometry has, for
+  example the daylight's right x with the slope's height at the mullion.
+
+**What was done.** `CadSnap` snaps to the design's own points, to its lines
+at their own angles (perpendicular projection), then to alignments, in that
+order, nearest first, within the CAD view's existing eleven-pixel reach.
+- Boundary grips snap their offset along their own normal.
+- End grips snap as points.
+- Move grips snap by alignment.
+- A child bar's candidates are its opening's region and contents.
+
+It applies only where `GeometryPolicy.preserve`; the standard path is the
+old code, untouched.
+
+**Found and fixed on the way.** `InkFollows` kept the gap between a bar's
+ink end and its end. An end moved from a corner to mid-slope was read back
+at the ink's end, off the slope; in the browser, about 18 cm off. Where an
+edit moves one end relative to the other, the ink's end now goes to the
+new end exactly.
+
+**Verified** with `test/domain/angled_cad_snapping_test.dart` (22) and
+`test/app/angled_snapping_on_the_drawing_test.dart` (3), the full suite,
+and in the browser on a phone: the under-stair mullion's end dragged down
+the slope landed on it, the 3D followed, **Read again** kept it with no
+warning, and it was the same after Save, a page reload and reopening from
+the card.
+
+**Not done**: there is no corner (vertex) grip on the frame, so a
+frame corner cannot be dragged on its own; a side is moved square to
+itself.
 

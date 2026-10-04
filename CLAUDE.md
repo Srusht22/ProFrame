@@ -4657,7 +4657,9 @@ records five faults found by running the reading on hand-drawn shapes:
 - a handle on a raked leaf is placed outside the leaf, because hardware is
   placed from the opening's bounding box — **fixed**, see *An angled design
   keeps its geometry*;
-- sizes and the CAD snaps exist only for horizontal and vertical members.
+- sizes and the CAD snaps exist only for horizontal and vertical members —
+  sizes **fixed** by the side figures (*Dimensions on an angled design*),
+  snaps **fixed** for angled designs (*Snapping to the geometry as it is*).
 
 ### Where the hand's inaccuracy comes out
 
@@ -5976,6 +5978,108 @@ real app:
   half the screen.
 
 Silencing the feedback fails sixteen of them.
+
+### Snapping to the geometry as it is
+
+The audit's words: *CAD snapping is horizontal and vertical only.* The
+technical drawing snapped a drag's x and y separately, to values
+`DesignEdits.snapCandidates` collected:
+- the frame's corners and the daylight's;
+- the centres and faces of upright and level bars only;
+- each section's bounding box.
+
+On an angled design that failed three ways:
+- A raking side was never a snap target, so an end dragged near a slope
+  stopped wherever the pointer was, a few millimetres off it, joined to
+  nothing.
+- A sloped bar was never a candidate at all.
+- A raked light's bounding box gave snap values at corners the design does
+  not have, so a drag could be pulled to a point that is not geometry.
+
+**`CadSnap` (`lib/domain/editing/cad_snap.dart`) snaps to the canonical
+geometry as it is, for an Angled / Asymmetrical design.** It reads the
+design's own points and lines each time and holds nothing of its own:
+- **Points**: the frame's corners and the daylight's, each bar's ends,
+  each light's corners, and where two lines near the pointer cross.
+- **Lines**: the frame's outline and daylight, each bar's centre line, each
+  light's edges. A point is measured to a line square to that line, at
+  whatever angle it runs, and lands on it there. No angle is preferred —
+  not 45°, not level, not upright — so a slope of 17° or 73° is snapped to
+  as itself.
+- **What wins**: a point the geometry has, then a line it has, then a point
+  level with or upright from one it has; within each, the nearest; and
+  nothing further than the reach the CAD view always used (eleven pixels
+  at the drawing's scale). A drag clear of everything lands where it is.
+- **Each grip snaps the way it moves.** An end — of a bar, a figure or an
+  arrow — snaps as a point (`CadSnap.point`). A bar or a side of the frame
+  dragged square to itself snaps its offset along its own normal
+  (`CadSnap.across`): through a point the geometry has, or onto a line
+  parallel to it. For an upright bar that is exactly the old x snap; for a
+  raking side it is a line at the side's own angle. What moves with the
+  member is left out. A whole element dragged by its middle snaps by
+  alignment (`CadSnap.aligned`).
+- **A child snaps inside its parent.** A line inside an opening snaps to
+  that opening's region and what is drawn in it, never to the design's
+  lines outside, so snapping cannot move a line from one owner to another.
+
+**The standard categories keep the snapping they had.**
+`CadSnap.byGeometry` is the category's `GeometryPolicy` and nothing else.
+The CAD view takes the new path only for `preserve`; Door, Window, Sliding
+and Door & window run the old `snapCandidates` code unchanged.
+
+**A snap is an edit like any other.** The snapped point goes to the same
+controller edits a drag always called (`moveDividerEnd`,
+`moveDividerAcross`, `moveFrameMember`, …). So it is canonical geometry,
+its ink follows it (`InkFollows`), it is undone and redone, and every view
+shows it.
+
+**Snapping found a gap in the ink-following.** A bar's stroke seldom ends
+exactly at the bar's end. The hand stops short or long, and the reading
+closed that gap by joining the end to the corner or the line it met.
+`InkFollows` carried the ink with the bar, gap and all. An end dragged
+from the corner where the under-stair slope meets the head to half way
+down the slope then had nothing to close the gap. **Read** built the bar
+from where the hand's ink stopped, off the slope, and the check said it
+was connected to nothing. Now, where an edit moves one end of a line
+relative to the other (an end dragged or snapped, a length or an angle
+typed), the ink's end on that side is carried to the new end exactly, and
+the ink between follows in proportion. A line moved whole keeps its ink's
+own ends, as before.
+
+`test/domain/angled_cad_snapping_test.dart` holds it:
+- **the original fault**: an end near the slope left off it by the axis
+  snaps and landed on it now; and a raked light's bounding-box corner,
+  which the axis snaps landed on, never offered as a point;
+- **slopes of 3°, 17°, 23°, 38°, 52° and 73°**: a point either side of the
+  slope lands on it, square to it, and the slope keeps its angle;
+- a level sill and an upright jamb snapped as lines too;
+- **which candidate wins**: a corner beats its lines, a crossing is a
+  corner, the nearer line beats the further, and nothing snaps beyond the
+  reach;
+- every side of a trapezoid dragged square to itself, landing on the
+  nearest corner's offset and, where the frame takes the move, keeping
+  its angle and passing through that corner;
+- the under-stair slope dragged, keeping its angle and never a rectangle;
+- an upright mullion snapping across as the axis snaps did;
+- a rail inside a raked opening snapping to the opening's own slope and
+  never to the frame's, and staying the opening's;
+- **the snapped edit**: the mullion's end snapped onto the slope with the
+  200 / 150 sides, the opening, its line and every finish unchanged, then
+  through Read, a save, the solid, undo and redo;
+- the under-stair mullion drawn by hand, snapped half way down the slope,
+  and read again exactly there;
+- the four standard categories snapped by the axes.
+
+`test/app/angled_snapping_on_the_drawing_test.dart` holds it on the real
+app with the pointer:
+- the end grip dragged near the slope landing on it, then **Read again**,
+  Draw and 3D all showing that design;
+- with Snap off, the end landing where the pointer is;
+- a door's lower mullion snapping in line with the upper one by the axis
+  snaps, as before.
+
+Taking `CadSnap` out fails the real drag; taking the ink-end rule out fails
+the hand-drawn read.
 
 ## Working on this repository
 
