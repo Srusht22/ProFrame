@@ -5003,8 +5003,8 @@ self-intersections.*
   an opening without its region, or whose mark is not in it; ironmongery
   off its leaf; and a dimension that measures nothing or a stated figure
   the geometry no longer agrees with. Every reading of an angled design
-  carries them as `Interpretation.problems`; nothing on the screen shows
-  them yet.
+  carries them as `Interpretation.problems`, and the workspace shows
+  them under the drawing — see *What the check finds is shown*.
 - **Ironmongery goes on the leaf as it is**, which an angled design is the
   first to need. Hinges and a handle were placed from the leaf's box: under
   a raked head the top hinge stood above the head, outside the leaf, and on
@@ -5039,8 +5039,8 @@ assert: a side 60 and 120 mm out is kept in an angled design, and the
 rail an angled design squares is now one out by less than the hand's
 precision.
 
-`validateAngledGeometry` is written; what it finds is not yet shown to the
-user, and the audit's other open faults are still open.
+`validateAngledGeometry` is written, and what it finds is shown to the
+user (*What the check finds is shown*).
 
 ### A window under a stair
 
@@ -5878,6 +5878,104 @@ app: on Adam's Basement Door, the head's grip dragged with the pointer and
 
 Taking `InkFollows` out fails all twenty; taking the T-junction rule out
 fails the window under a stair.
+
+### What the check finds is shown
+
+The audit's words: *geometry problems in Angled / Asymmetrical designs are
+detected after Read, but not shown to the user.* The check
+(`GeometryValidation.of`) ran on every reading of an angled design, and
+what it found was put away unseen. It is now said under the drawing, and
+the validator is still the only thing that decides what is wrong.
+
+- **Each problem has a severity** (`GeometryProblemSeverity`), set by the
+  validator where it finds it. There are two levels, because that is what
+  the checks can tell apart:
+  - **error**: the geometry cannot be built as drawn. A point that is not
+    a number, an outline or a section enclosing nothing or crossing itself,
+    a section outside the frame, a pane outside its part, an opening that
+    has lost its region.
+  - **warning**: it can be built, but something may not be what was meant.
+    A bar connected to nothing, a line reaching out of its part, a hinge
+    off its leaf, a mark outside its region, a dimension measuring nothing,
+    a figure the drawing no longer matches.
+- **Each is said in words that name the part** (`GeometryFeedback`,
+  `lib/domain/recognition/geometry_feedback.dart`), never an id or a class:
+  - *A sloped bar is not connected to the frame or to another bar.*
+  - *The raking upper right side of the frame crosses the raking lower
+    right side.*
+  - *The mark of Opening 1 is outside the region it opens.*
+  - *A hinge of Opening 1 is not on its leaf.*
+  - *The dimension you gave as 150 cm no longer matches the drawing, which
+    measures 200 cm.*
+
+  Each problem also lists the parts to show: the two sides that cross, the
+  bar, the opening.
+- **Worked out from the design, never stored.** `GeometryFeedback.of` runs
+  the validator on the design as it now is. The result is kept with that
+  design object only, because a design is immutable and an edit makes a
+  new one. `WorkspaceState.geometryFeedback` reads it. So a problem put
+  right is gone the moment the design that had it is: by drawing and
+  reading again, by a drag on the technical drawing, by a delete or by an
+  undo. Undo it, and it is back. Nothing is written to the file, so no
+  stale problem can be saved.
+- **Angled only**, by the category's `GeometryPolicy.preserve`. A standard
+  design gets `GeometryFeedback.none` and reads exactly as before.
+- **Shown, never mended.** Nothing squares, straightens, equalises, closes
+  or deletes anything; the user puts it right on their own drawing.
+
+`GeometryCheckPanel` (`lib/app/inspector/geometry_check_panel.dart`) sits
+under the drawing, beside the questions about the sheet and in their
+style, under all three views:
+- **Folded**, it is one line: *Geometry needs attention* where there is an
+  error, *Geometry may need review* where there are only warnings, the
+  first problem, and how many of each (*1 error · 2 warnings*).
+- **Open**, it adds a sentence saying nothing has been changed, then every
+  problem, errors first, each marked **Error** or **Warning**. A long list
+  scrolls within a third of the screen.
+- **Show me** lights the part on the drawing and the technical drawing
+  with the same passing highlight the questions use. It never selects the
+  part and never colours the design. From the 3D view it goes to the
+  technical drawing to point the part out.
+
+It asks nothing and nothing waits on it. Both painters now repaint when
+the highlighted set changes, not only when its size does, so going from
+one problem's part to another's is redrawn.
+
+`test/domain/angled_geometry_feedback_test.dart` holds it:
+- **no false error** on valid angled designs: a sloped top (200 cm left
+  and 150 right), unequal sides, sides that are not parallel, a
+  trapezoid, the window under a stair (exact and by hand), and the gable
+  with two raked, divided and furnished openings;
+- **a loose sloped bar** drawn and read: a warning, in words, with the bar
+  to show and the same element the reading reports;
+- **an outline drawn crossing itself**: an error naming the two sides that
+  cross, and those sides to show — nothing straightened;
+- a mark outside its region, a stated figure the drawing disagrees with, a
+  dimension measuring nothing, a line and a hinge off their opening, an
+  outline enclosing nothing, and a point that is not a number;
+- errors first, and a warning never called an error;
+- **every standard category** reading the same problems as nothing;
+- **put right**: the loose bar rubbed out and read, a figure made true, a
+  mark put back. The problem is gone each time, and nothing is written to
+  the design;
+- every message free of ids and class names.
+
+`test/app/angled_geometry_feedback_on_screen_test.dart` holds it on the
+real app:
+- a valid design shows nothing;
+- a loose line drawn and **Read my drawing** pressed: the panel, its
+  heading, its first problem, *Warning* not *Error*, and **Show me**
+  lighting the bar on both drawings with the design unchanged and nothing
+  selected;
+- deleted, the panel is gone and the highlight with it; undone, the panel
+  is back;
+- the bow tie: an error, and the two crossing sides lit;
+- from the 3D view, **Show me** going to the technical drawing;
+- a standard window shows nothing;
+- the panel fits a phone, a tablet and a laptop, folded and open, under
+  half the screen.
+
+Silencing the feedback fails sixteen of them.
 
 ## Working on this repository
 

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../domain/dimensions/measurements.dart';
@@ -502,5 +503,5 @@ class DesignPainter extends CustomPainter {
       old.showGeometry != showGeometry ||
       old.palette != palette ||
       old.liveStroke.length != liveStroke.length ||
-      old.highlighted.length != highlighted.length;
+      !setEquals(old.highlighted, highlighted);
 }

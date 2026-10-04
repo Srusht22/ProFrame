@@ -14,6 +14,7 @@ import '../../domain/model/infill.dart';
 import '../../domain/model/materials.dart';
 import '../../domain/model/new_design_setup.dart';
 import '../../domain/model/question.dart';
+import '../../domain/recognition/geometry_feedback.dart';
 import '../../domain/recognition/interpreter.dart';
 import '../../domain/recognition/opening_symbol.dart';
 import '../../domain/sections/section_builder.dart';
@@ -108,6 +109,12 @@ class WorkspaceState {
     for (final q in allQuestions)
       if (q.id.startsWith('kind-')) q,
   ];
+
+  /// What the validator finds wrong with an angled design's geometry, in
+  /// words — worked out from the design on the screen, never stored, so a
+  /// problem put right is gone with the design it was found in. Nothing for
+  /// a standard design (see [GeometryFeedback]).
+  GeometryFeedback get geometryFeedback => GeometryFeedback.of(design);
 
   /// The questions the panel under the drawing shows: everything the reading
   /// could not settle, which is about the sheet rather than about one leaf.

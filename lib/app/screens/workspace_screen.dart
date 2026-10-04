@@ -9,6 +9,7 @@ import '../canvas/cad_view.dart';
 import '../canvas/drawing_surface.dart';
 import '../inspector/component_tree.dart';
 import '../inspector/construction_alert.dart';
+import '../inspector/geometry_check_panel.dart';
 import '../inspector/inspector_panel.dart';
 import '../inspector/material_form.dart';
 import '../inspector/measure_form.dart';
@@ -316,6 +317,12 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                                 onRead: controller.readDrawing,
                                 narrow: phone,
                               ),
+                            // What is wrong with an angled design's
+                            // geometry: said, never mended.
+                            GeometryCheckPanel(
+                              onHighlight: (ids) =>
+                                  setState(() => _highlighted = ids),
+                            ),
                             QuestionsPanel(
                               onHighlight: (ids) =>
                                   setState(() => _highlighted = ids),

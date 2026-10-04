@@ -32,17 +32,42 @@ enum GeometryProblemKind {
   child,
 }
 
+/// How much a problem stands in the way of building the design.
+///
+/// Two levels and no more, because that is what the checks can tell apart:
+/// geometry nothing can be built from, and geometry that can be built but
+/// is probably not what was meant.
+enum GeometryProblemSeverity {
+  /// The geometry may need review: it can be built, but something in it
+  /// does not join up or does not agree — a bar hanging from nothing, a
+  /// line reaching out of its sash, a figure the drawing no longer matches.
+  warning,
+
+  /// The geometry cannot be processed correctly: a point that is not a
+  /// number, an outline that encloses nothing or crosses itself, a pane or
+  /// an opening without the region it needs.
+  error,
+}
+
 /// One thing wrong with a design's geometry, and the element it is wrong
 /// with.
 class GeometryProblem {
   final GeometryProblemKind kind;
   final String elementId;
   final String detail;
+  final GeometryProblemSeverity severity;
 
-  const GeometryProblem(this.kind, this.elementId, this.detail);
+  const GeometryProblem(
+    this.kind,
+    this.elementId,
+    this.detail, {
+    this.severity = GeometryProblemSeverity.error,
+  });
+
+  bool get isError => severity == GeometryProblemSeverity.error;
 
   @override
-  String toString() => '${kind.name} $elementId: $detail';
+  String toString() => '${severity.name} ${kind.name} $elementId: $detail';
 }
 
 /// Whether a design's geometry is geometry something can be built from.
@@ -59,8 +84,13 @@ abstract final class GeometryValidation {
   /// Everything wrong with [design]'s geometry, or nothing.
   static List<GeometryProblem> of(Design design) {
     final problems = <GeometryProblem>[];
-    void problem(GeometryProblemKind kind, String id, String detail) =>
-        problems.add(GeometryProblem(kind, id, detail));
+    void problem(
+      GeometryProblemKind kind,
+      String id,
+      String detail, {
+      GeometryProblemSeverity severity = GeometryProblemSeverity.error,
+    }) => problems.add(GeometryProblem(kind, id, detail, severity: severity));
+    const warning = GeometryProblemSeverity.warning;
 
     // Valid coordinates, everywhere a point is kept.
     bool finite(Vec2 p) => p.x.isFinite && p.y.isFinite;
@@ -138,6 +168,7 @@ abstract final class GeometryValidation {
           GeometryProblemKind.disconnected,
           bar.id,
           'a bar touches neither the frame nor another bar',
+          severity: warning,
         );
       }
     }
@@ -154,6 +185,7 @@ abstract final class GeometryValidation {
           GeometryProblemKind.child,
           bar.id,
           'a line lies outside the part it belongs to',
+          severity: warning,
         );
       }
     }
@@ -192,6 +224,7 @@ abstract final class GeometryValidation {
           GeometryProblemKind.opening,
           opening.id,
           'the opening\'s mark is not in its region',
+          severity: warning,
         );
       }
       for (final piece in design.hardware) {
@@ -202,6 +235,7 @@ abstract final class GeometryValidation {
             GeometryProblemKind.child,
             piece.id,
             'a ${piece.kind.name} is off its leaf',
+            severity: warning,
           );
         }
       }
@@ -215,12 +249,14 @@ abstract final class GeometryValidation {
           GeometryProblemKind.dimension,
           dimension.id,
           'a dimension measures nothing',
+          severity: warning,
         );
       } else if (dimension.statedMm case final stated? when stated <= 0) {
         problem(
           GeometryProblemKind.dimension,
           dimension.id,
           'a stated figure is not a size',
+          severity: warning,
         );
       }
     }
@@ -229,6 +265,7 @@ abstract final class GeometryValidation {
         GeometryProblemKind.dimension,
         conflict.dimension.id,
         'the geometry no longer agrees with ${conflict.statedMm} mm',
+        severity: warning,
       );
     }
     return problems;

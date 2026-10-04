@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../domain/dimensions/measurements.dart';
@@ -981,7 +982,7 @@ class CadPainter extends CustomPainter {
       old.ink != ink ||
       old.snapAt != snapAt ||
       old.grips.length != grips.length ||
-      old.highlighted.length != highlighted.length;
+      !setEquals(old.highlighted, highlighted);
 }
 
 /// A point you can take hold of to change the geometry.

@@ -759,3 +759,39 @@ way.
 the real button) hold it. Disabling `InkFollows` fails all 20, and
 disabling the T-junction rule fails the under-stair test.
 
+## 26. Angled validation shown to the user (Phase 22)
+
+`GeometryValidation.of` (§12) already reported structured problems: a
+kind, the element and a detail. Every reading of an angled design carried
+them as `Interpretation.problems`, and nothing showed them. Three things
+changed, and the validator's checks did not.
+
+- **Severity**, the minimum the checks can tell apart.
+  `GeometryProblemSeverity.error` is geometry nothing can be built from: a
+  non-number, an empty or self-crossing outline or section, a section
+  outside the frame, a pane outside its part, an opening without a region.
+  `GeometryProblemSeverity.warning` is geometry that can be built but may
+  not be meant: a bar connected to nothing, a line outside its part,
+  ironmongery off its leaf, a mark outside its region, and every
+  dimension problem. There is no info level, because nothing the validator
+  finds is merely informative.
+- **Words** (`GeometryFeedback`). Each problem is named by the part it is
+  about, read from the design: *the raking upper left side of the frame*,
+  *a sloped bar*, *Opening 1*, *the dimension you gave as 150 cm*. It
+  never shows an id. It also lists the parts to highlight: for a crossing
+  outline, the two sides that actually cross.
+- **Shown** (`GeometryCheckPanel`) under the drawing in every view, with a
+  passing highlight on both drawings.
+
+The feedback is worked out from the design on the screen, kept only with
+that design object, and never saved, so a problem put right cannot
+outlive the geometry it was found in. It is gated by
+`GeometryPolicy.preserve`, so standard designs are untouched.
+
+Verified in the browser on a phone: a valid hand-drawn under-stair window
+showed nothing; a loose sloped line read as one warning; **Show me** lit
+it; Undo cleared both. The tests are
+`test/domain/angled_geometry_feedback_test.dart` (24) and
+`test/app/angled_geometry_feedback_on_screen_test.dart` (7). Silencing the
+feedback fails 16 of them.
+
