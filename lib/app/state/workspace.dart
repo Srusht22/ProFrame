@@ -14,6 +14,7 @@ import '../../domain/model/infill.dart';
 import '../../domain/model/materials.dart';
 import '../../domain/model/new_design_setup.dart';
 import '../../domain/model/question.dart';
+import '../../domain/pricing/price_result.dart';
 import '../../domain/recognition/geometry_feedback.dart';
 import '../../domain/recognition/interpreter.dart';
 import '../../domain/recognition/opening_symbol.dart';
@@ -1564,6 +1565,14 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     final called = name.trim();
     if (called.isEmpty || called == state.design.name) return;
     state = state.copyWith(design: state.design.copyWith(name: called));
+  }
+
+  /// The design's pricing choices — installation, a discount — set to
+  /// [choices]. Nothing else about the design changes; its price follows.
+  void setPricing(PricingChoices choices) {
+    if (choices == state.design.pricing) return;
+    _remember();
+    state = state.copyWith(design: state.design.copyWith(pricing: choices));
   }
 
   /// Keeps the design, sketch and all.

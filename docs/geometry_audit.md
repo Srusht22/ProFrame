@@ -885,3 +885,52 @@ The device's storage was identical before, after and after a reload.
 - The tools stay on the bar for an unsupported design and do nothing; the
   notice says why.
 - The Sizes icon keeps its dot where sizes were never given.
+
+## 29. A pricing engine on the canonical design (Phase 25)
+
+**What was there.** No pricing at all, and no roles: CLAUDE.md says the
+application has no administrator.
+
+**What was done.** `lib/domain/pricing/`:
+- `PricingTakeoff` reads quantities from the canonical design through
+  `DesignGeometry` and `Infill`, in metres and square metres. Polygon areas
+  are used as they are, so an angled design is priced at its own area.
+- `PriceList` holds every figure, and `PriceListStore` keeps it on the
+  device. Only `WorkshopRole.owner` may change it; the device starts as
+  staff.
+- `PricingEngine` uses a strategy for each category, by name:
+  - `FramedPricing` for door, window and door & window, each leaf by its
+    own kind;
+  - `SlidingPricing`, which adds the track and rollers;
+  - `AngledPricing`, which adds the angled joints.
+
+  A category with no strategy or rate is not priced, and Phase 24's
+  unknown categories give *Price unavailable*.
+- `PriceResult` is a breakdown with a subtotal, a discount and a total.
+  `PriceSnapshot` keeps a price as it stood.
+- `Design.pricing` holds installation, a discount and a snapshot. It is
+  written only when set.
+- `PricePanel` in the design's own panel shows the total, the breakdown and
+  **Include installation**.
+
+**Verified** with `test/domain/pricing_engine_test.dart` (28) and
+`test/app/the_price_on_screen_test.dart` (5), the full suite (2323), and in
+the browser at a laptop's width:
+- a 100 × 200 cm door priced at 427,461 IQD on the example list;
+- 472,461 with installation;
+- 507,736 at 120 cm wide;
+- the breakdown open;
+- a `future_custom_shape` design showing *Price unavailable*.
+
+Mutations caught: an unknown category priced as a window, the frame's
+material ignored, the colour dropped.
+
+**Not done.**
+- No price editor and no sign-in: the owner cannot yet change prices from
+  the app.
+- No quotation flow takes a snapshot.
+- Discounts have a model but no control.
+- Rollers are counted from the sliding panels, because the design does not
+  model them as pieces.
+- Glass is priced by its look; the sealed unit every pane is built as has
+  no separate rate.

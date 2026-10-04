@@ -1,6 +1,7 @@
 import '../geometry/polygon.dart';
 import '../geometry/segment.dart';
 import '../geometry/vec2.dart';
+import '../pricing/price_result.dart';
 import '../sketch/stroke.dart';
 import 'elements.dart';
 import 'hierarchy.dart';
@@ -185,6 +186,12 @@ class Design {
   /// drawing has parts to choose between.
   final bool partsAsked;
 
+  /// What the user has chosen about the price that is not the design
+  /// itself: installation, a discount, a price kept from an earlier day.
+  /// Nothing about it is geometry, and pricing never writes any other field.
+  /// A design kept before there was pricing has none of it.
+  final PricingChoices pricing;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -212,6 +219,7 @@ class Design {
     this.construction,
     this.infill,
     this.partsAsked = false,
+    this.pricing = PricingChoices.none,
   });
 
   factory Design.empty({
@@ -578,6 +586,7 @@ class Design {
     bool clearConstruction = false,
     Finish? infill,
     bool? partsAsked,
+    PricingChoices? pricing,
     DateTime? updatedAt,
   }) {
     // Every edit passes through here, so this is where the two things that
@@ -640,6 +649,7 @@ class Design {
           clearConstruction ? null : (construction ?? this.construction),
       infill: clearConstruction ? null : (infill ?? this.infill),
       partsAsked: partsAsked ?? this.partsAsked,
+      pricing: pricing ?? this.pricing,
     );
   }
 
@@ -707,6 +717,7 @@ class Design {
         if (construction != null) 'construction': construction!.name,
         if (infill != null) 'infill': infill!.toJson(),
         if (partsAsked) 'partsAsked': true,
+        if (!pricing.isNone) 'pricing': pricing.toJson(),
         'sketch': sketch.toJson(),
         if (frame != null) 'frame': frame!.toJson(),
         'dividers': [for (final d in dividers) d.toJson()],
@@ -775,6 +786,7 @@ class Design {
           ? null
           : Finish.fromJson(map['infill'], fallback: Finish.glazingDefault),
       partsAsked: map['partsAsked'] == true,
+      pricing: PricingChoices.fromJson(map['pricing']),
       sketch: Sketch.fromJson(map['sketch']),
       frame: map['frame'] == null
           ? null

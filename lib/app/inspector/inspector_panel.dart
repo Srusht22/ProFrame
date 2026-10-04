@@ -18,6 +18,7 @@ import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'colour_picker.dart';
 import 'measure_form.dart';
+import 'price_panel.dart';
 
 /// The panel on the right: what is selected, and everything about it that
 /// can be changed.
@@ -528,6 +529,9 @@ class _DesignFields extends StatelessWidget {
         _Readout('Sections', '${design.sections.length}'),
         _Readout('Bars', '${design.dividers.length}'),
         _Readout('Openings', '${design.openings.length}'),
+        // What it comes to, by the price list, as it is now.
+        const SizedBox(height: 18),
+        const PricePanel(),
         if (design.openings.isNotEmpty) ...[
           const SizedBox(height: 18),
           _OpeningKinds(state: state, controller: controller),
