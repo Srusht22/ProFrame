@@ -198,6 +198,7 @@ abstract final class OpeningHardware {
           DesignKind.both ||
           DesignKind.sliding ||
           DesignKind.angled ||
+          DesignKind.unsupported ||
           null => null,
         };
     if (form != null) {

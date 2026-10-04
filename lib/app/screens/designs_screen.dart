@@ -32,6 +32,9 @@ IconData kindIcon(DesignKind kind) => switch (kind) {
   DesignKind.sliding => Icons.door_sliding_outlined,
   // A shape whose sides are not square: the outline of a triangle.
   DesignKind.angled => Icons.change_history_outlined,
+  // A category this version does not know: said to be one, not drawn as a
+  // door or a window.
+  DesignKind.unsupported => Icons.help_outline,
 };
 
 /// The picture of a kept design: the design itself, read from the store
@@ -180,18 +183,24 @@ class DesignActionsSheet extends StatelessWidget {
               'Open',
               'Carry on with this design.',
             ),
-            row(
-              DesignAction.information,
-              Icons.drive_file_rename_outline,
-              'Edit information',
-              'Change the name of this design.',
-            ),
-            row(
-              DesignAction.duplicate,
-              Icons.copy_all_outlined,
-              'Duplicate',
-              'A copy to change without touching this one.',
-            ),
+            // A design of a category this version does not know is kept
+            // exactly as it was saved: renaming or copying it here would
+            // write it again in this version's words. Opening and deleting
+            // it are as for any design.
+            if (summary.kind != DesignKind.unsupported) ...[
+              row(
+                DesignAction.information,
+                Icons.drive_file_rename_outline,
+                'Edit information',
+                'Change the name of this design.',
+              ),
+              row(
+                DesignAction.duplicate,
+                Icons.copy_all_outlined,
+                'Duplicate',
+                'A copy to change without touching this one.',
+              ),
+            ],
             row(
               DesignAction.delete,
               Icons.delete_outline,

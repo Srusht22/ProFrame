@@ -30,7 +30,8 @@ List<Stroke> leaning() => [
 
 void main() {
   test('the four standard categories normalise, and the angled one '
-      'preserves', () {
+      'preserves — as does a category this version does not know, which '
+      'is never given a standard category\'s squaring', () {
     expect(
       {for (final k in DesignKind.values) k: k.geometryPolicy},
       {
@@ -39,6 +40,7 @@ void main() {
         DesignKind.sliding: GeometryPolicy.normalize,
         DesignKind.both: GeometryPolicy.normalize,
         DesignKind.angled: GeometryPolicy.preserve,
+        DesignKind.unsupported: GeometryPolicy.preserve,
       },
     );
   });

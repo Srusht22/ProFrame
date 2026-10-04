@@ -418,6 +418,9 @@ class _Identity extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 4),
+          // Not for a design of a category this version does not know,
+          // which is shown as it was saved and not written again here.
+          if (!design.isUnsupported)
           TextButton.icon(
             key: InspectorPanel.editInformationKey,
             onPressed: () => _edit(context, ref, who),

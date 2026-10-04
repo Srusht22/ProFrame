@@ -66,7 +66,12 @@ class WorkspaceState {
   /// window assembly says nothing about any one leaf, so only there is the
   /// question put. Every leaf can still be made the other kind on its own
   /// panel.
-  List<DesignQuestion> get allQuestions => [
+  ///
+  /// A design of a category this version does not know is asked nothing:
+  /// it is shown as it was saved, and an answer would change it.
+  List<DesignQuestion> get allQuestions => design.isUnsupported
+      ? const []
+      : [
     ...questions,
     for (final opening in design.openingsInOrder)
       if (opening.kind == null &&
@@ -231,6 +236,8 @@ class WorkspaceState {
   String get sizesToAsk {
     final said = design.measured;
     if (said == null || design.frame == null || needsReading) return '';
+    // Shown, not changed: no size is asked of it.
+    if (design.isUnsupported) return '';
     if (waitingOnAnAlert) return '';
     return [
       for (final m in Measurements.of(design))
@@ -436,6 +443,28 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   String _newId(String prefix) =>
       '$prefix-${DateTime.now().microsecondsSinceEpoch}-${_ids++}';
 
+  /// **A design of a category this version does not know is shown, never
+  /// changed.** Its category may change what its geometry means — a shape
+  /// this version cannot read, rules it does not have — so reading its
+  /// sheet, editing a part, giving a size or answering a question could
+  /// rewrite it by the wrong category's rules; and keeping it would write
+  /// it in this version's words, losing what only a later version
+  /// understands. So this is the one place every change to the workspace
+  /// passes, and while the design open is unsupported, a new version of
+  /// that same design is refused here: it stays exactly as it was loaded.
+  /// Everything that is only a way of looking — the view, the camera, what
+  /// is picked, a highlight — goes on as for any design, and opening
+  /// another design or beginning one is not a change to this one.
+  @override
+  set state(WorkspaceState value) {
+    final was = super.state.design;
+    super.state =
+        was.isUnsupported && value.design.id == was.id &&
+            !identical(value.design, was)
+        ? value.copyWith(design: was, needsReading: false)
+        : value;
+  }
+
   bool get canUndo => _undo.isNotEmpty;
   bool get canRedo => _redo.isNotEmpty;
 
@@ -499,6 +528,8 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     // are not the same object, and comparing by identity would record every
     // step of the drag separately.
     if (coalesce != null && coalesce == _gesture) return;
+    // Nothing of an unsupported design changes, so there is nothing to undo.
+    if (state.design.isUnsupported) return;
     _gesture = coalesce;
     _undo.add(state.design);
     if (_undo.length > 120) _undo.removeAt(0);
@@ -751,6 +782,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   /// This is where cleaning happens and where it stops. Anything the reading
   /// is unsure about comes back as a question for the user.
   void readDrawing() {
+    // A design of a category this version does not know is never read by
+    // a known category's rules: it stays as it was saved.
+    if (state.design.isUnsupported) return;
     _remember();
     final result = SketchInterpreter.interpret(
       state.design,
@@ -1539,6 +1573,8 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   /// the history and without counting as an edit, so the next keep names
   /// the same customer rather than asking again.
   Future<void> save() async {
+    // Kept exactly as it was saved, and so never written again here.
+    if (state.design.isUnsupported) return;
     final kept = await ref.read(designStoreProvider).save(state.design);
     final now = state.design;
     if (now.id == kept.id && now.customerId == null) {

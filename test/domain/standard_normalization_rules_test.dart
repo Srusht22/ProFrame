@@ -102,11 +102,12 @@ void expectFrame(
 }
 
 void main() {
-  test('only an angled design is not standard', () {
+  test('only an angled design is not standard — and a design of a category '
+      'this version does not know is never read as one', () {
     for (final kind in DesignKind.values) {
       expect(
         NormalizationContext(kind: kind).isStandard,
-        kind != DesignKind.angled,
+        kind != DesignKind.angled && kind != DesignKind.unsupported,
         reason: kind.name,
       );
     }

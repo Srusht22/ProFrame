@@ -691,6 +691,9 @@ class _Finder extends StatelessWidget {
     DesignKind.sliding,
     DesignKind.both,
     DesignKind.angled,
+    // Last, and only where there is one: a design of a category this
+    // version does not know, listed as that rather than as a window.
+    DesignKind.unsupported,
   ];
 }
 
@@ -834,7 +837,10 @@ class _Cards extends StatelessWidget {
         design: design,
         now: now,
         onOpen: () => onOpen(design),
-        onEdit: () => onEdit(design),
+        // Not for a design of a category this version does not know.
+        onEdit: design.kind == DesignKind.unsupported
+            ? null
+            : () => onEdit(design),
         onMore: () => onMore(design),
       );
     }

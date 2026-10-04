@@ -16,6 +16,7 @@ import '../inspector/measure_form.dart';
 import '../inspector/opening_kind_alert.dart';
 import '../inspector/outline_gap_alert.dart';
 import '../inspector/questions_panel.dart';
+import '../inspector/unsupported_category_note.dart';
 import '../state/everything_shown.dart';
 import '../state/tools.dart';
 import '../state/workspace.dart';
@@ -317,6 +318,9 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                                 onRead: controller.readDrawing,
                                 narrow: phone,
                               ),
+                            // A design of a category this version does
+                            // not know: shown as saved, and said so.
+                            const UnsupportedCategoryNote(),
                             // What is wrong with an angled design's
                             // geometry: said, never mended.
                             GeometryCheckPanel(

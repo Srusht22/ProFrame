@@ -760,6 +760,8 @@ class _PenDrawing extends CustomPainter {
       [Offset(0.25, 0.5), Offset(0.46, 0.5)],
       [Offset(0.39, 0.43), Offset(0.46, 0.5), Offset(0.39, 0.57)],
     ],
+    // Never offered here — only ever read from a design — so never drawn.
+    DesignKind.unsupported => const [],
   };
 
   /// How many of the lines are marks rather than structure.

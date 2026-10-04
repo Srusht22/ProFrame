@@ -45,7 +45,12 @@ void main() {
         'both',
         'sliding',
         'angled',
+        // Not a category anyone chooses: what a category this version does
+        // not know is read as, rather than a window.
+        'unsupported',
       ]);
+      expect(DesignKind.categories, hasLength(5));
+      expect(DesignKind.categories.last, DesignKind.angled);
       expect(DesignKind.angled.label, 'Angled / Asymmetrical');
       expect(StartScreen.choices.last, (
         DesignKind.angled,

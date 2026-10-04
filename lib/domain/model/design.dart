@@ -95,6 +95,17 @@ class Design {
   /// The same as [kind], by the name the user knows it by.
   DesignKind get category => kind;
 
+  /// The category exactly as it was saved, where this version does not
+  /// know it ([DesignKind.unsupported]) — a string from a later version,
+  /// or whatever else was there. It is written back as it was read, so a
+  /// design opened here and kept again still says what it said. Null for
+  /// every category this version knows.
+  final Object? savedCategory;
+
+  /// Whether this version does not know the design's category, and so
+  /// shows the design without changing it.
+  bool get isUnsupported => kind == DesignKind.unsupported;
+
   /// Which design this is — see [DesignIdentity].
   DesignIdentity get identity => DesignIdentity(
         id: id,
@@ -183,6 +194,7 @@ class Design {
     required this.kind,
     required this.createdAt,
     required this.updatedAt,
+    this.savedCategory,
     this.customer,
     this.customerId,
     this.sketch = const Sketch(),
@@ -605,6 +617,9 @@ class Design {
       id: id,
       name: name ?? this.name,
       kind: kind ?? this.kind,
+      savedCategory: (kind ?? this.kind) == DesignKind.unsupported
+          ? savedCategory
+          : null,
       customer: customer ?? this.customer,
       customerId: customerId ?? this.customerId,
       createdAt: createdAt,
@@ -677,7 +692,11 @@ class Design {
   Map<String, Object?> toJson() => {
         'id': id,
         'name': name,
-        'category': kind.name,
+        // A category this version does not know goes back as it came.
+        if (!isUnsupported)
+          'category': kind.name
+        else if (savedCategory != null)
+          'category': savedCategory,
         if (customer != null) 'customer': customer,
         if (customerId != null) 'customerId': customerId,
         'createdAt': createdAt.toIso8601String(),
@@ -727,14 +746,16 @@ class Design {
     final liveOpenings =
         Hierarchy.settleOpenings(loadedOpenings, loadedSections);
 
+    // Kept as `category`; a design saved before that said `kind`. One
+    // this version does not know is unsupported, never a window, and keeps
+    // what it said.
+    final savedAs = map['category'] ?? map['kind'];
+    final kind = DesignKind.of(savedAs);
     return Design(
       id: map['id']! as String,
       name: map['name']! as String,
-      // Kept as `category`; a design saved before that said `kind`.
-      kind: DesignKind.values.firstWhere(
-        (k) => k.name == (map['category'] ?? map['kind']),
-        orElse: () => DesignKind.window,
-      ),
+      kind: kind,
+      savedCategory: kind == DesignKind.unsupported ? savedAs : null,
       customer: map['customer'] as String?,
       customerId: map['customerId'] as String?,
       createdAt: DateTime.parse(map['createdAt']! as String),

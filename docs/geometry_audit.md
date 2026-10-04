@@ -841,3 +841,47 @@ the card.
 frame corner cannot be dragged on its own; a side is moved square to
 itself.
 
+## 28. A category this version does not know (Phase 24)
+
+**The fault.** `Design.fromJson` and `DesignSummary.fromJson` read the
+category with `orElse: () => DesignKind.window`. A design kept by a later
+version under a category this one does not know — `future_custom_shape`,
+`circular` — loaded as a window:
+- labelled Window on its card, in its panel and under the Window filter;
+- read with a window's rules, so a reading squared what a window squares;
+- written back as `window` over the category it was saved with the next
+  time it was kept, losing it for the version that made it.
+
+A malformed value (`12345`) or a missing one did the same.
+
+**What was done.**
+- `DesignKind.unsupported`, given by `DesignKind.of` for anything that is
+  not a known category, and never offered (`DesignKind.categories`).
+- `Design.savedCategory` / `DesignSummary.savedCategory` keep the stored
+  value and `toJson` writes it back as it came.
+- The design is shown and never changed:
+  - the controller's state setter refuses a new version of it;
+  - Read, Save, keeping, undo, questions and sizes do nothing for it;
+  - the store never writes it, and duplicate, rename and retitle refuse
+    it;
+  - its card offers neither Edit information nor Duplicate.
+- Its geometry policy is `preserve`; no leaf follows it.
+- `UnsupportedCategoryNote` says so, in words, under every view.
+
+**Verified** with `test/domain/an_unknown_category_test.dart` (11) and
+`test/app/an_unknown_category_on_screen_test.dart` (5), the full suite
+(2290), and in the browser on a phone. A design seeded into the browser's
+storage as `future_custom_shape` was:
+- listed as *Unsupported category*, with its own chip;
+- drawn in Draw, CAD and 3D with the notice;
+- left alone by a stroke and by Save.
+
+The device's storage was identical before, after and after a reload.
+
+**Not done.**
+- An opening's own leaf kind still falls back to a window when its stored
+  value is unknown (`OpeningElement.fromJson`); that is a leaf's kind, not
+  the design's category.
+- The tools stay on the bar for an unsupported design and do nothing; the
+  notice says why.
+- The Sizes icon keeps its dot where sizes were never given.

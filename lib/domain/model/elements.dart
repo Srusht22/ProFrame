@@ -95,9 +95,57 @@ enum DesignKind {
   /// or both, so it says nothing about any one leaf ([leafDefault] is
   /// null). Met from inside unless a leaf is said to be a door, as a window
   /// is, because `Design.seenFrom` settles that from the leaves.
-  angled('Angled / Asymmetrical', Face.inside, 'angled design');
+  angled('Angled / Asymmetrical', Face.inside, 'angled design'),
+
+  /// A category this version does not know: one a later version of
+  /// ProFrame added, or a value that is not a category at all.
+  ///
+  /// **It is never another category.** It used to load as a window, which
+  /// would have read the design with a window's rules, squared what a
+  /// window squares, labelled it a window everywhere, and written
+  /// `window` back over the category it was saved with. Now it is this,
+  /// and the value it was saved with is kept beside it
+  /// (`Design.savedCategory`) and written back exactly. It is never
+  /// offered as a choice ([categories] is what is offered), and a design
+  /// of it is shown, not changed: see `WorkspaceController`.
+  ///
+  /// Nothing about it is assumed. No leaf follows it ([leafDefault] is
+  /// null), it is not asked what it is built of, no mark in it slides, and
+  /// a reading would keep its slopes rather than square them
+  /// ([geometryPolicy]).
+  unsupported(
+    'Unsupported category',
+    Face.inside,
+    'design of an unsupported category',
+  );
 
   const DesignKind(this.label, this.seenFrom, [this._noun]);
+
+  /// The categories a design can be begun as, in the order they are
+  /// offered: every kind but [unsupported], which is only ever read.
+  static const List<DesignKind> categories = [
+    door,
+    window,
+    sliding,
+    both,
+    angled,
+  ];
+
+  /// The category a saved design names — [saved] is the value under
+  /// `category` (or `kind`, in a file from before), exactly as stored.
+  ///
+  /// A name this version knows is that category. Anything else — a
+  /// category from a later version, a value that is not a name, nothing at
+  /// all — is [unsupported], and never a guess at a known one. Every
+  /// version of ProFrame has written a category into every design, so a
+  /// missing one is not an old design to be given a default: it is a
+  /// design this version cannot say the category of.
+  static DesignKind of(Object? saved) {
+    for (final kind in categories) {
+      if (kind.name == saved) return kind;
+    }
+    return unsupported;
+  }
   final String label;
   final String? _noun;
 
@@ -131,7 +179,7 @@ enum DesignKind {
   /// A sliding design's leaves follow a door: the user chose sliding for a
   /// set they walk through, and the leaf's own switch says otherwise.
   DesignKind? get leafDefault => switch (this) {
-        both || angled => null,
+        both || angled || unsupported => null,
         sliding => door,
         _ => this,
       };
@@ -147,8 +195,12 @@ enum DesignKind {
   /// meant square, so what is plainly the hand is straightened. An angled
   /// design is the user saying, before a line is drawn, that its slopes are
   /// meant: they are kept, and the result is checked instead.
-  GeometryPolicy get geometryPolicy =>
-      this == angled ? GeometryPolicy.preserve : GeometryPolicy.normalize;
+  ///
+  /// An unsupported category is never given a standard category's
+  /// squaring: whatever its shape is, it is kept, and only checked.
+  GeometryPolicy get geometryPolicy => this == angled || this == unsupported
+      ? GeometryPolicy.preserve
+      : GeometryPolicy.normalize;
 
   /// Whether a new design of this kind is asked, as it starts, what it is
   /// built of — panel, glass, or both. See [Construction].

@@ -42,6 +42,12 @@ class DesignSummary {
   final String name;
   final DesignKind kind;
 
+  /// The category as it was saved, where this version does not know it —
+  /// see `Design.savedCategory`. The index is written back whole every time
+  /// any design is kept, so a line it cannot read must still go back as it
+  /// came, or one design's category would be lost to another's save.
+  final Object? savedCategory;
+
   /// What to call it on the screen — its name, or where it has none,
   /// `shownNameOf` says so.
   String get shownName => shownNameOf(name, kind);
@@ -59,6 +65,7 @@ class DesignSummary {
     required this.kind,
     required this.createdAt,
     required this.updatedAt,
+    this.savedCategory,
     this.customer,
     this.customerId,
     this.widthMm,
@@ -71,6 +78,7 @@ class DesignSummary {
     customerId: design.customerId,
     name: design.name,
     kind: design.kind,
+    savedCategory: design.savedCategory,
     // Only a size the user has given: one read off the sketch is a guess,
     // and the list does not write guesses down.
     widthMm: design.frame == null ||
@@ -101,6 +109,7 @@ class DesignSummary {
           id: id,
           name: name,
           kind: kind,
+          savedCategory: savedCategory,
           createdAt: createdAt,
           updatedAt: updatedAt,
           customer: customerName,
@@ -132,7 +141,10 @@ class DesignSummary {
   Map<String, Object?> toJson() => {
     'id': id,
     'name': name,
-    'category': kind.name,
+    if (kind != DesignKind.unsupported)
+      'category': kind.name
+    else if (savedCategory != null)
+      'category': savedCategory,
     if (customer != null) 'customer': customer,
     if (customerId != null) 'customerId': customerId,
     if (widthMm != null) 'w': widthMm,
@@ -141,21 +153,24 @@ class DesignSummary {
     'updatedAt': updatedAt.toIso8601String(),
   };
 
-  static DesignSummary fromJson(Map<String, Object?> map) => DesignSummary(
-    id: map['id']! as String,
-    name: map['name']! as String,
-    // Kept as `category`; an index written before that said `kind`.
-    kind: DesignKind.values.firstWhere(
-      (k) => k.name == (map['category'] ?? map['kind']),
-      orElse: () => DesignKind.window,
-    ),
-    customer: map['customer'] as String?,
-    customerId: map['customerId'] as String?,
-    widthMm: (map['w'] as num?)?.toDouble(),
-    heightMm: (map['h'] as num?)?.toDouble(),
-    createdAt: DateTime.parse(map['createdAt']! as String),
-    updatedAt: DateTime.parse(map['updatedAt']! as String),
-  );
+  static DesignSummary fromJson(Map<String, Object?> map) {
+    // Kept as `category`; an index written before that said `kind`. A
+    // category this version does not know is unsupported, never a window.
+    final savedAs = map['category'] ?? map['kind'];
+    final kind = DesignKind.of(savedAs);
+    return DesignSummary(
+      id: map['id']! as String,
+      name: map['name']! as String,
+      kind: kind,
+      savedCategory: kind == DesignKind.unsupported ? savedAs : null,
+      customer: map['customer'] as String?,
+      customerId: map['customerId'] as String?,
+      widthMm: (map['w'] as num?)?.toDouble(),
+      heightMm: (map['h'] as num?)?.toDouble(),
+      createdAt: DateTime.parse(map['createdAt']! as String),
+      updatedAt: DateTime.parse(map['updatedAt']! as String),
+    );
+  }
 }
 
 /// One page of the designs a search found, most recently edited first, and
@@ -497,6 +512,12 @@ class DesignStore {
 
   /// Keeps [design], and returns it as kept — belonging to a customer.
   Future<Design> save(Design unowned) async {
+    // **A design of a category this version does not know is kept exactly
+    // as it was saved.** Its record may hold what only a later version
+    // understands, and writing it from this version's model would drop
+    // that: so it is never written over. It is only ever shown here, never
+    // changed (see `WorkspaceController`), so there is nothing to keep.
+    if (unowned.isUnsupported) return unowned;
     final prefs = await SharedPreferences.getInstance();
     final design = await _owned(unowned);
     await _read(prefs);
@@ -549,7 +570,8 @@ class DesignStore {
   /// name that says it is the copy.
   Future<Design?> duplicate(String id, {DateTime? now}) async {
     final original = await load(id);
-    if (original == null) return null;
+    // A category this version does not know is not written in its words.
+    if (original == null || original.isUnsupported) return null;
     final at = now ?? DateTime.now();
     final json = original.toJson()
       ..['id'] = 'design-${at.microsecondsSinceEpoch}'
@@ -565,7 +587,7 @@ class DesignStore {
   Future<Design?> rename(String id, String customer) async {
     final design = await load(id);
     final who = customer.trim();
-    if (design == null || who.isEmpty) return null;
+    if (design == null || who.isEmpty || design.isUnsupported) return null;
     final owner = await customers.obtain(who);
     return save(design.copyWith(customer: who, customerId: owner.id));
   }
@@ -578,7 +600,7 @@ class DesignStore {
   Future<Design?> retitle(String id, String name) async {
     final design = await load(id);
     final called = name.trim();
-    if (design == null || called.isEmpty) return null;
+    if (design == null || called.isEmpty || design.isUnsupported) return null;
     return save(design.copyWith(name: called));
   }
 

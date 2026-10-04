@@ -139,7 +139,7 @@ void main() {
     '4, 5 — the design\'s name and category are the design\'s own',
     () async {
       final adam = await customers.create(name: 'Adam', now: at);
-      for (final (i, kind) in DesignKind.values.indexed) {
+      for (final (i, kind) in DesignKind.categories.indexed) {
         await designs.save(
           design(
             'd$i',
@@ -151,15 +151,17 @@ void main() {
         );
       }
       // Every category the application has: door, window, sliding, door &
-      // window, and angled / asymmetrical.
-      expect(DesignKind.values.toSet(), {
+      // window, and angled / asymmetrical. (`DesignKind.unsupported` is not
+      // one: it is what a category this version does not know is read as,
+      // and a design of it is never kept from here.)
+      expect(DesignKind.categories.toSet(), {
         DesignKind.door,
         DesignKind.window,
         DesignKind.sliding,
         DesignKind.both,
         DesignKind.angled,
       });
-      for (final (i, kind) in DesignKind.values.indexed) {
+      for (final (i, kind) in DesignKind.categories.indexed) {
         final kept = (await designs.load('d$i'))!;
         expect(kept.name, 'Design ${kind.name}');
         expect(kept.kind, kind);
@@ -167,7 +169,7 @@ void main() {
       }
       // Changing the customer changes no design's name or category.
       await customers.save(adam.copyWith(name: 'Adam Karim'));
-      for (final (i, kind) in DesignKind.values.indexed) {
+      for (final (i, kind) in DesignKind.categories.indexed) {
         final kept = (await designs.load('d$i'))!;
         expect(kept.name, 'Design ${kind.name}');
         expect(kept.kind, kind);

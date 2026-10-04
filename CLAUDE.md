@@ -5784,11 +5784,11 @@ a second. A reading takes a few milliseconds, as does building the solid
 (see *Every edit reaches every view at once, and looking does no work* for
 the rebuilds).
 
-**Known limit, stated rather than hidden.** A design saved with a category
-this version does not know — one added by a later version — loads as a
-window, as any unknown category always has. Opening it and saving it here
-would then keep it as a window. Nothing this version writes can produce
-such a file.
+**A category this version does not know is not a window.** A design saved
+with one — added by a later version — used to load as a window, and saving
+it here kept it as one. It now loads as `DesignKind.unsupported`, keeps the
+category it was saved with, and is shown without being changed: see *A
+category this version does not know*.
 
 ### An edit on the technical drawing is an edit to the drawing
 
@@ -6080,6 +6080,91 @@ app with the pointer:
 
 Taking `CadSnap` out fails the real drag; taking the ink-end rule out fails
 the hand-drawn read.
+
+### A category this version does not know
+
+The audit's words: *an unknown or future design category is silently
+treated as Window.* `Design.fromJson` and `DesignSummary.fromJson` read
+the category with `orElse: () => DesignKind.window`, so a design kept by a
+later version as `future_custom_shape` or `circular` came back here as a
+window: called a window on its card and in its panel, listed under the
+Window filter, read by a window's rules if its sheet was read, and written
+back as `window` over what it said the next time it was kept.
+
+- **One more value, never offered.** `DesignKind.unsupported` is what
+  `DesignKind.of` gives for anything that is not a category this version
+  knows — a later version's name, a number, `null`, nothing at all.
+  `DesignKind.categories` is the five that can be chosen; *Choose your
+  design* and every new design use only those. Every version since the
+  rebuild has written a category into every design, so a missing one is
+  not an old design wanting a default: it is one this version cannot name.
+- **What it was saved as is kept.** `Design.savedCategory` and
+  `DesignSummary.savedCategory` hold the stored value exactly — a string,
+  a number, whatever was there — and `toJson` writes it back under
+  `category` as it came; a design with none stays with none. The index
+  line keeps it too, because the index is written back whole every time
+  any design is kept. No new model: the same `Design`, with one field.
+- **Shown, never changed.** Its category may change what its geometry
+  means, so nothing here may rewrite it by another category's rules, and
+  nothing may write it in this version's words.
+  - `WorkspaceController`'s state setter is the one place every change
+    passes: while the design open is unsupported, a new version of it is
+    refused and the design stays the object that was loaded. Looking — the
+    view, the camera, picking, a highlight — goes on as for any design.
+  - **Read**, Save, keeping, undo, the questions and the sizes do nothing
+    for it, and nothing is asked when it is opened.
+  - `DesignStore.save` never writes it; duplicate, rename and retitle give
+    nothing. Delete is as for any design — the user's choice.
+  - On its card neither **Edit information** nor **Duplicate** is offered.
+- **The geometry is what was saved.** Opening is `openDesign` on the
+  design as kept, as for every design, so the frame, bars, sections,
+  openings, the lines and panes inside them, materials, ironmongery and
+  figures are the saved ones, and Draw, CAD and 3D draw them. Were it ever
+  read, its `geometryPolicy` is `preserve`: never a standard category's
+  squaring. No leaf follows it (`leafDefault` is null), it is not asked
+  what it is built of, and no mark in it slides.
+- **Said in words.** `UnsupportedCategoryNote` stands under the drawing in
+  every view: *Unsupported design category* — made by a newer ProFrame or
+  with a category this version does not recognise, shown exactly as saved,
+  cannot be changed here so nothing is lost, its original category kept.
+  Its card, its panel and the filter chip say *Unsupported category*, with
+  its own mark (`kindIcon`); the stored value and internal words are never
+  shown.
+
+`test/domain/an_unknown_category_test.dart` holds it:
+- every known category read as itself, by `category` and by `kind`;
+- `future_custom_shape`, `circular`, `Window`, `''`, `12345`, `3.5`,
+  `true`, a list, a map, `null` and nothing at all each Unsupported — never
+  a window or any other known category;
+- the stored value written back exactly through three saves and loads,
+  and kept by an edit; none stays none;
+- an index line round-tripping with it;
+- the brief's sloped fixture, left 200 cm and right 150, loaded as
+  `future_custom_shape` with everything but its category identical, its
+  frame, opening, divider, glass, white panel, silver handle and black
+  hinges as they were, and its solid facet for facet the angled one's;
+- a lean a window squares kept;
+- on the device: loaded, listed under its customer, counted, filtered and
+  searched; never written by save, duplicate, retitle or rename; its line
+  and its own unknown field kept when another design rewrites the index;
+  a malformed value loading and filtering; and given its customer, when
+  kept before customers, by adding that field alone.
+
+`test/app/an_unknown_category_on_screen_test.dart` holds it on the real
+app, at a phone and a laptop:
+- Adam's two later-version designs called *Unsupported category* and never
+  *Window* on their cards;
+- the Unsupported, Door and All chips filtering, and a search finding one;
+- opened, the notice in Draw, CAD and 3D, each view of the saved design,
+  and nothing asked;
+- a stroke, Read, a leaf made a door, a colour, a bar moved, a width, a
+  depth, a name and a delete each changing nothing, with nothing to undo;
+- Save and leaving writing nothing, the device byte for byte as it was;
+- a known design opened after it edited as ever;
+- the card's sheet without Edit information or Duplicate.
+
+Falling back to a window again fails eleven of them; letting a change
+through the state setter fails the on-screen one.
 
 ## Working on this repository
 
