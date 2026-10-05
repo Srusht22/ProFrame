@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../model/design.dart';
+import '../model/payment.dart';
 import 'measurement.dart';
 import 'price_list.dart';
 import 'price_readiness.dart';
@@ -452,106 +453,107 @@ class CustomerPricing {
 
 /// How a customer stands with what they owe.
 enum PaymentStatus {
-  /// No designs, and nothing paid.
+  /// No total to pay, and nothing paid.
   nothingToPay('Nothing to pay'),
 
-  /// The total is not final yet, so what is due is not known.
-  totalNotFinal('Total not final'),
+  /// The total is not final yet — a design is incomplete or its price is
+  /// not current — so what is due, or in credit, is not known.
+  pricingIncomplete('Pricing incomplete'),
 
-  /// Nothing paid against a final total.
-  notPaid('Not paid'),
+  /// Less paid, net, than the total: the rest is due.
+  outstanding('Outstanding'),
 
-  /// Some paid; the rest is due.
-  partiallyPaid('Amount due'),
-
-  /// The whole total paid.
+  /// The whole total paid, net, and no more.
   paidInFull('Paid in full'),
 
-  /// More recorded as paid than the total now comes to — a design deleted
-  /// or made cheaper after the payment. Said, never turned into a debt
-  /// below nothing.
-  paidExceedsTotal('Paid exceeds total');
+  /// More paid, net, than the total — overpaid, or a design deleted or
+  /// made cheaper since. The customer has that much in credit.
+  credit('Credit');
 
   const PaymentStatus(this.label);
   final String label;
 }
 
-/// A customer's money: what their designs come to, what they have paid,
-/// and what is still due.
+/// A customer's money: what their designs come to, what the ledger says
+/// they have paid, and what is due — or in credit.
 ///
 /// ```
-/// Design prices ─ CustomerPricing ─ total ─┐
-///                         Customer.paid ───┴─ CustomerFinance (due, status)
+/// Design prices ─ CustomerPricing ─ total price ─┐
+/// Customer.payments ─ PaymentLedger ─ net paid ──┴─ CustomerFinance
+///                                                    (balance: due or credit)
 /// ```
 ///
-/// The total is never typed and never kept: it is [CustomerPricing]'s. The
-/// one figure kept is what was paid. Nothing here touches a design.
+/// - Gross payments = every payment; gross refunds = every refund.
+/// - Net paid = gross payments − gross refunds.
+/// - Balance = total price − net paid: more than nothing is **due**, less
+///   than nothing is **credit**, nothing is **paid in full**. Neither is
+///   ever written as a negative figure.
+///
+/// The total is never typed and never kept: it is [CustomerPricing]'s. What
+/// was paid is never kept either: it is the ledger's, summed. Everything is
+/// whole cents, never a figure rounded for the screen. Nothing here touches
+/// a design or a price.
 class CustomerFinance {
   final CustomerPricing pricing;
+  final PaymentLedger ledger;
 
-  /// What has been paid, in whole cents.
-  final int paidCents;
+  const CustomerFinance._(this.pricing, this.ledger);
 
-  const CustomerFinance._(this.pricing, this.paidCents);
+  static CustomerFinance of(CustomerPricing pricing, PaymentLedger ledger) =>
+      CustomerFinance._(pricing, ledger);
 
-  /// [pricing] against [paid] in all. The customer's one kept figure is a
-  /// running total paid (`Customer.paid`); a later history of payments —
-  /// dates, methods, receipts — sums to the same figure, so nothing here
-  /// changes when there is one.
-  static CustomerFinance of(CustomerPricing pricing, double paid) =>
-      CustomerFinance._(
-        pricing,
-        paid.isFinite && paid > 0 ? Money.cents(paid) : 0,
-      );
+  String get currency => pricing.currency;
 
-  double get paid => paidCents / 100;
+  int get grossPaymentsCents => ledger.grossPaymentsCents(currency);
+  int get grossRefundsCents => ledger.grossRefundsCents(currency);
+  int get netPaidCents => ledger.netPaidCents(currency);
+
+  double get grossPayments => grossPaymentsCents / 100;
+  double get grossRefunds => grossRefundsCents / 100;
+  double get netPaid => netPaidCents / 100;
+
+  /// Transactions in a currency other than the prices': not counted, and
+  /// said. There is one currency, so there are none unless the price list's
+  /// currency is changed.
+  int get otherCurrency => ledger.otherCurrencyCount(currency);
 
   double? get total => pricing.total;
 
-  /// What is still owed, in whole cents, where the total is final: never
-  /// below nothing.
-  int? get dueCents {
-    final t = pricing.totalCents;
-    if (t == null) return null;
-    return paidCents >= t ? 0 : t - paidCents;
-  }
+  /// The total less the net paid, in whole cents, where the total is final.
+  int? get balanceCents => switch (pricing.totalCents) {
+    final t? => t - netPaidCents,
+    null => null,
+  };
+
+  /// What is still owed, where the total is final: never below nothing.
+  int? get dueCents => switch (balanceCents) {
+    final b? => b > 0 ? b : 0,
+    null => null,
+  };
+
+  /// What the customer has in credit, where the total is final: never below
+  /// nothing.
+  int? get creditCents => switch (balanceCents) {
+    final b? => b < 0 ? -b : 0,
+    null => null,
+  };
 
   double? get due => switch (dueCents) {
     final c? => c / 100,
     null => null,
   };
 
-  /// How much more is recorded as paid than the total, where it is. Not
-  /// credit — there is no credit yet — only said, so it is never a debt
-  /// below nothing.
-  double get excess {
-    final t = pricing.totalCents;
-    if (t == null || paidCents <= t) return 0;
-    return (paidCents - t) / 100;
-  }
+  double? get credit => switch (creditCents) {
+    final c? => c / 100,
+    null => null,
+  };
 
   PaymentStatus get status {
     final t = pricing.totalCents;
-    if (t == null) return PaymentStatus.totalNotFinal;
-    if (paidCents > t) return PaymentStatus.paidExceedsTotal;
-    if (t == 0) return PaymentStatus.nothingToPay;
-    if (paidCents == 0) return PaymentStatus.notPaid;
-    if (paidCents >= t) return PaymentStatus.paidInFull;
-    return PaymentStatus.partiallyPaid;
-  }
-
-  /// Why [amount] cannot be recorded as paid against [pricing], or null
-  /// where it can. Overpayment — credit — is not something this records:
-  /// against a final total, more than it is refused.
-  static String? problemWithPaid(double? amount, CustomerPricing pricing) {
-    if (amount == null || !amount.isFinite) {
-      return 'Enter the amount paid as a number.';
-    }
-    if (amount < 0) return 'The paid amount cannot be less than nothing.';
-    final t = pricing.totalCents;
-    if (t != null && Money.cents(amount) > t) {
-      return 'Paid amount cannot exceed the total price.';
-    }
-    return null;
+    if (t == null) return PaymentStatus.pricingIncomplete;
+    final balance = t - netPaidCents;
+    if (balance > 0) return PaymentStatus.outstanding;
+    if (balance < 0) return PaymentStatus.credit;
+    return t == 0 ? PaymentStatus.nothingToPay : PaymentStatus.paidInFull;
   }
 }

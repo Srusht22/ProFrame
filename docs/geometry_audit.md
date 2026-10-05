@@ -1272,3 +1272,75 @@ customer's total summed whatever priced. Nothing recorded a payment.
 - On the narrowest card a long colour name is cut, with the whole name in
   its tooltip, on the sheet and in the summary.
 
+## 35. A customer's payments, refunds and credit (Phase 30)
+
+**Found.**
+- A customer's money was one figure, `Customer.paid`, typed as the total
+  paid so far. Each new payment overwrote it, so there was no record of
+  when or how money came in, and nothing to refund against.
+- Paying more than a final total was refused, so a customer who overpaid,
+  or whose total fell after a design was deleted, could not be recorded as
+  they stood.
+- The summary said *Amount due / loan*.
+
+**Changed.**
+- `lib/domain/model/payment.dart`: `PaymentTransaction` (id, customer,
+  payment or refund, amount in whole cents always more than nothing, date,
+  method, note, recorded, currency) and `PaymentLedger` (newest first,
+  gross payments, refunds, net paid, ids, amount and date checks, refund no
+  more than the net paid).
+- `Customer.payments` replaces `paid`. `Customer.fromJson` reads an old
+  `paid` figure as one `PAY-LEGACY` payment of exactly that, to the cent;
+  reading writes nothing, and the next save writes the ledger without
+  `paid`.
+- `CustomerStore.record` appends a transaction with the device's own copy
+  of the customer in one step, and `_keepNow` merges the kept ledger into
+  any customer saved, so a stale copy never drops a transaction.
+- `CustomerFinance.of(pricing, ledger)`: balance, due (never below
+  nothing), credit, and `PaymentStatus` — pricing incomplete, outstanding,
+  paid in full, credit, nothing to pay. Overpayment is credit.
+- `CustomerFinancialSummary`: total payments, refunds, net paid, amount
+  due, credit, status, **Add payment**, **Refund**, the history newest
+  first (latest five, then **Show all**), and `TransactionDialog`.
+  `CustomerMoneyGlance` says *Credit …* too. *Loan* is gone.
+- Five older tests moved with it: two domain tests give the paid figure as
+  a ledger; the price button test pays through the new dialog; two page
+  tests return to the top before looking for a card, because the history
+  makes the page longer than the list keeps built.
+
+**Kept.**
+- The total is still the designs' current prices (`CustomerPricing`);
+  money never touches a design, a price record or the price list; one
+  currency, the price list's; no customer can be deleted, so no
+  transaction is ever orphaned.
+
+**Verified.**
+- `test/domain/payment_history_test.dart` (33) and
+  `test/app/payment_history_on_screen_test.dart` (11).
+- The full suite passes (2506) and `flutter analyze` is clean.
+- In the browser at 1440 × 900, Adam's two designs priced from their cards
+  at 1,000.00 USD (the seed's door labour set so the total is the brief's):
+  1. $500 Cash, *First installment*: paid 500.00, due 500.00,
+     *Outstanding*, one history row.
+  2. $300 Bank transfer: net paid 800.00, due 200.00.
+  3. $500 more: payments 1,300.00, due 0.00, credit 300.00, *Credit*, the
+     line saying it is the customer's, and *Credit 300.00 USD* on the bar.
+  4. Refund $100 *Part of the credit returned*: refunds 100.00, net paid
+     1,200.00, credit 200.00, a *REFUND −100.00 USD* row at the top.
+  5. Reloaded: Adam's page with all four rows, newest first, and the same
+     figures; Sara's page showing none of them.
+- At 390 × 844, a ledger kept on the device over four days: the summary,
+  status, both buttons and every history row on the screen, *Other —
+  Company cheque* in full; the refund dialog fitting, and 1,300.01 refused
+  with *A refund cannot be more than the net paid, 1,200.00 USD.*
+
+**Not done.**
+- No editing or deleting of a transaction, by design; a mistake is put
+  right with a refund.
+- No receipts, discounts, quotations or paging of the history, as the
+  brief says.
+- No permission beyond being able to open the customer: ProFrame has no
+  accounts, and the owner's pricing PIN is not reused for money.
+- One currency. A transaction recorded in another is not added and is
+  said.
+

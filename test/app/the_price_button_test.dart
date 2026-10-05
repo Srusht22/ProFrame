@@ -124,7 +124,7 @@ Future<Finder> cardButton(WidgetTester tester, String id) async {
 
 Future<void> toSummary(WidgetTester tester) async {
   await tester.scrollUntilVisible(
-    find.byKey(CustomerFinancialSummary.recordPaymentKey).hitTestable(),
+    find.byKey(CustomerFinancialSummary.addPaymentKey).hitTestable(),
     150,
     scrollable: find.byType(Scrollable).first,
   );
@@ -318,7 +318,8 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(CustomerMoneyGlance.glanceKey),
-        matching: find.text('Total not final'),
+        // Said as *Pricing incomplete* since Phase 30.
+        matching: find.text('Pricing incomplete'),
       ),
       findsOneWidget,
     );
@@ -388,10 +389,12 @@ void main() {
     );
   });
 
+  // Since Phase 30 a payment is a transaction added to the customer's
+  // ledger rather than the one figure paid in all, and more than the total
+  // is credit rather than refused (payment_history_on_screen_test).
   testWidgets('41 & 17 & 44. payment: recorded, the due and the status '
-      'worked out, more than the total refused — and all of it, the prices '
-      'and the disabled buttons the same after the app is closed and '
-      'opened again', (tester) async {
+      'worked out — and all of it, the prices and the disabled buttons the '
+      'same after the app is closed and opened again', (tester) async {
     final two = adams().take(2).toList();
     await seed(tester, [...two, adams()[2]]);
     await toAdam(tester);
@@ -420,31 +423,23 @@ void main() {
     expect(textOf(tester, CustomerFinancialSummary.totalKey), money(total));
     expect(textOf(tester, CustomerFinancialSummary.paidKey), money(0));
     expect(textOf(tester, CustomerFinancialSummary.dueKey), money(total));
-    expect(find.text('NOT PAID'), findsOneWidget);
+    expect(find.text('OUTSTANDING'), findsOneWidget);
 
     Future<void> pay(String amount) async {
       await toSummary(tester);
-      await tester.tap(find.byKey(CustomerFinancialSummary.recordPaymentKey));
+      await tester.tap(find.byKey(CustomerFinancialSummary.addPaymentKey));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(PaymentDialogKeys.field), amount);
+      await tester.enterText(find.byKey(PaymentDialogKeys.amount), amount);
       await tester.tap(find.byKey(PaymentDialogKeys.save));
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pumpAndSettle();
     }
-
-    await pay('${total + 10}');
-    expect(
-      find.text('Paid amount cannot exceed the total price.'),
-      findsOneWidget,
-    );
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
-    expect(textOf(tester, CustomerFinancialSummary.paidKey), money(0));
 
     await pay('100');
     await toSummary(tester);
     expect(textOf(tester, CustomerFinancialSummary.paidKey), money(100));
     expect(textOf(tester, CustomerFinancialSummary.dueKey), money(total - 100));
-    expect(find.text('AMOUNT DUE'), findsOneWidget);
+    expect(find.text('OUTSTANDING'), findsOneWidget);
 
     // Closed and opened again: the payment, the due and the prices kept.
     await tester.pumpWidget(const SizedBox());
@@ -452,7 +447,7 @@ void main() {
     await toSummary(tester);
     expect(textOf(tester, CustomerFinancialSummary.paidKey), money(100));
     expect(textOf(tester, CustomerFinancialSummary.dueKey), money(total - 100));
-    expect(find.text('AMOUNT DUE'), findsOneWidget);
+    expect(find.text('OUTSTANDING'), findsOneWidget);
     for (final d in two) {
       expect(
         textOf(tester, CustomerDesignCard.priceValueKey(d.id)),
@@ -460,7 +455,7 @@ void main() {
       );
     }
 
-    await pay(total.toStringAsFixed(2));
+    await pay((total - 100).toStringAsFixed(2));
     await toSummary(tester);
     expect(textOf(tester, CustomerFinancialSummary.dueKey), money(0));
     expect(find.text('PAID IN FULL'), findsOneWidget);
@@ -477,7 +472,7 @@ void main() {
     await toSummary(tester);
     expect(textOf(tester, CustomerFinancialSummary.totalKey), 'Not final');
     expect(textOf(tester, CustomerFinancialSummary.paidKey), money(total));
-    expect(find.text('TOTAL NOT FINAL'), findsOneWidget);
+    expect(find.text('PRICING INCOMPLETE'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -531,9 +526,16 @@ void main() {
     expect(tester.takeException(), isNull, reason: 'the page');
     await toSummary(tester);
     expect(tester.takeException(), isNull, reason: 'the summary');
+    // Below the payment history since Phase 30: scrolled to.
+    await tester.ensureVisible(find.byKey(CustomerFinancialSummary.toggleKey));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(CustomerFinancialSummary.toggleKey));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull, reason: 'the summary open');
+    // Back to the top: the history puts the page further below the cards.
+    final scroll = tester.state<ScrollableState>(find.byType(Scrollable).first);
+    scroll.position.jumpTo(0);
+    await tester.pumpAndSettle();
     await openCard(tester, 'front');
     await notNowToSizes(tester);
     expect(barButton, findsOneWidget);

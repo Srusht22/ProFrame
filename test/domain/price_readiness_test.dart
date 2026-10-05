@@ -8,6 +8,7 @@ import 'package:proframe/domain/model/customer.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/infill.dart';
 import 'package:proframe/domain/model/materials.dart';
+import 'package:proframe/domain/model/payment.dart';
 import 'package:proframe/domain/pricing/design_price_state.dart';
 import 'package:proframe/domain/pricing/price_list.dart';
 import 'package:proframe/domain/pricing/price_readiness.dart';
@@ -22,6 +23,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'a_sliding_design_test.dart' as sliding;
 import 'an_unknown_category_test.dart' show keptAs, sloped;
 import 'geometry_normalizer_test.dart' show pen;
+import 'payment_history_test.dart' show paid;
 import 'pricing_engine_test.dart'
     show acceptance, door, example, framedIn, given, glassOverPanel, zero;
 
@@ -428,10 +430,10 @@ void main() {
       expect(pricing.pricedSoFar, 1300);
       expect(pricing.incomplete, 1);
       expect(pricing.notFinalReason, '1 design is incomplete.');
-      final finance = CustomerFinance.of(pricing, 500);
+      final finance = CustomerFinance.of(pricing, paid(500));
       expect(finance.total, isNull);
       expect(finance.due, isNull);
-      expect(finance.status, PaymentStatus.totalNotFinal);
+      expect(finance.status, PaymentStatus.pricingIncomplete);
     });
 
     test('a design deleted leaves the total of the rest; a design added is '
@@ -515,67 +517,73 @@ void main() {
     test('41. 2,100 with 1,000 paid: 1,100 due; with 2,100 paid: paid in '
         'full and nothing due', () {
       expect(pricing.total, 2100);
-      final part = CustomerFinance.of(pricing, 1000);
+      // Since Phase 30 what was paid is the ledger's, and a customer who
+      // still owes something is Outstanding.
+      final part = CustomerFinance.of(pricing, paid(1000));
       expect(part.total, 2100);
-      expect(part.paid, 1000);
+      expect(part.netPaid, 1000);
       expect(part.due, 1100);
-      expect(part.status, PaymentStatus.partiallyPaid);
-      expect(part.status.label, 'Amount due');
-      final all = CustomerFinance.of(pricing, 2100);
+      expect(part.status, PaymentStatus.outstanding);
+      expect(part.status.label, 'Outstanding');
+      final all = CustomerFinance.of(pricing, paid(2100));
       expect(all.due, 0);
       expect(all.status, PaymentStatus.paidInFull);
       expect(all.status.label, 'Paid in full');
     });
 
     test('nothing paid: all of it due', () {
-      final none = CustomerFinance.of(pricing, 0);
+      final none = CustomerFinance.of(pricing, PaymentLedger.empty);
       expect(none.due, 2100);
-      expect(none.status, PaymentStatus.notPaid);
+      expect(none.status, PaymentStatus.outstanding);
     });
 
-    test('more than the total cannot be recorded, nor less than nothing, '
-        'nor what is not a number', () {
-      expect(
-        CustomerFinance.problemWithPaid(2100.01, pricing),
-        'Paid amount cannot exceed the total price.',
-      );
-      expect(CustomerFinance.problemWithPaid(2100, pricing), isNull);
-      expect(CustomerFinance.problemWithPaid(-1, pricing), isNotNull);
-      expect(CustomerFinance.problemWithPaid(null, pricing), isNotNull);
-      expect(CustomerFinance.problemWithPaid(double.nan, pricing), isNotNull);
+    // Phase 30 made more than the total credit, by the brief's own words —
+    // it is no longer refused. Less than nothing and what is not a number
+    // still are, by the ledger (`payment_history_test.dart`).
+    test('more than the total is credit; less than nothing, nothing and '
+        'what is not a number are refused', () {
+      final over = CustomerFinance.of(pricing, paid(2100.01));
+      expect(over.due, 0);
+      expect(over.credit, 0.01);
+      for (final text in ['-1', '0', 'abc', 'NaN']) {
+        expect(PaymentLedger.readAmount(text).cents, isNull, reason: text);
+      }
     });
 
-    test('a total that fell below what was paid is said, never a debt below '
-        'nothing', () {
+    test('a total that fell below what was paid is credit, never a debt '
+        'below nothing', () {
       final less = CustomerPricing.of([
         (a, PriceRecord.calculate(a, fixed)),
       ], fixed);
-      final over = CustomerFinance.of(less, 1500);
-      expect(over.status, PaymentStatus.paidExceedsTotal);
+      final over = CustomerFinance.of(less, paid(1500));
+      expect(over.status, PaymentStatus.credit);
       expect(over.due, 0);
-      expect(over.excess, 700);
+      expect(over.credit, 700);
     });
 
-    test('what was paid is kept on the customer, and nothing else money is: '
-        'an older customer has paid nothing recorded', () {
+    // Since Phase 30 the customer keeps a ledger of payments, not one paid
+    // figure; an older customer's figure is read as one legacy payment.
+    test('what was paid is kept on the customer as its ledger, and nothing '
+        'else money is: an older customer has paid nothing recorded', () {
       final adam = Customer(
         id: 'adam',
         name: 'Adam',
         createdAt: DateTime(2026, 3, 1),
         updatedAt: DateTime(2026, 3, 1),
       );
-      expect(adam.toJson().containsKey('paid'), isFalse);
-      expect(Customer.fromJson(adam.toJson()).paid, 0);
-      final paid = adam.copyWith(paid: 1500);
+      expect(adam.toJson().containsKey('payments'), isFalse);
+      expect(Customer.fromJson(adam.toJson()).payments, isEmpty);
+      final payer = adam.copyWith(payments: paid(1500).transactions);
       final back = Customer.fromJson(
-        jsonDecode(jsonEncode(paid.toJson())) as Map<String, Object?>,
+        jsonDecode(jsonEncode(payer.toJson())) as Map<String, Object?>,
       );
-      expect(back.paid, 1500);
+      expect(back.ledger.netPaidCents('USD'), 150000);
       expect(back.toJson().keys, isNot(contains('total')));
+      expect(back.toJson().keys, isNot(contains('paid')));
       for (final bad in [-5, 'lots', double.nan]) {
         expect(
-          Customer.fromJson({...paid.toJson(), 'paid': bad}).paid,
-          0,
+          Customer.fromJson({...adam.toJson(), 'paid': bad}).payments,
+          isEmpty,
           reason: '$bad',
         );
       }
@@ -585,8 +593,8 @@ void main() {
       final texts = [
         for (final d in [a, b, c]) jsonEncode(d.toJson()),
       ];
-      CustomerFinance.of(pricing, 1000);
-      CustomerFinance.of(pricing, 2100);
+      CustomerFinance.of(pricing, paid(1000));
+      CustomerFinance.of(pricing, paid(2100));
       for (final (i, d) in [a, b, c].indexed) {
         expect(jsonEncode(d.toJson()), texts[i]);
       }

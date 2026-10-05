@@ -8,6 +8,7 @@ import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/model/infill.dart';
 import 'package:proframe/domain/model/materials.dart';
+import 'package:proframe/domain/model/payment.dart';
 import 'package:proframe/domain/pricing/default_factory_pricing.dart';
 import 'package:proframe/domain/pricing/design_price_state.dart';
 import 'package:proframe/domain/pricing/measurement.dart';
@@ -25,6 +26,7 @@ import 'package:proframe/infrastructure/price_record_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'a_sliding_design_test.dart' as sliding;
+import 'payment_history_test.dart' show paid;
 import 'price_readiness_test.dart' show fixed, without;
 import 'pricing_engine_test.dart'
     show door, example, given, glassOverPanel, zero;
@@ -206,9 +208,18 @@ void main() {
       final upvc = list.profiles[MaterialKind.upvc]!;
       expect(upvc.normalPerMetre, 9000, reason: 'frame → normal profile');
       expect(upvc.openingPerMetre, 11000, reason: 'sash → opening profile');
-      expect(list.colourFor(MaterialKind.upvc, 0xFF7B4A2B).surcharge.percent, 15);
-      expect(list.colourFor(MaterialKind.upvc, 0xFF7B4A2B).surcharge.perMetre, 0);
-      expect(list.colourFor(MaterialKind.upvc, 0xFF123456).surcharge.percent, 25);
+      expect(
+        list.colourFor(MaterialKind.upvc, 0xFF7B4A2B).surcharge.percent,
+        15,
+      );
+      expect(
+        list.colourFor(MaterialKind.upvc, 0xFF7B4A2B).surcharge.perMetre,
+        0,
+      );
+      expect(
+        list.colourFor(MaterialKind.upvc, 0xFF123456).surcharge.percent,
+        25,
+      );
       expect(list.glassPerM2, {
         GlassLook.clear: 30000,
         GlassLook.frosted: 36000,
@@ -552,8 +563,10 @@ void main() {
   });
 
   group('39. payment', () {
-    test('2,000 with 500 paid: 1,500 due; more than the total refused; and '
-        'the paid figure survives a save and a load', () async {
+    // Since Phase 30 the paid figure is a ledger of payments; more than the
+    // total is credit, no longer refused.
+    test('2,000 with 500 paid: 1,500 due; the payment survives a save and a '
+        'load', () async {
       final a = door(id: 'a');
       final b = door(kind: DesignKind.window, id: 'b');
       final c = given(
@@ -562,23 +575,25 @@ void main() {
       final pricing = CustomerPricing.of([
         for (final d in [a, b, c]) (d, PriceRecord.calculate(d, fixed)),
       ], fixed);
-      final finance = CustomerFinance.of(pricing, 500);
+      final finance = CustomerFinance.of(pricing, paid(500));
       expect(finance.total, 2000);
       expect(finance.due, 1500);
       expect(finance.dueCents, 150000);
-      expect(finance.status, PaymentStatus.partiallyPaid);
-      expect(
-        CustomerFinance.problemWithPaid(2000.01, pricing),
-        'Paid amount cannot exceed the total price.',
-      );
+      expect(finance.status, PaymentStatus.outstanding);
 
       final people = CustomerStore();
       final adam = await people.create(name: 'Adam');
-      await people.save(adam.copyWith(paid: 500));
+      final payment = paid(500).transactions.single;
+      await people.record(
+        PaymentTransaction.fromJson(payment.toJson(), customerId: adam.id)!,
+      );
       final back = await CustomerStore().load(adam.id);
-      expect(back!.paid, 500);
-      expect(CustomerFinance.of(pricing, back.paid).due, 1500);
-      expect(Customer.fromJson(back.toJson()).paid, 500);
+      expect(back!.ledger.netPaidCents('USD'), 50000);
+      expect(CustomerFinance.of(pricing, back.ledger).due, 1500);
+      expect(
+        Customer.fromJson(back.toJson()).ledger.netPaidCents('USD'),
+        50000,
+      );
     });
   });
 }

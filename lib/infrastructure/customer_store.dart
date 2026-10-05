@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/model/customer.dart';
+import '../domain/model/payment.dart';
 
 /// What the list of customers needs to know about one customer: who, how
 /// to reach them by phone, and when they were last changed. The address
@@ -139,7 +140,24 @@ class CustomerStore {
 
   /// Keeps [customer] — its record and its line in the index — without
   /// waiting on anything between reading the index and writing it back.
+  ///
+  /// **A transaction kept is never dropped.** A customer saved from an
+  /// older copy — a form opened before a payment was recorded — keeps every
+  /// payment and refund already on the device: the ledger only grows.
   Future<void> _keepNow(SharedPreferences prefs, Customer customer) {
+    final kept = _loadNow(prefs, customer.id);
+    if (kept != null) {
+      var ledger = customer.ledger;
+      for (final t in kept.payments) {
+        ledger = ledger.plus(t);
+      }
+      if (ledger.transactions.length != customer.payments.length) {
+        customer = customer.copyWith(
+          payments: ledger.transactions,
+          updatedAt: customer.updatedAt,
+        );
+      }
+    }
     final index = [
       for (final s in _indexNow(prefs))
         if (s.id != customer.id) s,
@@ -239,6 +257,23 @@ class CustomerStore {
   Future<Customer> save(Customer customer) async {
     await _keepNow(await SharedPreferences.getInstance(), customer);
     return customer;
+  }
+
+  /// Records [transaction] in the ledger of the customer it belongs to,
+  /// and returns the customer as kept — or null where that customer is not
+  /// kept. Read and written with nothing waited on in between, so two
+  /// recorded at once are both kept. A transaction whose id is already in
+  /// the ledger is not recorded twice. Nothing but the ledger changes.
+  Future<Customer?> record(PaymentTransaction transaction) async {
+    final prefs = await SharedPreferences.getInstance();
+    final customer = _loadNow(prefs, transaction.customerId);
+    if (customer == null) return null;
+    if (customer.ledger.contains(transaction.id)) return customer;
+    final now = customer.copyWith(
+      payments: customer.ledger.plus(transaction).transactions,
+    );
+    await _keepNow(prefs, now);
+    return now;
   }
 
   /// A new customer called [name], kept, with whatever else is known.

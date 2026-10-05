@@ -1,3 +1,5 @@
+import 'payment.dart';
+
 /// A person the workshop draws for.
 ///
 /// **A customer is not a design.** One customer has many designs — the
@@ -24,13 +26,20 @@ class Customer {
   final String address;
   final String notes;
 
-  /// What the customer has paid towards their designs, in the price list's
-  /// currency — the one money figure kept on a customer. What their designs
-  /// come to is never kept: it is worked out from the designs
-  /// (`CustomerPricing`), so it cannot go out of date, and what is due is
-  /// that total less this (`CustomerFinance`). A customer kept before
-  /// payments were recorded has paid nothing recorded.
-  final double paid;
+  /// Every payment and refund recorded for the customer, in the order they
+  /// were recorded — the one record of their money. What they have paid is
+  /// worked out from it (`PaymentLedger`), never kept beside it; what their
+  /// designs come to is worked out from the designs (`CustomerPricing`);
+  /// and what is due or in credit is the one less the other
+  /// (`CustomerFinance`). Nothing removes a transaction.
+  ///
+  /// A customer kept before the ledger carried one figure, `paid`. Read,
+  /// it becomes one payment of that amount — [PaymentTransaction.legacyId],
+  /// dated when the customer was last changed — so the money is never
+  /// lost, and reading it again gives the same one payment, never a
+  /// second. The next time the customer is kept, the ledger is written and
+  /// the old figure is not.
+  final List<PaymentTransaction> payments;
 
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -43,8 +52,11 @@ class Customer {
     this.phone = '',
     this.address = '',
     this.notes = '',
-    this.paid = 0,
+    this.payments = const [],
   });
+
+  /// The customer's payments and refunds, and what they come to.
+  PaymentLedger get ledger => PaymentLedger(payments);
 
   /// [name] said the same way twice, whatever the spacing and the case —
   /// how the application recognises the person a design was typed as being
@@ -59,7 +71,7 @@ class Customer {
     String? phone,
     String? address,
     String? notes,
-    double? paid,
+    List<PaymentTransaction>? payments,
     DateTime? updatedAt,
   }) => Customer(
     id: id,
@@ -67,7 +79,7 @@ class Customer {
     phone: phone ?? this.phone,
     address: address ?? this.address,
     notes: notes ?? this.notes,
-    paid: paid ?? this.paid,
+    payments: payments ?? this.payments,
     createdAt: createdAt,
     updatedAt: updatedAt ?? DateTime.now(),
   );
@@ -104,24 +116,64 @@ class Customer {
     if (phone.isNotEmpty) 'phone': phone,
     if (address.isNotEmpty) 'address': address,
     if (notes.isNotEmpty) 'notes': notes,
-    if (paid != 0) 'paid': paid,
+    if (payments.isNotEmpty) 'payments': [for (final t in payments) t.toJson()],
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
   };
 
-  static Customer fromJson(Map<String, Object?> map) => Customer(
-    id: map['id']! as String,
-    name: map['name']! as String,
-    phone: map['phone'] as String? ?? '',
-    address: map['address'] as String? ?? '',
-    notes: map['notes'] as String? ?? '',
-    paid: _paidOf(map['paid']),
-    createdAt: DateTime.parse(map['createdAt']! as String),
-    updatedAt: DateTime.parse(map['updatedAt']! as String),
-  );
+  static Customer fromJson(Map<String, Object?> map) {
+    final id = map['id']! as String;
+    final updatedAt = DateTime.parse(map['updatedAt']! as String);
+    return Customer(
+      id: id,
+      name: map['name']! as String,
+      phone: map['phone'] as String? ?? '',
+      address: map['address'] as String? ?? '',
+      notes: map['notes'] as String? ?? '',
+      payments: switch (map['payments']) {
+        final List<Object?> kept => _ledgerOf(kept, id),
+        _ => _legacyOf(map['paid'], id, updatedAt),
+      },
+      createdAt: DateTime.parse(map['createdAt']! as String),
+      updatedAt: updatedAt,
+    );
+  }
 
-  /// A paid figure as kept: a number no less than nothing, or nothing paid
-  /// for a record without one or with one that is not a figure.
-  static double _paidOf(Object? value) =>
-      value is num && value.isFinite && value > 0 ? value.toDouble() : 0;
+  /// The transactions kept, each one read — one that cannot be read, or
+  /// repeats an id, is passed over — and each the customer's own.
+  static List<PaymentTransaction> _ledgerOf(List<Object?> kept, String id) {
+    final out = <PaymentTransaction>[];
+    for (final raw in kept) {
+      final t = PaymentTransaction.fromJson(raw, customerId: id);
+      if (t != null && out.every((o) => o.id != t.id)) out.add(t);
+    }
+    return List.unmodifiable(out);
+  }
+
+  /// The single paid figure a customer was kept with before the ledger, as
+  /// the one payment it stands for: whole cents, half a cent up as every
+  /// sum of money is, dated when the customer was last changed — the last
+  /// time that figure could have been recorded — and always under the same
+  /// id. Nothing where nothing was paid or the figure is not one.
+  static List<PaymentTransaction> _legacyOf(
+    Object? paid,
+    String id,
+    DateTime updatedAt,
+  ) {
+    if (paid is! num || !paid.isFinite || paid <= 0) return const [];
+    final cents = (paid * 100 + 0.5).floor();
+    if (cents <= 0) return const [];
+    return [
+      PaymentTransaction(
+        id: PaymentTransaction.legacyId,
+        customerId: id,
+        type: PaymentType.payment,
+        amountCents: cents,
+        at: updatedAt,
+        method: PaymentMethod.legacy,
+        note: PaymentTransaction.legacyNote,
+        createdAt: updatedAt,
+      ),
+    ];
+  }
 }

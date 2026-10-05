@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/customer.dart';
 import '../../domain/model/design.dart';
+import '../../domain/model/payment.dart';
 import '../../domain/pricing/design_price_state.dart';
 import '../../domain/pricing/price_list.dart';
 import '../../domain/pricing/price_result.dart';
@@ -198,12 +199,11 @@ extension PriceCalculator on WidgetRef {
     return read(pricingEngineProvider).price(design, list);
   }
 
-  /// Records that customer [customer] has paid [amount], and nothing else
-  /// about them. It touches no design.
-  Future<Customer> recordPaid(Customer customer, double amount) async {
-    final kept = await read(
-      customerStoreProvider,
-    ).save(customer.copyWith(paid: (amount * 100).roundToDouble() / 100));
+  /// Records [transaction] — a payment or a refund — in its customer's
+  /// ledger, and nothing else about them. It touches no design and no
+  /// price.
+  Future<Customer?> recordTransaction(PaymentTransaction transaction) async {
+    final kept = await read(customerStoreProvider).record(transaction);
     read(customersRevisionProvider.notifier).changed();
     return kept;
   }

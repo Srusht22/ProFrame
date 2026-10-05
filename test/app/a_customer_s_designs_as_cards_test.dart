@@ -95,6 +95,14 @@ void main() {
     final expected = {for (final s in ofAdam!.items) s.id};
     expect(expected, hasLength(4));
     expect(await everyCard(tester), expected);
+    // Back to the top, where the first card is: since Phase 30 the payment
+    // history under the cards puts the foot of the page further from them
+    // than the list keeps built.
+    tester
+        .state<ScrollableState>(find.byType(Scrollable).first)
+        .position
+        .jumpTo(0);
+    await tester.pumpAndSettle();
 
     for (final (id, name, category) in [
       ('adam-0', 'Basement Door', 'Door'),
@@ -212,6 +220,19 @@ void main() {
       };
       expect(shown, theirs, reason: "$who's page");
       for (final id in shown) {
+        // Each card scrolled to from the top: since Phase 30 the payment
+        // history under the cards puts the foot of the page further from
+        // them than the list keeps built.
+        tester
+            .state<ScrollableState>(find.byType(Scrollable).first)
+            .position
+            .jumpTo(0);
+        await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(
+          find.byKey(CustomerScreen.designKey(id)),
+          100,
+          scrollable: find.byType(Scrollable).first,
+        );
         final card = tester.widget<CustomerDesignCard>(
           find.byKey(CustomerScreen.designKey(id)),
         );

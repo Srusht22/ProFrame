@@ -6328,7 +6328,7 @@ Design ─ PriceReadiness ─ PricingEngine ─ PriceRecord? ─ DesignPriceStat
                design card: Price ◄───────────────────────────┤
                customer: CustomerPricing ─ CustomerFinance ◄──┘
                                               ▲
-                                       Customer.paid
+                                   Customer.payments (the ledger, Phase 30)
 ```
 
 - **Whether a design can be priced is one answer** (`PriceReadiness.of`,
@@ -6416,34 +6416,21 @@ Design ─ PriceReadiness ─ PricingEngine ─ PriceRecord? ─ DesignPriceStat
     the total.
   - Its measurements are the priced designs', with metres and square metres
     kept apart.
-- **What was paid is the one money figure kept on a customer**
-  (`Customer.paid`, written only when not nothing, so an older customer
-  loads having paid nothing recorded). `CustomerFinance` works out what is
-  due — the total less what was paid, never below nothing — and the
-  status:
-
-  | Status | When |
-  | --- | --- |
-  | *Total not final* | some design has no current price |
-  | *Not paid* | nothing paid |
-  | *Amount due* | some paid |
-  | *Paid in full* | all paid |
-  | *Paid exceeds total* | the total fell below what was paid, by a design deleted or made cheaper; said, never a debt below nothing |
-
-  **Record payment** (`recordPayment`) asks what has been paid in all.
-  Against a final total, more than it is refused: *Paid amount cannot
-  exceed the total price.* While the total is not final, a deposit is
-  taken, and what is due is not said until the total is. Paying touches no
-  design and no price.
+- **What was paid is the customer's payment ledger** — since Phase 30 a
+  list of payments and refunds, not one figure; see *A customer's
+  payments, refunds and credit*, which replaced the single `Customer.paid`
+  and **Record payment** this section first described. `CustomerFinance`
+  works out what is due or in credit from the total and the ledger.
 - **On the customer's page**, under the cards so it moves none of them:
-  - **CUSTOMER FINANCIAL SUMMARY** (`CustomerFinancialSummary`): the
-    designs and how many are priced, the total price, paid, *Amount due /
-    loan*, the status, and **Record payment**.
+  - **FINANCIAL SUMMARY** (`CustomerFinancialSummary`): the designs and
+    how many are priced, the total price, the payments, refunds, net paid,
+    amount due and credit, the status, **Add payment**, **Refund** and the
+    payment history.
   - Unfolded, each design's own price and the **CUSTOMER MATERIAL
     SUMMARY**.
   - On the bar beside the name, the money at a glance
-    (`CustomerMoneyGlance`): *Due 1,350.00 USD*, *Paid in full*, *Total
-    not final*. It is on the bar because anything added to the
+    (`CustomerMoneyGlance`): *Due 1,350.00 USD*, *Credit 300.00 USD*,
+    *Paid in full*, *Pricing incomplete*. It is on the bar because anything added to the
     information card pushed the design cards off a phone's screen.
 - **Price rows wrap** (`PriceRow`): a figure is short, but *Price
   unavailable until design is completed* is not, and on a phone it ran off
@@ -6466,11 +6453,11 @@ Design ─ PriceReadiness ─ PricingEngine ─ PriceRecord? ─ DesignPriceStat
   design making the total not final, with 1,300 only as priced so far; a
   design deleted and one added; the measurements summed by unit; an
   unknown category;
-- **payment**: 2,100 with 1,000 paid is 1,100 due, *Amount due*; with
-  2,100 paid it is 0 and *Paid in full*; nothing paid; more than the total,
-  less than nothing and not a number refused; paid exceeding a fallen
-  total; `paid` kept on the customer and nothing else; and payment
-  touching no design.
+- **payment**: 2,100 with 1,000 paid is 1,100 due, *Outstanding*; with
+  2,100 paid it is 0 and *Paid in full*; nothing paid; more than the total
+  is credit (since Phase 30, where it was refused); paid exceeding a fallen
+  total is credit; the ledger kept on the customer and nothing else; and
+  payment touching no design.
 
 `test/app/the_price_button_test.dart` holds it on the real app:
 - **in the workspace**: an incomplete design's button there and disabled,
@@ -6483,8 +6470,8 @@ Design ─ PriceReadiness ─ PricingEngine ─ PriceRecord? ─ DesignPriceStat
   that design's own price and writing no design;
 - **the customer**: not final with priced so far; the total the sum of
   three; one design changed and calculated in the workspace moving the
-  total by it alone; payment recorded, refused over the total, *Amount
-  due* and *Paid in full*, all through two reloads of the app; the
+  total by it alone; payments added, *Outstanding* and *Paid in full*,
+  all through two reloads of the app; the
   incomplete design still disabled after a reload;
 - **an unknown category**, disabled on the card and in the workspace with
   the device unchanged;
@@ -6571,8 +6558,9 @@ version kept it.* Each fault is fixed where the fact it depends on lives.
   otherwise) at `rollerEach`; a fixed panel on none.
 - **Discounts** are applied by the engine and kept in the design, but
   nothing on the screen gives one yet; that is a later screen.
-- **Payment** is one figure; a history, credit and refunds are later.
-  Paying more than a final total is refused.
+- **Payment** was one figure here; since Phase 30 it is a ledger of
+  payments and refunds, and paying more than a final total is credit (see
+  *A customer's payments, refunds and credit*).
 - **A card's buttons are whole.** The price and **Price** stand on a row
   of their own, so *Edit information* and **Open** are shown in full on
   every laptop width.
@@ -6702,10 +6690,11 @@ PriceList ─ RateField ──────┘            (owner-only, kept by Pr
   of its own; an index that cannot be read sweeps nothing. A later
   quotation's price, meant to outlast its design, will live under a key of
   its own and is never touched.
-- **Deferred, as the brief says**: payment history, credit, refunds, a
-  discount screen, quotation and order history, a manual price override,
-  and paging the customer's summary. Adding, editing and retiring named
-  colours came in Phase 29 (*The factory's colour catalog*).
+- **Deferred, as the brief says**: a discount screen, quotation and order
+  history, a manual price override, and paging the customer's summary.
+  Adding, editing and retiring named colours came in Phase 29 (*The
+  factory's colour catalog*); payment history, credit and refunds in Phase
+  30 (*A customer's payments, refunds and credit*).
 
 `test/domain/material_and_colour_pricing_test.dart` holds it under the
 brief's numbers: **38** uPVC and aluminium at their own rates, equal rates
@@ -6864,6 +6853,162 @@ dialog at five widths from 320 to 1920.
 says *Price needs recalculation* once, because the list it was calculated
 from is now kept in schema 4 and a price is current only for the list as it
 is. The figure itself is kept and shown as the previous one.
+
+### A customer's payments, refunds and credit
+
+The brief: *replace the single paid figure with a ledger of payment
+transactions that is the one source of truth — payments and refunds, each
+with an id, a type, a positive amount, a date, a method and a note; a
+payment of more than is due becomes credit instead of being refused; a
+history newest first; nothing edited or deleted, a mistake put right by a
+refund; and a customer kept with the old paid figure never losing a cent of
+it.*
+
+```
+Customer.payments ─ PaymentLedger ─ gross payments, gross refunds, net paid
+                                              │
+CustomerPricing (designs' current prices) ─ CustomerFinance ─ balance
+                                              │        due | paid in full | credit
+                                    CustomerFinancialSummary, CustomerMoneyGlance
+```
+
+- **The ledger is on the customer, and it is the only record of money**
+  (`Customer.payments`, `lib/domain/model/payment.dart`). A
+  `PaymentTransaction` is:
+  - an id, stable and never its place in a list: `PAY-20261005-0001`,
+    `REF-20261005-0002` (`PaymentLedger.nextId`), unique in the ledger;
+  - the customer's id, which it belongs to whatever the stored entry says;
+  - a type, `payment` or `refund`, and an amount in whole cents, always more
+    than nothing — **a refund is its own type, never a negative payment**;
+  - the day the money changed hands (`at`), never after now, and when it
+    was recorded (`createdAt`);
+  - a method — Cash, Bank transfer, Card, or Other with an optional
+    description (*Other — Company cheque*) — and an optional note;
+  - the currency it was recorded in, the price list's.
+
+  What was paid is worked out from the transactions every time, never kept
+  beside them, so the two cannot disagree. It is on the customer record
+  because a payment is the customer's, not a design's: deleting a design
+  takes no payment with it, and no customer can be deleted (*A customer
+  cannot be deleted*), so no transaction is ever left without its owner.
+- **The figures, all in whole cents** (`CustomerFinance`, in
+  `design_price_state.dart`):
+
+  | Figure | Is |
+  | --- | --- |
+  | Total price | the designs' current prices, summed (`CustomerPricing`), or not final |
+  | Total payments | every payment |
+  | Refunds | every refund |
+  | Net paid | payments less refunds |
+  | Balance | total less net paid |
+  | Amount due | the balance where it is more than nothing, else 0 |
+  | Credit | less than nothing, turned round, else 0 |
+
+  An amount due is never shown below nothing. Where the total is not final,
+  neither the amount due nor the credit is said (`—`), and a payment is
+  still taken: it is a deposit.
+- **The status** (`PaymentStatus`): *Pricing incomplete* (the total is not
+  final), *Outstanding* (something due), *Paid in full* (the balance
+  nothing), *Credit* (paid more than the total), and *Nothing to pay* for a
+  customer whose designs come to nothing and who paid nothing. The word
+  *loan* is not used.
+- **Credit is not refused, it is said.** More than is due is taken; the
+  summary shows the credit and a line that it is the customer's, to be
+  refunded or to stand against a later design. A total that falls below
+  what was paid — a design deleted or made cheaper — is credit the same
+  way.
+- **A transaction is never edited or deleted.** Nothing in the
+  application changes or removes one. A wrong payment is put right by a
+  refund, so the history says what happened in the order it happened.
+- **A refund is never more than the net paid** (`PaymentLedger.problemsWith`):
+  *A refund cannot be more than the net paid, 1,000.00 USD.*; with nothing
+  paid there is nothing to refund, and the Refund button is disabled. A
+  credit can be refunded, because it is part of the net paid.
+- **An amount is checked as typed** (`PaymentLedger.readAmount`): a figure,
+  to the cent, more than nothing, commas allowed — *Enter an amount.*, *The
+  amount must be more than nothing.*, *Enter the amount to the cent — two
+  decimal places at most.*, *Enter the amount as a number, such as 500.00.*
+  Nothing is recorded until it is right.
+- **On the customer's page**, under the cards (`CustomerFinancialSummary`):
+  **FINANCIAL SUMMARY** — Total price, Total payments, Refunds, Net paid,
+  Amount due, Credit and the status — then **Add payment** and **Refund**,
+  then **PAYMENT HISTORY**, newest first: by the day, then by when it was
+  recorded, then by id, so it reads the same every time. Each row
+  (`TransactionRow`) is the type in words and by its own mark (never by
+  colour alone, and with a label for a screen reader), the date, the
+  signed amount (*+500.00 USD*, *−100.00 USD*), the method and the note.
+  The latest five are shown, and **Show all** the rest. The bar beside the
+  name says *Due …*, *Credit …*, *Paid in full* or *Pricing incomplete*
+  (`CustomerMoneyGlance`).
+- **The dialog** (`TransactionDialog`): the amount in the price list's
+  currency, the method, a description where it is Other, the date — today
+  unless another day is picked, and the calendar ends today — and a note
+  (*Reason / note* for a refund). A day before today is recorded at its
+  middle; today, at the moment it is saved.
+- **Kept, and never lost to a stale copy.** `CustomerStore.record` reads
+  the customer as the device holds it and adds the transaction in the same
+  step, so two recorded at once are both kept; and saving a customer from
+  a copy read before a payment (editing the phone number, say) keeps every
+  transaction the device has, because `_keepNow` merges the kept ledger
+  into the one being saved. Nothing is removed by any path.
+- **An older customer keeps every cent.** A record kept before the ledger
+  has one figure, `paid`. Read, it is one payment of exactly that, to the
+  cent (`Customer._legacyOf`): id `PAY-LEGACY` always, method *Legacy /
+  unknown*, dated when the customer was last changed, with the note
+  *Migrated from the previous customer payment balance.* Reading writes
+  nothing, and reading again gives the same one payment, never a second.
+  The next time the customer is kept the ledger is written and `paid` is
+  not; from then on the record holds the ledger alone. A figure that is
+  not one, or nothing, is no payment.
+- **Permissions, as they are.** Whoever can open and edit a customer can
+  record a payment or a refund, as whoever can edit a design can choose its
+  material. The owner's pricing PIN (*What a design is made of*) is a lock
+  on the price list, not on a customer's money, and it is not reused here.
+  ProFrame has no accounts, so a refund cannot be limited to one person;
+  that is a limitation, and accounts would add it.
+- **Payments touch nothing else.** Recording money writes the customer's
+  record and nothing more — no design, no price record, no price list —
+  and the total is still the designs' current prices.
+- **Not here, as the brief says**: receipts, discounts, quotations, editing
+  or deleting a transaction, more than one currency (a transaction in
+  another currency is not added and is said), and paging the history.
+
+`test/domain/payment_history_test.dart` holds it under the brief's numbers:
+the scenarios **A–F** (600 due; paid in full; 200 credit; a refund after
+paying in full, 200 due again; 500 + 700 + 300; 1,300 less 100 against
+1,000); **25** and **24**, refunds after a partial payment and of a credit;
+**47**, three designs at 500, 700 and 300 with 500 and 400 paid, 600 due;
+**30 & 48**, a design deleted leaving 300 credit and every payment; ids,
+Other, and the history's order; **15**, **7 & 8**, **16**, **24** and **12**,
+the checks; **33**, a transaction round-tripped and an unreadable one
+passed over; **32**, payments through a reload and a stale save; two
+recorded at once; **34, 35 & 57**, the old figure — 500 one legacy payment
+however often it is read, 750 exactly 750, a figure that is not one
+nothing, and on the device read, saved, paid and reloaded with the 500
+kept once and `paid` gone; **49 & 50**, nothing else moved; **36**, another
+currency; and **51 & 52**, no discount or quotation as a transaction.
+
+`test/app/payment_history_on_screen_test.dart` holds it on the real app:
+cash, a bank transfer and more than is due becoming credit, then a refund,
+the summary, status, glance and history following each, the marks in
+words, nothing of the designs or prices written, and all of it the same
+after a reload; paid in full exactly, a refund over the net paid refused
+and one under it making it outstanding; every amount check, the four
+methods and never the legacy one, the calendar ending today, Other
+described; a deposit while pricing is incomplete; an older customer's 750
+shown as the legacy payment with the device untouched by looking, then
+kept once beside a new one with `paid` gone; the latest five and Show all;
+and the summary, history and both dialogs at 320, 390, 768, 1280 and 1920
+wide, every button in reach and nothing overflowing.
+
+Five older tests moved with it and say so where they do:
+`price_readiness_test` and `pricing_integrity_test` give the paid figure as
+a ledger, and more than the total is credit where it was refused;
+`the_price_button_test` adds payments through the new dialog; and
+`a_customer_s_designs_as_cards_test` and `editing_a_customer_test` return
+to the top of the customer's page before looking for a card, because the
+history under the cards puts the foot of the page further from them than
+the list keeps built.
 
 ## Working on this repository
 

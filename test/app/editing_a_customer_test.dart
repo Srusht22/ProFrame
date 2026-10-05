@@ -350,7 +350,14 @@ void main() {
     }
     expect(await designsAsStored(tester), before);
 
-    // His design's own panel names him as he is now.
+    // His design's own panel names him as he is now. From the top: since
+    // Phase 30 the payment history under the cards puts the foot of the
+    // page further from them than the list keeps built.
+    tester
+        .state<ScrollableState>(find.byType(Scrollable).first)
+        .position
+        .jumpTo(0);
+    await tester.pumpAndSettle();
     await tester.ensureVisible(
       find.byKey(CustomerDesignCard.openKey('adam-2')),
     );
