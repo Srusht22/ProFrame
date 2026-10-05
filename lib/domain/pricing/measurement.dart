@@ -52,7 +52,7 @@ class Metres implements Comparable<Metres> {
 /// An area, in square metres — of glass or panel, as it is cut.
 ///
 /// Kept in whole square millimetres, so areas add exactly; shown to the
-/// hundredth of a square metre.
+/// ten-thousandth of a square metre.
 class SquareMetres implements Comparable<SquareMetres> {
   /// The area, in whole square millimetres.
   final int mm2;
@@ -74,8 +74,15 @@ class SquareMetres implements Comparable<SquareMetres> {
   SquareMetres operator +(SquareMetres other) =>
       SquareMetres._(mm2 + other.mm2);
 
-  /// `2.00 m²` — to the hundredth of a square metre.
-  String get label => '${value.toStringAsFixed(2)} m²';
+  /// `1.4296 m²` — to the ten-thousandth of a square metre, a square
+  /// centimetre. A line's amount is its exact area at its rate, and an area
+  /// written to the hundredth could be a cent or more out from what the
+  /// line charges — `1.43 m² × 45.00` reads as 64.35 against a line of
+  /// 64.33. To four places the area is off by at most half a square
+  /// centimetre, so the area written times the rate is within half a cent
+  /// of the amount at any rate up to 100 a square metre, and every line can
+  /// be checked by hand. The amount itself is never worked out from this.
+  String get label => '${value.toStringAsFixed(4)} m²';
 
   @override
   int compareTo(SquareMetres other) => mm2.compareTo(other.mm2);

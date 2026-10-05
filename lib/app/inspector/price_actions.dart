@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/model/design.dart';
+import '../../domain/model/materials.dart';
 import '../../domain/pricing/design_price_state.dart';
 import '../../domain/pricing/price_result.dart';
+import '../../domain/pricing/profile_selection.dart';
+import '../state/pricing.dart';
 import '../theme/app_theme.dart';
 import 'price_panel.dart';
+import 'profile_chooser.dart';
 
 /// The price action, wherever a design is: **Calculate price** in the
 /// workspace and **Price** on a design's card.
@@ -44,7 +50,11 @@ class PriceButton extends StatelessWidget {
   /// The words said when a disabled price button is pressed.
   static const messageKey = ValueKey('price-unavailable-message');
 
-  bool get enabled => state?.canCalculate ?? false;
+  /// Pressable while the design can be priced — or while all it lacks is
+  /// its material and colour, which the sheet it opens is where they are
+  /// chosen.
+  bool get enabled =>
+      (state?.canCalculate ?? false) || (state?.needsOnlyProfile ?? false);
 
   /// Says why [state] cannot be priced, over the screen [context] is on.
   static void explain(BuildContext context, DesignPriceState? state) {
@@ -110,34 +120,97 @@ class PriceButton extends StatelessWidget {
   }
 }
 
-/// One design's price, laid out as the factory reads it: what it measures,
-/// each kind in its own unit, then what each costs, then the total.
-class DesignPriceSheet extends StatelessWidget {
-  final String name;
+/// What choosing a design's profile does where the sheet was opened: puts
+/// the choice into the design, works its price out again, and gives back
+/// the design and its price as they now are.
+///
+/// It is handed the sheet's own [WidgetRef], which stands for as long as the
+/// sheet is open — the screen it was opened from can rebuild beneath it as
+/// the price it shows is kept.
+typedef ProfileChoice =
+    Future<(Design, PriceResult)?> Function(
+      WidgetRef ref,
+      MaterialKind material,
+      int colour,
+    );
+
+/// One design's price, laid out as the factory reads it: the design — its
+/// category, and the material and colour its profile is made in — what it
+/// measures, each kind in its own unit, then what each costs, then the
+/// total.
+///
+/// **The price is worked out, never typed.** Choosing another material or
+/// colour here puts it into the design ([onChoose]) and works the price out
+/// again from the price list, so the figure shown is always the price of
+/// the design as it now is — never the old figure beside a new material.
+class DesignPriceSheet extends ConsumerStatefulWidget {
+  final Design design;
   final PriceResult result;
 
-  const DesignPriceSheet({super.key, required this.name, required this.result});
+  /// How a choice of profile is put into the design and priced; null where
+  /// it cannot be changed from here.
+  final ProfileChoice? onChoose;
+
+  const DesignPriceSheet({
+    super.key,
+    required this.design,
+    required this.result,
+    this.onChoose,
+  });
 
   static const sheetKey = ValueKey('design-price-sheet');
   static const totalKey = ValueKey('design-price-sheet-total');
+  static const categoryKey = ValueKey('design-price-sheet-category');
 
-  /// Shows [result] — a calculated price — for the design called [name].
+  /// What the sheet says where the design as it now is cannot be priced.
+  static const unavailableKey = ValueKey('design-price-sheet-unavailable');
+
+  /// Shows [result] — a calculated price — for [design].
   static Future<void> show(
     BuildContext context, {
-    required String name,
+    required Design design,
     required PriceResult result,
+    ProfileChoice? onChoose,
   }) => showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
     backgroundColor: context.palette.surface,
-    builder: (_) => DesignPriceSheet(name: name, result: result),
+    builder: (_) =>
+        DesignPriceSheet(design: design, result: result, onChoose: onChoose),
   );
+
+  @override
+  ConsumerState<DesignPriceSheet> createState() => _DesignPriceSheetState();
+}
+
+class _DesignPriceSheetState extends ConsumerState<DesignPriceSheet> {
+  late Design _design = widget.design;
+  late PriceResult _result = widget.result;
+  bool _working = false;
+
+  Future<void> _choose(MaterialKind material, int colour) async {
+    final choose = widget.onChoose;
+    if (choose == null || _working) return;
+    setState(() => _working = true);
+    final now = await choose(ref, material, colour);
+    if (!mounted) return;
+    setState(() {
+      _working = false;
+      if (now != null) {
+        _design = now.$1;
+        _result = now.$2;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final p = context.palette;
+    final result = _result;
+    final design = _design;
+    final list = ref.watch(priceListProvider).value;
     final currency = result.currency;
     Widget heading(String words) => Padding(
       padding: const EdgeInsets.only(top: 14, bottom: 4),
@@ -157,53 +230,92 @@ class DesignPriceSheet extends StatelessWidget {
         maxWidth: 640,
       ),
       child: SingleChildScrollView(
-        key: sheetKey,
+        key: DesignPriceSheet.sheetKey,
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text('DESIGN PRICE', style: text.labelMedium),
-            Text(name, style: text.titleLarge),
-            heading('MATERIAL MEASUREMENTS'),
-            MeasurementRows(result.measurements),
-            heading('COST BREAKDOWN'),
-            for (final group in PriceGroup.values)
-              if (result.lines.any((l) => l.group == group)) ...[
-                const SizedBox(height: 4),
-                PriceRow(
-                  group.label,
-                  PricePanel.money(result.sumOf(group), currency),
-                  strong: true,
+            Text(design.shownName, style: text.titleLarge),
+            const SizedBox(height: 4),
+            Text(
+              'Category: ${design.kind.label}',
+              key: DesignPriceSheet.categoryKey,
+              style: text.bodyMedium,
+            ),
+            if (list != null && design.frame != null && !design.isUnsupported)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: ProfileChooser(
+                  selection: ProfileSelection.of(design),
+                  current: design.frame!.finish,
+                  list: list,
+                  onChanged: widget.onChoose == null || _working
+                      ? null
+                      : _choose,
                 ),
-                for (final line in result.lines)
-                  if (line.group == group)
-                    PriceRow(
-                      '   ${line.label} · ${PricePanel.quantity(line)}',
-                      PricePanel.money(line.amount, currency),
-                    ),
+              ),
+            if (_working)
+              const Padding(
+                padding: EdgeInsets.only(top: 10),
+                child: LinearProgressIndicator(),
+              ),
+            if (!result.isPriced) ...[
+              heading('PRICE'),
+              Text(
+                result.issues.isEmpty
+                    ? 'This design cannot be priced as it is.'
+                    : result.issues.first.message,
+                key: DesignPriceSheet.unavailableKey,
+                style: text.bodyMedium,
+              ),
+            ] else ...[
+              heading('MATERIAL MEASUREMENTS'),
+              MeasurementRows(result.measurements),
+              heading('COST BREAKDOWN'),
+              for (final group in PriceGroup.values)
+                if (result.lines.any((l) => l.group == group)) ...[
+                  const SizedBox(height: 4),
+                  PriceRow(
+                    group.label,
+                    PricePanel.money(result.sumOf(group), currency),
+                    strong: true,
+                  ),
+                  for (final line in result.lines)
+                    if (line.group == group)
+                      PriceRow(
+                        '   ${line.label} · ${PricePanel.quantity(line)}',
+                        PricePanel.money(line.amount, currency),
+                      ),
+                ],
+              if (result.discountAmount > 0) ...[
+                const SizedBox(height: 6),
+                PriceRow(
+                  'Subtotal',
+                  PricePanel.money(result.subtotal, currency),
+                ),
+                PriceRow(
+                  'Discount',
+                  '− ${PricePanel.money(result.discountAmount, currency)}',
+                ),
               ],
-            if (result.discountAmount > 0) ...[
-              const SizedBox(height: 6),
-              PriceRow('Subtotal', PricePanel.money(result.subtotal, currency)),
-              PriceRow(
-                'Discount',
-                '− ${PricePanel.money(result.discountAmount, currency)}',
+              const Divider(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text('DESIGN TOTAL', style: text.titleMedium),
+                  ),
+                  Text(
+                    PricePanel.money(result.total!, currency),
+                    key: DesignPriceSheet.totalKey,
+                    style: text.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
               ),
             ],
-            const Divider(height: 24),
-            Row(
-              children: [
-                Expanded(child: Text('DESIGN TOTAL', style: text.titleMedium)),
-                Text(
-                  PricePanel.money(result.total!, currency),
-                  key: totalKey,
-                  style: text.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),

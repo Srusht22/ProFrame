@@ -15,6 +15,7 @@ import '../../domain/model/materials.dart';
 import '../../domain/model/new_design_setup.dart';
 import '../../domain/model/question.dart';
 import '../../domain/pricing/price_result.dart';
+import '../../domain/pricing/profile_selection.dart';
 import '../../domain/recognition/geometry_feedback.dart';
 import '../../domain/recognition/interpreter.dart';
 import '../../domain/recognition/opening_symbol.dart';
@@ -1279,7 +1280,28 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       _ => null,
     };
     if (updated == null) return;
-    state = state.copyWith(design: state.design.withElement(updated));
+    final design = state.design.withElement(updated);
+    // The frame's finish is the design's profile: setting it is choosing it
+    // (`ProfileSelection`).
+    state = state.copyWith(
+      design: element is FrameElement
+          ? design.copyWith(profileChosen: true)
+          : design,
+    );
+  }
+
+  /// Chooses the design's profile — its material and colour — for its
+  /// price and for every view, by `ProfileSelection.choose`.
+  void chooseProfile({required MaterialKind material, required int colour}) {
+    if (state.design.frame == null) return;
+    _remember();
+    state = state.copyWith(
+      design: ProfileSelection.choose(
+        state.design,
+        material: material,
+        colour: colour,
+      ),
+    );
   }
 
   /// Puts the sizes the user gave into the design — millimetres, by

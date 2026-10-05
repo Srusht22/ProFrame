@@ -2,6 +2,7 @@ import '../dimensions/measurements.dart';
 import '../model/design.dart';
 import '../model/elements.dart';
 import '../recognition/geometry_feedback.dart';
+import 'profile_selection.dart';
 import 'takeoff.dart';
 
 /// Whether a design holds everything its price is worked out from, and if
@@ -26,6 +27,7 @@ import 'takeoff.dart';
 /// | Which parts are glass and which panel | `Design.partsAsked` |
 /// | What each opening is — door or window | `Design.kindOf` |
 /// | Every size the design asks for | `Measurements.of`, against `Design.measured` |
+/// | The profile's material and colour, chosen | `ProfileSelection.of` |
 ///
 /// So what is required follows the design and its category: a window is
 /// never asked what it is built of, and a door design's leaves are doors
@@ -179,6 +181,18 @@ class PriceReadiness {
         );
       }
     }
+
+    // What the profile is made of — the material and its colour — chosen
+    // by somebody, never the stock finish a new frame is read in.
+    if (!ProfileSelection.of(design).isChosen) {
+      missing.add(
+        const PriceRequirement(
+          PriceRequirementKind.profile,
+          'Please choose the material and colour of the profile to '
+          'calculate the price.',
+        ),
+      );
+    }
     return missing;
   }
 
@@ -201,6 +215,9 @@ enum PriceRequirementKind {
   panelOrGlass,
   openingKind,
   sizes,
+
+  /// Nobody has chosen the material and colour of the profile.
+  profile,
 }
 
 /// One thing a design needs before it can be priced, said in words that

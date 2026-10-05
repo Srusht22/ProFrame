@@ -95,6 +95,9 @@ Design given(Design d) => d.copyWith(
     for (final m in Measurements.of(d))
       if (m.asked) m.key,
   },
+  // And its profile chosen, as the user chooses it: the frame's finish as
+  // it stands, said to be the one.
+  profileChosen: true,
 );
 
 /// A 100 × 200 cm frame drawn on the sheet, with a `>` in it, of [kind].
@@ -248,7 +251,7 @@ void main() {
       expect(sash, 18);
       final panelM2 = (1000 - 2 * sash) * (2000 - 2 * sash) / 1e6;
       expect(t.panelArea.value, closeTo(panelM2, 1e-9));
-      expect(t.panelArea.label, '1.89 m²');
+      expect(t.panelArea.label, '1.8933 m²');
       final withPanel = example.copyWith(
         panelPerM2: {...zero.panelPerM2, PanelColour.white: 30},
       );
@@ -259,8 +262,8 @@ void main() {
       final result = engine.price(d, withPanel);
       expect(result.measurements.normalProfile.label, '7.600 m');
       expect(result.measurements.openingProfile.label, '6.000 m');
-      expect(result.measurements.panelArea.label, '1.89 m²');
-      expect(result.measurements.glassArea.label, '0.00 m²');
+      expect(result.measurements.panelArea.label, '1.8933 m²');
+      expect(result.measurements.glassArea.label, '0.0000 m²');
     });
   });
 
@@ -390,7 +393,7 @@ void main() {
       expect(m.panelArea, isA<SquareMetres>());
       // A length is kept and written to the millimetre.
       expect(Metres(56.8).label, '56.800 m');
-      expect(SquareMetres(8.4).label, '8.40 m²');
+      expect(SquareMetres(8.4).label, '8.4000 m²');
     });
   });
 

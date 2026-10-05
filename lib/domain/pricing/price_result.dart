@@ -224,6 +224,11 @@ class PriceResult {
   /// design could not be measured.
   final MeasurementSummary measurements;
 
+  /// The profile it was priced in — the material and colour whose rates
+  /// the profile lines were read at — so a kept price says what it was a
+  /// price of. Null where nothing was priced.
+  final PricedProfile? profile;
+
   const PriceResult({
     required this.status,
     required this.currency,
@@ -233,6 +238,7 @@ class PriceResult {
     this.priceListVersion = 0,
     this.discount,
     this.measurements = MeasurementSummary.none,
+    this.profile,
   });
 
   /// A result with no price, for [status], saying why.
@@ -290,6 +296,7 @@ class PriceResult {
     'issues': [for (final i in issues) i.toJson()],
     if (discount != null) 'discount': discount!.toJson(),
     'measurements': measurements.toJson(),
+    if (profile != null) 'profile': profile!.toJson(),
   };
 
   static PriceResult fromJson(Map<String, Object?> map) => PriceResult(
@@ -307,7 +314,54 @@ class PriceResult {
     ],
     discount: Discount.fromJson(map['discount']),
     measurements: MeasurementSummary.fromJson(map['measurements']),
+    profile: PricedProfile.fromJson(map['profile']),
   );
+}
+
+/// The profile a price was worked out in: its material, its colour and
+/// what the colour is called, as they were when it was priced.
+class PricedProfile {
+  /// The material's name in the model, `upvc`, `aluminium`.
+  final String material;
+
+  /// What the material is called: *uPVC*, *Aluminium*.
+  final String materialLabel;
+  final int colour;
+  final String colourName;
+
+  const PricedProfile({
+    required this.material,
+    required this.materialLabel,
+    required this.colour,
+    required this.colourName,
+  });
+
+  Map<String, Object?> toJson() => {
+    'material': material,
+    'materialLabel': materialLabel,
+    'colour': colour,
+    'colourName': colourName,
+  };
+
+  static PricedProfile? fromJson(Object? json) {
+    if (json is! Map<String, Object?>) return null;
+    final material = json['material'];
+    final label = json['materialLabel'];
+    final colour = json['colour'];
+    final name = json['colourName'];
+    if (material is! String ||
+        label is! String ||
+        colour is! int ||
+        name is! String) {
+      return null;
+    }
+    return PricedProfile(
+      material: material,
+      materialLabel: label,
+      colour: colour,
+      colourName: name,
+    );
+  }
 }
 
 /// A price as it stood when it was given — kept so a quotation or an order

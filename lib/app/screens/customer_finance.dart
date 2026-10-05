@@ -33,6 +33,10 @@ class CustomerFinancialSummary extends ConsumerStatefulWidget {
   static const statusKey = ValueKey('customer-finance-status');
   static const recordPaymentKey = ValueKey('customer-finance-record');
   static const toggleKey = ValueKey('customer-finance-toggle');
+  /// What design [id] is and is made of, under its price.
+  static ValueKey<String> profileKey(String id) =>
+      ValueKey('summary-design-profile-$id');
+
   static ValueKey<String> designKey(String id) =>
       ValueKey('customer-finance-design-$id');
 
@@ -166,12 +170,25 @@ class _CustomerFinancialSummaryState
           ),
           if (_open) ...[
             heading('DESIGNS'),
-            for (final d in pricing.designs)
+            for (final d in pricing.designs) ...[
               PriceRow(
                 key: CustomerFinancialSummary.designKey(d.designId),
                 d.name,
                 d.state.total == null ? d.state.note : money(d.state.total!),
               ),
+              // What it is and what it is made of: why two designs cost
+              // different amounts.
+              Padding(
+                padding: const EdgeInsets.only(left: 12, bottom: 4),
+                child: Text(
+                  'Category: ${d.kind.label} · '
+                  'Material: ${d.profile.materialName} · '
+                  'Colour: ${d.colourName}',
+                  key: CustomerFinancialSummary.profileKey(d.designId),
+                  style: text.bodySmall?.copyWith(color: p.muted),
+                ),
+              ),
+            ],
             heading('CUSTOMER MATERIAL SUMMARY'),
             MeasurementRows(pricing.measurements),
             if (pricing.priced.length < pricing.designs.length)

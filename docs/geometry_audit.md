@@ -1138,3 +1138,66 @@ customer's total summed whatever priced. Nothing recorded a payment.
   exactly.
 - No payment history, credit, refunds or discount screen.
 - The customer summary is not paged.
+
+## 33. Material, colour and the factory's prices (Phase 28)
+
+**Found.**
+- The engine already priced each profile by its own material's rates and
+  each colour by the list. But nothing said whether anybody had *chosen*
+  the material: every new frame is read in the stock white uPVC, so every
+  design was priced as white uPVC whether or not anyone had said so.
+- A card said its category but not what it was made of, so two doors of
+  one shape at different prices had nothing on them to say why.
+- There was no price editor, and no way at all to become the owner.
+- Areas were written to two decimals, so a line could read
+  `1.43 m² × 45.00` beside an amount of 64.33.
+- Price records left behind by deletes before Phase 27 were never swept.
+- A card's sheet, once able to change the design, used the card's `ref`
+  after the card had rebuilt beneath it (the first app test found it).
+
+**Changed.**
+- `ProfileSelection` is the design's material and colour: its frame's own
+  finish, chosen when `Design.profileChosen` says so or when the frame is
+  in any finish but the stock one. Unchosen designs are not priced
+  (`PriceRequirementKind.profile`), and nothing is assumed.
+- `ProfileSelection.choose` sets the frame and the bars in the frame's
+  finish, and moves nothing.
+- `ProfileChooser` is on the price sheet and in the workspace's Price
+  panel. The sheet recalculates on a change and is handed its own `ref`.
+- `PriceResult.profile` records what the design was priced in.
+- `CardProfileLine` shows *Material:* and *Colour:* on every card, and the
+  summary shows each design's category, material and colour.
+- `FactoryPricesScreen` edits every `RateField` of the list for the owner
+  only, behind `OwnerAccessStore`'s salted PIN.
+- `SquareMetres.label` writes four places.
+- `DesignStore.sweepOrphanPrices` runs once a run and removes only design
+  price records whose design is not kept.
+
+**Kept.**
+- One engine for every material. Payments, credit, refunds, discounts and
+  quotations are deferred; the customer summary is still not paged.
+
+**Verified.**
+- `test/domain/material_and_colour_pricing_test.dart` (23).
+- `test/app/material_and_colour_on_screen_test.dart` (10).
+- The full suite passes and `flutter analyze` is clean.
+- In the browser at 1440 × 900 and 390 × 844:
+  - Adam's cards say *Material: Aluminium · Colour: Anthracite* and *Not
+    selected*.
+  - Front Entrance Door, whose only gap was its material, opened its sheet
+    from Price. Aluminium priced it at 275.69 USD (11.00 and 18.00 a metre,
+    glass 1.4296 m² × 45.00 = 64.33). Black added 11.520 m × 1.00, for
+    287.21, and the card followed.
+  - Factory prices: read-only as staff. The PIN was set and uPVC's normal
+    rate kept as 9.50, with **Lock** on the bar.
+  - The Lock button was invisible on the green bar until given the bar's
+    lettering colour.
+
+**Not done.**
+- The owner's PIN is device-local: anyone who clears the device's storage
+  can set a new one.
+- Adding a new named colour to the list has no editor yet; existing
+  colours' rates are edited.
+- A design's material and colour can be chosen by anyone who can edit the
+  design, as the frame's finish always could; only the factory's rates are
+  the owner's.

@@ -563,6 +563,48 @@ class DesignStore {
     await Future.wait([file, price, written]);
   }
 
+  /// Takes off the device every design's kept price whose design is not
+  /// kept, and says whose they were.
+  ///
+  /// A delete has taken the design's price with it since prices were kept
+  /// beside designs ([remove]); one made before that left its price behind,
+  /// unread, priced against nothing. **Only a design's current price is
+  /// swept** — a record under `PriceRecordStore.keyPrefix`, which is one
+  /// design's price and nothing else. Nothing else on the device is read
+  /// for removal: no design, no customer, no index, and nothing a later
+  /// version keeps under a key of its own (a quotation's price as it was
+  /// given is meant to outlast its design, and will not live here).
+  ///
+  /// A price is kept wherever its design is known by either way the device
+  /// knows a design — a line of the index or a record of its own — so a
+  /// design whose index line cannot be read keeps its price. And where the
+  /// index itself cannot be read, nothing is known about which designs
+  /// exist, so nothing is swept.
+  Future<List<String>> sweepOrphanPrices() async {
+    final prefs = await SharedPreferences.getInstance();
+    await _read(prefs);
+    final text = prefs.getString(indexKey);
+    if (text != null) {
+      try {
+        jsonDecode(text) as List<Object?>;
+      } on Object {
+        return const [];
+      }
+    }
+    final kept = {for (final s in _indexNow(prefs)) s.id};
+    final orphans = [
+      for (final key in prefs.getKeys())
+        if (key.startsWith(PriceRecordStore.keyPrefix))
+          key.substring(PriceRecordStore.keyPrefix.length),
+    ]..removeWhere(
+        (id) => kept.contains(id) || prefs.containsKey(_designKey(id)),
+      );
+    await Future.wait([
+      for (final id in orphans) prefs.remove(PriceRecordStore.keyOf(id)),
+    ]);
+    return orphans;
+  }
+
   /// A copy of the design kept as [id], made now under an id and a number
   /// of its own — the same drawing, geometry and everything said about it —
   /// kept beside the original, which is not touched. Null where nothing is

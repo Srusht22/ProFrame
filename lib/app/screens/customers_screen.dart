@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../infrastructure/customer_store.dart';
+import '../state/pricing.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'appearance_button.dart';
 import 'customer_screen.dart';
+import 'factory_prices_screen.dart';
 import 'new_customer_screen.dart';
 import 'new_design_screen.dart';
 
@@ -91,6 +93,9 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
       // the ones the designs on the device were made for, the first time
       // the app is opened after an upgrade.
       designs = await ref.read(designStoreProvider).countsByCustomer();
+      // Once a run: prices left behind by deletes made before a delete
+      // took its design's price with it.
+      await ref.read(orphanPricesSweptProvider.future);
       page = await _customers.page(query: _query, limit: pageSize);
       kept = _query.trim().isEmpty ? page.total : await _customers.count();
     } on Object {
@@ -330,7 +335,10 @@ class _Header extends StatelessWidget {
                 ),
               ),
             ),
-            if (phone) const AppearanceButton(colour: AppTheme.accent),
+            if (phone) ...[
+              const FactoryPricesButton(colour: AppTheme.accent),
+              const AppearanceButton(colour: AppTheme.accent),
+            ],
           ],
         ),
         if (!phone) const SizedBox(height: 6),
@@ -425,6 +433,12 @@ class _Header extends StatelessWidget {
                         children: [
                           Expanded(child: title),
                           const SizedBox(width: 16),
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 6),
+                            child: FactoryPricesButton(
+                              colour: AppTheme.accent,
+                            ),
+                          ),
                           const Padding(
                             padding: EdgeInsets.only(bottom: 6),
                             child: AppearanceButton(colour: AppTheme.accent),

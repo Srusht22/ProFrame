@@ -13,8 +13,9 @@ import '../domain/pricing/design_price_state.dart';
 /// from (`PriceRecord.inputs`), so whether it is still the price is
 /// worked out each time it is read, never stored.
 ///
-/// A design deleted leaves its record behind, unread: nothing but the
-/// design's own card ever asks for it.
+/// A design deleted takes its record with it (`DesignStore.remove`), and a
+/// record left by a delete made before that is swept when the app starts
+/// (`DesignStore.sweepOrphanPrices`).
 class PriceRecordStore {
   static const keyPrefix = 'proframe.price.v1.';
 

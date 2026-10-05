@@ -6,10 +6,11 @@
 /// (`PriceListStore.save`); a screen asking it as well only decides what
 /// to offer, never what is allowed.
 ///
-/// ProFrame has no sign-in, so nothing yet says which of the two the person
-/// at the device is: the application starts as [staff], who can price but
-/// not change prices. Becoming the owner comes with accounts — and with it
-/// the price editor — and changes nothing here.
+/// ProFrame has no sign-in, so the application starts every run as
+/// [staff], who can price but not change prices. The person at the device
+/// becomes the owner for the run by the owner's PIN on the factory prices
+/// screen (`OwnerAccessStore`); real accounts would take its place and
+/// change nothing here.
 enum WorkshopRole {
   owner('Owner'),
   staff('Staff');

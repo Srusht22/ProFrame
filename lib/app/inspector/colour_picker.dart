@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../domain/model/materials.dart';
 import '../theme/app_theme.dart';
 
 /// Picking a colour for the part that is selected.
@@ -18,23 +19,7 @@ class ColourPicker extends StatelessWidget {
 
   /// The finishes a workshop actually stocks, plus the two the design system
   /// is built from.
-  static const List<(int, String)> palette = [
-    (0xFFFFFFFF, 'White'),
-    (0xFFF3F4F2, 'Off white'),
-    (0xFFD8D5CC, 'Cream'),
-    (0xFF9C9C9C, 'Silver'),
-    (0xFF6E7472, 'Grey'),
-    (0xFF3A3A38, 'Graphite'),
-    (0xFF1C1C1C, 'Black'),
-    (0xFF013E37, 'Deep green'),
-    (0xFF2C4A63, 'Steel blue'),
-    (0xFF7B4A2B, 'Oak'),
-    (0xFF4A2F1E, 'Walnut'),
-    (0xFF8C1E20, 'Oxblood'),
-    (0xFFD8E6EA, 'Clear glass'),
-    (0xFFE7ECEA, 'Frosted'),
-    (0xFFFFEFB3, 'Warm cream'),
-  ];
+  static const List<(int, String)> palette = finishPalette;
 
   @override
   Widget build(BuildContext context) => Wrap(

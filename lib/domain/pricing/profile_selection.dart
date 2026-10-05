@@ -1,0 +1,109 @@
+import '../model/design.dart';
+import '../model/materials.dart';
+import 'price_list.dart';
+
+/// What a design is made of, as its price reads it: the material and the
+/// colour of its profile.
+///
+/// It is not a second copy of anything. The profile is the frame's own
+/// finish — the one the technical drawing and the solid are built in — so
+/// choosing aluminium here is choosing it for the frame, and painting the
+/// frame black in the inspector is choosing black here. The price list
+/// then says what that material and that colour cost
+/// (`PriceList.profiles`); nothing about either is a figure in a widget.
+///
+/// **Not chosen is a real answer.** The reading gives every new frame the
+/// stock white uPVC, so a frame in that finish says nothing about what the
+/// customer wants. A design is chosen when somebody said so
+/// ([Design.profileChosen]) or when its frame is in any other finish —
+/// which only a person can have put there, since nothing else writes one.
+/// Until then [material] and [colour] are null, the card says *Not
+/// selected*, and the design is not priced (`PriceReadiness`).
+class ProfileSelection {
+  /// The frame's material, or null where none has been chosen.
+  final MaterialKind? material;
+
+  /// The frame's colour, 0xAARRGGBB, or null where none has been chosen.
+  final int? colour;
+
+  const ProfileSelection._(this.material, this.colour);
+
+  static const notChosen = ProfileSelection._(null, null);
+
+  bool get isChosen => material != null;
+
+  /// The profile [design] is priced in.
+  static ProfileSelection of(Design design) {
+    final frame = design.frame;
+    if (frame == null) return notChosen;
+    final said = design.profileChosen || frame.finish != Finish.frameDefault;
+    if (!said) return notChosen;
+    return ProfileSelection._(frame.finish.material, frame.finish.colour);
+  }
+
+  /// What the material is called: *uPVC*, *Aluminium* — or *Not selected*.
+  String get materialName => material?.label ?? 'Not selected';
+
+  /// What the colour is called, in words: the name the price list sells it
+  /// under for this material, or else the name the colour picker gives it,
+  /// or else *Custom* — never only a swatch. *Not selected* where none is.
+  String colourName([PriceList? list]) {
+    final c = colour;
+    if (c == null) return 'Not selected';
+    final rates = list?.profiles[material]?.colours ?? const <ColourRate>[];
+    for (final r in rates) {
+      if (r.colour == c) return r.name;
+    }
+    for (final (value, name) in finishPalette) {
+      if (value == c) return name;
+    }
+    return 'Custom';
+  }
+
+  /// [design] with its profile chosen as [material] in [colour].
+  ///
+  /// The frame takes the finish, and so does every bar that was in the
+  /// frame's own finish — the same profile system, cut from the same
+  /// lengths. A bar the user gave a finish of its own keeps it. Nothing
+  /// else changes: no line, no pane, no figure, no ironmongery.
+  static Design choose(
+    Design design, {
+    required MaterialKind material,
+    required int colour,
+  }) {
+    final frame = design.frame;
+    if (frame == null) return design;
+    final was = frame.finish;
+    final now = Finish(colour: colour, material: material);
+    return design.copyWith(
+      frame: frame.copyWith(finish: now),
+      dividers: [
+        for (final d in design.dividers)
+          d.finish == was ? d.copyWith(finish: now) : d,
+      ],
+      profileChosen: true,
+    );
+  }
+
+  Map<String, Object?> toJson([PriceList? list]) => {
+    if (material != null) 'material': material!.name,
+    if (colour != null) 'colour': colour,
+    if (colour != null) 'colourName': colourName(list),
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is ProfileSelection &&
+      other.material == material &&
+      other.colour == colour;
+
+  @override
+  int get hashCode => Object.hash(material, colour);
+}
+
+/// The materials a design's profile can be made of: those the price list
+/// prices a profile in, in the order a joiner reads them.
+List<MaterialKind> profileMaterialsOf(PriceList list) => [
+  for (final m in MaterialKind.values)
+    if (list.profiles.containsKey(m)) m,
+];

@@ -61,6 +61,18 @@ extension PriceListSaver on WidgetRef {
   }
 }
 
+/// The designs' kept prices left behind by deletes made before a delete
+/// took its design's price with it, swept once a run
+/// (`DesignStore.sweepOrphanPrices`), with whose they were. A failure to
+/// sweep stops nothing: the prices stay where they are, unread.
+final orphanPricesSweptProvider = FutureProvider<List<String>>((ref) async {
+  try {
+    return await ref.read(designStoreProvider).sweepOrphanPrices();
+  } on Object {
+    return const [];
+  }
+});
+
 /// Where each design's calculated price is kept.
 final priceRecordStoreProvider = Provider<PriceRecordStore>(
   (ref) => PriceRecordStore(),
@@ -174,6 +186,16 @@ extension PriceCalculator on WidgetRef {
     await read(priceRecordStoreProvider).save(design.id, record);
     read(priceRecordsRevisionProvider.notifier).changed();
     return record;
+  }
+
+  /// [design]'s price as it now is: calculated and kept where it can be
+  /// priced, and otherwise what stands in the way — for a sheet that shows
+  /// either, never a price kept from before.
+  Future<PriceResult?> priceNow(Design design) async {
+    final record = await calculatePrice(design);
+    if (record != null) return record.result;
+    final list = await read(priceListProvider.future);
+    return read(pricingEngineProvider).price(design, list);
   }
 
   /// Records that customer [customer] has paid [amount], and nothing else

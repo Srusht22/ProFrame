@@ -134,18 +134,26 @@ class PriceList {
     InstallationRate? installation,
     int? migratedFrom,
     List<String>? migrationNotes,
+    bool clearCustomGlass = false,
+    bool clearCustomSealedGlass = false,
+    bool clearCustomPanel = false,
   }) => PriceList(
     version: version ?? this.version,
     isStarter: isStarter ?? this.isStarter,
     currency: currency ?? this.currency,
     profiles: profiles ?? this.profiles,
     glassPerM2: glassPerM2 ?? this.glassPerM2,
-    customGlassPerM2: customGlassPerM2 ?? this.customGlassPerM2,
+    customGlassPerM2: clearCustomGlass
+        ? null
+        : customGlassPerM2 ?? this.customGlassPerM2,
     sealedGlassPerM2: sealedGlassPerM2 ?? this.sealedGlassPerM2,
-    customSealedGlassPerM2:
-        customSealedGlassPerM2 ?? this.customSealedGlassPerM2,
+    customSealedGlassPerM2: clearCustomSealedGlass
+        ? null
+        : customSealedGlassPerM2 ?? this.customSealedGlassPerM2,
     panelPerM2: panelPerM2 ?? this.panelPerM2,
-    customPanelPerM2: customPanelPerM2 ?? this.customPanelPerM2,
+    customPanelPerM2: clearCustomPanel
+        ? null
+        : customPanelPerM2 ?? this.customPanelPerM2,
     hardwareEach: hardwareEach ?? this.hardwareEach,
     trackPerMetre: trackPerMetre ?? this.trackPerMetre,
     rollerEach: rollerEach ?? this.rollerEach,

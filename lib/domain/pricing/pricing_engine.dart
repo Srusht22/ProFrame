@@ -4,6 +4,7 @@ import 'measurement.dart';
 import 'price_list.dart';
 import 'price_readiness.dart';
 import 'price_result.dart';
+import 'profile_selection.dart';
 import 'takeoff.dart';
 
 /// Prices a design: the design and the price list in, a [PriceResult] out.
@@ -151,6 +152,16 @@ class PricingEngine {
       issues: sheet.issues,
       discount: said.discount,
       measurements: takeoff.summary,
+      profile: switch (ProfileSelection.of(design)) {
+        ProfileSelection(:final material?, :final colour?) && final p =>
+          PricedProfile(
+            material: material.name,
+            materialLabel: material.label,
+            colour: colour,
+            colourName: p.colourName(list),
+          ),
+        _ => null,
+      },
     );
   }
 }

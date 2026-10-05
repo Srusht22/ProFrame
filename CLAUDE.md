@@ -6268,8 +6268,10 @@ Everything is in `lib/domain/pricing/`, and no widget holds a figure.
   (`PriceListStore`, `proframe.pricelist.v2`, a list the first engine kept
   under `proframe.pricelist.v1` read and migrated — see *Pricing
   integrity*; `WorkshopRole`).
-  ProFrame has no sign-in, so the device starts as staff, who can price but
-  not change prices; there is no price editor yet. Until the owner keeps a
+  ProFrame has no sign-in, so the device starts each run as staff, who can
+  price but not change prices; the owner unlocks the price editor with the
+  owner's PIN — see *What a design is made of, and the factory's prices*.
+  Until the owner keeps a
   list, the example list (`PriceList.starter`, which is
   `DefaultFactoryPricing.list` — the one place its figures are written —
   in US dollars, uPVC $7 a metre normal and $12 opening) is used and the panel says *Example prices
@@ -6343,6 +6345,7 @@ Design ─ PriceReadiness ─ PricingEngine ─ PriceRecord? ─ DesignPriceStat
   | Which parts are glass and which panel | `Design.partsAsked`, where it is both |
   | What each opening is, door or window | `Design.kindOf` (in a door & window or an angled design) |
   | **Every size the design asks for** | `Measurements.of`, against `Design.measured` |
+  | The profile's material and colour, chosen | `ProfileSelection.of` |
 
   The last one is stricter than before: not only the width and height but
   the frame's border, the bars and each light's and pane's own sizes.
@@ -6388,7 +6391,8 @@ Design ─ PriceReadiness ─ PricingEngine ─ PriceRecord? ─ DesignPriceStat
     given enables it, a size taken away or a line drawn in a sash disables
     it.
 - **A design's card** shows *Complete* or *Incomplete* beside its
-  category (`CardPriceStatus`), or *Drawing not read*. On a row of their
+  category (`CardPriceStatus`), or *Drawing not read*, then
+  *Material:* and *Colour:* in words (`CardProfileLine`). On a row of their
   own under *Last edited* it shows *Price: 189.98 USD*, *not calculated*,
   *recalculate*, *needs update* or *unavailable* (`CardPriceValue`) and
   **Price** (`CardPriceButton`), so the row of buttons below is *Edit
@@ -6594,6 +6598,134 @@ numbers:
 - a delete and an Undo;
 - *Edit information* in full at five widths, with the app's own typeface
   loaded so the measurement is the screen's.
+
+### What a design is made of, and the factory's prices
+
+The brief: *the final price depends on what the design is made of — uPVC or
+aluminium, white or black — so the owner must be able to change those
+choices for a design, and the rates for the factory, and every design card
+must say its category, its material and its colour in words.*
+
+```
+Design ─ ProfileSelection ──┐            (frame's finish: material + colour)
+                            ├─ PricingEngine ─ PriceResult (.profile records it)
+PriceList ─ RateField ──────┘            (owner-only, kept by PriceListStore)
+```
+
+- **A design's material and colour are its frame's finish**
+  (`ProfileSelection`, `lib/domain/pricing/profile_selection.dart`). The
+  technical drawing and the solid are already built in it, so it is not a
+  second copy of anything: choosing aluminium for the price is choosing it
+  for the frame, and painting the frame in the inspector is choosing it
+  for the price. Choosing it (`ProfileSelection.choose`,
+  `WorkspaceController.chooseProfile`) puts the finish on the frame and on
+  every bar that was in the frame's finish — one profile system — and
+  leaves a bar the user gave a finish of its own. No line, pane, figure or
+  piece of ironmongery moves.
+- **Not chosen is a real answer.** The reading gives every new frame the
+  stock white uPVC, which says nothing about what the customer wants. So a
+  design is chosen only when somebody said so (`Design.profileChosen`,
+  kept in the file while it is true, set by the price sheet and by the
+  frame's own finish control) or when its frame is in any other finish —
+  which only a person can have put there. That is how a design kept before
+  this phase is read: a frame somebody painted keeps its material and
+  colour; one still in the stock finish is *Not selected*. Nothing is
+  assumed. Until it is chosen the design is not priced
+  (`PriceRequirementKind.profile`, *Please choose the material and colour
+  of the profile to calculate the price.*), and its card says *Price:
+  choose material*.
+- **The engine reads material and colour from the list, and nothing
+  else.** It already priced each length of profile at its own material's
+  normal or opening rate and each colour by the list's `ColourRate` for
+  that material (*The price*). uPVC and aluminium are one engine with two
+  rows of the list; a colour the list does not name takes the material's
+  special figure. Nothing in a widget is a rate.
+- **The price is worked out, never typed.** There is no field for a final
+  price. The price sheet (`DesignPriceSheet`) shows the design's category,
+  then **Material** and **Colour** (`ProfileChooser`, offering the list's
+  materials and each material's named colours, swatch beside name), then
+  what it measures and costs. Choosing either puts it into the design,
+  keeps it, and works the price out again at once (`ProfileChoice`, handed
+  the sheet's own `WidgetRef` because the card beneath it rebuilds as the
+  price is kept). The same chooser stands at the head of the workspace's
+  **Price** panel, where a change leaves the kept price *needs
+  recalculation*, never shown as the price. A design whose only gap is its
+  material has its **Price** button enabled, because the sheet is where it
+  is chosen.
+- **A price records what it was priced in** (`PriceResult.profile`,
+  `PricedProfile`: material, its label, colour and colour name), beside the
+  price list's version and every rate on its lines, so a kept price says
+  what it was a price of. A quotation snapshot can be built on it later.
+- **A card says it in words** (`CardProfileLine`): *Material: Aluminium*,
+  *Colour: ● Black*, or *Not selected*, under the category and the status,
+  above *Last edited*. The picture is 94 px so the card keeps its height.
+  The customer's summary says each design's category, material and colour
+  under its price (`CustomerFinancialSummary.profileKey`).
+- **Who may change what.** The factory's rates are the owner's
+  (`WorkshopRole`, `PriceListStore.save`); a design's material and colour
+  are the design's, edited by whoever edits the design — the same as the
+  frame's own finish control has always allowed — so offering them only to
+  the owner would be a lock with the inspector beside it open.
+- **The factory's prices** (`FactoryPricesScreen`, the price-tag icon on
+  the customers' header). Every figure of the list is a `RateField`
+  (`price_list_fields.dart`): each material's normal and opening profile,
+  what each colour adds on each material a metre and as a share, glass,
+  sealed units, panels and any other colour of each, every piece of
+  ironmongery, the sliding track, rollers and rollers a panel, installation
+  and each category's labour. Writing every field back as it reads leaves
+  the list identical, so editing drops nothing. Staff see every figure and
+  **Unlock as owner**; the owner edits, an empty optional figure is *not
+  priced*, a figure below nothing or a part roller is refused, and **Keep
+  prices** keeps a new version — every price worked out from the old one
+  then needs recalculating. **Lock** returns to staff, and every run starts
+  as staff.
+- **The owner's PIN** (`OwnerAccessStore`) is set the first time the
+  editor is unlocked and asked for after; only a salted SHA-256 of it is
+  kept. It is a lock on a screen, not security: anyone who can clear the
+  device's storage can set a new one. Accounts would replace it.
+- **Areas are written to four places** (`SquareMetres.label`, *1.4296
+  m²*), so the area written times its rate is the line's amount to the
+  cent for any rate up to 100 a square metre — *1.43 m² × 45.00* read as
+  64.35 against a line of 64.33. The amount is always the exact area at
+  the rate; nothing is worked out from what is written. Lengths were
+  already written to the millimetre.
+- **Prices left behind by deletes before *Pricing integrity* are swept**
+  (`DesignStore.sweepOrphanPrices`, once a run, from the customers screen
+  through `orphanPricesSweptProvider`). Only a design's current price —
+  a record under `PriceRecordStore.keyPrefix` — is ever removed, and only
+  where its design is known neither by a line of the index nor by a record
+  of its own; an index that cannot be read sweeps nothing. A later
+  quotation's price, meant to outlast its design, will live under a key of
+  its own and is never touched.
+- **Deferred, as the brief says**: payment history, credit, refunds, a
+  discount screen, quotation and order history, a manual price override,
+  and paging the customer's summary. Colours are edited by rate; adding a
+  new named colour to the list is not on the editor yet.
+
+`test/domain/material_and_colour_pricing_test.dart` holds it under the
+brief's numbers: **38** uPVC and aluminium at their own rates, equal rates
+equal prices; **39** black adding its figure a metre, equal when set
+equal, an unnamed colour at the special figure; the profile chosen and
+never assumed, read from a painted frame, choosing moving nothing; **15**
+the price recording its profile through a save; **41** 1.4296 m² × 45 =
+64.33 and every real line checkable to the cent; **42** the sweep taking
+the orphan and nothing else, and keeping a price whose design has only its
+record; **43** the owner's rate kept, read back and used, staff refused,
+every figure a field, and empty or bad figures; **44** PVC white → aluminium
+→ black, stale between and each at its own rates; **32** a customer's total
+moving by exactly one design's change; **34** an unknown category unpriced;
+**35** an angled design re-priced at its own polygon; and the owner's PIN.
+
+`test/app/material_and_colour_on_screen_test.dart` holds it on the real
+app: **40** every card's category, material, colour, status and price in
+words, and a long name, colour and category fitting at four widths with the
+app's own typeface; **31 & 32** the card's sheet making aluminium uPVC and
+black white, each priced afresh, with the card and the summary following;
+**37** a design missing only its material priced from its sheet; **44** the
+workspace's chooser leaving the price stale, recalculated at aluminium's
+rates, and undone; **43** staff reading factory prices, the owner's PIN
+set, a rate kept, lasting a reload as staff again, and pricing a design;
+and a wrong PIN leaving it locked.
 
 ## Working on this repository
 

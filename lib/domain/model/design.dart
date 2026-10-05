@@ -195,6 +195,15 @@ class Design {
   /// written only while it is true.
   final bool sketchUnread;
 
+  /// Whether the user has said what the design's profile is — the
+  /// material and colour of its frame — for its price. The frame always
+  /// carries a finish, because the reading gives a new frame the stock
+  /// white uPVC; that finish is not a choice anybody made. So a design
+  /// whose frame is still the stock finish and that nobody has said this
+  /// of has no material chosen (`ProfileSelection.of`), and is not priced
+  /// until somebody does. Kept in the file only while it is true.
+  final bool profileChosen;
+
   /// What the user has chosen about the price that is not the design
   /// itself: installation, a discount, a price kept from an earlier day.
   /// Nothing about it is geometry, and pricing never writes any other field.
@@ -229,6 +238,7 @@ class Design {
     this.infill,
     this.partsAsked = false,
     this.sketchUnread = false,
+    this.profileChosen = false,
     this.pricing = PricingChoices.none,
   });
 
@@ -597,6 +607,7 @@ class Design {
     Finish? infill,
     bool? partsAsked,
     bool? sketchUnread,
+    bool? profileChosen,
     PricingChoices? pricing,
     DateTime? updatedAt,
   }) {
@@ -661,6 +672,7 @@ class Design {
       infill: clearConstruction ? null : (infill ?? this.infill),
       partsAsked: partsAsked ?? this.partsAsked,
       sketchUnread: sketchUnread ?? this.sketchUnread,
+      profileChosen: profileChosen ?? this.profileChosen,
       pricing: pricing ?? this.pricing,
     );
   }
@@ -730,6 +742,7 @@ class Design {
         if (infill != null) 'infill': infill!.toJson(),
         if (partsAsked) 'partsAsked': true,
         if (sketchUnread) 'sketchUnread': true,
+        if (profileChosen) 'profileChosen': true,
         if (!pricing.isNone) 'pricing': pricing.toJson(),
         'sketch': sketch.toJson(),
         if (frame != null) 'frame': frame!.toJson(),
@@ -800,6 +813,7 @@ class Design {
           : Finish.fromJson(map['infill'], fallback: Finish.glazingDefault),
       partsAsked: map['partsAsked'] == true,
       sketchUnread: map['sketchUnread'] == true,
+      profileChosen: map['profileChosen'] == true,
       pricing: PricingChoices.fromJson(map['pricing']),
       sketch: Sketch.fromJson(map['sketch']),
       frame: map['frame'] == null

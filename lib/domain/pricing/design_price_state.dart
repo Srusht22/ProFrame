@@ -6,6 +6,7 @@ import 'price_list.dart';
 import 'price_readiness.dart';
 import 'price_result.dart';
 import 'pricing_engine.dart';
+import 'profile_selection.dart';
 
 /// A price the user calculated, kept with what it was calculated from.
 ///
@@ -238,6 +239,14 @@ class DesignPriceState {
       status == DesignPriceStatus.incomplete &&
       readiness.missing.firstOrNull?.kind == PriceRequirementKind.notRead;
 
+  /// Whether what stops it is only that nobody has chosen its profile's
+  /// material and colour — which the price sheet itself is where they are
+  /// chosen, so its button opens it to choose them.
+  bool get needsOnlyProfile =>
+      status == DesignPriceStatus.incomplete &&
+      readiness.missing.length == 1 &&
+      readiness.missing.single.kind == PriceRequirementKind.profile;
+
   String get label => switch (status) {
     _ when notRead => 'Drawing not read',
     DesignPriceStatus.current => 'Complete',
@@ -281,11 +290,20 @@ class CustomerDesignPrice {
   final DesignKind kind;
   final DesignPriceState state;
 
+  /// What its profile is made of — the material and colour its price reads
+  /// — so a summary says why two designs cost different amounts.
+  final ProfileSelection profile;
+
+  /// What the colour is called, by the price list it was priced from.
+  final String colourName;
+
   const CustomerDesignPrice({
     required this.designId,
     required this.name,
     required this.kind,
     required this.state,
+    this.profile = ProfileSelection.notChosen,
+    this.colourName = 'Not selected',
   });
 }
 
@@ -328,6 +346,8 @@ class CustomerPricing {
         name: d.shownName,
         kind: d.kind,
         state: DesignPriceState.of(d, list, record, engine: engine),
+        profile: ProfileSelection.of(d),
+        colourName: ProfileSelection.of(d).colourName(list),
       ),
   ], list.currency);
 

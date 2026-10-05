@@ -5,9 +5,11 @@ import '../../domain/model/customer.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/new_design_setup.dart';
 import '../../domain/pricing/design_price_state.dart';
+import '../../domain/pricing/profile_selection.dart';
 import '../../infrastructure/design_store.dart';
 import '../inspector/price_actions.dart';
 import '../inspector/price_panel.dart';
+import '../inspector/profile_chooser.dart';
 import '../state/pricing.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -922,7 +924,7 @@ class CustomerDesignCard extends StatelessWidget {
   static const height = 328.0;
 
   /// How tall its picture is.
-  static const pictureHeight = 116.0;
+  static const pictureHeight = 94.0;
 
   const CustomerDesignCard({
     super.key,
@@ -948,6 +950,11 @@ class CustomerDesignCard extends StatelessWidget {
 
   /// Whether the card of the design [id] says it is complete.
   static ValueKey<String> statusKey(String id) => ValueKey('price-status-$id');
+
+  /// The words naming the design's material and its colour.
+  static ValueKey<String> materialKey(String id) =>
+      ValueKey('card-material-$id');
+  static ValueKey<String> colourKey(String id) => ValueKey('card-colour-$id');
 
   /// The **Edit information** on the card of the design [id].
   static ValueKey<String> editKey(String id) => ValueKey('edit-design-$id');
@@ -1071,7 +1078,14 @@ class CustomerDesignCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
+              // What it is made of — the material and colour its price
+              // reads — in words, the colour's swatch beside its name.
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: CardProfileLine(designId: design.id),
+              ),
+              const SizedBox(height: 4),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Text(
@@ -1172,6 +1186,72 @@ class CardPriceStatus extends ConsumerWidget {
   }
 }
 
+/// What a design's card says it is made of: **Material:** and **Colour:**,
+/// each in words — *Aluminium*, *Black*, or *Not selected* where nobody
+/// has chosen — with the colour's swatch beside its name, never instead of
+/// it. Read from the design as kept, so it is what its price reads.
+class CardProfileLine extends ConsumerWidget {
+  final String designId;
+
+  const CardProfileLine({super.key, required this.designId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final design = ref.watch(keptDesignPriceProvider(designId)).value?.design;
+    final list = ref.watch(priceListProvider).value;
+    final p = context.palette;
+    final profile = design == null
+        ? ProfileSelection.notChosen
+        : ProfileSelection.of(design);
+    final style = TextStyle(fontSize: 12, color: p.muted);
+    final strong = TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      color: profile.isChosen ? p.ink : p.muted,
+    );
+    Widget said(Key key, String label, String value) => Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: '$label: ', style: style),
+          TextSpan(text: value, style: strong),
+        ],
+      ),
+      key: key,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+    return Row(
+      children: [
+        Expanded(
+          child: said(
+            CustomerDesignCard.materialKey(designId),
+            'Material',
+            design == null ? '…' : profile.materialName,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Row(
+            children: [
+              if (profile.colour case final colour?) ...[
+                colourSwatch(colour),
+                const SizedBox(width: 5),
+              ],
+              Flexible(
+                child: said(
+                  CustomerDesignCard.colourKey(designId),
+                  'Colour',
+                  design == null ? '…' : profile.colourName(list),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// What a design's card says its price is: the price while the one
 /// calculated is current, and otherwise why not — never a previous
 /// calculation as the price.
@@ -1190,6 +1270,8 @@ class CardPriceValue extends ConsumerWidget {
         'Price: ${PricePanel.money(state.total!, state.record!.result.currency)}',
       // Drawn on since it was read: the price kept is of an older reading.
       _ when state.notRead => 'Price: needs update',
+      // Nobody has chosen what it is made of, which its price reads.
+      _ when state.needsOnlyProfile => 'Price: choose material',
       DesignPriceState(status: DesignPriceStatus.notCalculated) =>
         'Price: not calculated',
       DesignPriceState(status: DesignPriceStatus.needsRecalculation) =>
@@ -1225,13 +1307,33 @@ class CardPriceButton extends ConsumerWidget {
     WidgetRef ref,
     KeptDesignPrice kept,
   ) async {
-    var record = kept.state.isCurrent ? kept.state.record : null;
-    record ??= await ref.calculatePrice(kept.design);
-    if (record == null || !context.mounted) return;
+    final result = kept.state.isCurrent
+        ? kept.state.record!.result
+        : await ref.priceNow(kept.design);
+    if (result == null || !context.mounted) return;
     await DesignPriceSheet.show(
       context,
-      name: kept.design.shownName,
-      result: record.result,
+      design: kept.design,
+      result: result,
+      onChoose: kept.design.isUnsupported
+          ? null
+          : (ref, material, colour) async {
+              // The design as kept now, its profile chosen, kept again, and
+              // priced afresh: its card, its customer's total and the
+              // workspace all read it from there.
+              final store = ref.read(designStoreProvider);
+              final latest = await store.load(kept.design.id) ?? kept.design;
+              final saved = await store.save(
+                ProfileSelection.choose(
+                  latest,
+                  material: material,
+                  colour: colour,
+                ),
+              );
+              ref.read(designsRevisionProvider.notifier).changed();
+              final priced = await ref.priceNow(saved);
+              return priced == null ? null : (saved, priced);
+            },
     );
   }
 

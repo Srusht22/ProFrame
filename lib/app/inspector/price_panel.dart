@@ -5,10 +5,12 @@ import '../../domain/pricing/design_price_state.dart';
 import '../../domain/pricing/measurement.dart';
 import '../../domain/pricing/price_readiness.dart';
 import '../../domain/pricing/price_result.dart';
+import '../../domain/pricing/profile_selection.dart';
 import '../state/pricing.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'price_actions.dart';
+import 'profile_chooser.dart';
 
 /// What the design open comes to, under **Price** in its own panel.
 ///
@@ -29,6 +31,7 @@ class PricePanel extends ConsumerStatefulWidget {
   static const breakdownKey = ValueKey('price-breakdown');
   static const calculateKey = ValueKey('price-calculate');
   static const stateKey = ValueKey('price-state');
+  static const profileKey = ValueKey('price-profile');
   static const previousKey = ValueKey('price-previous');
   static const migratedKey = ValueKey('price-migrated');
 
@@ -74,16 +77,25 @@ class PricePanel extends ConsumerStatefulWidget {
 /// Calculates the price of the design open in the workspace, keeps it, and
 /// shows it: what **Calculate price** does, on the bar and in the panel.
 Future<void> calculateOpenDesign(BuildContext context, WidgetRef ref) async {
+  final controller = ref.read(workspaceProvider.notifier);
   final design = ref.read(workspaceProvider).design;
   // Kept as it is — nothing in it changed — so its card shows the price
   // just calculated.
-  await ref.read(workspaceProvider.notifier).keep();
-  final record = await ref.calculatePrice(design);
-  if (record == null || !context.mounted) return;
+  await controller.keep();
+  final result = await ref.priceNow(design);
+  if (result == null || !context.mounted) return;
   await DesignPriceSheet.show(
     context,
-    name: design.shownName,
-    result: record.result,
+    design: design,
+    result: result,
+    onChoose: (ref, material, colour) async {
+      final controller = ref.read(workspaceProvider.notifier)
+        ..chooseProfile(material: material, colour: colour);
+      await controller.keep();
+      final now = ref.read(workspaceProvider).design;
+      final priced = await ref.priceNow(now);
+      return priced == null ? null : (now, priced);
+    },
   );
 }
 
@@ -132,6 +144,15 @@ class _PricePanelState extends ConsumerState<PricePanel> {
     final unsupported = ref.watch(
       workspaceProvider.select((s) => s.design.isUnsupported),
     );
+    // The profile its price reads: the frame's finish, and whether it was
+    // chosen.
+    ref.watch(
+      workspaceProvider.select(
+        (s) => (s.design.frame?.finish, s.design.profileChosen),
+      ),
+    );
+    final design = ref.read(workspaceProvider).design;
+    final list = ref.watch(priceListProvider).value;
     final text = Theme.of(context).textTheme;
     final p = context.palette;
     final result = state?.isCurrent ?? false ? state!.record!.result : null;
@@ -143,6 +164,20 @@ class _PricePanelState extends ConsumerState<PricePanel> {
       children: [
         Text('PRICE', style: text.labelLarge),
         const SizedBox(height: 6),
+        // What the design is made of, chosen here as in the frame's own
+        // panel: the material and colour whose rates its price reads.
+        if (list != null && design.frame != null && !unsupported) ...[
+          ProfileChooser(
+            key: PricePanel.profileKey,
+            selection: ProfileSelection.of(design),
+            current: design.frame!.finish,
+            list: list,
+            onChanged: (material, colour) => ref
+                .read(workspaceProvider.notifier)
+                .chooseProfile(material: material, colour: colour),
+          ),
+          const SizedBox(height: 10),
+        ],
         if (state == null)
           Text('Reading the price list…', style: text.bodySmall)
         else ...[
