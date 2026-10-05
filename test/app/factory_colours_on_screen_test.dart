@@ -8,6 +8,7 @@ import 'package:proframe/app/screens/customer_finance.dart';
 import 'package:proframe/app/screens/customer_screen.dart';
 import 'package:proframe/app/screens/factory_colours.dart';
 import 'package:proframe/app/screens/factory_prices_screen.dart';
+import 'package:proframe/app/state/access.dart';
 import 'package:proframe/app/state/pricing.dart';
 import 'package:proframe/domain/model/materials.dart';
 import 'package:proframe/domain/pricing/colour_catalog.dart';

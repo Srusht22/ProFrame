@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../model/customer_discount.dart';
 import '../model/design.dart';
 import '../model/payment.dart';
 import 'measurement.dart';
@@ -99,16 +100,26 @@ abstract final class PriceInputs {
     'arrows',
   };
 
-  static String of(Design design, PriceList list) {
+  static String of(Design design, PriceList list) =>
+      _key(jsonEncode({'design': _priced(design), 'list': list.toJson()}));
+
+  /// The design alone, without the price list: what changes when the
+  /// design is edited and never when the workshop's rates are — so a
+  /// quotation can say *the design changed* apart from *the prices did*.
+  static String ofDesign(Design design) =>
+      _key(jsonEncode({'design': _priced(design)}));
+
+  static Map<String, Object?> _priced(Design design) {
     final kept = Map<String, Object?>.of(design.toJson())
       ..removeWhere((key, _) => _notRead.contains(key));
     if (kept['pricing'] case final Map<String, Object?> choices) {
       kept['pricing'] = Map<String, Object?>.of(choices)..remove('snapshot');
     }
-    final text = jsonEncode({'design': kept, 'list': list.toJson()});
-    return '${_fnv(text, 0x811C9DC5)}${_fnv(text, 0x050C5D1F)}'
-        '-${text.length}';
+    return kept;
   }
+
+  static String _key(String text) =>
+      '${_fnv(text, 0x811C9DC5)}${_fnv(text, 0x050C5D1F)}-${text.length}';
 
   /// FNV-1a over the text's code units, 32 bits, written the same on every
   /// platform: the multiply is split so no step leaves the 53 bits a web
@@ -322,6 +333,11 @@ class CustomerDesignPrice {
   /// What the colour is called, by the price list it was priced from.
   final String colourName;
 
+  /// The design as it now is, without the price list
+  /// (`PriceInputs.ofDesign`) — what a quotation keeps to say later whether
+  /// the design changed after it was quoted.
+  final String designKey;
+
   const CustomerDesignPrice({
     required this.designId,
     required this.name,
@@ -329,6 +345,7 @@ class CustomerDesignPrice {
     required this.state,
     this.profile = ProfileSelection.notChosen,
     this.colourName = 'Not selected',
+    this.designKey = '',
   });
 }
 
@@ -373,6 +390,7 @@ class CustomerPricing {
         state: DesignPriceState.of(d, list, record, engine: engine),
         profile: ProfileSelection.of(d),
         colourName: ProfileSelection.of(d).colourName(list),
+        designKey: PriceInputs.ofDesign(d),
       ),
   ], list.currency);
 
@@ -474,20 +492,30 @@ enum PaymentStatus {
   final String label;
 }
 
-/// A customer's money: what their designs come to, what the ledger says
-/// they have paid, and what is due — or in credit.
+/// A customer's money: what their designs come to, less any discount, what
+/// the ledger says they have paid, and what is due — or in credit.
 ///
 /// ```
-/// Design prices ─ CustomerPricing ─ total price ─┐
-/// Customer.payments ─ PaymentLedger ─ net paid ──┴─ CustomerFinance
-///                                                    (balance: due or credit)
+/// Design prices ─ CustomerPricing ─ subtotal ─ discount ─ final total ─┐
+/// Customer.payments ─ PaymentLedger ─ net paid ─────────────────────────┴─
+///                                      CustomerFinance (due or credit)
 /// ```
 ///
-/// - Gross payments = every payment; gross refunds = every refund.
+/// - Subtotal = the designs' current prices, summed.
+/// - Discount = what the customer's discount takes off the subtotal.
+/// - Final total = subtotal − discount.
+/// - Gross payments = every payment; gross refunds = every refund — each
+///   counted in the customer's currency: recorded in it, or converted into
+///   it at a rate kept with it. Money in another currency with no rate is
+///   never added; it is listed in its own ([otherCurrencies]).
 /// - Net paid = gross payments − gross refunds.
-/// - Balance = total price − net paid: more than nothing is **due**, less
+/// - Balance = final total − net paid: more than nothing is **due**, less
 ///   than nothing is **credit**, nothing is **paid in full**. Neither is
 ///   ever written as a negative figure.
+///
+/// A discount is not a payment and a payment is not a discount: one lowers
+/// what is owed, the other is money received. A quotation is neither — it
+/// is what was offered, kept as it was (`Quotation`), and adds nothing.
 ///
 /// The total is never typed and never kept: it is [CustomerPricing]'s. What
 /// was paid is never kept either: it is the ledger's, summed. Everything is
@@ -497,11 +525,18 @@ class CustomerFinance {
   final CustomerPricing pricing;
   final PaymentLedger ledger;
 
-  const CustomerFinance._(this.pricing, this.ledger);
+  /// The customer's discount in force, if any.
+  final CustomerDiscount? discount;
 
-  static CustomerFinance of(CustomerPricing pricing, PaymentLedger ledger) =>
-      CustomerFinance._(pricing, ledger);
+  const CustomerFinance._(this.pricing, this.ledger, this.discount);
 
+  static CustomerFinance of(
+    CustomerPricing pricing,
+    PaymentLedger ledger, {
+    CustomerDiscount? discount,
+  }) => CustomerFinance._(pricing, ledger, discount);
+
+  /// The customer's currency: the one their designs are priced in.
   String get currency => pricing.currency;
 
   int get grossPaymentsCents => ledger.grossPaymentsCents(currency);
@@ -512,15 +547,42 @@ class CustomerFinance {
   double get grossRefunds => grossRefundsCents / 100;
   double get netPaid => netPaidCents / 100;
 
-  /// Transactions in a currency other than the prices': not counted, and
-  /// said. There is one currency, so there are none unless the price list's
-  /// currency is changed.
+  /// How many transactions are in a currency that cannot be counted in
+  /// [currency] — recorded in another, with no rate. Not counted, and said.
   int get otherCurrency => ledger.otherCurrencyCount(currency);
 
-  double? get total => pricing.total;
+  /// That money, currency by currency.
+  List<CurrencyTotals> get otherCurrencies => ledger.uncountedIn(currency);
 
-  /// The total less the net paid, in whole cents, where the total is final.
-  int? get balanceCents => switch (pricing.totalCents) {
+  /// The designs' prices summed, where final.
+  int? get subtotalCents => pricing.totalCents;
+
+  double? get subtotal => subtotalCents == null ? null : subtotalCents! / 100;
+
+  /// What the discount takes off the subtotal, where it is final.
+  int? get discountCents => switch (subtotalCents) {
+    final s? => discount?.offCents(s, currency) ?? 0,
+    null => null,
+  };
+
+  /// Whether a fixed discount is now more than the subtotal it was given
+  /// against — it takes the whole subtotal and no more, and is said.
+  bool get discountExceedsSubtotal => switch (subtotalCents) {
+    final s? => discount?.exceeds(s) ?? false,
+    null => false,
+  };
+
+  /// What the customer owes for their designs: the subtotal less the
+  /// discount, where final.
+  int? get totalCents => switch (subtotalCents) {
+    final s? => s - discountCents!,
+    null => null,
+  };
+
+  double? get total => totalCents == null ? null : totalCents! / 100;
+
+  /// The final total less the net paid, in whole cents, where it is final.
+  int? get balanceCents => switch (totalCents) {
     final t? => t - netPaidCents,
     null => null,
   };
@@ -549,11 +611,13 @@ class CustomerFinance {
   };
 
   PaymentStatus get status {
-    final t = pricing.totalCents;
+    final t = totalCents;
     if (t == null) return PaymentStatus.pricingIncomplete;
     final balance = t - netPaidCents;
     if (balance > 0) return PaymentStatus.outstanding;
     if (balance < 0) return PaymentStatus.credit;
-    return t == 0 ? PaymentStatus.nothingToPay : PaymentStatus.paidInFull;
+    return t == 0 && netPaidCents == 0
+        ? PaymentStatus.nothingToPay
+        : PaymentStatus.paidInFull;
   }
 }

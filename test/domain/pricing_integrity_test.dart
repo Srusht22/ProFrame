@@ -87,6 +87,8 @@ Map<String, Object?> firstEngineList() => {
   'installation': {'fixed': 20000, 'perSquareMetre': 8000},
 };
 
+// Since Phase 31 the store asks who records money (`by:`); these record as
+// the device with no staff accounts, which may (`WorkshopRole.staff`).
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -585,7 +587,7 @@ void main() {
       final adam = await people.create(name: 'Adam');
       final payment = paid(500).transactions.single;
       await people.record(
-        PaymentTransaction.fromJson(payment.toJson(), customerId: adam.id)!,
+        PaymentTransaction.fromJson(payment.toJson(), customerId: adam.id)!, by: WorkshopRole.staff,
       );
       final back = await CustomerStore().load(adam.id);
       expect(back!.ledger.netPaidCents('USD'), 50000);

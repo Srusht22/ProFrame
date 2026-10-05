@@ -6,14 +6,10 @@ import '../../domain/pricing/price_list.dart';
 import '../../domain/pricing/price_list_fields.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../infrastructure/owner_access_store.dart';
+import '../state/access.dart';
 import '../state/pricing.dart';
 import '../theme/app_theme.dart';
 import 'factory_colours.dart';
-
-/// Where the owner's PIN is kept.
-final ownerAccessStoreProvider = Provider<OwnerAccessStore>(
-  (ref) => OwnerAccessStore(),
-);
 
 /// **Factory prices** on the customers' header: the workshop's price list.
 class FactoryPricesButton extends StatelessWidget {
@@ -186,18 +182,16 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
     if (!mounted) return;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => _OwnerPinDialog(store: store, setting: !hasPin),
+      builder: (_) => OwnerPinDialog(store: store, setting: !hasPin),
     );
-    if (ok ?? false) {
-      ref.read(workshopRoleProvider.notifier).become(WorkshopRole.owner);
-    }
+    if (ok ?? false) ref.signInAsOwner();
   }
 
   @override
   Widget build(BuildContext context) {
     final list = ref.watch(priceListProvider).value;
     final role = ref.watch(workshopRoleProvider);
-    final owner = role.canConfigurePrices;
+    final owner = ref.watch(actorProvider).can(Capability.pricingEdit);
     final p = context.palette;
     final text = Theme.of(context).textTheme;
     if (list != null && !identical(list, _shown)) _fill(list, keepEdits: true);
@@ -207,14 +201,12 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
       appBar: AppBar(
         title: const Text('Factory prices'),
         actions: [
-          if (owner)
+          if (role == WorkshopRole.owner)
             TextButton.icon(
               key: FactoryPricesScreen.lockKey,
               // The bar's own lettering, on the bar's green.
               style: TextButton.styleFrom(foregroundColor: p.onBand),
-              onPressed: () => ref
-                  .read(workshopRoleProvider.notifier)
-                  .become(WorkshopRole.staff),
+              onPressed: ref.signOut,
               icon: const Icon(Icons.lock_outline),
               label: const Text('Lock'),
             ),
@@ -372,17 +364,18 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
 }
 
 /// Asks for the owner's PIN — or, where none is set yet, has it set.
-class _OwnerPinDialog extends StatefulWidget {
+/// The owner's PIN: set the first time, asked for after.
+class OwnerPinDialog extends StatefulWidget {
   final OwnerAccessStore store;
   final bool setting;
 
-  const _OwnerPinDialog({required this.store, required this.setting});
+  const OwnerPinDialog({super.key, required this.store, required this.setting});
 
   @override
-  State<_OwnerPinDialog> createState() => _OwnerPinDialogState();
+  State<OwnerPinDialog> createState() => _OwnerPinDialogState();
 }
 
-class _OwnerPinDialogState extends State<_OwnerPinDialog> {
+class _OwnerPinDialogState extends State<OwnerPinDialog> {
   final _pin = TextEditingController();
   final _again = TextEditingController();
   String? _problem;
@@ -432,8 +425,9 @@ class _OwnerPinDialogState extends State<_OwnerPinDialog> {
         Text(
           widget.setting
               ? 'No owner PIN is set on this device. The PIN you set now is '
-                    'what unlocks the factory prices from here on.'
-              : 'Enter the owner PIN to change the factory prices.',
+                    'what signs the owner in from here on — to change the '
+                    'factory prices, give discounts and manage staff.'
+              : 'Enter the owner PIN.',
         ),
         const SizedBox(height: 12),
         TextField(

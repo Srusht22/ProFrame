@@ -1,4 +1,6 @@
+import 'customer_discount.dart';
 import 'payment.dart';
+import 'receipt.dart';
 
 /// A person the workshop draws for.
 ///
@@ -41,6 +43,15 @@ class Customer {
   /// the old figure is not.
   final List<PaymentTransaction> payments;
 
+  /// Every discount given and taken away, oldest first — the one in force
+  /// is the last, unless it was a removal (`DiscountLog.inForce`). Nothing
+  /// is removed from it.
+  final List<CustomerDiscount> discounts;
+
+  /// The receipts issued for the customer's payments, one at most a
+  /// payment. Nothing is removed from it.
+  final List<Receipt> receipts;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -53,10 +64,19 @@ class Customer {
     this.address = '',
     this.notes = '',
     this.payments = const [],
+    this.discounts = const [],
+    this.receipts = const [],
   });
 
   /// The customer's payments and refunds, and what they come to.
   PaymentLedger get ledger => PaymentLedger(payments);
+
+  /// The discount in force, if any.
+  CustomerDiscount? get discount => discounts.inForce;
+
+  /// The receipt issued for the payment [transactionId], if one was.
+  Receipt? receiptFor(String transactionId) =>
+      receipts.where((r) => r.transactionId == transactionId).firstOrNull;
 
   /// [name] said the same way twice, whatever the spacing and the case —
   /// how the application recognises the person a design was typed as being
@@ -72,6 +92,8 @@ class Customer {
     String? address,
     String? notes,
     List<PaymentTransaction>? payments,
+    List<CustomerDiscount>? discounts,
+    List<Receipt>? receipts,
     DateTime? updatedAt,
   }) => Customer(
     id: id,
@@ -80,6 +102,8 @@ class Customer {
     address: address ?? this.address,
     notes: notes ?? this.notes,
     payments: payments ?? this.payments,
+    discounts: discounts ?? this.discounts,
+    receipts: receipts ?? this.receipts,
     createdAt: createdAt,
     updatedAt: updatedAt ?? DateTime.now(),
   );
@@ -117,6 +141,9 @@ class Customer {
     if (address.isNotEmpty) 'address': address,
     if (notes.isNotEmpty) 'notes': notes,
     if (payments.isNotEmpty) 'payments': [for (final t in payments) t.toJson()],
+    if (discounts.isNotEmpty)
+      'discounts': [for (final d in discounts) d.toJson()],
+    if (receipts.isNotEmpty) 'receipts': [for (final r in receipts) r.toJson()],
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
   };
@@ -134,6 +161,11 @@ class Customer {
         final List<Object?> kept => _ledgerOf(kept, id),
         _ => _legacyOf(map['paid'], id, updatedAt),
       },
+      discounts: [
+        if (map['discounts'] case final List<Object?> kept)
+          for (final d in kept) ?CustomerDiscount.fromJson(d),
+      ],
+      receipts: _receiptsOf(map['receipts'], id),
       createdAt: DateTime.parse(map['createdAt']! as String),
       updatedAt: updatedAt,
     );
@@ -146,6 +178,21 @@ class Customer {
     for (final raw in kept) {
       final t = PaymentTransaction.fromJson(raw, customerId: id);
       if (t != null && out.every((o) => o.id != t.id)) out.add(t);
+    }
+    return List.unmodifiable(out);
+  }
+
+  /// The receipts kept, each read — one that cannot be read, or repeats a
+  /// number or a payment, is passed over.
+  static List<Receipt> _receiptsOf(Object? kept, String id) {
+    final out = <Receipt>[];
+    if (kept is! List) return out;
+    for (final raw in kept) {
+      final r = Receipt.fromJson(raw, customerId: id);
+      if (r == null) continue;
+      if (out.any((o) => o.number == r.number)) continue;
+      if (out.any((o) => o.transactionId == r.transactionId)) continue;
+      out.add(r);
     }
     return List.unmodifiable(out);
   }

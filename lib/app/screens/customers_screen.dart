@@ -10,6 +10,7 @@ import 'customer_screen.dart';
 import 'factory_prices_screen.dart';
 import 'new_customer_screen.dart';
 import 'new_design_screen.dart';
+import 'staff_screen.dart';
 
 /// The two letters a customer is known by at a glance: the first letter of
 /// each of the first two words of [name], or its first letter alone.
@@ -336,6 +337,7 @@ class _Header extends StatelessWidget {
               ),
             ),
             if (phone) ...[
+              const AccountButton(colour: AppTheme.accent),
               const FactoryPricesButton(colour: AppTheme.accent),
               const AppearanceButton(colour: AppTheme.accent),
             ],
@@ -433,6 +435,10 @@ class _Header extends StatelessWidget {
                         children: [
                           Expanded(child: title),
                           const SizedBox(width: 16),
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 6),
+                            child: AccountButton(colour: AppTheme.accent),
+                          ),
                           const Padding(
                             padding: EdgeInsets.only(bottom: 6),
                             child: FactoryPricesButton(

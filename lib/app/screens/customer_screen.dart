@@ -5,11 +5,13 @@ import '../../domain/model/customer.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/new_design_setup.dart';
 import '../../domain/pricing/design_price_state.dart';
+import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/profile_selection.dart';
 import '../../infrastructure/design_store.dart';
 import '../inspector/price_actions.dart';
 import '../inspector/price_panel.dart';
 import '../inspector/profile_chooser.dart';
+import '../state/access.dart';
 import '../state/pricing.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -1272,7 +1274,9 @@ class CardPriceValue extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(keptDesignPriceProvider(designId)).value?.state;
     final p = context.palette;
+    final allowed = ref.watch(actorProvider).can(Capability.pricingView);
     final words = switch (state) {
+      _ when !allowed => 'Price: hidden',
       null => 'Price: …',
       _ when state.total != null =>
         'Price: ${PricePanel.money(state.total!, state.record!.result.currency)}',
@@ -1297,7 +1301,7 @@ class CardPriceValue extends ConsumerWidget {
       style: TextStyle(
         fontSize: 12.5,
         fontWeight: FontWeight.w700,
-        color: state?.total != null ? p.ink : p.muted,
+        color: allowed && state?.total != null ? p.ink : p.muted,
         fontFeatures: const [FontFeature.tabularFigures()],
       ),
     );
@@ -1357,6 +1361,7 @@ class CardPriceButton extends ConsumerWidget {
       state: kept?.state,
       label: 'Price',
       withIcon: false,
+      allowed: ref.watch(actorProvider).can(Capability.pricingView),
       onPressed: () => _price(context, ref, kept!),
     );
   }

@@ -6271,9 +6271,10 @@ Everything is in `lib/domain/pricing/`, and no widget holds a figure.
   (`PriceListStore`, `proframe.pricelist.v2`, a list the first engine kept
   under `proframe.pricelist.v1` read and migrated — see *Pricing
   integrity*; `WorkshopRole`).
-  ProFrame has no sign-in, so the device starts each run as staff, who can
-  price but not change prices; the owner unlocks the price editor with the
-  owner's PIN — see *What a design is made of, and the factory's prices*.
+  Every run starts with nobody signed in, who can price but not change
+  prices; the owner signs in with the owner's PIN — see *What a design is
+  made of, and the factory's prices* — and since Phase 31 the list's store
+  itself refuses anybody without `pricing.edit` (*Financial records*).
   Until the owner keeps a
   list, the example list (`PriceList.starter`, which is
   `DefaultFactoryPricing.list` — the one place its figures are written —
@@ -6557,7 +6558,9 @@ version kept it.* Each fault is fixed where the fact it depends on lives.
   `rollersPerSlidingPanel` rollers (the list's, 2 unless the owner says
   otherwise) at `rollerEach`; a fixed panel on none.
 - **Discounts** are applied by the engine and kept in the design, but
-  nothing on the screen gives one yet; that is a later screen.
+  nothing on the screen gives a design one. The discount the screen gives
+  (Phase 31) is the customer's, off the sum of their designs — see
+  *Financial records*.
 - **Payment** was one figure here; since Phase 30 it is a ledger of
   payments and refunds, and paying more than a final total is credit (see
   *A customer's payments, refunds and credit*).
@@ -6670,12 +6673,14 @@ PriceList ─ RateField ──────┘            (owner-only, kept by Pr
   **Unlock as owner**; the owner edits, an empty optional figure is *not
   priced*, a figure below nothing or a part roller is refused, and **Keep
   prices** keeps a new version — every price worked out from the old one
-  then needs recalculating. **Lock** returns to staff, and every run starts
-  as staff.
+  then needs recalculating. **Lock** signs the owner out, and every run
+  starts with nobody signed in.
 - **The owner's PIN** (`OwnerAccessStore`) is set the first time the
   editor is unlocked and asked for after; only a salted SHA-256 of it is
   kept. It is a lock on a screen, not security: anyone who can clear the
-  device's storage can set a new one. Accounts would replace it.
+  device's storage can set a new one. Since Phase 31 it is how the owner
+  signs in from the customers' header, and staff have PINs of their own
+  (*Financial records*).
 - **Areas are written to four places** (`SquareMetres.label`, *1.4296
   m²*), so the area written times its rate is the line's amount to the
   cent for any rate up to 100 a square metre — *1.43 m² × 45.00* read as
@@ -6694,7 +6699,9 @@ PriceList ─ RateField ──────┘            (owner-only, kept by Pr
   history, a manual price override, and paging the customer's summary.
   Adding, editing and retiring named colours came in Phase 29 (*The
   factory's colour catalog*); payment history, credit and refunds in Phase
-  30 (*A customer's payments, refunds and credit*).
+  30 (*A customer's payments, refunds and credit*); a customer's discount,
+  quotations and paged history in Phase 31 (*Financial records*). A
+  manual price override is still not offered.
 
 `test/domain/material_and_colour_pricing_test.dart` holds it under the
 brief's numbers: **38** uPVC and aluminium at their own rates, equal rates
@@ -6960,18 +6967,17 @@ CustomerPricing (designs' current prices) ─ CustomerFinance ─ balance
   The next time the customer is kept the ledger is written and `paid` is
   not; from then on the record holds the ledger alone. A figure that is
   not one, or nothing, is no payment.
-- **Permissions, as they are.** Whoever can open and edit a customer can
-  record a payment or a refund, as whoever can edit a design can choose its
-  material. The owner's pricing PIN (*What a design is made of*) is a lock
-  on the price list, not on a customer's money, and it is not reused here.
-  ProFrame has no accounts, so a refund cannot be limited to one person;
-  that is a limitation, and accounts would add it.
+- **Permissions.** Since Phase 31 recording a payment needs
+  `payments.create` and a refund `payments.refund`, checked by
+  `CustomerStore.record` itself — see *Financial records*. A device with
+  no staff accounts may do both, as it always could.
 - **Payments touch nothing else.** Recording money writes the customer's
   record and nothing more — no design, no price record, no price list —
   and the total is still the designs' current prices.
-- **Not here, as the brief says**: receipts, discounts, quotations, editing
-  or deleting a transaction, more than one currency (a transaction in
-  another currency is not added and is said), and paging the history.
+- **Not here, as the brief says**: receipts, discounts, quotations, more
+  than one currency and paging the history — all of which came in Phase 31
+  (*Financial records*) — and editing or deleting a transaction, which is
+  still never done.
 
 `test/domain/payment_history_test.dart` holds it under the brief's numbers:
 the scenarios **A–F** (600 due; paid in full; 200 credit; a refund after
@@ -7009,6 +7015,159 @@ a ledger, and more than the total is credit where it was refused;
 to the top of the customer's page before looking for a card, because the
 history under the cards puts the foot of the page further from them than
 the list keeps built.
+
+### Financial records: discounts, quotations, receipts, currencies and staff permissions
+
+The brief: *a customer's discount, quotations whose prices never move,
+one receipt per payment, a payment history that pages, every transaction
+in its own currency, and permissions checked where the money is written —
+extending what is there, never a second engine, and never touching the
+geometry or the pricing engine.*
+
+```
+Customer ─ payments (ledger) ─ receipts (one a payment) ─ discounts (log)
+    │                                  ▲ RCP sequence          │ inForce
+    │                                  │                       ▼
+    └─ designs' current prices ─ CustomerPricing ─ CustomerFinance
+                                    │                (subtotal, discount,
+                                    ▼                 final total, due, credit)
+                      Quotation (snapshot of each design's PriceResult)
+Authority (owner | staff member | nobody) ─ require(Capability) ─ every store that writes money
+```
+
+- **Nothing new prices anything.** A design's price is still the engine's
+  (`PricingEngine`) and kept as `PriceRecord`. The customer's discount,
+  a quotation and a payment are read from those prices and write none of
+  them, no design and no geometry.
+- **A customer's discount** (`CustomerDiscount`,
+  `lib/domain/model/customer_discount.dart`) is a **percentage** or a
+  **fixed amount**, kept on the customer as a log (`Customer.discounts`) with
+  its id (`DSC-20261005-0001`), kind, value, currency, who gave it, when and
+  a note. Only the latest entry is in force (`DiscountLog.inForce`); a new
+  one replaces it and a removal entry takes it away, so one discount is
+  ever applied, never two, and nothing is deleted. A percentage is held in
+  hundredths of a percent and taken off half a cent up; a fixed amount in
+  cents. Checked before it is kept (`problemWith`): nothing or below
+  nothing refused, a percentage over 100% refused, a fixed amount over the
+  subtotal refused, and a fixed amount while the total is not final refused
+  — there is no final subtotal to take it from. What it takes is never more
+  than the subtotal, so the final total is never below nothing; a fixed
+  discount in another currency takes nothing. The summary shows
+  **Subtotal**, **Discount (10%)** and **Final total** once one is in
+  force; with none, **Total price** as before. Given from **Discount** on
+  the summary (`DiscountDialog`), which shows the result as it is typed.
+- **A quotation** (`Quotation`, `lib/domain/pricing/quotation.dart`, kept by
+  `QuotationStore` under `proframe.quotation.v1.<id>` with an index a
+  customer) is numbered from a sequence that never repeats (`Q-000001`). It
+  holds, for each design chosen, the name, category, material, colour, the
+  total and the **whole `PriceResult` as it stood** — the snapshot —
+  with the design's inputs (`PriceInputs.ofDesign`), the subtotal, the
+  discount then in force and what it took, the final total, the currency,
+  the price list's version, notes, who made it, and a history of its
+  statuses. Nothing re-prices it: a design or a rate changed afterwards
+  leaves it exactly as made, and its sheet says *Design changed after
+  quotation* against each design whose inputs now differ. Only a design
+  whose price is current can be quoted: **New quotation** prices a complete
+  design not yet calculated first, and refuses one that is incomplete with
+  *Please complete all selected designs before creating the quotation.*,
+  naming it. Its status — **Draft**, **Issued**, **Accepted**, **Rejected**,
+  **Expired** — moves only forward (`QuotationStatus.next`); a quotation is
+  never edited or deleted. The summary lists them five at a time with
+  **Load more**.
+- **A receipt** (`Receipt`, `lib/domain/model/receipt.dart`) is one actual
+  payment's: `RCP-000001`, numbered from a workshop-wide sequence
+  (`proframe.receipt-sequence.v1`) that is read and written in one step and,
+  where it is missing, starts past the highest number any customer holds,
+  so a number is never reused. It keeps the transaction's id, the amount,
+  the currency and any conversion, the day paid, the method, the note, the
+  balance after this payment as it stood at that moment, and who issued it.
+  It is kept on the customer (`Customer.receipts`), so it cannot outlive
+  its payment. `CustomerStore.issueReceipt` returns the one already issued
+  for a payment rather than a second; a refund has none. **Issue a
+  receipt** is ticked in the payment dialog for whoever may issue one, and
+  a payment without one has **Issue receipt** on its row. The receipt's
+  sheet is the receipt; there is no print or PDF yet.
+- **The history pages** (`PaymentLedger.page`, ten at a time, newest
+  first, **Load more (N more)**), and says *No payment history yet.* when
+  empty. Every total is worked out from the whole ledger, never the page
+  shown.
+- **Every transaction keeps its currency, and currencies are never added
+  together.** The payment dialog offers the list's currency and others
+  (`Currencies.offeredWith`). A payment in another currency counts towards
+  the customer's figures **only with an exchange rate given when it was
+  recorded** (`Conversion`: the rate and the converted cents, stored with
+  the transaction and never worked out again). Without one it is kept in
+  its own currency and the summary says so: *Other currencies — not
+  included in the USD total*, each currency's net, and why. A refund in
+  such a currency is limited by what was paid in it.
+- **Permissions are capabilities, checked where the record is written**
+  (`Capability`, `Authority`, `lib/domain/pricing/pricing_access.dart`):
+  `pricing.view`, `pricing.edit`, `financial.view`, `discounts.apply`,
+  `quotations.view` / `.create` / `.edit`, `payments.view` / `.create` /
+  `.refund`, `receipts.view` / `.create`, `users.manage`,
+  `permissions.manage`. `PriceListStore.save`, `CustomerStore.record`,
+  `.issueReceipt`, `.applyDiscount`, `QuotationStore.create`, `.setStatus`
+  and every `StaffStore` change take `by:` and call `require`, which throws
+  `AccessDenied`; the screens only follow what the stores already decide.
+  - **The owner** may do everything, signed in by the owner's PIN.
+  - **A member of staff** (`StaffMember`, kept by `StaffStore`, with a PIN
+    of their own, salted and hashed) may do what is ticked on their card on
+    **Staff & permissions** — starting at looking and nothing more — and is
+    given nothing beyond what whoever gives it holds. Taken off **Active**,
+    they may do nothing.
+  - **Nobody signed in**, once any member of staff is active, may only
+    look (`Capability.viewOnly`). With no staff accounts the device does
+    what it always could (`Capability.standard`: record money, issue
+    receipts and quotations), so nothing changed for a workshop that adds
+    nobody; discounts, the price list and staff stay the owner's.
+  - The account button on the customers' header (`AccountButton`) says who
+    is signed in, signs in the owner or a member of staff, opens **Staff &
+    permissions** for whoever may manage them, and signs out. Every run
+    starts with nobody signed in.
+  - **Not covered:** customers and designs are not behind capabilities;
+    anybody at the device may still add and edit them, as before. A PIN is
+    a lock on a device, not security.
+- **Nothing financial is deleted.** No transaction, receipt, discount entry
+  or quotation is ever removed or edited; a mistake is put right by a
+  refund, a new discount or a new quotation. `CustomerStore._keepNow`
+  merges the kept payments, discounts and receipts into whatever is saved,
+  so a stale copy of a customer cannot drop one.
+- **Older records load as they were.** A customer kept without discounts or
+  receipts has none; a transaction without a conversion counts only in its
+  own currency, as Phase 30 already said; a capability this version does
+  not know is passed over. The price list's format did not change, so
+  nothing kept is migrated or rewritten.
+
+`test/domain/financial_records_test.dart` holds it under the brief's
+numbers: **40** A 500 + B 700 + C 300 = 1,500, 10% off is 150, the final
+total 1,350, 500 + 400 paid and 450 remaining; a fixed 75 off 1,000; every
+discount check; one in force and a removal; kept through a reload; **44**
+a quotation of 500 less 50 = 450 kept at 450 after the price becomes 700,
+while a new one is 650; *Design changed after quotation*; **13** an
+incomplete design refused by name; the statuses; the sequence; **43** a
+receipt for 250 against 1,000 with 750 left; **17** three payments and
+three receipts; numbers never reused across customers; **45** 25
+transactions ten at a time, none twice, the totals the same whatever is
+loaded; **41** 500 USD and 200 EUR with no rate paying 500, then 100 EUR
+at 1.10 counting as 110; **42** the owner, the device with no accounts,
+nobody signed in, staff refused by the stores and staff permitted; staff
+given only what the giver holds; older records; and no design price moved.
+`test/app/financial_records_on_screen_test.dart` holds it on the real app:
+a 10% discount, a payment with its receipt, two currencies, a quotation
+made and issued, nobody signed in only looking, a cashier signed in and
+recording a payment, the owner adding a member of staff and ticking a
+permission, and the summary, the dialogs and the sheets at a phone, a
+tablet and a laptop.
+
+Seven older tests moved with it and say so where they do:
+`payment_history_test`, `pricing_integrity_test` and
+`payment_history_on_screen_test` say who records each payment (`by:`), and
+the last pages its history with **Load more** where it had **Show all**;
+`factory_colours_on_screen_test` and `material_and_colour_on_screen_test`
+read the owner's PIN store from `state/access.dart`; and
+`deleting_a_design_test` and `pricing_integrity_on_screen_test` return to
+the top of the customer's page before looking for a card, because the
+summary under the cards is longer.
 
 ## Working on this repository
 

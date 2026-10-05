@@ -1344,3 +1344,96 @@ customer's total summed whatever priced. Nothing recorded a payment.
 - One currency. A transaction recorded in another is not added and is
   said.
 
+
+## 36. Financial records, receipts, discounts, quotations, currencies and permissions (Phase 31)
+
+**Audited first.** Phase 30 left a customer's money as a ledger of
+payments and refunds on the customer (`Customer.payments`,
+`PaymentLedger`), one currency, `CustomerFinance` working out what is due,
+and one permission anywhere — `WorkshopRole` with the owner's PIN guarding
+the price list, checked by the price editor's screen and by
+`PriceListStore.save`. The pricing engine priced designs; nothing priced a
+customer's discount, kept a quotation or issued a receipt. Everything
+below extends those pieces: the ledger gained a currency conversion and
+paging, `CustomerFinance` a discount, `WorkshopRole` became one
+`Authority` among several, and the engine is untouched.
+
+**Built.**
+- `Capability`, `Authority`, `AccessDenied` (`pricing_access.dart`); the
+  owner, `StaffMember` (`staff.dart`, kept by `StaffStore` with a salted,
+  hashed PIN) and `NobodySignedIn`. Every store that writes money takes
+  `by:` and requires the capability: `PriceListStore.save`
+  (`pricing.edit`), `CustomerStore.record` (`payments.create` /
+  `payments.refund`), `.issueReceipt` (`receipts.create`), `.applyDiscount`
+  (`discounts.apply`), `QuotationStore.create` / `.setStatus`
+  (`quotations.create` / `.edit`), `StaffStore` (`users.manage`,
+  `permissions.manage`). `actorProvider` says who is at the device; the
+  account button on the customers' header signs in and out; **Staff &
+  permissions** ticks capabilities.
+- `CustomerDiscount` and its log on the customer; `CustomerFinance`'s
+  subtotal, discount and final total; the **Discount** dialog.
+- `Quotation` with the whole `PriceResult` of each design as a snapshot,
+  `QuotationStore` with its sequence and index; **New quotation**, the
+  quotation's sheet and its statuses.
+- `Receipt` on the customer, from a workspace-wide sequence; issued with a
+  payment or from its row; the receipt's sheet.
+- `Conversion` on a transaction; `CurrencyTotals` and the summary's box of
+  currencies not counted; `PaymentLedger.page` and **Load more**.
+
+**Found and settled on the way.**
+- A customer record saved from a copy read before a discount or a receipt
+  would have dropped it, exactly as Phase 30 found for payments.
+  `CustomerStore._keepNow` now merges discounts by id and receipts by
+  number as well as payments.
+- A receipt's number had to be unique across customers, and a device
+  whose sequence key was cleared would have started again at 1. The
+  sequence now starts past the highest number any customer holds when its
+  key is missing.
+- A fixed discount given while some design was unpriced had no subtotal to
+  be checked against. It is refused until the total is final; a percentage
+  can be given at any time.
+- The account menu said *Nobody signed in* on a device with no staff
+  accounts, which works as staff. It now says *No accounts yet — working
+  as staff*; *Nobody signed in* is kept for the view-only case.
+- The add-staff dialog did not submit on Enter from its last field; it
+  does now, as the owner's PIN dialog does.
+
+**Verified.**
+- `test/domain/financial_records_test.dart` (38) and
+  `test/app/financial_records_on_screen_test.dart` (9).
+- The full suite passes (2553) and `flutter analyze` is clean.
+- In the browser at 1440 × 900, Adam's two designs priced at 1,000.00 USD:
+  1. Signed in as owner; a 10% discount: Subtotal 1,000.00, Discount (10%)
+     −100.00, Final total 900.00, *Due 900.00 USD* on the bar.
+  2. $300 Cash with **Issue a receipt**: due 600.00, `RCP-000001` on the
+     row, its sheet saying 300.00 received, balance after 600.00 due,
+     issued by Owner for `PAY-20261005-0001`.
+  3. **New quotation** of both designs: `Q-000001`, 252.95 + 747.05 =
+     1,000.00, −100.00, 900.00, *Draft*; **Issue** making it *Issued*,
+     with both statuses in its history.
+  4. 100 EUR with no rate: kept as 100.00 EUR in *Other currencies — not
+     included in the USD total* with the reason, the USD figures
+     unchanged, `RCP-000002` issued.
+  5. **Staff & permissions**: Rawa added, starting at looking; *Record
+     payments* ticked. Signed out: Add payment and Refund disabled, no
+     Discount. Signed in as Rawa: Add payment enabled, Refund disabled, no
+     Discount, and no receipt box in the dialog.
+- At 390 × 844, the same customer: the summary, the box of currencies,
+  the history with both receipts and the quotation list on the screen,
+  nothing overflowing.
+
+**Not done.**
+- Customers and designs are not behind capabilities; anybody at the
+  device may still add and edit them.
+- No print or PDF of a receipt or a quotation; their sheets are the
+  documents.
+- No editing or deleting of a transaction, receipt, discount or
+  quotation, by design.
+- Exchange rates are typed when a payment is recorded; there is no rate
+  feed, and a rate is never changed afterwards.
+- A discount is the customer's; the engine's per-design discount still has
+  nothing on the screen.
+- The customer's ledger is read with the customer record, so paging is in
+  memory, not in storage.
+- A PIN is a lock on a device, not security: anyone who can clear its
+  storage can remove it.

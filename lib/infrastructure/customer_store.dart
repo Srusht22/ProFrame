@@ -3,7 +3,10 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/model/customer.dart';
+import '../domain/model/customer_discount.dart';
 import '../domain/model/payment.dart';
+import '../domain/model/receipt.dart';
+import '../domain/pricing/pricing_access.dart';
 
 /// What the list of customers needs to know about one customer: who, how
 /// to reach them by phone, and when they were last changed. The address
@@ -144,6 +147,10 @@ class CustomerStore {
   /// **A transaction kept is never dropped.** A customer saved from an
   /// older copy — a form opened before a payment was recorded — keeps every
   /// payment and refund already on the device: the ledger only grows.
+  ///
+  /// The same holds for the customer's discount log and their receipts:
+  /// each only grows, so a copy read before a discount was given or a
+  /// receipt issued keeps them when it is saved.
   Future<void> _keepNow(SharedPreferences prefs, Customer customer) {
     final kept = _loadNow(prefs, customer.id);
     if (kept != null) {
@@ -151,9 +158,23 @@ class CustomerStore {
       for (final t in kept.payments) {
         ledger = ledger.plus(t);
       }
-      if (ledger.transactions.length != customer.payments.length) {
+      final discounts = [
+        ...kept.discounts,
+        for (final d in customer.discounts)
+          if (!kept.discounts.any((k) => k.id == d.id)) d,
+      ];
+      final receipts = [
+        ...kept.receipts,
+        for (final r in customer.receipts)
+          if (!kept.receipts.any((k) => k.number == r.number)) r,
+      ];
+      if (ledger.transactions.length != customer.payments.length ||
+          discounts.length != customer.discounts.length ||
+          receipts.length != customer.receipts.length) {
         customer = customer.copyWith(
           payments: ledger.transactions,
+          discounts: discounts,
+          receipts: receipts,
           updatedAt: customer.updatedAt,
         );
       }
@@ -260,11 +281,24 @@ class CustomerStore {
   }
 
   /// Records [transaction] in the ledger of the customer it belongs to,
-  /// and returns the customer as kept — or null where that customer is not
-  /// kept. Read and written with nothing waited on in between, so two
-  /// recorded at once are both kept. A transaction whose id is already in
-  /// the ledger is not recorded twice. Nothing but the ledger changes.
-  Future<Customer?> record(PaymentTransaction transaction) async {
+  /// as asked [by], and returns the customer as kept — or null where that
+  /// customer is not kept.
+  ///
+  /// A payment needs `payments.create` and a refund `payments.refund`;
+  /// without it nothing is written and [AccessDenied] is thrown — whatever
+  /// screen, or none, asked. Read and written with nothing waited on in
+  /// between, so two recorded at once are both kept. A transaction whose id
+  /// is already in the ledger is not recorded twice. Nothing but the ledger
+  /// changes.
+  Future<Customer?> record(
+    PaymentTransaction transaction, {
+    required Authority by,
+  }) async {
+    by.require(
+      transaction.type == PaymentType.payment
+          ? Capability.paymentsCreate
+          : Capability.paymentsRefund,
+    );
     final prefs = await SharedPreferences.getInstance();
     final customer = _loadNow(prefs, transaction.customerId);
     if (customer == null) return null;
@@ -272,6 +306,107 @@ class CustomerStore {
     final now = customer.copyWith(
       payments: customer.ledger.plus(transaction).transactions,
     );
+    await _keepNow(prefs, now);
+    return now;
+  }
+
+  /// The sequence receipts are numbered from: the last number given.
+  static const receiptSequenceKey = 'proframe.receipt-sequence.v1';
+
+  /// The receipt for the payment [transactionId] of customer [customerId],
+  /// issued at [now] [by] whoever holds `receipts.create`, with the balance
+  /// as the caller worked it out — or the one already issued for it.
+  ///
+  /// **Issuing a receipt adds no money.** It reads the payment from the
+  /// ledger and writes a receipt beside it; the ledger is not touched, so
+  /// no total can change, and asking again gives back the same receipt
+  /// rather than a second.
+  ///
+  /// Its number is the sequence kept on the device, plus one — never how
+  /// many receipts there are, so no number is ever given twice. Where the
+  /// sequence has been lost, it starts after the highest number any
+  /// customer's receipt carries. Null where the customer, or the payment, is
+  /// not kept; a refund has no receipt ([ArgumentError]).
+  Future<Receipt?> issueReceipt({
+    required String customerId,
+    required String transactionId,
+    required Authority by,
+    required String currency,
+    required int? balanceAfterCents,
+    DateTime? now,
+  }) async {
+    by.require(Capability.receiptsCreate);
+    final prefs = await SharedPreferences.getInstance();
+    final customer = _loadNow(prefs, customerId);
+    if (customer == null) return null;
+    final payment = customer.payments
+        .where((t) => t.id == transactionId)
+        .firstOrNull;
+    if (payment == null) return null;
+    if (payment.type != PaymentType.payment) {
+      throw ArgumentError('A receipt is for a payment, not a refund.');
+    }
+    final existing = customer.receiptFor(transactionId);
+    if (existing != null) return existing;
+    final number = _lastReceiptNumber(prefs) + 1;
+    final receipt = Receipt.forPayment(
+      payment,
+      number: number,
+      now: now ?? DateTime.now(),
+      currency: currency,
+      balanceAfterCents: balanceAfterCents,
+      by: by.label,
+    );
+    final sequence = prefs.setInt(receiptSequenceKey, number);
+    final kept = _keepNow(
+      prefs,
+      customer.copyWith(
+        receipts: [...customer.receipts, receipt],
+        updatedAt: customer.updatedAt,
+      ),
+    );
+    await Future.wait([sequence, kept]);
+    return receipt;
+  }
+
+  int _lastReceiptNumber(SharedPreferences prefs) {
+    final kept = prefs.getInt(receiptSequenceKey);
+    if (kept != null) return kept;
+    var highest = 0;
+    for (final key in prefs.getKeys()) {
+      if (!key.startsWith(customerKeyPrefix)) continue;
+      final c = _loadNow(prefs, key.substring(customerKeyPrefix.length));
+      for (final r in c?.receipts ?? const <Receipt>[]) {
+        if (r.number > highest) highest = r.number;
+      }
+    }
+    return highest;
+  }
+
+  /// Gives customer [customerId] the discount [entry] — or, where it is a
+  /// removal, takes away the one in force — as asked [by] whoever holds
+  /// `discounts.apply`. It is added to the customer's discount log; nothing
+  /// in it is removed, and nothing but the log changes. Whether the figure
+  /// can be given against the subtotal is the caller's to check first
+  /// (`CustomerDiscount.problemWith`); an entry that is not a discount at
+  /// all is refused here ([ArgumentError]).
+  Future<Customer?> applyDiscount(
+    String customerId,
+    CustomerDiscount entry, {
+    required Authority by,
+  }) async {
+    by.require(Capability.discountsApply);
+    if (!entry.isRemoval &&
+        (entry.value <= 0 ||
+            (entry.kind == DiscountKind.percent && entry.value > 10000) ||
+            (entry.kind == DiscountKind.fixed && entry.currency == null))) {
+      throw ArgumentError('Not a discount: ${entry.toJson()}');
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final customer = _loadNow(prefs, customerId);
+    if (customer == null) return null;
+    if (customer.discounts.any((d) => d.id == entry.id)) return customer;
+    final now = customer.copyWith(discounts: [...customer.discounts, entry]);
     await _keepNow(prefs, now);
     return now;
   }

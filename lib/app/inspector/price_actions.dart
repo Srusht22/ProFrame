@@ -37,6 +37,10 @@ class PriceButton extends StatelessWidget {
   /// colour on a card.
   final Color? colour;
 
+  /// Whether whoever is at the device may see prices (`pricing.view`).
+  /// Where they may not, it is disabled and says so.
+  final bool allowed;
+
   const PriceButton({
     super.key,
     required this.state,
@@ -45,7 +49,11 @@ class PriceButton extends StatelessWidget {
     this.compact = false,
     this.withIcon = true,
     this.colour,
+    this.allowed = true,
   });
+
+  /// What a press on it says where prices may not be seen.
+  static const notAllowed = 'You do not have permission to view prices.';
 
   /// The words said when a disabled price button is pressed.
   static const messageKey = ValueKey('price-unavailable-message');
@@ -54,11 +62,18 @@ class PriceButton extends StatelessWidget {
   /// its material and colour, which the sheet it opens is where they are
   /// chosen.
   bool get enabled =>
-      (state?.canCalculate ?? false) || (state?.needsOnlyProfile ?? false);
+      allowed &&
+      ((state?.canCalculate ?? false) || (state?.needsOnlyProfile ?? false));
 
   /// Says why [state] cannot be priced, over the screen [context] is on.
-  static void explain(BuildContext context, DesignPriceState? state) {
-    final message = state == null
+  static void explain(
+    BuildContext context,
+    DesignPriceState? state, {
+    bool allowed = true,
+  }) {
+    final message = !allowed
+        ? notAllowed
+        : state == null
         ? 'The price is still being worked out.'
         : (state.message.isEmpty
               ? 'Please complete the incomplete part of the design to '
@@ -74,7 +89,9 @@ class PriceButton extends StatelessWidget {
     final p = context.palette;
     final ink = colour ?? p.primary;
     final shown = enabled ? ink : ink.withValues(alpha: 0.38);
-    final tip = enabled ? label : '$label — ${state?.message ?? ''}';
+    final tip = enabled
+        ? label
+        : '$label — ${allowed ? state?.message ?? '' : notAllowed}';
     final style = OutlinedButton.styleFrom(
       foregroundColor: ink,
       disabledForegroundColor: shown,
@@ -112,7 +129,9 @@ class PriceButton extends StatelessWidget {
         // through to here and is answered with what is missing.
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
-          onTap: enabled ? null : () => explain(context, state),
+          onTap: enabled
+              ? null
+              : () => explain(context, state, allowed: allowed),
           child: button,
         ),
       ),

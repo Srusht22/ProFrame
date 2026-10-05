@@ -7,6 +7,7 @@ import 'package:proframe/domain/model/payment.dart';
 import 'package:proframe/domain/pricing/design_price_state.dart';
 import 'package:proframe/domain/pricing/price_list.dart';
 import 'package:proframe/domain/pricing/price_result.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/pricing/pricing_engine.dart';
 import 'package:proframe/infrastructure/customer_store.dart';
 import 'package:proframe/infrastructure/design_store.dart';
@@ -102,6 +103,8 @@ Customer adam({List<PaymentTransaction> payments = const []}) => Customer(
   payments: payments,
 );
 
+// Since Phase 31 the store asks who records money (`by:`); these record as
+// the device with no staff accounts, which may (`WorkshopRole.staff`).
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -605,9 +608,9 @@ void main() {
         customerId: made.id,
         method: PaymentMethod.card,
       );
-      await people.record(pay);
-      await people.record(refund);
-      await people.record(refund);
+      await people.record(pay, by: WorkshopRole.staff);
+      await people.record(refund, by: WorkshopRole.staff);
+      await people.record(refund, by: WorkshopRole.staff);
       final back = (await CustomerStore().load(made.id))!;
       expect(back.payments.map((t) => t.id), [pay.id, refund.id]);
       expect(back.ledger.netPaidCents('USD'), 40000);
@@ -623,6 +626,7 @@ void main() {
       expect(
         await people.record(
           transaction(PaymentType.payment, 1, customerId: 'x'),
+          by: WorkshopRole.staff,
         ),
         isNull,
       );
@@ -635,6 +639,7 @@ void main() {
         for (var i = 0; i < 6; i++)
           CustomerStore().record(
             transaction(PaymentType.payment, 100, customerId: made.id),
+            by: WorkshopRole.staff,
           ),
       ]);
       final back = (await CustomerStore().load(made.id))!;
@@ -718,6 +723,7 @@ void main() {
       );
       await store.record(
         transaction(PaymentType.payment, 25000, customerId: 'adam'),
+        by: WorkshopRole.staff,
       );
       for (var i = 0; i < 3; i++) {
         final read = (await CustomerStore().load('adam'))!;
@@ -748,6 +754,7 @@ void main() {
       await designs.save(two);
       await people.record(
         transaction(PaymentType.payment, 100000, customerId: made.id),
+        by: WorkshopRole.staff,
       );
       PriceRecord rec(Design d) => PriceRecord.calculate(d, list)!;
       final both = CustomerPricing.of([(one, rec(one)), (two, rec(two))], list);
@@ -795,9 +802,11 @@ void main() {
         };
         await people.record(
           transaction(PaymentType.payment, 50000, customerId: made.id),
+          by: WorkshopRole.staff,
         );
         await people.record(
           transaction(PaymentType.refund, 10000, customerId: made.id),
+          by: WorkshopRole.staff,
         );
         final after = {
           for (final k in prefs.getKeys())

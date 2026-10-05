@@ -5,7 +5,9 @@ import '../../domain/pricing/design_price_state.dart';
 import '../../domain/pricing/measurement.dart';
 import '../../domain/pricing/price_readiness.dart';
 import '../../domain/pricing/price_result.dart';
+import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/profile_selection.dart';
+import '../state/access.dart';
 import '../state/pricing.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -119,6 +121,7 @@ class WorkspacePriceButton extends ConsumerWidget {
     state: ref.watch(workspacePriceStateProvider),
     compact: compact,
     colour: colour,
+    allowed: ref.watch(actorProvider).can(Capability.pricingView),
     onPressed: () => calculateOpenDesign(context, ref),
   );
 }

@@ -77,6 +77,13 @@ Future<void> toAdam(WidgetTester tester) async {
 /// The ⋮ on the card of Adam's design [id], and Delete on the sheet.
 Future<void> askToDelete(WidgetTester tester, String id) async {
   final more = find.byKey(CustomerDesignCard.moreKey(id));
+  // From the top: since Phase 31 the money and quotations under the cards
+  // put the foot of the page further from them than the list keeps built.
+  tester
+      .state<ScrollableState>(find.byType(Scrollable).first)
+      .position
+      .jumpTo(0);
+  await tester.pumpAndSettle();
   await tester.scrollUntilVisible(
     more.hitTestable(),
     100,

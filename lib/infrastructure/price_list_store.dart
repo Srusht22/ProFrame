@@ -37,14 +37,14 @@ class PriceListStore {
     }
   }
 
-  /// Keeps [list] as the workshop's, as asked [by] — the owner, and nobody
-  /// else ([WorkshopRole.canConfigurePrices]): anyone else is refused with
-  /// [PricingAccessDenied] and nothing is written.
+  /// Keeps [list] as the workshop's, as asked [by] — whoever holds
+  /// `pricing.edit` (the owner, and a member of staff the owner gave it to):
+  /// anyone else is refused with [AccessDenied] and nothing is written.
   ///
   /// Each keep is a new version of the list, so a price worked out from it
   /// can say which list it came from, and it is no longer the example list.
-  Future<PriceList> save(PriceList list, {required WorkshopRole by}) async {
-    if (!by.canConfigurePrices) throw PricingAccessDenied(by);
+  Future<PriceList> save(PriceList list, {required Authority by}) async {
+    by.require(Capability.pricingEdit);
     final current = await load();
     final json = list
         .copyWith(

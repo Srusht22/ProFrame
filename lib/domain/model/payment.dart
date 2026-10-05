@@ -53,6 +53,47 @@ enum PaymentMethod {
   static const offered = [cash, bankTransfer, card, other];
 }
 
+/// What a transaction in another currency was worth in the customer's
+/// currency, at the rate the user gave when it was recorded.
+///
+/// **It is kept, never worked out again.** A rate is a fact about the day
+/// the money changed hands; reading today's rate into an old payment would
+/// change what the customer paid. Where no rate was given there is no
+/// conversion, and the money is not counted towards a total in another
+/// currency — it is shown in its own.
+class Conversion {
+  /// The currency it was converted into: the customer's, the price list's.
+  final String to;
+
+  /// How many of [to] one unit of the transaction's currency was worth.
+  final double rate;
+
+  /// The transaction's amount in [to], in whole cents, as worked out then.
+  final int cents;
+
+  const Conversion({required this.to, required this.rate, required this.cents});
+
+  /// [amountCents] converted at [rate] into [to], half a cent rounded up.
+  static Conversion of(int amountCents, double rate, String to) => Conversion(
+    to: to,
+    rate: rate,
+    cents: (amountCents * rate + 1e-7).round(),
+  );
+
+  Map<String, Object?> toJson() => {'to': to, 'rate': rate, 'cents': cents};
+
+  static Conversion? fromJson(Object? json) {
+    if (json is! Map<String, Object?>) return null;
+    final to = json['to'];
+    final rate = json['rate'];
+    final cents = json['cents'];
+    if (to is! String || to.isEmpty) return null;
+    if (rate is! num || !rate.isFinite || rate <= 0) return null;
+    if (cents is! int || cents <= 0) return null;
+    return Conversion(to: to, rate: rate.toDouble(), cents: cents);
+  }
+}
+
 /// One payment or refund, as it was recorded.
 ///
 /// Its [amountCents] is always more than nothing: a refund is not a
@@ -96,6 +137,15 @@ class PaymentTransaction {
   /// price list's currency without saying which.
   final String? currency;
 
+  /// What it was worth in the customer's currency, where it was recorded in
+  /// another and the user gave the rate — see [Conversion]. Null for money
+  /// in the customer's own currency, and for money in another with no rate.
+  final Conversion? conversion;
+
+  /// Who recorded it — *Owner*, a member of staff's name — where that was
+  /// known. Empty for a transaction recorded before it was asked.
+  final String recordedBy;
+
   const PaymentTransaction({
     required this.id,
     required this.customerId,
@@ -107,6 +157,8 @@ class PaymentTransaction {
     this.methodDetail = '',
     this.note = '',
     this.currency,
+    this.conversion,
+    this.recordedBy = '',
   });
 
   /// The id the legacy payment of a customer is kept under: one only, so
@@ -144,6 +196,8 @@ class PaymentTransaction {
     if (note.isNotEmpty) 'note': note,
     'createdAt': createdAt.toIso8601String(),
     if (currency != null) 'currency': currency,
+    if (conversion != null) 'conversion': conversion!.toJson(),
+    if (recordedBy.isNotEmpty) 'recordedBy': recordedBy,
   };
 
   /// The transaction kept as [json], or null where it is not one — an id,
@@ -177,8 +231,43 @@ class PaymentTransaction {
       note: json['note'] as String? ?? '',
       createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ?? at,
       currency: json['currency'] as String?,
+      conversion: Conversion.fromJson(json['conversion']),
+      recordedBy: json['recordedBy'] as String? ?? '',
     );
   }
+
+  /// What it counts for in [base], in whole cents — its own amount where it
+  /// was recorded in [base] (or, recorded before currencies were kept, in
+  /// the price list's), its kept conversion where it was converted into
+  /// [base], and null where it cannot be counted in [base] at all.
+  int? countedIn(String base) {
+    if (currency == null || currency == base) return amountCents;
+    if (conversion case final c? when c.to == base) return c.cents;
+    return null;
+  }
+}
+
+/// A transaction's money in a currency it is not counted in: its own
+/// payments and refunds, in that currency.
+class CurrencyTotals {
+  final String currency;
+  final int paymentsCents;
+  final int refundsCents;
+
+  const CurrencyTotals(this.currency, this.paymentsCents, this.refundsCents);
+
+  int get netCents => paymentsCents - refundsCents;
+}
+
+/// One page of a ledger's history, newest first, and how many there are.
+class LedgerPage {
+  final List<PaymentTransaction> items;
+  final int total;
+  final int offset;
+
+  const LedgerPage(this.items, this.total, this.offset);
+
+  bool get hasMore => offset + items.length < total;
 }
 
 /// A customer's transactions, and what they come to.
@@ -204,31 +293,67 @@ class PaymentLedger {
       return b.id.compareTo(a.id);
     });
 
-  /// The transactions that count in [currency]: those recorded in it, and
-  /// the legacy payment recorded in the price list's.
+  /// The transactions recorded in [currency] — or recorded before
+  /// currencies were kept, against the price list's.
   Iterable<PaymentTransaction> inCurrency(String currency) =>
       transactions.where((t) => t.currency == null || t.currency == currency);
 
-  /// How many were recorded in a currency other than [currency]: not
+  /// The transactions that count towards a total in [base]: those recorded
+  /// in it, and those converted into it at a rate kept with them.
+  Iterable<PaymentTransaction> countedIn(String base) =>
+      transactions.where((t) => t.countedIn(base) != null);
+
+  /// How many cannot be counted in [base] — another currency, no rate. Not
   /// added to it, and said.
-  int otherCurrencyCount(String currency) =>
-      transactions.length - inCurrency(currency).length;
+  int otherCurrencyCount(String base) =>
+      transactions.length - countedIn(base).length;
 
-  /// Every payment, summed, in whole cents.
-  int grossPaymentsCents(String currency) =>
-      inCurrency(currency)
+  /// The money that cannot be counted in [base], currency by currency, in
+  /// the order the currencies are named.
+  List<CurrencyTotals> uncountedIn(String base) {
+    final by = <String, (int, int)>{};
+    for (final t in transactions) {
+      if (t.countedIn(base) != null) continue;
+      final (p, r) = by[t.currency!] ?? (0, 0);
+      by[t.currency!] = t.type == PaymentType.payment
+          ? (p + t.amountCents, r)
+          : (p, r + t.amountCents);
+    }
+    final names = by.keys.toList()..sort();
+    return [for (final c in names) CurrencyTotals(c, by[c]!.$1, by[c]!.$2)];
+  }
+
+  /// Every payment that counts in [base], summed, in whole cents.
+  int grossPaymentsCents(String base) =>
+      countedIn(base)
           .where((t) => t.type == PaymentType.payment)
-          .fold(0, (s, t) => s + t.amountCents);
+          .fold(0, (s, t) => s + t.countedIn(base)!);
 
-  /// Every refund, summed, in whole cents.
-  int grossRefundsCents(String currency) =>
-      inCurrency(currency)
+  /// Every refund that counts in [base], summed, in whole cents.
+  int grossRefundsCents(String base) =>
+      countedIn(base)
           .where((t) => t.type == PaymentType.refund)
-          .fold(0, (s, t) => s + t.amountCents);
+          .fold(0, (s, t) => s + t.countedIn(base)!);
 
   /// The payments less the refunds.
-  int netPaidCents(String currency) =>
-      grossPaymentsCents(currency) - grossRefundsCents(currency);
+  int netPaidCents(String base) =>
+      grossPaymentsCents(base) - grossRefundsCents(base);
+
+  /// Money paid, net, in [currency] that is not counted in [base].
+  int netUncountedCents(String currency, String base) =>
+      uncountedIn(base)
+          .where((c) => c.currency == currency)
+          .fold(0, (s, c) => s + c.netCents);
+
+  /// [limit] transactions of the history from [offset], newest first, and
+  /// how many there are in all. The figures never depend on how many pages
+  /// have been read: they are the whole ledger's.
+  LedgerPage page({int offset = 0, int limit = 10}) {
+    final all = newestFirst;
+    final start = offset.clamp(0, all.length);
+    final end = (start + limit).clamp(start, all.length);
+    return LedgerPage(all.sublist(start, end), all.length, start);
+  }
 
   bool contains(String id) => transactions.any((t) => t.id == id);
 
@@ -293,14 +418,17 @@ class PaymentLedger {
 
   /// What is wrong with recording [cents] of [type] at [at] in this
   /// ledger, as of [now] — keyed `amount` and `date` — where [currency] is
-  /// the prices' and [money] writes a figure in it.
+  /// the customer's (the prices') and [money] writes a figure in it. The
+  /// transaction is in [inCurrency], [currency] where not said, and
+  /// [conversion] is what it is worth in [currency] where it is in another.
   ///
   /// - The amount is more than nothing, for a payment and a refund alike.
   /// - Nothing is dated after [now]: the ledger holds money that has
   ///   changed hands, never money expected.
-  /// - A refund is no more than has been paid, net — so a customer's credit
-  ///   can be refunded, and their payments, but never money they did not
-  ///   pay. A payment of more than is due is taken: it is credit.
+  /// - A refund is no more than has been paid, net, in what it is counted
+  ///   in — so a customer's credit can be refunded, and their payments, but
+  ///   never money they did not pay. A payment of more than is due is
+  ///   taken: it is credit.
   Map<String, String> problemsWith({
     required PaymentType type,
     required int? cents,
@@ -308,20 +436,29 @@ class PaymentLedger {
     required DateTime now,
     required String currency,
     required String Function(int cents) money,
+    String? inCurrency,
+    Conversion? conversion,
+    String Function(int cents, String currency)? moneyIn,
   }) {
+    final own = inCurrency ?? currency;
     final problems = <String, String>{};
     if (cents == null || cents <= 0) {
       problems['amount'] = 'The amount must be more than nothing.';
     } else if (type == PaymentType.refund) {
-      final net = netPaidCents(currency);
+      final counted = own == currency || conversion != null;
+      final net = counted
+          ? netPaidCents(currency)
+          : netUncountedCents(own, currency);
+      final asked = own == currency ? cents : (conversion?.cents ?? cents);
+      final say = counted
+          ? money(net)
+          : (moneyIn?.call(net, own) ?? '${net / 100} $own');
       if (net <= 0) {
         problems['amount'] =
-            'Nothing has been paid, so nothing can be '
-            'refunded.';
-      } else if (cents > net) {
-        problems['amount'] =
-            'A refund cannot be more than the net paid, '
-            '${money(net)}.';
+            'Nothing has been paid${counted ? '' : ' in $own'}, so nothing '
+            'can be refunded.';
+      } else if (asked > net) {
+        problems['amount'] = 'A refund cannot be more than the net paid, $say.';
       }
     }
     if (at.isAfter(now)) {
@@ -329,4 +466,33 @@ class PaymentLedger {
     }
     return problems;
   }
+
+  /// What the user typed for an exchange rate, or why it is not one: a
+  /// figure of more than nothing, to six decimal places at most.
+  static ({double? rate, String? problem}) readRate(String text) {
+    final words = text.trim().replaceAll(',', '');
+    if (words.isEmpty) return (rate: null, problem: null);
+    if (!RegExp(r'^\d*\.?\d{1,6}$').hasMatch(words) ||
+        RegExp(r'^\d+\.$').hasMatch(words)) {
+      return (rate: null, problem: 'Enter the rate as a number, such as 1.10.');
+    }
+    final rate = double.tryParse(words);
+    if (rate == null || !rate.isFinite || rate <= 0) {
+      return (rate: null, problem: 'The rate must be more than nothing.');
+    }
+    return (rate: rate, problem: null);
+  }
+}
+
+/// The currencies a payment can be recorded in, by their ISO codes.
+abstract final class Currencies {
+  /// Those offered beside the customer's own, in this order.
+  static const common = ['USD', 'EUR', 'GBP', 'IQD', 'TRY', 'AED', 'SAR'];
+
+  /// [base] first, then the rest of [common].
+  static List<String> offeredWith(String base) => [
+    base,
+    for (final c in common)
+      if (c != base) c,
+  ];
 }

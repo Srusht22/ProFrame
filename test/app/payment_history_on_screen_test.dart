@@ -6,6 +6,7 @@ import 'package:proframe/app/inspector/price_panel.dart';
 import 'package:proframe/app/screens/customer_finance.dart';
 import 'package:proframe/domain/model/customer.dart';
 import 'package:proframe/domain/model/payment.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/infrastructure/customer_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -57,14 +58,17 @@ Future<double> pricedTotal(WidgetTester tester) async {
 }
 
 Future<void> openDialog(WidgetTester tester, PaymentType type) async {
-  await toSummary(tester);
-  await tester.tap(
-    find.byKey(
-      type == PaymentType.payment
-          ? CustomerFinancialSummary.addPaymentKey
-          : CustomerFinancialSummary.refundKey,
-    ),
+  final button = find.byKey(
+    type == PaymentType.payment
+        ? CustomerFinancialSummary.addPaymentKey
+        : CustomerFinancialSummary.refundKey,
   );
+  // Scrolled to either way: since Phase 31 the summary is long enough —
+  // quotations under the history — to have been scrolled past.
+  if (button.evaluate().isEmpty) await toSummary(tester);
+  await tester.ensureVisible(button);
+  await tester.pumpAndSettle();
+  await tester.tap(button);
   await tester.pumpAndSettle();
 }
 
@@ -145,11 +149,16 @@ Future<Map<String, Object?>> designsAndPrices(WidgetTester tester) async {
   return {
     for (final e in all.entries)
       if (!e.key.startsWith(CustomerStore.customerKeyPrefix) &&
-          e.key != CustomerStore.indexKey)
+          e.key != CustomerStore.indexKey &&
+          // Since Phase 31 a payment can be given its receipt, numbered
+          // from a sequence kept beside the customers.
+          e.key != CustomerStore.receiptSequenceKey)
         e.key: e.value,
   };
 }
 
+// Since Phase 31 the store asks who records money (`by:`); these record as
+// the device with no staff accounts, which may (`WorkshopRole.staff`).
 void main() {
   setUpAll(loadTheAppsTypeface);
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -166,7 +175,8 @@ void main() {
     expect(total, greaterThan(150));
     await toSummary(tester);
     expect(textOf(tester, CustomerFinancialSummary.totalKey), money(total));
-    expect(find.text('No payments recorded yet.'), findsOneWidget);
+    // Phase 31's wording for an empty history.
+    expect(find.text('No payment history yet.'), findsOneWidget);
     expect(find.text('OUTSTANDING'), findsOneWidget);
     // Nothing paid: nothing to refund.
     expect(
@@ -215,7 +225,13 @@ void main() {
     expect(textOf(tester, CustomerFinancialSummary.dueKey), money(0));
     expect(textOf(tester, CustomerFinancialSummary.creditKey), money(300));
     expect(find.text('CREDIT'), findsOneWidget);
-    expect(find.textContaining('-'), findsNothing, reason: 'no negative');
+    // A minus before a figure: since Phase 31 a receipt's number has a
+    // hyphen in it (RCP-000001), which is not a negative amount.
+    expect(
+      find.textContaining(RegExp(r'(^|\s)-\d')),
+      findsNothing,
+      reason: 'no negative',
+    );
 
     // 4. A refund of $100 of the credit.
     await record(
@@ -260,6 +276,9 @@ void main() {
           ),
         )
         .map((i) => i.semanticLabel)
+        // Since Phase 31 a payment's row also carries its receipt's icon,
+        // which is not the type's mark.
+        .nonNulls
         .toList();
     expect(marks, ['Refund', 'Payment', 'Payment', 'Payment']);
 
@@ -463,17 +482,16 @@ void main() {
     );
   });
 
-  testWidgets('a long history shows the latest five and Show all the rest', (
-    tester,
-  ) async {
+  testWidgets('a long history shows ten at a time, Load more the rest, in order, '
+      'with no transaction twice and the totals the whole ledger\'s', (tester) async {
     await seed(tester, adams().take(2).toList());
     final adam = await adamOnDevice(tester);
     await tester.runAsync(() async {
       final store = CustomerStore();
-      for (var i = 1; i <= 7; i++) {
+      for (var i = 1; i <= 12; i++) {
         await store.record(
           PaymentTransaction(
-            id: 'PAY-2026090$i-000$i',
+            id: 'PAY-202609${i.toString().padLeft(2, '0')}-00${i.toString().padLeft(2, '0')}',
             customerId: adam.id,
             type: PaymentType.payment,
             amountCents: i * 1000,
@@ -482,21 +500,33 @@ void main() {
             createdAt: DateTime(2026, 9, i, 12),
             currency: 'USD',
           ),
+          by: WorkshopRole.staff,
         );
       }
     });
     await toAdam(tester);
     await toSummary(tester);
-    expect(historyRows(tester), hasLength(CustomerFinancialSummary.shownFirst));
-    expect(historyRows(tester).first, contains('07 Sep 2026'));
-    await tester.ensureVisible(find.byKey(CustomerFinancialSummary.showAllKey));
+    // Since Phase 31 the history is read a page of ten at a time with Load
+    // more, where it was the latest five and Show all.
+    final first = historyRows(tester);
+    expect(first, hasLength(CustomerFinancialSummary.pageSize));
+    expect(first.first, contains('12 Sep 2026'));
+    // The totals are the whole ledger's, whatever page is shown.
+    expect(textOf(tester, CustomerFinancialSummary.paidKey), money(780));
+    expect(find.text('Load more (2 more)'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(CustomerFinancialSummary.loadMoreKey),
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(CustomerFinancialSummary.showAllKey));
+    await tester.tap(find.byKey(CustomerFinancialSummary.loadMoreKey));
     await tester.pumpAndSettle();
     final all = historyRows(tester);
-    expect(all, hasLength(7));
+    expect(all, hasLength(12));
+    expect(all.sublist(0, 10), first, reason: 'the first page unmoved');
     expect(all.last, contains('01 Sep 2026'));
-    expect(textOf(tester, CustomerFinancialSummary.paidKey), money(280));
+    expect(all.toSet(), hasLength(12), reason: 'none twice');
+    expect(find.byKey(CustomerFinancialSummary.loadMoreKey), findsNothing);
+    expect(textOf(tester, CustomerFinancialSummary.paidKey), money(780));
   });
 
   for (final size in const [
@@ -525,6 +555,7 @@ void main() {
             createdAt: DateTime(2026, 9, 1, 12),
             currency: 'USD',
           ),
+          by: WorkshopRole.staff,
         );
       });
       await screen.openTheApp(tester, size: size);

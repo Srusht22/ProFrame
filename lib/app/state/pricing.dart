@@ -1,15 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/customer.dart';
+import '../../domain/model/customer_discount.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/payment.dart';
+import '../../domain/model/receipt.dart';
 import '../../domain/pricing/design_price_state.dart';
 import '../../domain/pricing/price_list.dart';
 import '../../domain/pricing/price_result.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/pricing_engine.dart';
+import '../../domain/pricing/quotation.dart';
 import '../../infrastructure/price_list_store.dart';
 import '../../infrastructure/price_record_store.dart';
+import '../../infrastructure/quotation_store.dart';
+import 'access.dart';
 import 'workspace.dart';
 
 /// Where the price list is kept.
@@ -23,7 +28,9 @@ final priceListProvider = FutureProvider<PriceList>(
   (ref) => ref.watch(priceListStoreProvider).load(),
 );
 
-/// Who is using the device. Starts as staff — see [WorkshopRole].
+/// Whether the device is in the owner's hands. Starts as staff — see
+/// [WorkshopRole]; who exactly is at the device, and what they may do, is
+/// `actorProvider`.
 final workshopRoleProvider = NotifierProvider<WorkshopRoleNow, WorkshopRole>(
   WorkshopRoleNow.new,
 );
@@ -51,12 +58,12 @@ final designPriceProvider = Provider<PriceResult?>((ref) {
   return ref.watch(pricingEngineProvider).price(design, list);
 });
 
-/// Keeps a new price list, as the role using the device, and has every
+/// Keeps a new price list, as whoever is at the device, and has every
 /// price worked out from it.
 extension PriceListSaver on WidgetRef {
   Future<PriceList> savePriceList(PriceList list) async {
     final kept = await read(priceListStoreProvider)
-        .save(list, by: read(workshopRoleProvider));
+        .save(list, by: await actorNow());
     invalidate(priceListProvider);
     return kept;
   }
@@ -200,11 +207,170 @@ extension PriceCalculator on WidgetRef {
   }
 
   /// Records [transaction] — a payment or a refund — in its customer's
-  /// ledger, and nothing else about them. It touches no design and no
-  /// price.
+  /// ledger, as whoever is at the device, and nothing else about them. It
+  /// touches no design and no price. The store refuses it ([AccessDenied])
+  /// where they may not record it.
   Future<Customer?> recordTransaction(PaymentTransaction transaction) async {
-    final kept = await read(customerStoreProvider).record(transaction);
+    final by = await actorNow();
+    final kept = await read(customerStoreProvider).record(
+      PaymentTransaction(
+        id: transaction.id,
+        customerId: transaction.customerId,
+        type: transaction.type,
+        amountCents: transaction.amountCents,
+        at: transaction.at,
+        method: transaction.method,
+        methodDetail: transaction.methodDetail,
+        note: transaction.note,
+        createdAt: transaction.createdAt,
+        currency: transaction.currency,
+        conversion: transaction.conversion,
+        recordedBy: transaction.recordedBy.isEmpty
+            ? by.label
+            : transaction.recordedBy,
+      ),
+      by: by,
+    );
     read(customersRevisionProvider.notifier).changed();
     return kept;
   }
+
+  /// The receipt for payment [transactionId] of [customerId], issued now
+  /// as whoever is at the device — or the one already issued for it. The
+  /// balance it records is the customer's as it stands, payment and all.
+  Future<Receipt?> issueReceipt(String customerId, String transactionId) async {
+    final by = await actorNow();
+    final customer = await read(customerStoreProvider).load(customerId);
+    if (customer == null) return null;
+    final pricing = await read(customerPricingProvider(customerId).future);
+    final finance = CustomerFinance.of(
+      pricing,
+      customer.ledger,
+      discount: customer.discount,
+    );
+    final receipt = await read(customerStoreProvider).issueReceipt(
+      customerId: customerId,
+      transactionId: transactionId,
+      by: by,
+      currency: finance.currency,
+      balanceAfterCents: finance.balanceCents,
+    );
+    read(customersRevisionProvider.notifier).changed();
+    return receipt;
+  }
+
+  /// Gives [customerId] the discount [entry], or takes away the one in force
+  /// where it is a removal, as whoever is at the device.
+  Future<Customer?> applyDiscount(
+    String customerId,
+    CustomerDiscount entry,
+  ) async {
+    final kept = await read(customerStoreProvider)
+        .applyDiscount(customerId, entry, by: await actorNow());
+    read(customersRevisionProvider.notifier).changed();
+    return kept;
+  }
+
+  /// A quotation for [customer]'s designs [designIds], made now as whoever
+  /// is at the device — or why it cannot be.
+  ///
+  /// A design chosen that is complete but has no current price is priced
+  /// first, by the one engine, exactly as **Calculate price** would; one
+  /// that is incomplete, or cannot be priced, stops the quotation. The
+  /// quotation then keeps every price as it now is.
+  Future<({Quotation? quotation, String? problem})> createQuotation(
+    Customer customer,
+    Set<String> designIds, {
+    String notes = '',
+    required String Function(int cents) money,
+  }) async {
+    final by = await actorNow();
+    by.require(Capability.quotationsCreate);
+    var pricing = await read(customerPricingProvider(customer.id).future);
+    final store = read(designStoreProvider);
+    var calculated = false;
+    for (final d in pricing.designs) {
+      if (!designIds.contains(d.designId)) continue;
+      if (d.state.isCurrent || !d.state.canCalculate) continue;
+      final design = await store.load(d.designId);
+      if (design != null && await calculatePrice(design) != null) {
+        calculated = true;
+      }
+    }
+    if (calculated) {
+      invalidate(customerPricingProvider(customer.id));
+      pricing = await read(customerPricingProvider(customer.id).future);
+    }
+    final chosen = [
+      for (final d in pricing.designs)
+        if (designIds.contains(d.designId)) d,
+    ];
+    final made = await read(quotationStoreProvider).create(
+      (number) => Quotation.build(
+        customerId: customer.id,
+        customerName: customer.name,
+        chosen: chosen,
+        currency: pricing.currency,
+        number: number,
+        now: DateTime.now(),
+        by: by.label,
+        money: money,
+        discount: customer.discount,
+        notes: notes,
+      ),
+      by: by,
+    );
+    if (made.quotation != null) {
+      read(quotationsRevisionProvider.notifier).changed();
+    }
+    return made;
+  }
+
+  /// Quotation [id] made [next], as whoever is at the device.
+  Future<({Quotation? quotation, String? problem})> setQuotationStatus(
+    String id,
+    QuotationStatus next,
+  ) async {
+    final changed = await read(quotationStoreProvider)
+        .setStatus(id, next, by: await actorNow());
+    read(quotationsRevisionProvider.notifier).changed();
+    return changed;
+  }
+}
+
+/// Where quotations are kept.
+final quotationStoreProvider = Provider<QuotationStore>(
+  (ref) => QuotationStore(),
+);
+
+/// Changes whenever a quotation is made or its status changes.
+final quotationsRevisionProvider = NotifierProvider<DesignsRevision, int>(
+  DesignsRevision.new,
+);
+
+/// The first [QuotationsWanted.limit] of a customer's quotations, newest
+/// first, and how many they have.
+final customerQuotationsProvider = FutureProvider.autoDispose
+    .family<QuotationPage, QuotationsWanted>((ref, wanted) {
+      ref.watch(quotationsRevisionProvider);
+      return ref
+          .read(quotationStoreProvider)
+          .page(wanted.customerId, limit: wanted.limit);
+    });
+
+/// Which customer's quotations, and how many of them.
+class QuotationsWanted {
+  final String customerId;
+  final int limit;
+
+  const QuotationsWanted(this.customerId, this.limit);
+
+  @override
+  bool operator ==(Object other) =>
+      other is QuotationsWanted &&
+      other.customerId == customerId &&
+      other.limit == limit;
+
+  @override
+  int get hashCode => Object.hash(customerId, limit);
 }
