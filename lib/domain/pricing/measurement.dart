@@ -2,67 +2,89 @@
 ///
 /// A length of profile and an area of glass are different quantities, so
 /// they are different types: [Metres] and [SquareMetres] cannot be added to
-/// one another, and each writes its own unit — `56.80 m`, `8.40 m²` — so a
+/// one another, and each writes its own unit — `56.800 m`, `8.40 m²` — so a
 /// panel's area can never be shown as a length or summed into the profile.
 library;
 
 /// A length, in metres — of profile, as the factory cuts it.
+///
+/// **Kept in whole millimetres**, the precision a length is cut to, so a sum
+/// of lengths is exact: no row, total or customer's summary is ever off by
+/// a rounding. It is shown to the millimetre too (`7.600 m`), so what is
+/// written adds up: `20.980 m` and `14.230 m` are `35.210 m`, never a figure
+/// a hundredth from the sum of the rows above it.
 class Metres implements Comparable<Metres> {
-  final double value;
+  /// The length, in whole millimetres.
+  final int mm;
 
-  const Metres(this.value);
+  const Metres._(this.mm);
 
-  static const zero = Metres(0);
+  /// [metres], to the millimetre. Nothing, or not a number, is nothing.
+  factory Metres(double metres) => Metres.ofMm(metres * 1000);
 
-  /// [mm] millimetres, as a length in metres.
+  static const zero = Metres._(0);
+
+  /// [mm] millimetres, to the millimetre.
   factory Metres.ofMm(double mm) =>
-      Metres(mm.isFinite && mm > 0 ? mm / 1000 : 0);
+      Metres._(mm.isFinite && mm > 0 ? mm.round() : 0);
 
-  Metres operator +(Metres other) => Metres(value + other.value);
+  /// The length in metres.
+  double get value => mm / 1000;
 
-  /// `7.60 m` — to the centimetre.
-  String get label => '${value.toStringAsFixed(2)} m';
+  Metres operator +(Metres other) => Metres._(mm + other.mm);
 
-  @override
-  int compareTo(Metres other) => value.compareTo(other.value);
-
-  @override
-  bool operator ==(Object other) => other is Metres && other.value == value;
+  /// `7.600 m` — to the millimetre, as it is kept.
+  String get label => '${(mm / 1000).toStringAsFixed(3)} m';
 
   @override
-  int get hashCode => value.hashCode;
+  int compareTo(Metres other) => mm.compareTo(other.mm);
+
+  @override
+  bool operator ==(Object other) => other is Metres && other.mm == mm;
+
+  @override
+  int get hashCode => mm.hashCode;
 
   @override
   String toString() => label;
 }
 
 /// An area, in square metres — of glass or panel, as it is cut.
+///
+/// Kept in whole square millimetres, so areas add exactly; shown to the
+/// hundredth of a square metre.
 class SquareMetres implements Comparable<SquareMetres> {
-  final double value;
+  /// The area, in whole square millimetres.
+  final int mm2;
 
-  const SquareMetres(this.value);
+  const SquareMetres._(this.mm2);
 
-  static const zero = SquareMetres(0);
+  /// [m2] square metres, to the square millimetre.
+  factory SquareMetres(double m2) => SquareMetres.ofMm2(m2 * 1e6);
 
-  /// [mm2] square millimetres, as square metres.
+  static const zero = SquareMetres._(0);
+
+  /// [mm2] square millimetres.
   factory SquareMetres.ofMm2(double mm2) =>
-      SquareMetres(mm2.isFinite && mm2 > 0 ? mm2 / 1e6 : 0);
+      SquareMetres._(mm2.isFinite && mm2 > 0 ? mm2.round() : 0);
+
+  /// The area in square metres.
+  double get value => mm2 / 1e6;
 
   SquareMetres operator +(SquareMetres other) =>
-      SquareMetres(value + other.value);
+      SquareMetres._(mm2 + other.mm2);
 
   /// `2.00 m²` — to the hundredth of a square metre.
   String get label => '${value.toStringAsFixed(2)} m²';
 
   @override
-  int compareTo(SquareMetres other) => value.compareTo(other.value);
+  int compareTo(SquareMetres other) => mm2.compareTo(other.mm2);
 
   @override
-  bool operator ==(Object other) =>
-      other is SquareMetres && other.value == value;
+  bool operator ==(Object other) => other is SquareMetres && other.mm2 == mm2;
 
   @override
-  int get hashCode => value.hashCode;
+  int get hashCode => mm2.hashCode;
 
   @override
   String toString() => label;

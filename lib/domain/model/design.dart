@@ -186,6 +186,15 @@ class Design {
   /// drawing has parts to choose between.
   final bool partsAsked;
 
+  /// Whether the drawing has strokes the geometry has not been read from
+  /// yet: lines drawn or rubbed out since the last reading. The geometry
+  /// is then an older reading of the sheet than the one on the screen, so
+  /// nothing priced from it is the price of what is drawn
+  /// (`PriceReadiness`). Kept with the design — undone with it, saved with
+  /// it, and so known to its card as well as to the workspace — and
+  /// written only while it is true.
+  final bool sketchUnread;
+
   /// What the user has chosen about the price that is not the design
   /// itself: installation, a discount, a price kept from an earlier day.
   /// Nothing about it is geometry, and pricing never writes any other field.
@@ -219,6 +228,7 @@ class Design {
     this.construction,
     this.infill,
     this.partsAsked = false,
+    this.sketchUnread = false,
     this.pricing = PricingChoices.none,
   });
 
@@ -586,6 +596,7 @@ class Design {
     bool clearConstruction = false,
     Finish? infill,
     bool? partsAsked,
+    bool? sketchUnread,
     PricingChoices? pricing,
     DateTime? updatedAt,
   }) {
@@ -649,6 +660,7 @@ class Design {
           clearConstruction ? null : (construction ?? this.construction),
       infill: clearConstruction ? null : (infill ?? this.infill),
       partsAsked: partsAsked ?? this.partsAsked,
+      sketchUnread: sketchUnread ?? this.sketchUnread,
       pricing: pricing ?? this.pricing,
     );
   }
@@ -717,6 +729,7 @@ class Design {
         if (construction != null) 'construction': construction!.name,
         if (infill != null) 'infill': infill!.toJson(),
         if (partsAsked) 'partsAsked': true,
+        if (sketchUnread) 'sketchUnread': true,
         if (!pricing.isNone) 'pricing': pricing.toJson(),
         'sketch': sketch.toJson(),
         if (frame != null) 'frame': frame!.toJson(),
@@ -786,6 +799,7 @@ class Design {
           ? null
           : Finish.fromJson(map['infill'], fallback: Finish.glazingDefault),
       partsAsked: map['partsAsked'] == true,
+      sketchUnread: map['sketchUnread'] == true,
       pricing: PricingChoices.fromJson(map['pricing']),
       sketch: Sketch.fromJson(map['sketch']),
       frame: map['frame'] == null

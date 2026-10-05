@@ -92,6 +92,7 @@ abstract final class PriceInputs {
     'createdAt',
     'updatedAt',
     'sketch',
+    'sketchUnread',
     'texts',
     'arrows',
   };
@@ -232,7 +233,13 @@ class DesignPriceState {
   double? get previous => !isCurrent ? record?.result.total : null;
 
   /// The design's state in a word or two, for its card.
+  /// Whether what stops it is only that the drawing has not been read.
+  bool get notRead =>
+      status == DesignPriceStatus.incomplete &&
+      readiness.missing.firstOrNull?.kind == PriceRequirementKind.notRead;
+
   String get label => switch (status) {
+    _ when notRead => 'Drawing not read',
     DesignPriceStatus.current => 'Complete',
     DesignPriceStatus.notCalculated => 'Complete',
     DesignPriceStatus.needsRecalculation => 'Complete',
@@ -243,6 +250,7 @@ class DesignPriceState {
 
   /// What the price line says where there is no current price.
   String get note => switch (status) {
+    _ when notRead => 'Price unavailable until drawing is read',
     DesignPriceStatus.current => '',
     DesignPriceStatus.notCalculated => 'Not calculated yet',
     DesignPriceStatus.needsRecalculation => 'Price needs recalculation',
@@ -362,8 +370,15 @@ class CustomerPricing {
 
   /// The sum of the current prices — the customer's total only where
   /// [isFinal]; otherwise what is priced so far, and never shown as more.
-  double get pricedSoFar =>
-      _cents(priced.fold<double>(0, (sum, d) => sum + d.state.total!));
+  double get pricedSoFar => pricedSoFarCents / 100;
+
+  /// [pricedSoFar] in whole cents: each design's own total, as cents,
+  /// summed — never a sum of rounded figures.
+  int get pricedSoFarCents =>
+      priced.fold(0, (sum, d) => sum + d.state.record!.result.totalCents!);
+
+  /// [total] in whole cents, where it is final.
+  int? get totalCents => isFinal ? pricedSoFarCents : null;
 
   /// The customer's total, only where it is final.
   double? get total => isFinal ? pricedSoFar : null;
@@ -429,36 +444,55 @@ enum PaymentStatus {
 /// one figure kept is what was paid. Nothing here touches a design.
 class CustomerFinance {
   final CustomerPricing pricing;
-  final double paid;
 
-  const CustomerFinance._(this.pricing, this.paid);
+  /// What has been paid, in whole cents.
+  final int paidCents;
 
+  const CustomerFinance._(this.pricing, this.paidCents);
+
+  /// [pricing] against [paid] in all. The customer's one kept figure is a
+  /// running total paid (`Customer.paid`); a later history of payments —
+  /// dates, methods, receipts — sums to the same figure, so nothing here
+  /// changes when there is one.
   static CustomerFinance of(CustomerPricing pricing, double paid) =>
-      CustomerFinance._(pricing, paid.isFinite && paid > 0 ? _cents(paid) : 0);
+      CustomerFinance._(
+        pricing,
+        paid.isFinite && paid > 0 ? Money.cents(paid) : 0,
+      );
+
+  double get paid => paidCents / 100;
 
   double? get total => pricing.total;
 
-  /// What is still owed, where the total is final: never below nothing.
-  double? get due {
-    final t = total;
+  /// What is still owed, in whole cents, where the total is final: never
+  /// below nothing.
+  int? get dueCents {
+    final t = pricing.totalCents;
     if (t == null) return null;
-    return _cents(paid >= t ? 0 : t - paid);
+    return paidCents >= t ? 0 : t - paidCents;
   }
 
-  /// How much more is recorded as paid than the total, where it is.
+  double? get due => switch (dueCents) {
+    final c? => c / 100,
+    null => null,
+  };
+
+  /// How much more is recorded as paid than the total, where it is. Not
+  /// credit — there is no credit yet — only said, so it is never a debt
+  /// below nothing.
   double get excess {
-    final t = total;
-    if (t == null || paid <= t) return 0;
-    return _cents(paid - t);
+    final t = pricing.totalCents;
+    if (t == null || paidCents <= t) return 0;
+    return (paidCents - t) / 100;
   }
 
   PaymentStatus get status {
-    final t = total;
+    final t = pricing.totalCents;
     if (t == null) return PaymentStatus.totalNotFinal;
-    if (paid > t) return PaymentStatus.paidExceedsTotal;
+    if (paidCents > t) return PaymentStatus.paidExceedsTotal;
     if (t == 0) return PaymentStatus.nothingToPay;
-    if (paid == 0) return PaymentStatus.notPaid;
-    if (paid >= t) return PaymentStatus.paidInFull;
+    if (paidCents == 0) return PaymentStatus.notPaid;
+    if (paidCents >= t) return PaymentStatus.paidInFull;
     return PaymentStatus.partiallyPaid;
   }
 
@@ -470,12 +504,10 @@ class CustomerFinance {
       return 'Enter the amount paid as a number.';
     }
     if (amount < 0) return 'The paid amount cannot be less than nothing.';
-    final t = pricing.total;
-    if (t != null && _cents(amount) > t) {
+    final t = pricing.totalCents;
+    if (t != null && Money.cents(amount) > t) {
       return 'Paid amount cannot exceed the total price.';
     }
     return null;
   }
 }
-
-double _cents(double v) => (v * 100).roundToDouble() / 100;

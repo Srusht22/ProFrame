@@ -1410,7 +1410,8 @@ never deletes its customer (deleting all of them leaves the customer with
 deletes a customer silently.
 `test/app/customers_are_never_deleted_test.dart` keeps it so: it reads
 every line under `lib/` that takes something off the device and allows only
-a design's record and the list of designs kept before customers existed,
+a design's record, that design's own kept price, and the list of designs
+kept before customers existed,
 and holds each separation on the stores and the screens. When customer
 deletion comes, it comes with an administrator, and with the customer's
 name, how many designs are theirs and what goes with them, confirmed on
@@ -6220,9 +6221,10 @@ Everything is in `lib/domain/pricing/`, and no widget holds a figure.
   the two units are two types, so adding one to the other does not compile.
 - **The price list holds every rate** (`PriceList`): per frame material a
   `ProfileRate` — a metre of normal profile and a metre of opening profile,
-  each its own figure — with that material's colours; glass by look and
-  panel by colour, a square metre each, with a rate for the user's own
-  colour; each piece of ironmongery; a sliding track by the metre and
+  each its own figure — with that material's colours; glass by look —
+  a single sheet and a sealed unit each a square metre rate of its own —
+  and panel by colour, a square metre each, with a rate for the user's
+  own colour; each piece of ironmongery; a sliding track by the metre and
   rollers each; each category's labour — fixed, by area and as a
   percentage (`LabourRate`) — and installation. A figure that is not a
   price — below nothing, not a number — is dropped as it is read, so that
@@ -6251,7 +6253,8 @@ Everything is in `lib/domain/pricing/`, and no widget holds a figure.
   profile, opening profile, other profile, colour, glass, panel, hardware,
   labour, installation — each a quantity, a unit, a rate and an amount;
   the measurements; a subtotal, a `Discount` (never below nothing) and the
-  total. Money is rounded to the cent line by line. It serialises, so a
+  total. Every line is whole cents and every sum a sum of cents (see
+  *Pricing integrity*). It serialises, so a
   price can be kept as it stood (`PriceSnapshot`); nothing takes one yet.
 - **What the user chooses about the price is the design's**
   (`Design.pricing`, `PricingChoices`): installation — never on until they
@@ -6262,12 +6265,14 @@ Everything is in `lib/domain/pricing/`, and no widget holds a figure.
   calculated price, and final only when every one is current. See
   *Calculate price, and the customer's money*.
 - **The list is kept on the device, and only the owner changes it**
-  (`PriceListStore`, `proframe.pricelist.v2` — the factory model's rates
-  are not the first engine's, so the old key is not read; `WorkshopRole`).
+  (`PriceListStore`, `proframe.pricelist.v2`, a list the first engine kept
+  under `proframe.pricelist.v1` read and migrated — see *Pricing
+  integrity*; `WorkshopRole`).
   ProFrame has no sign-in, so the device starts as staff, who can price but
   not change prices; there is no price editor yet. Until the owner keeps a
-  list, the example list (`PriceList.starter`, in US dollars, uPVC $7 a
-  metre normal and $12 opening) is used and the panel says *Example prices
+  list, the example list (`PriceList.starter`, which is
+  `DefaultFactoryPricing.list` — the one place its figures are written —
+  in US dollars, uPVC $7 a metre normal and $12 opening) is used and the panel says *Example prices
   — the workshop owner sets the real ones.*
 - **On the screen**: the workspace's **Calculate price**, a design card's
   **Price** and the customer's financial summary — see *Calculate price,
@@ -6331,6 +6336,7 @@ Design ─ PriceReadiness ─ PricingEngine ─ PriceRecord? ─ DesignPriceStat
   | Requirement | Read from |
   | --- | --- |
   | A category this version can price | `Design.isUnsupported` |
+  | A drawing read since it was last drawn on | `Design.sketchUnread` |
   | An outer frame | `Design.frame` |
   | Geometry that can be measured | `PricingTakeoff.problemWith`; the angled check's errors (`GeometryFeedback`) |
   | What a door is built of | `Design.construction` (not `pending`) |
@@ -6382,9 +6388,11 @@ Design ─ PriceReadiness ─ PricingEngine ─ PriceRecord? ─ DesignPriceStat
     given enables it, a size taken away or a line drawn in a sash disables
     it.
 - **A design's card** shows *Complete* or *Incomplete* beside its
-  category (`CardPriceStatus`). At the end of *Last edited* it shows
-  *Price: 189.98 USD*, *not calculated*, *recalculate* or *unavailable*
-  (`CardPriceValue`). **Price** sits beside **Open** (`CardPriceButton`).
+  category (`CardPriceStatus`), or *Drawing not read*. On a row of their
+  own under *Last edited* it shows *Price: 189.98 USD*, *not calculated*,
+  *recalculate*, *needs update* or *unavailable* (`CardPriceValue`) and
+  **Price** (`CardPriceButton`), so the row of buttons below is *Edit
+  information* and **Open** alone, each in full.
   All three read `keptDesignPriceProvider`, the same `DesignPriceState`
   of the kept design. Pressed, Price shows the current price, or calculates
   one from the kept design first; disabled, it says why. The card is the
@@ -6486,6 +6494,106 @@ Three older tests moved with it, and say so where they do:
 
 The pricing tests' `given` gives every size a design asks for, not only
 the width and the height.
+
+### Pricing integrity
+
+The brief: *a price is never of stale geometry, never of a design that is
+gone, never off by a rounding, and read from the workshop's list whatever
+version kept it.* Each fault is fixed where the fact it depends on lives.
+
+- **Lines drawn and not read are never priced.** Whether the sheet has
+  been read since it was last drawn on is the design's own fact,
+  `Design.sketchUnread`, kept in its file only while it is true.
+  `WorkspaceState.needsReading` reads it. Drawing a structural line sets
+  it, a reading clears it, and an undo puts back whatever the design then
+  was. A figure, an arrow or a note does not set it: they are not
+  geometry.
+  - `PriceReadiness` asks it first, after the category. While it is set
+    the design is not price-ready, the engine prices nothing
+    (`PriceStatus.notRead`), and every price button says *The drawing has
+    changes that have not been read. Please Read the drawing before
+    calculating the price.*
+  - It is in the design, not the workspace, so a card knows too: *Drawing
+    not read*, *Price: needs update*, and its Price disabled. A price
+    calculated before shows only as the previous one.
+  - Reading for the user was not chosen. A reading can raise questions and
+    change the design, and doing that unasked to show a price would be the
+    application deciding.
+- **A price is current only for the design it was calculated from.**
+  `PriceInputs` is the fingerprint: the design less its name, customer,
+  dates, ink, notes, arrows and `sketchUnread`, plus the price list. Any
+  change to geometry, material, colour, glass, ironmongery, option or rate
+  makes the kept price *needs recalculation*. Nothing has to remember to
+  invalidate it.
+- **A deleted design takes its price with it.** `DesignStore.remove`
+  removes the design's price record under the same key, and nothing else.
+  Undo puts the record back with the design. The customer's total is read
+  from the designs that remain, so it never includes one that is gone.
+- **An older price list is migrated, never guessed**
+  (`PriceListMigration`, `PriceList.schemaVersion` = 3):
+
+  | Schema | Kept as | Carried as |
+  | --- | --- | --- |
+  | 1 | `proframe.pricelist.v1`: frame, sash and bar a metre, a colour's percentage, a price per leaf and per angled joint | frame → normal profile, sash → opening profile, a colour's percentage → its percentage; a bar rate that differed from the frame's, a leaf's and an angled joint's price named in the notes and left out |
+  | 2 | the factory model with no `schemaVersion` | sealed units priced at the glass rates it had, which priced every pane |
+  | 3 | `schemaVersion: 3` | as it is |
+
+  Everything with the same name and meaning is carried at the same
+  figure, and nothing is made up. Reading writes nothing. The panel says
+  *Prices carried over from an older price list* with the notes. The
+  owner's first save writes schema 3 under the current key.
+- **The example rates are written once**, in `DefaultFactoryPricing`; the
+  engine reads only the list it is given, and a scan keeps those figures
+  out of every other file.
+- **Lengths and money are whole units.** A `Metres` is whole millimetres
+  and a `SquareMetres` whole square millimetres, so 20.98 m + 14.23 m is
+  35.210 m exactly. A length is written to the millimetre, so the rows
+  written add up to the total written. A price line is whole cents
+  (`Money.cents`, half a cent rounded up), and every subtotal, total, sum
+  over a customer, payment and amount due is a sum of cents.
+- **A sealed glazing unit has its own rate** (`sealedGlassPerM2`,
+  `customSealedGlassPerM2`), at its actual canonical area. Which panes are
+  sealed is read from the solid (`PricingTakeoff.sealedUnitsOf`: a pane
+  built with four faces of glass, per `DepthLayout.litesOf`), so pricing
+  and the model never disagree. A sheet too thin for a cavity — a sliding
+  panel beside a pleated screen — is priced at the glass rate. A sealed
+  unit with no rate of its own is unpriced and says so; it never falls
+  back to the glass rate.
+- **Rollers** are the existing rule, kept: each sliding panel runs on
+  `rollersPerSlidingPanel` rollers (the list's, 2 unless the owner says
+  otherwise) at `rollerEach`; a fixed panel on none.
+- **Discounts** are applied by the engine and kept in the design, but
+  nothing on the screen gives one yet; that is a later screen.
+- **Payment** is one figure; a history, credit and refunds are later.
+  Paying more than a final total is refused.
+- **A card's buttons are whole.** The price and **Price** stand on a row
+  of their own, so *Edit information* and **Open** are shown in full on
+  every laptop width.
+
+`test/domain/pricing_integrity_test.dart` holds it, under the brief's
+numbers:
+
+- **30**: an unread design is not priced, and a previous price is not the
+  price.
+- **31**: a width changed makes the price stale.
+- **32**: a delete takes exactly its record, and the total is the rest.
+- **33**: migration from both older schemas, on the device and back.
+- **The example rates**: written only in `DefaultFactoryPricing`.
+- **34**: 20.98 + 14.23 = 35.21, and rows summing as written.
+- **35**: cents.
+- **36**: sealed and single-sheet glass, and no fallback.
+- **37**: rollers 2, 4, then 3 and 6.
+- **38**: 800 + 500 + 700 = 2,000 → 2,100, then not final.
+- **39**: 2,000 with 500 paid is 1,500 due.
+
+`test/app/pricing_integrity_on_screen_test.dart` holds it on the real app:
+
+- a line drawn after the price, disabling it in the workspace with the
+  message, through a figure, an undo and a Read;
+- the card of a design kept unread;
+- a delete and an Undo;
+- *Edit information* in full at five widths, with the app's own typeface
+  loaded so the measurement is the screen's.
 
 ## Working on this repository
 

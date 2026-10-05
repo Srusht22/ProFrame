@@ -922,7 +922,7 @@ class CustomerDesignCard extends StatelessWidget {
   static const height = 328.0;
 
   /// How tall its picture is.
-  static const pictureHeight = 156.0;
+  static const pictureHeight = 116.0;
 
   const CustomerDesignCard({
     super.key,
@@ -1074,20 +1074,24 @@ class CustomerDesignCard extends StatelessWidget {
               const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  'Last edited: ${lastEdited(design.updatedAt, now)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12.5, color: p.muted),
+                ),
+              ),
+              const SizedBox(height: 4),
+              // Its price, where one is current, and otherwise why not —
+              // and Price, on a row of their own, so the row of buttons
+              // below keeps Edit information whole.
+              Padding(
+                padding: const EdgeInsetsDirectional.only(start: 4),
                 child: Row(
                   children: [
-                    Flexible(
-                      child: Text(
-                        'Last edited: ${lastEdited(design.updatedAt, now)}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12.5, color: p.muted),
-                      ),
-                    ),
+                    Expanded(child: CardPriceValue(designId: design.id)),
                     const SizedBox(width: 8),
-                    // Its price, where one is current, and otherwise why
-                    // not.
-                    CardPriceValue(designId: design.id),
+                    CardPriceButton(design: design),
                   ],
                 ),
               ),
@@ -1114,8 +1118,6 @@ class CustomerDesignCard extends StatelessWidget {
                     )
                   else
                     const Spacer(),
-                  CardPriceButton(design: design),
-                  const SizedBox(width: 4),
                   TextButton.icon(
                     key: openKey(design.id),
                     onPressed: onOpen,
@@ -1186,6 +1188,8 @@ class CardPriceValue extends ConsumerWidget {
       null => 'Price: …',
       _ when state.total != null =>
         'Price: ${PricePanel.money(state.total!, state.record!.result.currency)}',
+      // Drawn on since it was read: the price kept is of an older reading.
+      _ when state.notRead => 'Price: needs update',
       DesignPriceState(status: DesignPriceStatus.notCalculated) =>
         'Price: not calculated',
       DesignPriceState(status: DesignPriceStatus.needsRecalculation) =>

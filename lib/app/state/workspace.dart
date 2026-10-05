@@ -250,7 +250,10 @@ class WorkspaceState {
   static String openingKindQuestion(String openingId) => 'kind-$openingId';
 
   /// True while the drawing has changes the geometry has not caught up with.
-  final bool needsReading;
+  /// It is the design's own (`Design.sketchUnread`), so it is undone, saved
+  /// and reopened with the design, and a design's card and its price know
+  /// it as well as this screen does.
+  bool get needsReading => design.sketchUnread;
 
   /// Whether the user's own ink is shown over the geometry.
   final bool showSketch;
@@ -314,7 +317,6 @@ class WorkspaceState {
     this.view = WorkspaceView.draw,
     this.selectedId,
     this.questions = const [],
-    this.needsReading = false,
     this.showSketch = true,
     this.camera = Camera.presentation,
     this.framedFor,
@@ -329,6 +331,13 @@ class WorkspaceState {
     this.normalizedNotice = 0,
     Object? work,
   }) : work = work ?? _Work();
+
+  /// [design] said to have strokes not read yet, or not, where [unread]
+  /// says — and as it is where it says nothing.
+  static Design _unread(Design design, bool? unread) =>
+      unread == null || unread == design.sketchUnread
+      ? design
+      : design.copyWith(sketchUnread: unread);
 
   DesignElement? get selected =>
       selectedId == null ? null : design.elementById(selectedId!);
@@ -373,12 +382,11 @@ class WorkspaceState {
                 null
         ? _Work()
         : work,
-    design: design ?? this.design,
+    design: _unread(design ?? this.design, needsReading),
     tool: tool ?? this.tool,
     view: view ?? this.view,
     selectedId: clearSelection ? null : (selectedId ?? this.selectedId),
     questions: questions ?? this.questions,
-    needsReading: needsReading ?? this.needsReading,
     showSketch: showSketch ?? this.showSketch,
     camera: camera ?? this.camera,
     framedFor: framedFor ?? this.framedFor,
@@ -462,7 +470,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     super.state =
         was.isUnsupported && value.design.id == was.id &&
             !identical(value.design, was)
-        ? value.copyWith(design: was, needsReading: false)
+        ? value.copyWith(design: was)
         : value;
   }
 
@@ -638,7 +646,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     );
     state = state.copyWith(
       design: state.design.copyWith(sketch: state.design.sketch.add(stroke)),
-      needsReading: tool.structural,
+      // A line drawn leaves the sheet to be read; a note or a figure,
+      // which is added as itself, leaves it as it was.
+      needsReading: tool.structural || state.needsReading,
     );
 
     // Annotation is not structure: it is added as itself, straight away.
@@ -892,6 +902,8 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         design: Measurements.keepAfterReading(state.design, result.design),
         notSymbols: notSymbols,
         questions: result.questions,
+        // The sheet has just been read as a whole.
+        needsReading: false,
       );
       return;
     }

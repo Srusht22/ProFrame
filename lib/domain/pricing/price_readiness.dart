@@ -19,6 +19,7 @@ import 'takeoff.dart';
 /// | Requirement | Read from |
 /// | --- | --- |
 /// | A category this version can price | `Design.isUnsupported` |
+/// | A drawing read since it last changed | `Design.sketchUnread` |
 /// | An outer frame | `Design.frame` |
 /// | Geometry that can be measured | `PricingTakeoff.problemWith`, and the angled check's errors (`GeometryFeedback`) |
 /// | What a door is built of | `Design.construction` |
@@ -67,6 +68,20 @@ class PriceReadiness {
           PriceRequirementKind.unsupportedCategory,
           'This design\'s category is not supported by this version of '
           'ProFrame, so its price is unavailable.',
+        ),
+      ];
+    }
+    // Lines drawn or rubbed out since the last reading: the geometry is an
+    // older reading of the sheet than the one on the screen, and a price of
+    // it would be the price of a drawing nobody is looking at. Nothing else
+    // is asked until the sheet is read, because everything else is asked of
+    // the geometry the reading will replace.
+    if (design.sketchUnread) {
+      return const [
+        PriceRequirement(
+          PriceRequirementKind.notRead,
+          'The drawing has changes that have not been read. Please Read the '
+          'drawing before calculating the price.',
         ),
       ];
     }
@@ -177,6 +192,9 @@ class PriceReadiness {
 /// What kind of thing is still to be completed.
 enum PriceRequirementKind {
   unsupportedCategory,
+
+  /// The drawing has strokes the geometry has not been read from.
+  notRead,
   frame,
   geometry,
   construction,

@@ -1067,3 +1067,74 @@ customer's total summed whatever priced. Nothing recorded a payment.
 - A deleted design's kept price stays on the device, unread.
 - The customer summary reads every design of that customer, not a page.
 - A sheet drawn but not yet read is priced as the design last read.
+
+## 32. Pricing integrity (Phase 27)
+
+**Found.**
+- A sheet drawn on and not read was priced as the design last read. A card
+  could not know: the flag lived in the workspace, not in the design.
+- A deleted design's price record stayed on the device.
+- The first engine's price list (`proframe.pricelist.v1`) was ignored, so
+  a workshop that had kept one was priced by the example list.
+- The example rates were written inside `PriceList`.
+- Lengths and money were doubles. Profile rows written to the centimetre
+  did not always add up to the total written, and money was summed as
+  doubles of rounded cents.
+- A sealed glazing unit was priced at the single-sheet glass rate.
+
+**Changed.**
+- `Design.sketchUnread` is kept in the design while the sheet has unread
+  structural lines. `WorkspaceState.needsReading` reads it.
+  `PriceReadiness` refuses to price it (`PriceRequirementKind.notRead`,
+  `PriceStatus.notRead`). A card says *Drawing not read* and *Price: needs
+  update*, and its Price is disabled. Reading for the user was not chosen:
+  a reading can raise questions and change the design.
+- `DesignStore.remove` also removes the design's price record. Undo
+  restores both.
+- `PriceListMigration` brings schema 1 and schema 2 lists to schema 3.
+  Only equivalent rates are carried; anything without a place is named in
+  `PriceList.migrationNotes`. `PriceListStore.load` reads the old key when
+  no current list is kept, and writes nothing. The owner's save writes
+  schema 3.
+- `DefaultFactoryPricing.list` is the one place the example rates are
+  written; `PriceList.starter` is it.
+- `Metres` and `SquareMetres` are whole millimetres and square
+  millimetres. A price line is whole cents (`Money.cents`). Totals, a
+  customer's sum, payments and amounts due are sums of cents.
+- `sealedGlassPerM2` and `customSealedGlassPerM2` price a sealed unit.
+  Which panes are sealed is read from the solid's facets (four faces of
+  glass), so pricing and the model agree. There is no fallback to the
+  glass rate.
+- The card's price and **Price** moved to their own row. *Edit
+  information* and **Open** share the bottom row in full, and the
+  picture is 116 px so the card keeps its height.
+
+**Kept.**
+- The roller rule: sliding panels × `rollersPerSlidingPanel` ×
+  `rollerEach`.
+- Discounts: in the engine, with no screen yet.
+- Payment: one figure per customer, with overpayment refused against a
+  final total.
+- The customer summary reads every design of that customer.
+
+**Verified.**
+- `test/domain/pricing_integrity_test.dart` (25).
+- `test/app/pricing_integrity_on_screen_test.dart` (8).
+- The full suite passes (2394), and `flutter analyze` is clean.
+- In the browser at 1440 × 900:
+  - Adam's cards show *Edit information* in full.
+  - Front Entrance Door, kept unread, says *Drawing not read* and *Price:
+    needs update*, with Price disabled.
+  - In the workspace, Calculate price is disabled and says to Read first.
+  - After **Read my drawing** it calculated 218.57 USD:
+    42.00 + 66.24 + 64.33 (*Sealed unit — Clear glass*, 45.00 a m²) +
+    46.00. The profile is 6.000 m + 5.520 m = 11.520 m.
+
+**Not done.**
+- Price records left by deletes before this phase are not swept.
+- Glass and panel areas are written to the hundredth of a square metre,
+  so the quantity × rate written can differ from the amount by a few
+  cents. The amount is the exact area × rate, and the rows still sum
+  exactly.
+- No payment history, credit, refunds or discount screen.
+- The customer summary is not paged.

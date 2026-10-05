@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/dimensions/measurements.dart';
 import '../domain/model/design.dart';
 import 'customer_store.dart';
+import 'price_record_store.dart';
 
 /// A short number for the design with [id] that a person can read out and
 /// type back in: the moment it was made, to the millisecond, written in
@@ -554,9 +555,12 @@ class DesignStore {
         if (s.id != designId) s,
     ];
     final file = prefs.remove(_designKey(designId));
+    // The design's own price goes with it: it priced nothing else, and a
+    // price of a design that is not kept is a price of nothing.
+    final price = prefs.remove(PriceRecordStore.keyOf(designId));
     final written = _write(prefs, index);
     _recent.remove(designId);
-    await Future.wait([file, written]);
+    await Future.wait([file, price, written]);
   }
 
   /// A copy of the design kept as [id], made now under an id and a number

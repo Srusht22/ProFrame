@@ -51,6 +51,8 @@ final zero = PriceList(
   },
   glassPerM2: {for (final g in GlassLook.values) g: 0},
   customGlassPerM2: 0,
+  sealedGlassPerM2: {for (final g in GlassLook.values) g: 0},
+  customSealedGlassPerM2: 0,
   panelPerM2: {for (final p in PanelColour.values) p: 0},
   customPanelPerM2: 0,
   hardwareEach: {for (final h in HardwareKind.values) h: 0},
@@ -224,10 +226,10 @@ void main() {
       expect(t.border.value, closeTo(6.00, 1e-9), reason: '600 cm');
       expect(t.dividers.value, closeTo(1.60, 1e-9), reason: '80 + 80 cm');
       expect(t.normalProfile.value, closeTo(7.60, 1e-9));
-      expect(t.normalProfile.label, '7.60 m');
+      expect(t.normalProfile.label, '7.600 m');
       expect(t.openingProfile.value, closeTo(6.00, 1e-9));
-      expect(t.openingProfile.label, '6.00 m');
-      expect(t.totalProfile.label, '13.60 m');
+      expect(t.openingProfile.label, '6.000 m');
+      expect(t.totalProfile.label, '13.600 m');
 
       // $7 and $12 a metre.
       final normal = lineOf(d, example, PriceGroup.normalProfile);
@@ -255,8 +257,8 @@ void main() {
       expect(panel.amount, 56.80, reason: '1.893296 m² × 30');
       expect(totalOf(d, withPanel), closeTo(125.20 + 56.80, 1e-9));
       final result = engine.price(d, withPanel);
-      expect(result.measurements.normalProfile.label, '7.60 m');
-      expect(result.measurements.openingProfile.label, '6.00 m');
+      expect(result.measurements.normalProfile.label, '7.600 m');
+      expect(result.measurements.openingProfile.label, '6.000 m');
       expect(result.measurements.panelArea.label, '1.89 m²');
       expect(result.measurements.glassArea.label, '0.00 m²');
     });
@@ -268,13 +270,14 @@ void main() {
       final t = PricingTakeoff.of(d);
       expect(t.border.value, closeTo(6, 1e-9), reason: '100+100+200+200');
       final daylight = d.frame!.innerOutline;
-      expect(t.openingProfile.value, closeTo(perimeter(daylight) / 1000, 1e-9));
+      expect(t.openingProfile.value, closeTo(perimeter(daylight) / 1000, 5e-4));
       expect(t.openings.single.perimeter, t.openingProfile);
       // An angled border is its own polygon's perimeter.
       final a = given(sloped());
       expect(
         PricingTakeoff.of(a).border.value,
-        closeTo(2 + 1.5 + 1 + 1.1180340, 1e-6),
+        // To the millimetre it is cut to.
+        closeTo(2 + 1.5 + 1 + 1.1180340, 5e-4),
       );
     });
 
@@ -291,7 +294,7 @@ void main() {
       // other: the daylight's height.
       final inner = d.frame!.innerOutline;
       for (final m in mullions) {
-        expect(m.length.value, closeTo(inner.height / 1000, 1e-6));
+        expect(m.length.value, closeTo(inner.height / 1000, 5e-4));
       }
       // The lines inside the openings are each that opening's, and cut to
       // the sash's daylight.
@@ -327,7 +330,7 @@ void main() {
       for (final o in d.openingsInOrder) {
         final region = d.sectionById(o.sectionId)!.outline;
         final mine = t.openings.singleWhere((x) => x.id == o.id);
-        expect(mine.perimeter.value, closeTo(perimeter(region) / 1000, 1e-9));
+        expect(mine.perimeter.value, closeTo(perimeter(region) / 1000, 5e-4));
         sum += mine.perimeter.value;
       }
       expect(t.openingProfile.value, closeTo(sum, 1e-9));
@@ -385,8 +388,9 @@ void main() {
       expect(m.glassArea.label, endsWith(' m²'));
       expect(m.normalProfile, isA<Metres>());
       expect(m.panelArea, isA<SquareMetres>());
-      expect(const Metres(56.8).label, '56.80 m');
-      expect(const SquareMetres(8.4).label, '8.40 m²');
+      // A length is kept and written to the millimetre.
+      expect(Metres(56.8).label, '56.800 m');
+      expect(SquareMetres(8.4).label, '8.40 m²');
     });
   });
 
@@ -555,7 +559,7 @@ void main() {
       expect(t.area.value, closeTo(1.75, 1e-9));
       final raked = d.openings.single;
       final region = d.sectionById(raked.sectionId)!.outline;
-      expect(t.openingProfile.value, closeTo(perimeter(region) / 1000, 1e-9));
+      expect(t.openingProfile.value, closeTo(perimeter(region) / 1000, 5e-4));
       expect(engine.price(d, PriceList.starter).isPriced, isTrue);
       expect(jsonEncode(d.toJson()), before);
     });
@@ -609,7 +613,9 @@ void main() {
       () {
         final d = glassOverPanel(door());
         final list = example.copyWith(
-          glassPerM2: {...zero.glassPerM2, GlassLook.clear: 25},
+          // The door's glass is built as a sealed unit, priced at the
+          // sealed unit's own rate.
+          sealedGlassPerM2: {...zero.sealedGlassPerM2, GlassLook.clear: 25},
           panelPerM2: {...zero.panelPerM2, PanelColour.white: 30},
           hardwareEach: {...zero.hardwareEach, HardwareKind.hinge: 3},
         );
@@ -713,10 +719,7 @@ void main() {
       expect(some.isFinal, isFalse);
       expect(some.total, isNull);
       expect(some.cannotBePriced, 1);
-      expect(
-        some.pricedSoFar,
-        closeTo(each[0].total! + each[1].total!, 1e-6),
-      );
+      expect(some.pricedSoFar, closeTo(each[0].total! + each[1].total!, 1e-6));
     });
   });
 
@@ -755,7 +758,7 @@ void main() {
       expect(kept.pricing.snapshot!.result.total, a.total);
       expect(
         kept.pricing.snapshot!.result.measurements.normalProfile.label,
-        '7.60 m',
+        '7.600 m',
       );
     });
 
@@ -832,7 +835,9 @@ void main() {
         reason: 'measured all the same',
       );
       expect(
-        engine.price(d, zero.copyWith(glassPerM2: const {})).status,
+        // The door's glass is a sealed unit: no sealed rate, no price —
+        // never the single-sheet rate in its stead.
+        engine.price(d, zero.copyWith(sealedGlassPerM2: const {})).status,
         PriceStatus.notConfigured,
       );
       final noHinge = zero.copyWith(
@@ -929,8 +934,10 @@ void main() {
         jsonEncode(PriceList.starter.toJson()),
       ) as Map<String, Object?>;
       (json['glassPerM2']! as Map<String, Object?>)['clear'] = -5;
+      (json['sealedGlassPerM2']! as Map<String, Object?>)['clear'] = -5;
       final read = PriceList.fromJson(json)!;
       expect(read.glassPerM2.containsKey(GlassLook.clear), isFalse);
+      expect(read.sealedGlassPerM2.containsKey(GlassLook.clear), isFalse);
       expect(engine.price(door(), read).status, PriceStatus.notConfigured);
 
       final back = PriceList.fromJson(

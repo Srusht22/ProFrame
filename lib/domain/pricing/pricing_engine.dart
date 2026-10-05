@@ -1,5 +1,6 @@
 import '../model/design.dart';
 import '../model/materials.dart';
+import 'measurement.dart';
 import 'price_list.dart';
 import 'price_readiness.dart';
 import 'price_result.dart';
@@ -87,6 +88,7 @@ class PricingEngine {
         switch (readiness.missing.first.kind) {
           PriceRequirementKind.unsupportedCategory =>
             PriceStatus.unsupportedCategory,
+          PriceRequirementKind.notRead => PriceStatus.notRead,
           PriceRequirementKind.frame => PriceStatus.nothingToPrice,
           PriceRequirementKind.geometry => PriceStatus.invalid,
           PriceRequirementKind.sizes => PriceStatus.needsSizes,
@@ -183,7 +185,8 @@ class PriceSheet {
         quantity: quantity,
         unit: unit,
         rate: rate,
-        amount: _money(quantity * rate),
+        // Charged to the cent here, once; only cents are added after.
+        amount: quantity * rate,
         partId: partId,
       ),
     );
@@ -203,8 +206,8 @@ class PriceSheet {
         label: label,
         quantity: percent,
         unit: PriceUnit.percent,
-        rate: _money(of),
-        amount: _money(of * percent / 100),
+        rate: of,
+        amount: of * percent / 100,
         partId: partId,
       ),
     );
@@ -219,11 +222,12 @@ class PriceSheet {
     }
   }
 
+  /// What [group]'s lines come to: their cents, summed.
   double sumOf(PriceGroup group) =>
-      lines.where((l) => l.group == group).fold(0, (sum, l) => sum + l.amount);
-
-  /// To the hundredth: no price carries a fraction of a fraction.
-  static double _money(double v) => (v * 100).roundToDouble() / 100;
+      lines
+          .where((l) => l.group == group)
+          .fold(0, (sum, l) => sum + l.amountCents) /
+      100;
 }
 
 /// What a category charges for. One per category, registered with the
@@ -256,12 +260,14 @@ class FramedPricing extends CategoryPricing {
 
     // Profile, by material and use; and by material and colour for what
     // the colour adds.
-    final normal = <MaterialKind, double>{};
-    final opening = <MaterialKind, double>{};
-    final byColour = <(MaterialKind, int), ({double metres, double cost})>{};
-    var track = 0.0;
+    // Lengths are added as the millimetres they are kept in, so every sum
+    // is exact; a length becomes metres only where it is multiplied.
+    final normal = <MaterialKind, Metres>{};
+    final opening = <MaterialKind, Metres>{};
+    final byColour = <(MaterialKind, int), ({Metres metres, double cost})>{};
+    var track = Metres.zero;
     for (final run in takeoff.runs) {
-      final metres = run.length.value;
+      final metres = run.length;
       if (run.use == ProfileUse.track) {
         track += metres;
         continue;
@@ -274,20 +280,20 @@ class FramedPricing extends CategoryPricing {
       }
       final isOpening = run.use == ProfileUse.opening;
       final into = isOpening ? opening : normal;
-      into[material] = (into[material] ?? 0) + metres;
+      into[material] = (into[material] ?? Metres.zero) + metres;
       final rate = isOpening ? profile.openingPerMetre : profile.normalPerMetre;
       final key = (material, run.finish.colour);
-      final was = byColour[key] ?? (metres: 0.0, cost: 0.0);
+      final was = byColour[key] ?? (metres: Metres.zero, cost: 0.0);
       byColour[key] = (
         metres: was.metres + metres,
-        cost: was.cost + metres * rate,
+        cost: was.cost + metres.value * rate,
       );
     }
     for (final MapEntry(key: m, value: metres) in normal.entries) {
       sheet.add(
         PriceGroup.normalProfile,
         'Normal profile — ${m.label}',
-        metres,
+        metres.value,
         PriceUnit.metre,
         list.profiles[m]!.normalPerMetre,
       );
@@ -296,7 +302,7 @@ class FramedPricing extends CategoryPricing {
       sheet.add(
         PriceGroup.openingProfile,
         'Opening profile — ${m.label}',
-        metres,
+        metres.value,
         PriceUnit.metre,
         list.profiles[m]!.openingPerMetre,
       );
@@ -309,7 +315,7 @@ class FramedPricing extends CategoryPricing {
         ..add(
           PriceGroup.colour,
           what,
-          used.metres,
+          used.metres.value,
           PriceUnit.metre,
           rate.surcharge.perMetre,
         )
@@ -323,31 +329,38 @@ class FramedPricing extends CategoryPricing {
     sheet.add(
       PriceGroup.otherProfile,
       'Sliding track',
-      track,
+      track.value,
       PriceUnit.metre,
       list.trackPerMetre,
     );
 
-    // Glass by look and panel by colour, each by its whole area.
-    final glass = <String, ({double area, double? rate})>{};
-    final panel = <String, ({double area, double? rate})>{};
+    // Glass by look and panel by colour, each by its whole area. Glass the
+    // solid builds as a sealed unit — two sheets and a cavity — is priced
+    // at the sealed unit's own rate for its look, and a single sheet at the
+    // glass rate: one is never priced as the other.
+    final glass = <String, ({SquareMetres area, double? rate})>{};
+    final panel = <String, ({SquareMetres area, double? rate})>{};
     for (final region in takeoff.regions) {
       if (region.isGlass) {
         final look = GlassLook.of(region.finish);
-        final name = '${look?.label ?? 'Custom'} glass';
-        final rate = look == null
-            ? list.customGlassPerM2
-            : list.glassPerM2[look];
-        final was = glass[name]?.area ?? 0;
-        glass[name] = (area: was + region.area.value, rate: rate);
+        final kind = '${look?.label ?? 'Custom'} glass';
+        final name = region.sealed ? 'Sealed unit — $kind' : kind;
+        final rate = switch ((region.sealed, look)) {
+          (true, null) => list.customSealedGlassPerM2,
+          (true, final look?) => list.sealedGlassPerM2[look],
+          (false, null) => list.customGlassPerM2,
+          (false, final look?) => list.glassPerM2[look],
+        };
+        final was = glass[name]?.area ?? SquareMetres.zero;
+        glass[name] = (area: was + region.area, rate: rate);
       } else if (region.isPanel) {
         final colour = PanelColour.of(region.finish);
         final name = '${colour?.label ?? 'Custom'} panel';
         final rate = colour == null
             ? list.customPanelPerM2
             : list.panelPerM2[colour];
-        final was = panel[name]?.area ?? 0;
-        panel[name] = (area: was + region.area.value, rate: rate);
+        final was = panel[name]?.area ?? SquareMetres.zero;
+        panel[name] = (area: was + region.area, rate: rate);
       } else {
         sheet.missing('${region.finish.material.label.toLowerCase()} infill');
       }
@@ -362,7 +375,7 @@ class FramedPricing extends CategoryPricing {
           sheet.missing(name.toLowerCase());
           continue;
         }
-        sheet.add(group, name, v.area, PriceUnit.squareMetre, rate);
+        sheet.add(group, name, v.area.value, PriceUnit.squareMetre, rate);
       }
     }
 
@@ -394,6 +407,9 @@ class SlidingPricing extends FramedPricing {
   void price(PricingTakeoff takeoff, PriceSheet sheet) {
     super.price(takeoff, sheet);
     final list = sheet.list;
+    // The roller rule: every panel that slides runs on the price list's
+    // number of rollers (`rollersPerSlidingPanel`); a fixed panel stands in
+    // its track on none.
     final sliders = takeoff.openings.where((o) => o.slides).length;
     sheet.add(
       PriceGroup.hardware,

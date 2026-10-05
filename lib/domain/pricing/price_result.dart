@@ -16,6 +16,10 @@ enum PriceStatus {
   /// Nothing to price yet: no outline has been read into a frame.
   nothingToPrice,
 
+  /// The drawing has changes the geometry has not been read from: what is
+  /// on the screen is not what would be priced.
+  notRead,
+
   /// The width or the height has not been given. A sketch has proportions
   /// and no scale, so a price read off it would be a guess at a number.
   needsSizes,
@@ -82,20 +86,27 @@ class PriceLine {
 
   /// The price of one [unit] — or, for [PriceUnit.percent], the percentage.
   final double rate;
-  final double amount;
+
+  /// What the line comes to, in whole cents: money is charged to the cent,
+  /// and every sum of lines is a sum of cents, so a total never differs by
+  /// a cent from the lines written above it.
+  final int amountCents;
+
+  /// What the line comes to, in the list's currency.
+  double get amount => amountCents / 100;
 
   /// The part of the design the line is for, where it is one part.
   final String? partId;
 
-  const PriceLine({
+  PriceLine({
     required this.group,
     required this.label,
     required this.quantity,
     required this.unit,
     required this.rate,
-    required this.amount,
+    required double amount,
     this.partId,
-  });
+  }) : amountCents = Money.cents(amount);
 
   Map<String, Object?> toJson() => {
     'group': group.name,
@@ -242,21 +253,33 @@ class PriceResult {
 
   bool get isPriced => status == PriceStatus.priced;
 
-  double sumOf(PriceGroup group) => _sum([
+  double sumOf(PriceGroup group) => _cents([
     for (final l in lines)
-      if (l.group == group) l.amount,
-  ]);
+      if (l.group == group) l,
+  ]) / 100;
+
+  int get _subtotalCents => isPriced ? _cents(lines) : 0;
+
+  int get _discountCents =>
+      isPriced ? Money.cents(discount?.off(subtotal) ?? 0) : 0;
 
   /// Everything before the discount, installation included.
-  double get subtotal => isPriced ? _sum([for (final l in lines) l.amount]) : 0;
+  double get subtotal => _subtotalCents / 100;
 
-  double get discountAmount => isPriced ? (discount?.off(subtotal) ?? 0) : 0;
+  double get discountAmount => _discountCents / 100;
+
+  /// What the design comes to, in whole cents, or null where it could not
+  /// be priced: the lines summed as cents, less the discount.
+  int? get totalCents => isPriced ? _subtotalCents - _discountCents : null;
 
   /// What the design comes to, or null where it could not be priced.
-  double? get total => isPriced ? subtotal - discountAmount : null;
+  double? get total => switch (totalCents) {
+    final c? => c / 100,
+    null => null,
+  };
 
-  static double _sum(Iterable<double> amounts) =>
-      amounts.fold(0, (a, b) => a + b);
+  static int _cents(Iterable<PriceLine> lines) =>
+      lines.fold(0, (sum, l) => sum + l.amountCents);
 
   Map<String, Object?> toJson() => {
     'status': status.name,
@@ -372,4 +395,24 @@ class PricingChoices {
 
   @override
   int get hashCode => Object.hash(installation, discount, snapshot);
+}
+
+/// Money, as the application keeps it: whole cents.
+///
+/// Floating-point money drifts — 10.10 and 20.20 make 30.299999… — so an
+/// amount is turned into cents once, where it is charged, and only cents are
+/// added from then on. A value exactly half a cent is rounded up, away from
+/// nothing, whatever binary fraction it was held as.
+abstract final class Money {
+  /// [amount] in whole cents.
+  static int cents(double amount) {
+    if (!amount.isFinite) return 0;
+    final hundredths = amount * 100;
+    // Lift a value a hair under a half-cent back to it before rounding.
+    final nudge = hundredths >= 0 ? 1e-7 : -1e-7;
+    return (hundredths + nudge).round();
+  }
+
+  /// [cents] as an amount.
+  static double of(int cents) => cents / 100;
 }

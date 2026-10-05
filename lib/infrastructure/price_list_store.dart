@@ -17,10 +17,18 @@ import '../domain/pricing/pricing_access.dart';
 class PriceListStore {
   static const key = 'proframe.pricelist.v2';
 
-  /// The list designs are priced by now.
+  /// Where the first engine kept its list (schema 1). Read, and migrated as
+  /// it is read, only while nothing is kept under [key]; never written, and
+  /// never removed — it is the owner's data.
+  static const legacyKey = 'proframe.pricelist.v1';
+
+  /// The list designs are priced by now: the one kept, migrated from an
+  /// older schema where it was kept in one (`PriceList.fromJson`), or the
+  /// example list where none is kept. Reading writes nothing: a migrated
+  /// list is kept in the current schema only when the owner next keeps it.
   Future<PriceList> load() async {
     final prefs = await SharedPreferences.getInstance();
-    final text = prefs.getString(key);
+    final text = prefs.getString(key) ?? prefs.getString(legacyKey);
     if (text == null) return PriceList.starter;
     try {
       return PriceList.fromJson(jsonDecode(text)) ?? PriceList.starter;
@@ -38,12 +46,15 @@ class PriceListStore {
   Future<PriceList> save(PriceList list, {required WorkshopRole by}) async {
     if (!by.canConfigurePrices) throw PricingAccessDenied(by);
     final current = await load();
-    final kept = list.copyWith(
-      version: (current.isStarter ? 0 : current.version) + 1,
-      isStarter: false,
-    );
+    final json = list
+        .copyWith(
+          version: (current.isStarter ? 0 : current.version) + 1,
+          isStarter: false,
+        )
+        .toJson();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(key, jsonEncode(kept.toJson()));
-    return kept;
+    await prefs.setString(key, jsonEncode(json));
+    // As kept — in the current schema, and no longer a migrated list.
+    return PriceList.fromJson(json)!;
   }
 }

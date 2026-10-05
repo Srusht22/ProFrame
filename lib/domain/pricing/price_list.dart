@@ -1,5 +1,7 @@
 import '../model/elements.dart';
 import '../model/materials.dart';
+import 'default_factory_pricing.dart';
+import 'price_list_migration.dart';
 
 /// The workshop's prices: every figure the pricing engine multiplies by,
 /// and nothing else.
@@ -38,6 +40,17 @@ class PriceList {
   /// null where the list does not price it.
   final double? customGlassPerM2;
 
+  /// A sealed glazing unit — two sheets and a sealed cavity, which is how
+  /// the solid builds every pane deep enough for one — by the look of its
+  /// glass, a square metre of what is cut. Its own rate: a sealed unit is
+  /// never priced at the single-sheet rate above, and a look with no entry
+  /// here is not priced as a sealed unit at all.
+  final Map<GlassLook, double> sealedGlassPerM2;
+
+  /// A sealed unit in a glass of the user's own colour, or null where the
+  /// list does not price it.
+  final double? customSealedGlassPerM2;
+
   /// Panel, by colour, a square metre of what is cut.
   final Map<PanelColour, double> panelPerM2;
 
@@ -61,6 +74,21 @@ class PriceList {
 
   final InstallationRate installation;
 
+  /// The schema an older list was kept in, where this one was migrated
+  /// from it as it was read — null for a list kept in the current schema.
+  /// Never written: a migrated list kept again is kept in the current one.
+  final int? migratedFrom;
+
+  /// What an older list held that the current schema has no place for, said
+  /// in words, where it was migrated. Nothing is invented in its stead.
+  final List<String> migrationNotes;
+
+  /// The schema this version writes. 1 was the first engine's — a metre of
+  /// frame, of sash and of bar, a leaf by its kind, an angled joint; 2 the
+  /// factory's normal and opening profile; 3 adds the sealed unit's own
+  /// rate. See [fromJson].
+  static const schemaVersion = 3;
+
   const PriceList({
     required this.currency,
     required this.profiles,
@@ -76,120 +104,16 @@ class PriceList {
     this.trackPerMetre = 0,
     this.rollerEach = 0,
     this.rollersPerSlidingPanel = 2,
+    this.sealedGlassPerM2 = const {},
+    this.customSealedGlassPerM2,
+    this.migratedFrom,
+    this.migrationNotes = const [],
   });
 
-  /// The example list the application starts with. Its figures are
-  /// examples in US dollars, there to show how a price is made up until the
-  /// owner keeps the workshop's own; the screen says so while it is in use
-  /// ([isStarter]).
-  static final PriceList starter = PriceList(
-    isStarter: true,
-    currency: 'USD',
-    profiles: {
-      MaterialKind.upvc: const ProfileRate(
-        normalPerMetre: 7,
-        openingPerMetre: 12,
-        colours: [
-          ColourRate('White', 0xFFFFFFFF, ColourGrade.standard),
-          ColourRate('Off white', 0xFFF3F4F2, ColourGrade.standard),
-          ColourRate(
-            'Cream',
-            0xFFD8D5CC,
-            ColourGrade.nonStandard,
-            perMetre: 0.8,
-          ),
-          ColourRate('Grey', 0xFF6E7472, ColourGrade.nonStandard, perMetre: 1),
-          ColourRate(
-            'Graphite',
-            0xFF3A3A38,
-            ColourGrade.nonStandard,
-            perMetre: 1,
-          ),
-          ColourRate('Black', 0xFF1C1C1C, ColourGrade.nonStandard, perMetre: 1),
-          ColourRate(
-            'Oak effect',
-            0xFF7B4A2B,
-            ColourGrade.nonStandard,
-            perMetre: 1.5,
-          ),
-          ColourRate(
-            'Walnut effect',
-            0xFF4A2F1E,
-            ColourGrade.nonStandard,
-            perMetre: 1.5,
-          ),
-        ],
-        special: ColourSurcharge(perMetre: 2.5),
-      ),
-      MaterialKind.aluminium: const ProfileRate(
-        normalPerMetre: 11,
-        openingPerMetre: 18,
-        colours: [
-          ColourRate('Silver', 0xFF9C9C9C, ColourGrade.standard),
-          ColourRate('White', 0xFFFFFFFF, ColourGrade.standard),
-          ColourRate('Off white', 0xFFF3F4F2, ColourGrade.standard),
-          ColourRate('Black', 0xFF1C1C1C, ColourGrade.nonStandard, perMetre: 1),
-          ColourRate(
-            'Anthracite',
-            0xFF383E42,
-            ColourGrade.nonStandard,
-            perMetre: 1,
-          ),
-          ColourRate(
-            'Graphite',
-            0xFF3A3A38,
-            ColourGrade.nonStandard,
-            perMetre: 1,
-          ),
-          ColourRate(
-            'Oak effect',
-            0xFF7B4A2B,
-            ColourGrade.nonStandard,
-            perMetre: 2,
-          ),
-        ],
-        special: ColourSurcharge(perMetre: 3),
-      ),
-    },
-    glassPerM2: const {
-      GlassLook.clear: 25,
-      GlassLook.frosted: 32,
-      GlassLook.tinted: 34,
-      GlassLook.dark: 36,
-      GlassLook.blueGrey: 36,
-    },
-    customGlassPerM2: 40,
-    panelPerM2: const {
-      PanelColour.white: 30,
-      PanelColour.grey: 34,
-      PanelColour.black: 34,
-      PanelColour.brown: 36,
-    },
-    customPanelPerM2: 40,
-    hardwareEach: const {
-      HardwareKind.handle: 10,
-      HardwareKind.lever: 15,
-      HardwareKind.knob: 8,
-      HardwareKind.lock: 22,
-      HardwareKind.hinge: 3,
-      HardwareKind.letterplate: 12,
-      HardwareKind.peephole: 6,
-      HardwareKind.closer: 28,
-      HardwareKind.pull: 14,
-      HardwareKind.screen: 45,
-      HardwareKind.sensor: 110,
-    },
-    trackPerMetre: 9,
-    rollerEach: 4,
-    categories: const {
-      'door': CategoryRate('Door', LabourRate()),
-      'window': CategoryRate('Window', LabourRate()),
-      'sliding': CategoryRate('Sliding', LabourRate()),
-      'both': CategoryRate('Door & window', LabourRate()),
-      'angled': CategoryRate('Angled / Asymmetrical', LabourRate()),
-    },
-    installation: const InstallationRate(fixed: 20, perSquareMetre: 8),
-  );
+  /// The example list the application starts with, until the owner keeps
+  /// the workshop's own. Its figures live in one place,
+  /// [DefaultFactoryPricing], and nowhere else.
+  static PriceList get starter => DefaultFactoryPricing.list;
 
   PriceList copyWith({
     int? version,
@@ -198,6 +122,8 @@ class PriceList {
     Map<MaterialKind, ProfileRate>? profiles,
     Map<GlassLook, double>? glassPerM2,
     double? customGlassPerM2,
+    Map<GlassLook, double>? sealedGlassPerM2,
+    double? customSealedGlassPerM2,
     Map<PanelColour, double>? panelPerM2,
     double? customPanelPerM2,
     Map<HardwareKind, double>? hardwareEach,
@@ -206,6 +132,8 @@ class PriceList {
     int? rollersPerSlidingPanel,
     Map<String, CategoryRate>? categories,
     InstallationRate? installation,
+    int? migratedFrom,
+    List<String>? migrationNotes,
   }) => PriceList(
     version: version ?? this.version,
     isStarter: isStarter ?? this.isStarter,
@@ -213,6 +141,9 @@ class PriceList {
     profiles: profiles ?? this.profiles,
     glassPerM2: glassPerM2 ?? this.glassPerM2,
     customGlassPerM2: customGlassPerM2 ?? this.customGlassPerM2,
+    sealedGlassPerM2: sealedGlassPerM2 ?? this.sealedGlassPerM2,
+    customSealedGlassPerM2:
+        customSealedGlassPerM2 ?? this.customSealedGlassPerM2,
     panelPerM2: panelPerM2 ?? this.panelPerM2,
     customPanelPerM2: customPanelPerM2 ?? this.customPanelPerM2,
     hardwareEach: hardwareEach ?? this.hardwareEach,
@@ -222,9 +153,12 @@ class PriceList {
         rollersPerSlidingPanel ?? this.rollersPerSlidingPanel,
     categories: categories ?? this.categories,
     installation: installation ?? this.installation,
+    migratedFrom: migratedFrom ?? this.migratedFrom,
+    migrationNotes: migrationNotes ?? this.migrationNotes,
   );
 
   Map<String, Object?> toJson() => {
+    'schemaVersion': schemaVersion,
     'version': version,
     if (isStarter) 'isStarter': true,
     'currency': currency,
@@ -233,6 +167,11 @@ class PriceList {
     },
     'glassPerM2': {for (final e in glassPerM2.entries) e.key.name: e.value},
     if (customGlassPerM2 != null) 'customGlassPerM2': customGlassPerM2,
+    'sealedGlassPerM2': {
+      for (final e in sealedGlassPerM2.entries) e.key.name: e.value,
+    },
+    if (customSealedGlassPerM2 != null)
+      'customSealedGlassPerM2': customSealedGlassPerM2,
     'panelPerM2': {for (final e in panelPerM2.entries) e.key.name: e.value},
     if (customPanelPerM2 != null) 'customPanelPerM2': customPanelPerM2,
     'hardwareEach': {for (final e in hardwareEach.entries) e.key.name: e.value},
@@ -249,8 +188,25 @@ class PriceList {
   /// rather than priced at nonsense. Keys this version does not know — a
   /// material, a glass, a category from a later version — are passed over
   /// in the same way. Returns null where [json] is not a price list at all.
-  static PriceList? fromJson(Object? json) {
-    if (json is! Map<String, Object?>) return null;
+  ///
+  /// **A list kept in an older schema is migrated as it is read**
+  /// ([PriceListMigration]): what has a place in the current schema is
+  /// carried over at the same figure, what has none is named in
+  /// [migrationNotes], and nothing is made up. The list kept on the device
+  /// is not written by reading it.
+  static PriceList? fromJson(Object? raw) {
+    if (raw is! Map<String, Object?>) return null;
+    final migration = PriceListMigration.toCurrent(raw);
+    final read = _fromCurrent(migration.json);
+    if (read == null || migration.from == schemaVersion) return read;
+    return read.copyWith(
+      migratedFrom: migration.from,
+      migrationNotes: migration.notes,
+    );
+  }
+
+  /// [json] in the current schema, read.
+  static PriceList? _fromCurrent(Map<String, Object?> json) {
     final currency = json['currency'];
     if (currency is! String || currency.isEmpty) return null;
     Map<K, double> rates<K>(Object? raw, K? Function(String) key) => {
@@ -278,6 +234,11 @@ class PriceList {
         (k) => _byName(GlassLook.values, k),
       ),
       customGlassPerM2: price(json['customGlassPerM2']),
+      sealedGlassPerM2: rates(
+        json['sealedGlassPerM2'],
+        (k) => _byName(GlassLook.values, k),
+      ),
+      customSealedGlassPerM2: price(json['customSealedGlassPerM2']),
       panelPerM2: rates(
         json['panelPerM2'],
         (k) => _byName(PanelColour.values, k),

@@ -30,6 +30,7 @@ class PricePanel extends ConsumerStatefulWidget {
   static const calculateKey = ValueKey('price-calculate');
   static const stateKey = ValueKey('price-state');
   static const previousKey = ValueKey('price-previous');
+  static const migratedKey = ValueKey('price-migrated');
 
   /// [amount] in [currency], to the hundredth, with the thousands marked:
   /// `1,150.00 USD`.
@@ -119,6 +120,11 @@ class _PricePanelState extends ConsumerState<PricePanel> {
     final live = ref.watch(designPriceProvider);
     final starter = ref.watch(
       priceListProvider.select((l) => l.value?.isStarter ?? false),
+    );
+    final migration = ref.watch(
+      priceListProvider.select(
+        (l) => l.value?.migratedFrom == null ? null : l.value!.migrationNotes,
+      ),
     );
     final choices = ref.watch(
       workspaceProvider.select((s) => s.design.pricing),
@@ -247,6 +253,20 @@ class _PricePanelState extends ConsumerState<PricePanel> {
               padding: const EdgeInsets.only(top: 4),
               child: Text(
                 'Example prices — the workshop owner sets the real ones.',
+                style: text.bodySmall?.copyWith(color: p.muted),
+              ),
+            ),
+          // Prices read from a list kept by an earlier version: said, with
+          // what it held that has no place now.
+          if (migration != null)
+            Padding(
+              key: PricePanel.migratedKey,
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                [
+                  'Prices carried over from an older price list.',
+                  ...migration,
+                ].join(' '),
                 style: text.bodySmall?.copyWith(color: p.muted),
               ),
             ),

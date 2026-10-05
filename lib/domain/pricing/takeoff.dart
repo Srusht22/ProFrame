@@ -7,6 +7,9 @@ import '../model/design_geometry.dart';
 import '../model/elements.dart';
 import '../model/infill.dart';
 import '../model/materials.dart';
+import '../solid/depth_layout.dart';
+import '../solid/mesh.dart';
+import '../solid/mesh_builder.dart';
 import 'measurement.dart';
 
 /// What a design is made of, measured the way the factory measures it.
@@ -208,6 +211,7 @@ class PricingTakeoff {
       );
     }
 
+    final sealed = sealedUnitsOf(design);
     final regions = <RegionTakeoff>[
       for (final part in Infill.partsOf(design))
         RegionTakeoff(
@@ -216,6 +220,7 @@ class PricingTakeoff {
           // What it is cut to: the fill, stopping at the sash or the bar.
           area: SquareMetres.ofMm2(geometry.fillOf(part).area),
           finish: part.finish,
+          sealed: sealed.contains(part.id),
           openingId:
               design.openingHolding(part.parentId)?.id ??
               design.openingOf(part.id)?.id,
@@ -242,6 +247,20 @@ class PricingTakeoff {
       pieces: pieces,
     );
   }
+
+  static final _sealed = Expando<Set<String>>();
+
+  /// The panes [design]'s glass is built as sealed units in — two sheets
+  /// with a cavity — read from the solid itself, which decides it from the
+  /// depth the pane stands in ([DepthLayout.litesOf]): every pane of a
+  /// frame or a leaf at an ordinary depth, and not a panel in a sliding
+  /// track too thin for a cavity. Pricing asks what is built rather than
+  /// working the rule out again, so the price is of the glass the model
+  /// shows. Kept with the design object, which an edit replaces.
+  static Set<String> sealedUnitsOf(Design design) => _sealed[design] ??= {
+    for (final f in MeshBuilder.build(design).facets)
+      if (f.role == FacetRole.glazing && f.glassFaces >= 4) f.elementId,
+  };
 
   static double _perimeter(Polygon shape) =>
       shape.edges.fold(0, (sum, e) => sum + e.length);
@@ -310,12 +329,16 @@ class RegionTakeoff {
   final Finish finish;
   final String? openingId;
 
+  /// For glass: built as a sealed unit of two sheets, rather than one.
+  final bool sealed;
+
   const RegionTakeoff({
     required this.id,
     required this.name,
     required this.area,
     required this.finish,
     this.openingId,
+    this.sealed = false,
   });
 
   bool get isGlass => Infill.isGlass(finish);

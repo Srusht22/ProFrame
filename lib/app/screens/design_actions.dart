@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../infrastructure/design_store.dart';
+import '../state/pricing.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'design_information_screen.dart';
@@ -99,6 +100,8 @@ Future<bool> deleteDesign(
   if (sure != true || !context.mounted) return false;
   final store = ref.read(designStoreProvider);
   final design = await store.load(summary.id);
+  // Its price goes with it (`DesignStore.remove`), and comes back with it.
+  final price = await ref.read(priceRecordStoreProvider).load(summary.id);
   await store.remove(summary.id);
   ref.read(designsRevisionProvider.notifier).changed();
   if (!context.mounted) return true;
@@ -112,7 +115,13 @@ Future<bool> deleteDesign(
               label: 'Undo',
               onPressed: () async {
                 await store.save(design);
+                if (price != null) {
+                  await ref
+                      .read(priceRecordStoreProvider)
+                      .save(design.id, price);
+                }
                 ref.read(designsRevisionProvider.notifier).changed();
+                ref.read(priceRecordsRevisionProvider.notifier).changed();
               },
             ),
     ),

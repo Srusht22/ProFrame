@@ -64,8 +64,12 @@ void main() {
     final found = removals();
     expect(found, isNotEmpty, reason: 'the scan reads the code');
     for (final (path, line) in found) {
+      // A design's record, the list of designs kept before customers, and
+      // a deleted design's own price, which goes with it.
       expect(
-        line.contains('_designKey(') || line.contains('legacyKey'),
+        line.contains('_designKey(') ||
+            line.contains('legacyKey') ||
+            line.contains('PriceRecordStore.keyOf('),
         isTrue,
         reason: '$path: $line',
       );
