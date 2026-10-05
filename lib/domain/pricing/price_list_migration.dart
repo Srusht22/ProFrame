@@ -3,7 +3,8 @@
 /// ```
 /// stored list ─ schema? ─ 1 ─ v1 → v2 ─┐
 ///                       ─ 2 ───────────┴─ v2 → v3 ─┐
-///                       ─ 3 ───────────────────────┴─ current list
+///                       ─ 3 ───────────────────────┴─ v3 → v4 ─┐
+///                       ─ 4 ───────────────────────────────────┴─ current
 /// ```
 ///
 /// | Schema | What it held |
@@ -11,6 +12,7 @@
 /// | 1 | the first engine: a metre of frame, of sash and of bar for each material, a colour's surcharge as a percentage, a price per leaf and per angled joint (`proframe.pricelist.v1`) |
 /// | 2 | the factory model: a metre of normal and of opening profile, a colour's surcharge by the metre and the percentage — kept without a schema number |
 /// | 3 | schema 2 and a sealed glazing unit's own rate by look, kept with `schemaVersion: 3` |
+/// | 4 | schema 3 with the colours as one catalog: each colour an id, a name, a swatch, the materials it is sold in and a rate on each, active or retired, in order |
 ///
 /// **Only what has a place is carried, at the same figure.** What has none
 /// is named in the notes and left out; nothing is made up in its stead.
@@ -44,7 +46,8 @@ abstract final class PriceListMigration {
     var now = Map<String, Object?>.of(json);
     if (from <= 1) now = _v1ToV2(now, notes);
     if (from <= 2) now = _v2ToV3(now, notes);
-    now['schemaVersion'] = 3;
+    if (from <= 3) now = _v3ToV4(now, notes);
+    now['schemaVersion'] = 4;
     return (json: now, from: from, notes: List.unmodifiable(notes));
   }
 
@@ -146,5 +149,92 @@ abstract final class PriceListMigration {
       );
     }
     return out;
+  }
+
+  /// Schema 3's colours — a list under each material, matched by value —
+  /// as one catalog.
+  ///
+  /// A colour is the same colour on two materials where it has the same
+  /// value, the same name and the same grade, and is then one entry with a
+  /// rate on each, at the figures each material had. Colours that differ
+  /// in any of the three stay apart. Every entry is active, in the order
+  /// the materials and their colours were listed, and its id is made from
+  /// its name — `colour-black` — with a number after where two would share
+  /// one, so the same list always gives the same ids. Nothing is added: a
+  /// colour sold in one material is not made available in another, and
+  /// what a colour the list does not name adds stays each material's own.
+  static Map<String, Object?> _v3ToV4(
+    Map<String, Object?> json,
+    List<String> notes,
+  ) {
+    final out = Map<String, Object?>.of(json);
+    final profiles = <String, Object?>{};
+    final catalog = <Map<String, Object?>>[];
+    final byKey = <(Object?, Object?, Object?), Map<String, Object?>>{};
+    if (json['profiles'] case final Map<String, Object?> raw) {
+      for (final MapEntry(key: material, value: p) in raw.entries) {
+        if (p is! Map<String, Object?>) {
+          profiles[material] = p;
+          continue;
+        }
+        profiles[material] = Map<String, Object?>.of(p)..remove('colours');
+        if (p['colours'] case final List<Object?> colours) {
+          for (final c in colours) {
+            if (c is! Map<String, Object?>) continue;
+            final key = (c['colour'], c['name'], c['grade']);
+            final entry = byKey.putIfAbsent(key, () {
+              final made = <String, Object?>{
+                'id': null,
+                'name': c['name'],
+                'swatch': c['colour'],
+                'grade': c['grade'],
+                'rates': <String, Object?>{},
+                'order': catalog.length,
+              };
+              catalog.add(made);
+              return made;
+            });
+            (entry['rates']! as Map<String, Object?>)[material] =
+                c['surcharge'] ?? const <String, Object?>{};
+          }
+        }
+      }
+    }
+    final taken = <String>{};
+    for (final entry in catalog) {
+      entry['id'] = idFor(
+        entry['name'] is String ? entry['name']! as String : '',
+        taken,
+      );
+    }
+    out['profiles'] = profiles;
+    // A catalog already there — written by a later list that only lost its
+    // schema number — is kept as it is.
+    if (catalog.isNotEmpty || out['colours'] is! List<Object?>) {
+      out['colours'] = catalog;
+    }
+    if (catalog.isNotEmpty) {
+      notes.add(
+        'Colours are now one catalog: a colour sold in more than one '
+        'material is one colour with a rate on each, at the figures it had.',
+      );
+    }
+    return out;
+  }
+
+  /// An id for a colour called [name], none of [taken], added to them:
+  /// `colour-` and the name in lower case, a number after it where needed.
+  static String idFor(String name, Set<String> taken) {
+    final slug = name
+        .toLowerCase()
+        .replaceAll(RegExp('[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+    final base = 'colour-${slug.isEmpty ? 'unnamed' : slug}';
+    var id = base;
+    for (var n = 2; taken.contains(id); n++) {
+      id = '$base-$n';
+    }
+    taken.add(id);
+    return id;
   }
 }

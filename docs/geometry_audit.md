@@ -1201,3 +1201,74 @@ customer's total summed whatever priced. Nothing recorded a payment.
 - A design's material and colour can be chosen by anyone who can edit the
   design, as the frame's finish always could; only the factory's rates are
   the owner's.
+
+## 34. The factory's colour catalog (Phase 29)
+
+**Found.**
+- Phase 28's colours lived under each material (`ProfileRate.colours`) and
+  were matched by the finish value alone. Nothing had an id, so a colour
+  could not be renamed without becoming another colour, and could not be
+  retired at all — only deleted by editing the list by hand.
+- A colour sold in uPVC and aluminium was two unrelated entries.
+- A colour named on one material and not the other quietly took the
+  *special* rate on the other, and a named colour with no rate could not
+  be expressed at all.
+- The owner could change a colour's rates but could not add one.
+
+**Changed.**
+- `PriceList.colours` is one catalog of `FactoryColour`s — id, name,
+  swatch, grade, rates by material (null where sold but not priced),
+  active, order — in schema 4. `ProfileRate` keeps only the normal and
+  opening rates and *any other colour*.
+- `PriceListMigration._v3ToV4` merges schema 3's per-material colours by
+  value, name and grade, at their figures, ids from names.
+- `PriceList.colourFor` gives `ColourPricing`; the engine, the price's
+  state, the selector and the card all read it, and nothing falls back.
+- `Design.profileColourId` says which catalog colour the frame was chosen
+  as; the finish stays what every view draws.
+- `ColourCatalog` adds, updates, retires and restores, with its checks;
+  `FactoryColoursSection` and `ColourDialog` are its screen; each change is
+  saved as a new version through `PriceListStore`.
+- `PricedProfile` keeps the colour's id and the rate it was priced at.
+- The per-colour `RateField`s are gone; *any other colour* stays a field.
+
+**Kept.**
+- One engine, one finish pipeline, the existing versioning and records,
+  the owner's PIN, `$`/m plus percent.
+
+**Verified.**
+- `test/domain/factory_colour_catalog_test.dart` (25) and
+  `test/app/factory_colours_on_screen_test.dart` (10).
+- The full suite passes and `flutter analyze` is clean.
+- In the browser at 1440 × 900 and 390 × 844:
+  - **A.** Anthracite Grey added (PVC 2.00, aluminium 1.50, `#383E42`),
+    kept as version 1, and there after a reload.
+  - **B.** Chosen on Front Entrance Door from its card: the aluminium
+    selector listed only aluminium colours with it among them; the card,
+    the Price panel, the drawing, the technical drawing and the solid all
+    showed the anthracite aluminium frame.
+  - **C.** Its line: *Anthracite Grey Aluminium (non-standard colour) ·
+    11.520 m × 1.50 = 17.28 USD*, once; total 292.97 USD.
+  - **D.** Aluminium raised to 2.00: version 2, the card *Price:
+    recalculate*, the old 292.97 kept as previous; recalculated 298.73
+    (11.520 × 2.00 = 23.04).
+  - **E.** Retired: *Retired* on its row, the door still in it with
+    *Retired: no longer offered for new designs.* under the field, and
+    still priced at its rate.
+- Looking found: the percent field's label cut short (widened), the retire
+  confirmation as wide as the window (bounded), *(retired)* cut off the
+  colour's name in the selector (moved under the field), and the card's
+  colour cut short beside the material (the material now takes only its
+  word's width; where the colour still does not fit, its tooltip holds the
+  whole name — a second line overflowed the card's fixed height).
+
+**Not done.**
+- Colours cannot be reordered from the screen: a new colour is listed
+  last, and `order` is kept for a later control.
+- Messages use the application's spelling — *colour*, *Aluminium* — where
+  the brief wrote *color*, *Aluminum*.
+- A price calculated before Phase 29 says it needs recalculation once,
+  because its list is now kept in schema 4.
+- On the narrowest card a long colour name is cut, with the whole name in
+  its tooltip, on the sheet and in the summary.
+

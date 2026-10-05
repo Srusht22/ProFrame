@@ -6221,7 +6221,9 @@ Everything is in `lib/domain/pricing/`, and no widget holds a figure.
   the two units are two types, so adding one to the other does not compile.
 - **The price list holds every rate** (`PriceList`): per frame material a
   `ProfileRate` — a metre of normal profile and a metre of opening profile,
-  each its own figure — with that material's colours; glass by look —
+  each its own figure — and what a colour the catalog does not name adds
+  on it; the factory's colour catalog (see *The factory's colour
+  catalog*); glass by look —
   a single sheet and a sealed unit each a square metre rate of its own —
   and panel by colour, a square metre each, with a rate for the user's
   own colour; each piece of ironmongery; a sliding track by the metre and
@@ -6229,13 +6231,14 @@ Everything is in `lib/domain/pricing/`, and no widget holds a figure.
   percentage (`LabourRate`) — and installation. A figure that is not a
   price — below nothing, not a number — is dropped as it is read, so that
   thing is unpriced and says so, never priced at nonsense.
-- **Colour is its own line, by the metre and by a share.** A material's
-  `ColourRate`s name the finish values it is sold in, standard or not, each
-  with a `ColourSurcharge` — so much a metre on every metre of profile in
-  that colour, and a percentage of what that profile costs. A colour the
-  list does not name takes the material's special surcharge; the
+- **Colour is its own line, by the metre and by a share.** Each colour of
+  the catalog (`FactoryColour`) has a `ColourSurcharge` on each material it
+  is sold in — so much a metre on every metre of profile in that colour,
+  and a percentage of what that profile costs — looked up by material and
+  colour together (`PriceList.colourFor`). A colour the catalog does not
+  name takes the material's *any other colour* surcharge; the
   application's own house green and cream are on no list. It is its own
-  line (*uPVC · Brown colour*) so the breakdown says why.
+  line (*Black uPVC (non-standard colour)*) so the breakdown says why.
 - **A category is priced by the strategy registered for it, by name**
   (`PricingEngine.standard`): door, window, door & window and angled by
   `FramedPricing`, sliding by `SlidingPricing` (the track and the rollers
@@ -6636,8 +6639,8 @@ PriceList ─ RateField ──────┘            (owner-only, kept by Pr
   choose material*.
 - **The engine reads material and colour from the list, and nothing
   else.** It already priced each length of profile at its own material's
-  normal or opening rate and each colour by the list's `ColourRate` for
-  that material (*The price*). uPVC and aluminium are one engine with two
+  normal or opening rate and each colour by the catalog's rate for that
+  material (*The price*; since Phase 29 *The factory's colour catalog*). uPVC and aluminium are one engine with two
   rows of the list; a colour the list does not name takes the material's
   special figure. Nothing in a widget is a rate.
 - **The price is worked out, never typed.** There is no field for a final
@@ -6669,7 +6672,9 @@ PriceList ─ RateField ──────┘            (owner-only, kept by Pr
 - **The factory's prices** (`FactoryPricesScreen`, the price-tag icon on
   the customers' header). Every figure of the list is a `RateField`
   (`price_list_fields.dart`): each material's normal and opening profile,
-  what each colour adds on each material a metre and as a share, glass,
+  what a colour the catalog does not name adds on each, a metre and as a
+  share (the catalog's own colours are edited as colours since Phase 29 —
+  *The factory's colour catalog*), glass,
   sealed units, panels and any other colour of each, every piece of
   ironmongery, the sliding track, rollers and rollers a panel, installation
   and each category's labour. Writing every field back as it reads leaves
@@ -6699,8 +6704,8 @@ PriceList ─ RateField ──────┘            (owner-only, kept by Pr
   its own and is never touched.
 - **Deferred, as the brief says**: payment history, credit, refunds, a
   discount screen, quotation and order history, a manual price override,
-  and paging the customer's summary. Colours are edited by rate; adding a
-  new named colour to the list is not on the editor yet.
+  and paging the customer's summary. Adding, editing and retiring named
+  colours came in Phase 29 (*The factory's colour catalog*).
 
 `test/domain/material_and_colour_pricing_test.dart` holds it under the
 brief's numbers: **38** uPVC and aluminium at their own rates, equal rates
@@ -6726,6 +6731,139 @@ workspace's chooser leaving the price stale, recalculated at aluminium's
 rates, and undone; **43** staff reading factory prices, the owner's PIN
 set, a rate kept, lasting a reload as staff again, and pricing a design;
 and a wrong PIN leaving it locked.
+
+### The factory's colour catalog
+
+The brief: *a professional, persistent, material-aware factory colour
+catalog — the owner adds, edits, renames and retires colours, each with a
+stable id, the materials it is sold in and a rate on each; the price is
+always looked up by material and colour; a price already calculated is
+never silently changed by a later edit to a colour.*
+
+```
+PriceList.colours ─ FactoryColour (id, name, swatch, grade, rates by material, active, order)
+       │                                   ▲
+       │ colourFor(material, colour, id?)  │ ColourCatalog.add / update / retire / restore
+       ▼                                   │   (owner only, each a new version of the list)
+ColourPricing ─ PricingEngine, DesignPriceState, ProfileChooser, cards
+       ▲
+Design.frame.finish (what every view draws) + Design.profileColourId (which colour it is sold as)
+```
+
+- **One catalog, not a list per material** (`PriceList.colours`,
+  `FactoryColour` in `price_list.dart`). Phase 28 kept each material's
+  colours under it, matched by the colour's value; that structure became
+  this one rather than a second one beside it. A colour has an **id that
+  is what it is** — `colour-golden-oak`, made from its name once and never
+  again (`PriceListMigration.idFor`, unique among every colour, retired or
+  not) — its name, its swatch, its grade (standard or not), its **rates**
+  keyed by every material it is sold in, whether it is **active**, and its
+  **order**. `ProfileRate` keeps the normal and opening rates and *any other
+  colour* (`special`), which is only ever for a colour the catalog does not
+  name.
+- **Always material and colour together** (`PriceList.colourFor`), one
+  answer (`ColourPricing`) read by the engine, the price's state, the
+  selector and the card:
+
+  | State | When | Said |
+  | --- | --- | --- |
+  | `named` | a catalog colour sold in the material, with its rate | priced at it |
+  | `other` | a colour the catalog does not name | *any other colour* |
+  | `notForMaterial` | chosen as a colour not sold in the material | *Please select a colour available for Aluminium.* |
+  | `notConfigured` | sold in the material with no rate on it | *Colour pricing is not configured for Aluminium.* |
+  | `retiredUnpriced` / `unknown` | retired and no longer priced on it, or an id the list does not have | *Colour pricing unavailable — please select an active colour.* |
+
+  **Nothing falls back** — not to the other material's rate, not to *any
+  other colour*, not to nothing, and never to another colour with the same
+  swatch. The first and the last are the user's to choose
+  (`ColourPricing.needsSelection`, `DesignPriceState.needsColour`, the
+  card's *Price: choose colour*, the Price button opening the sheet to
+  choose); *not configured* is the owner's, said as the list's problem.
+- **The design says which colour it is sold as** (`Design.profileColourId`,
+  written only when there is one); its frame's finish is still the colour
+  every view draws, so there is no second "pricing colour" and the
+  technical drawing and the solid follow the existing finish pipeline
+  untouched. A colour chosen on the price sheet or in the Price panel
+  carries its id (`ProfileSelection.choose(colourId:)`); a finish painted
+  in the inspector clears it and is priced by its value, as before. A
+  design kept before the catalog has no id and is matched by value on its
+  material — an active colour first — so Phase 28's designs price as they
+  did and still say *Material: Not selected* where nobody chose.
+- **The selector offers the active colours of the material chosen**
+  (`PriceList.offeredFor`), in the factory's order, from the catalog — no
+  list of colours is written in a widget. A material chosen keeps the
+  colour, with its id: where the new material is not sold in it the field
+  says *Please select a colour available for Aluminium* and nothing is
+  priced until one is chosen; **nothing is chosen for the user**. A retired
+  colour a design is still in is shown as its value, with *Retired: no
+  longer offered for new designs.* under the field.
+- **The owner edits colours as colours** (`ColourCatalog`,
+  `lib/domain/pricing/colour_catalog.dart`), from the **Colours** section of
+  Factory prices (`FactoryColoursSection`, `ColourDialog` in
+  `lib/app/screens/factory_colours.dart`): **Add colour**, edit (name,
+  swatch by palette or code, standard or not, materials, a metre and a
+  share on each), retire after a confirmation, and bring back. Staff see
+  every row — swatch, name, *uPVC 1.00 USD/m · Aluminium 1.50 USD/m*,
+  *Active* or *Retired* — and no button. Every operation is checked first
+  and changes nothing on a problem: *Colour name is required.* (trimmed);
+  no two active colours sold in one material called the same, whatever the
+  case; *Choose at least one material.*; *Aluminium colour rate is
+  required for a colour that applies to Aluminium.*; *A rate cannot be
+  below nothing.*; *Enter a figure.* A colour's rates are not flat
+  `RateField`s any more — they are the colour's — and *any other colour*
+  still is.
+- **Renaming keeps the id**, so every design in the colour shows the new
+  name; **retiring removes nothing** (`ColourCatalog.retire`) — the colour is
+  not offered, every design in it keeps it, is named by it, never
+  *Unknown*, and is still priced at its rate. Nothing in the catalog can be
+  deleted, and nothing cascades into a design.
+- **Every change is a version** (`ref.savePriceList` → `PriceListStore.save`),
+  so every price calculated before says *Price needs recalculation* and is
+  shown only as the previous figure. **A kept price is never changed**: the
+  record holds the result as it was, its colour line's rate, the list's
+  version, and `PricedProfile.colourId`, `colourName` and `colourRate` as
+  they were — a renamed colour's old price still says its old name.
+- **What a colour adds is charged once**: all the profile in one material
+  and colour together, so much a metre on its metres and its percentage on
+  what that profile cost, and nowhere else.
+- **Kept and read back** in schema 4 (`PriceList.schemaVersion`). A list
+  kept in schema 3 is migrated as it is read (`PriceListMigration._v3ToV4`):
+  a colour with the same value, name and grade on two materials becomes one
+  colour with a rate on each, at the figures it had; colours that differ
+  stay apart; nothing is sold in a material it was not; ids come from the
+  names; reading writes nothing. Migrating Phase 28's example list gives
+  exactly today's (`DefaultFactoryPricing`). A colour entry that cannot be
+  read, or repeats an id, is passed over; a rate kept that is not a price is
+  no rate. A price kept before reads as it was.
+
+`test/domain/factory_colour_catalog_test.dart` holds the brief's numbers:
+**40** Black on aluminium at 1.00 in version 1 and 2.00 in version 2, the
+price kept with 1.00 and version 1, a new one with 2.00 and version 2;
+**41** Golden Oak, PVC 2.00 and aluminium 3.00, kept, reloaded, offered for
+both and priced at each; **42** Silver aluminium-only, a PVC design in it
+asked for a PVC colour; **43** Special Blue with no aluminium rate, *not
+configured* and borrowing nothing, the editor refusing it, and *any other
+colour* only for unnamed colours; **44** Bronze retired — not offered,
+kept, named and priced, its old price untouched, *please select an active
+colour* where it is no longer priced, and brought back only while its name
+is free; **45** Dark Grey renamed Anthracite Grey with the same id and the
+old price saying the old name; **46** nothing deleted and an unknown id
+never matched to another colour; **47** colour never geometry; **48**
+200.00 of profile and 10% for its colour coming to 220.00, and the same by
+the metre; and the checks, persistence, migration and old designs.
+`test/app/factory_colours_on_screen_test.dart` holds it on the real app:
+staff reading the colours and a wrong PIN; Anthracite Grey added with each
+problem said, kept as version 1 through a reload with an unkept figure not
+lost; a rate edited and the colour renamed and retired, each a version,
+the design still in it, named, priced and its old price a previous one;
+the selector's filtering and a material change asking for a colour; the
+new colour on the card, the summary and the frame; and the screen and the
+dialog at five widths from 320 to 1920.
+
+**One thing to know when upgrading:** a price calculated before Phase 29
+says *Price needs recalculation* once, because the list it was calculated
+from is now kept in schema 4 and a price is current only for the list as it
+is. The figure itself is kept and shown as the previous one.
 
 ## Working on this repository
 

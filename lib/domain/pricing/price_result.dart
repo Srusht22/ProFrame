@@ -7,6 +7,7 @@
 library;
 
 import 'measurement.dart';
+import 'price_list.dart';
 
 /// How a price came out.
 enum PriceStatus {
@@ -327,13 +328,25 @@ class PricedProfile {
   /// What the material is called: *uPVC*, *Aluminium*.
   final String materialLabel;
   final int colour;
+
+  /// What the colour was called when it was priced — kept as it was, so a
+  /// colour renamed since still says its old name here.
   final String colourName;
+
+  /// The catalog colour it was, where it was one: the id outlives a
+  /// rename, so a price kept says which colour it was a price of.
+  final String? colourId;
+
+  /// What the colour added a metre and in a hundred when it was priced.
+  final ColourSurcharge? colourRate;
 
   const PricedProfile({
     required this.material,
     required this.materialLabel,
     required this.colour,
     required this.colourName,
+    this.colourId,
+    this.colourRate,
   });
 
   Map<String, Object?> toJson() => {
@@ -341,6 +354,12 @@ class PricedProfile {
     'materialLabel': materialLabel,
     'colour': colour,
     'colourName': colourName,
+    if (colourId != null) 'colourId': colourId,
+    if (colourRate != null)
+      'colourRate': {
+        'perMetre': colourRate!.perMetre,
+        'percent': colourRate!.percent,
+      },
   };
 
   static PricedProfile? fromJson(Object? json) {
@@ -360,6 +379,14 @@ class PricedProfile {
       materialLabel: label,
       colour: colour,
       colourName: name,
+      colourId: switch (json['colourId']) {
+        final String id => id,
+        _ => null,
+      },
+      colourRate: switch (json['colourRate']) {
+        final Map<String, Object?> rate => ColourSurcharge.fromJson(rate),
+        _ => null,
+      },
     );
   }
 }

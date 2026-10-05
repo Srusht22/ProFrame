@@ -15,6 +15,7 @@ import 'package:proframe/domain/model/opening_leaf.dart';
 import 'package:proframe/domain/pricing/design_price_state.dart';
 import 'package:proframe/domain/pricing/measurement.dart';
 import 'package:proframe/domain/pricing/price_list.dart';
+import 'package:proframe/domain/pricing/price_list_migration.dart';
 import 'package:proframe/domain/pricing/price_result.dart';
 import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/pricing/pricing_engine.dart';
@@ -63,24 +64,75 @@ final zero = PriceList(
   installation: const InstallationRate(),
 );
 
+/// A colour a material is sold in, as a test writes it: its name, its
+/// swatch, its grade and what it adds on that material.
+typedef Sold = ({
+  String name,
+  int swatch,
+  ColourGrade grade,
+  ColourSurcharge rate,
+});
+
+Sold sold(
+  String name,
+  int swatch,
+  ColourGrade grade, {
+  double perMetre = 0,
+  double percent = 0,
+}) => (
+  name: name,
+  swatch: swatch,
+  grade: grade,
+  rate: ColourSurcharge(perMetre: perMetre, percent: percent),
+);
+
+/// [list] with [m]'s profile at [normal] and [opening], what any other
+/// colour adds on it, and [colours] sold in it — each added to the
+/// catalog, or given a rate on [m] where the catalog already has a colour
+/// of that name and swatch.
 PriceList withProfile(
   PriceList list,
   MaterialKind m, {
   double normal = 0,
   double opening = 0,
-  List<ColourRate> colours = const [],
+  List<Sold> colours = const [],
   ColourSurcharge special = const ColourSurcharge(),
-}) => list.copyWith(
-  profiles: {
-    ...list.profiles,
-    m: ProfileRate(
-      normalPerMetre: normal,
-      openingPerMetre: opening,
-      colours: colours,
-      special: special,
-    ),
-  },
-);
+}) {
+  final catalog = [...list.colours];
+  final taken = {for (final c in catalog) c.id};
+  for (final c in colours) {
+    final at = catalog.indexWhere(
+      (e) => e.name == c.name && e.swatch == c.swatch,
+    );
+    if (at >= 0) {
+      catalog[at] = catalog[at].copyWith(
+        rates: {...catalog[at].rates, m: c.rate},
+      );
+    } else {
+      catalog.add(
+        FactoryColour(
+          id: PriceListMigration.idFor(c.name, taken),
+          name: c.name,
+          swatch: c.swatch,
+          grade: c.grade,
+          rates: {m: c.rate},
+          order: catalog.length,
+        ),
+      );
+    }
+  }
+  return list.copyWith(
+    colours: catalog,
+    profiles: {
+      ...list.profiles,
+      m: ProfileRate(
+        normalPerMetre: normal,
+        openingPerMetre: opening,
+        special: special,
+      ),
+    },
+  );
+}
 
 /// The brief's example rates: $7 a metre of normal profile and $12 a metre
 /// of opening profile, in uPVC.
@@ -439,9 +491,9 @@ void main() {
           zero,
           MaterialKind.upvc,
           normal: 7,
-          colours: const [
-            ColourRate('White', 0xFFFFFFFF, ColourGrade.standard),
-            ColourRate(
+          colours: [
+            sold('White', 0xFFFFFFFF, ColourGrade.standard),
+            sold(
               'Black',
               0xFF1C1C1C,
               ColourGrade.nonStandard,
@@ -452,8 +504,8 @@ void main() {
         ),
         MaterialKind.aluminium,
         normal: 7,
-        colours: const [
-          ColourRate(
+        colours: [
+          sold(
             'Black',
             0xFF1C1C1C,
             ColourGrade.nonStandard,

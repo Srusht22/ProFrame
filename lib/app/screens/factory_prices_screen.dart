@@ -8,6 +8,7 @@ import '../../domain/pricing/pricing_access.dart';
 import '../../infrastructure/owner_access_store.dart';
 import '../state/pricing.dart';
 import '../theme/app_theme.dart';
+import 'factory_colours.dart';
 
 /// Where the owner's PIN is kept.
 final ownerAccessStoreProvider = Provider<OwnerAccessStore>(
@@ -83,15 +84,45 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
     return s.endsWith('.00') ? s.substring(0, s.length - 3) : s;
   }
 
-  /// The fields' words, put back to [list]'s figures.
-  void _fill(PriceList list) {
+  /// The fields' words, put back to [list]'s figures — except, where
+  /// [keepEdits], a figure the owner has typed over and not kept yet: a
+  /// colour kept meanwhile does not throw it away.
+  void _fill(PriceList list, {bool keepEdits = false}) {
+    final was = _shown;
     _shown = list;
     _problems.clear();
     for (final f in RateField.of(list)) {
-      (_text[f.id] ??= TextEditingController()).text = _write(
-        f.read(list),
-        whole: f.whole,
+      final text = _text[f.id] ??= TextEditingController();
+      final typedOver =
+          keepEdits &&
+          was != null &&
+          text.text != _write(f.read(was), whole: f.whole);
+      if (!typedOver) text.text = _write(f.read(list), whole: f.whole);
+    }
+  }
+
+  /// Keeps [list] — a colour added, edited or retired — as the next version
+  /// of the price list, and says [done] where it was kept.
+  Future<bool> _keepColours(PriceList list, String done) async {
+    try {
+      final kept = await ref.savePriceList(list);
+      if (!mounted) return true;
+      setState(() => _fill(kept, keepEdits: true));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$done Prices kept as version ${kept.version}; every design '
+            'priced before is now to be recalculated.',
+          ),
+        ),
       );
+      return true;
+    } on PricingAccessDenied catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+      return false;
     }
   }
 
@@ -169,7 +200,7 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
     final owner = role.canConfigurePrices;
     final p = context.palette;
     final text = Theme.of(context).textTheme;
-    if (list != null && !identical(list, _shown)) _fill(list);
+    if (list != null && !identical(list, _shown)) _fill(list, keepEdits: true);
 
     return Scaffold(
       backgroundColor: p.shell,
@@ -267,9 +298,21 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
     final p = context.palette;
     final out = <Widget>[];
     String? section;
+    var colours = false;
     for (final f in RateField.of(list)) {
       if (f.section != section) {
         section = f.section;
+        // The colour catalog, before what a colour it does not name adds.
+        if (!colours && f.id.startsWith('colour.')) {
+          colours = true;
+          out.add(
+            FactoryColoursSection(
+              list: list,
+              editable: editable,
+              onChanged: _keepColours,
+            ),
+          );
+        }
         out.add(
           Padding(
             padding: const EdgeInsets.only(top: 20, bottom: 6),

@@ -22,7 +22,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'an_unknown_category_test.dart' show keptAs, sloped;
 import 'pricing_engine_test.dart'
-    show door, engine, given, glassOverPanel, withProfile, zero;
+    show door, engine, given, glassOverPanel, sold, withProfile, zero;
 
 // A design's price follows what it is made of — the material of its
 // profile and its colour — read from the factory's price list, which only
@@ -36,8 +36,8 @@ const black = 0xFF1C1C1C;
 /// adding [blackPerMetre] a metre on either, white adding nothing.
 PriceList factory({double blackPerMetre = 1.5}) {
   final colours = [
-    const ColourRate('White', white, ColourGrade.standard),
-    ColourRate(
+    sold('White', white, ColourGrade.standard),
+    sold(
       'Black',
       black,
       ColourGrade.nonStandard,
@@ -392,8 +392,12 @@ void main() {
       expect(prefs.getString(PriceListStore.key), isNull);
     });
 
-    test('every figure of the list is a field, and writing each back as it '
-        'reads drops nothing', () {
+    // Since the colour catalog (Phase 29) a named colour's rates are edited
+    // as that colour (`ColourCatalog`), each change a version of its own,
+    // so they are no longer flat fields: every other figure still is, and
+    // the catalog comes back untouched by writing them.
+    test('every figure of the list is a field or a colour of its catalog, '
+        'and writing each back as it reads drops nothing', () {
       final list = DefaultFactoryPricing.list;
       var again = list;
       final fields = RateField.of(list);
@@ -403,10 +407,16 @@ void main() {
       expect(jsonEncode(again.toJson()), jsonEncode(list.toJson()));
       final ids = {for (final f in fields) f.id};
       expect(ids.length, fields.length, reason: 'each figure once');
+      expect(
+        jsonEncode([for (final c in again.colours) c.toJson()]),
+        jsonEncode([for (final c in list.colours) c.toJson()]),
+      );
+      expect(list.colourById('colour-black')!.rateFor(MaterialKind.aluminium),
+          isNotNull);
       for (final id in [
         'profile.upvc.normal',
         'profile.aluminium.opening',
-        'colour.aluminium.${0xFF1C1C1C}.metre',
+        'colour.aluminium.special.metre',
         'colour.upvc.special.percent',
         'glass.single.clear',
         'glass.sealed.clear',

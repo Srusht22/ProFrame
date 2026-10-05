@@ -29,9 +29,17 @@ class PriceList {
   final String currency;
 
   /// What each frame material's profile costs — the normal profile and the
-  /// opening profile, each by the metre — and its colours. A design framed
-  /// in a material with no entry here is not priced.
+  /// opening profile, each by the metre — and what a colour the catalog
+  /// does not name adds. A design framed in a material with no entry here
+  /// is not priced.
   final Map<MaterialKind, ProfileRate> profiles;
+
+  /// The factory's colour catalog: every colour the profile is sold in,
+  /// each with an id of its own, the materials it is sold in and what it
+  /// adds on each, in the order the factory lists them. A colour is never
+  /// removed, only retired ([FactoryColour.active]), so a design chosen in
+  /// it still says what it is. See [colourFor].
+  final List<FactoryColour> colours;
 
   /// Glass, by the look the user chose, a square metre of what is cut.
   final Map<GlassLook, double> glassPerM2;
@@ -86,8 +94,9 @@ class PriceList {
   /// The schema this version writes. 1 was the first engine's — a metre of
   /// frame, of sash and of bar, a leaf by its kind, an angled joint; 2 the
   /// factory's normal and opening profile; 3 adds the sealed unit's own
-  /// rate. See [fromJson].
-  static const schemaVersion = 3;
+  /// rate; 4 keeps the colours as one catalog, each colour with an id,
+  /// its materials and a rate for each. See [fromJson].
+  static const schemaVersion = 4;
 
   const PriceList({
     required this.currency,
@@ -97,6 +106,7 @@ class PriceList {
     required this.hardwareEach,
     required this.categories,
     required this.installation,
+    this.colours = const [],
     this.version = 1,
     this.isStarter = false,
     this.customGlassPerM2,
@@ -120,6 +130,7 @@ class PriceList {
     bool? isStarter,
     String? currency,
     Map<MaterialKind, ProfileRate>? profiles,
+    List<FactoryColour>? colours,
     Map<GlassLook, double>? glassPerM2,
     double? customGlassPerM2,
     Map<GlassLook, double>? sealedGlassPerM2,
@@ -142,6 +153,7 @@ class PriceList {
     isStarter: isStarter ?? this.isStarter,
     currency: currency ?? this.currency,
     profiles: profiles ?? this.profiles,
+    colours: colours ?? this.colours,
     glassPerM2: glassPerM2 ?? this.glassPerM2,
     customGlassPerM2: clearCustomGlass
         ? null
@@ -173,6 +185,7 @@ class PriceList {
     'profiles': {
       for (final e in profiles.entries) e.key.name: e.value.toJson(),
     },
+    'colours': [for (final c in colours) c.toJson()],
     'glassPerM2': {for (final e in glassPerM2.entries) e.key.name: e.value},
     if (customGlassPerM2 != null) 'customGlassPerM2': customGlassPerM2,
     'sealedGlassPerM2': {
@@ -237,6 +250,7 @@ class PriceList {
                 case (final m?, final p?))
               m: p,
       },
+      colours: _catalogOf(json['colours']),
       glassPerM2: rates(
         json['glassPerM2'],
         (k) => _byName(GlassLook.values, k),
@@ -265,6 +279,93 @@ class PriceList {
           for (final e in raw.entries) e.key: ?CategoryRate.fromJson(e.value),
       },
       installation: InstallationRate.fromJson(json['installation']),
+    );
+  }
+
+  /// The catalog kept as [raw]: every entry that can be read, in the order
+  /// the factory lists them. An entry whose id another entry already has is
+  /// passed over — an id names one colour — and an entry that cannot be
+  /// read is passed over too, so a damaged catalog leaves that colour
+  /// unpriced rather than priced as another.
+  static List<FactoryColour> _catalogOf(Object? raw) {
+    final out = <FactoryColour>[];
+    if (raw is List<Object?>) {
+      for (final c in raw) {
+        final colour = FactoryColour.fromJson(c);
+        if (colour != null && out.every((o) => o.id != colour.id)) {
+          out.add(colour);
+        }
+      }
+    }
+    out.sort((a, b) => a.order.compareTo(b.order));
+    return List.unmodifiable(out);
+  }
+
+  /// The catalog entry with [id], retired or not, or null.
+  FactoryColour? colourById(String id) =>
+      colours.where((c) => c.id == id).firstOrNull;
+
+  /// The colours offered for a new choice on [material]: the active ones
+  /// sold in it, in the factory's order.
+  List<FactoryColour> offeredFor(MaterialKind material) => [
+    for (final c in colours)
+      if (c.active && c.appliesTo(material)) c,
+  ];
+
+  /// What a profile in [material] and [colour] adds, and whether it can be
+  /// priced — **always by material and colour together**.
+  ///
+  /// Where [id] is given — a colour chosen from the catalog — it is that
+  /// colour and no other: one sold in [material] with a rate for it is
+  /// priced at that rate; one not sold in it needs choosing again; one
+  /// sold in it with no rate is not configured; one retired and no longer
+  /// priced on [material], or an id the catalog does not have, needs an
+  /// active colour. **Nothing falls back** — not to another material's
+  /// rate, not to the rate for any other colour, not to nothing.
+  ///
+  /// Without an id — a frame painted in the inspector, a design kept before
+  /// the catalog — the colour is matched by its value among the colours
+  /// sold in [material], an active one first: matched, it is that colour
+  /// as above; matched by none, it is a colour the catalog does not name,
+  /// and [ProfileRate.special] — *any other colour* — is what it adds.
+  ColourPricing colourFor(MaterialKind material, int colour, {String? id}) {
+    FactoryColour? entry;
+    if (id != null) {
+      entry = colourById(id);
+      if (entry == null) {
+        return ColourPricing._(ColourPricingState.unknown, material, colour);
+      }
+    } else {
+      final matches = [
+        for (final c in colours)
+          if (c.swatch == colour && c.appliesTo(material)) c,
+      ];
+      entry = matches.where((c) => c.active).firstOrNull ?? matches.firstOrNull;
+      if (entry == null) {
+        final special = profiles[material]?.special;
+        return special == null
+            ? ColourPricing._(ColourPricingState.noProfile, material, colour)
+            : ColourPricing._(
+                ColourPricingState.other,
+                material,
+                colour,
+                surcharge: special,
+              );
+      }
+    }
+    final rate = entry.rateFor(material);
+    final state = switch ((entry.active, entry.appliesTo(material), rate)) {
+      (true, false, _) => ColourPricingState.notForMaterial,
+      (true, true, null) => ColourPricingState.notConfigured,
+      (false, _, null) => ColourPricingState.retiredUnpriced,
+      _ => ColourPricingState.named,
+    };
+    return ColourPricing._(
+      state,
+      material,
+      colour,
+      entry: entry,
+      surcharge: rate ?? const ColourSurcharge(),
     );
   }
 
@@ -310,97 +411,245 @@ class ColourSurcharge {
           percent: PriceList.price(json['percent']) ?? 0,
         )
       : const ColourSurcharge();
+
+  /// A catalog colour's rate on one material, as kept: null where none is
+  /// kept, or where a figure kept is not a price — that colour is then not
+  /// priced on that material, never priced at nothing.
+  static ColourSurcharge? read(Object? json) {
+    if (json is! Map<String, Object?>) return null;
+    for (final key in ['perMetre', 'percent']) {
+      if (json.containsKey(key) && PriceList.price(json[key]) == null) {
+        return null;
+      }
+    }
+    return fromJson(json);
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ColourSurcharge &&
+      other.perMetre == perMetre &&
+      other.percent == percent;
+
+  @override
+  int get hashCode => Object.hash(perMetre, percent);
 }
 
-/// One colour a profile is sold in, and what it adds.
+/// One colour of the factory's colour catalog: what it is called, its
+/// swatch, the materials it is sold in and what it adds on each.
 ///
-/// [colour] is the finish value it is matched against — the colour the user
-/// gave the part. It is a material's colour, never the application's own:
-/// the house green and cream of the bars and buttons are not on any list,
-/// so a frame painted in one is priced as a special colour.
-class ColourRate {
+/// **Its [id] is what it is**, never its name: a design chosen in it keeps
+/// the id (`Design.profileColourId`), so renaming it renames it everywhere
+/// and a price kept before says the name it had then. Nothing ever removes
+/// one: a colour the factory stops selling is retired ([active] false) —
+/// no longer offered for a new choice, and still what every design chosen
+/// in it is.
+///
+/// [rates] is keyed by every material it is sold in. A material with a
+/// null rate is one it is sold in that has no price yet: a design in it is
+/// not priced, and says *colour pricing is not configured* — it never
+/// borrows another material's rate or the rate for any other colour. The
+/// editor never keeps one so; a list from elsewhere might hold one.
+///
+/// [swatch] is the finish value a design chosen in it is drawn in — a
+/// material's colour, never the application's own: the house green and
+/// cream of the bars and buttons are on no list.
+class FactoryColour {
+  final String id;
   final String name;
-  final int colour;
+  final int swatch;
   final ColourGrade grade;
+  final Map<MaterialKind, ColourSurcharge?> rates;
 
-  /// What it adds a metre of profile, and as a share of the profile's own
-  /// price.
-  final double perMetre;
-  final double percent;
+  /// Offered for a new choice. A retired colour is still read, shown and
+  /// — where it is still priced — priced for the designs already in it.
+  final bool active;
 
-  const ColourRate(
-    this.name,
-    this.colour,
-    this.grade, {
-    this.perMetre = 0,
-    this.percent = 0,
+  /// Where it is listed, lowest first.
+  final int order;
+
+  const FactoryColour({
+    required this.id,
+    required this.name,
+    required this.swatch,
+    required this.rates,
+    this.grade = ColourGrade.nonStandard,
+    this.active = true,
+    this.order = 0,
   });
 
-  ColourRate._(this.name, this.colour, this.grade, ColourSurcharge surcharge)
-    : perMetre = surcharge.perMetre,
-      percent = surcharge.percent;
+  /// The materials it is sold in, in the order a joiner reads them.
+  List<MaterialKind> get materials => [
+    for (final m in MaterialKind.values)
+      if (rates.containsKey(m)) m,
+  ];
 
-  ColourSurcharge get surcharge =>
-      ColourSurcharge(perMetre: perMetre, percent: percent);
+  bool appliesTo(MaterialKind material) => rates.containsKey(material);
+
+  /// What it adds on [material], or null where it is not sold in it or has
+  /// no price on it.
+  ColourSurcharge? rateFor(MaterialKind material) => rates[material];
+
+  FactoryColour copyWith({
+    String? name,
+    int? swatch,
+    ColourGrade? grade,
+    Map<MaterialKind, ColourSurcharge?>? rates,
+    bool? active,
+    int? order,
+  }) => FactoryColour(
+    id: id,
+    name: name ?? this.name,
+    swatch: swatch ?? this.swatch,
+    grade: grade ?? this.grade,
+    rates: rates ?? this.rates,
+    active: active ?? this.active,
+    order: order ?? this.order,
+  );
 
   Map<String, Object?> toJson() => {
+    'id': id,
     'name': name,
-    'colour': colour,
+    'swatch': swatch,
     'grade': grade.name,
-    'surcharge': surcharge.toJson(),
+    'rates': {
+      for (final m in materials) m.name: rates[m]?.toJson(),
+    },
+    if (!active) 'active': false,
+    'order': order,
   };
 
-  static ColourRate? fromJson(Object? json) {
+  /// The colour kept as [json], or null where it is not one: an id, a name
+  /// and a swatch are required. A material this version does not know is
+  /// passed over; a rate that is not a price is read as no rate, so that
+  /// colour on that material is not priced rather than priced at nonsense.
+  static FactoryColour? fromJson(Object? json) {
     if (json is! Map<String, Object?>) return null;
+    final id = json['id'];
     final name = json['name'];
-    final colour = json['colour'];
-    final grade = PriceList._byName(
-      ColourGrade.values,
-      json['grade'] as String? ?? '',
-    );
-    if (name is! String || colour is! int || grade == null) return null;
-    return ColourRate._(
-      name,
-      colour,
-      grade,
-      ColourSurcharge.fromJson(json['surcharge']),
+    final swatch = json['swatch'];
+    if (id is! String || id.isEmpty || name is! String || swatch is! int) {
+      return null;
+    }
+    return FactoryColour(
+      id: id,
+      name: name,
+      swatch: swatch,
+      grade:
+          PriceList._byName(ColourGrade.values, json['grade'] as String? ?? '') ??
+          ColourGrade.nonStandard,
+      rates: {
+        if (json['rates'] case final Map<String, Object?> raw)
+          for (final e in raw.entries)
+            ?PriceList._byName(MaterialKind.values, e.key):
+                ColourSurcharge.read(e.value),
+      },
+      active: json['active'] != false,
+      order: (json['order'] as num?)?.toInt() ?? 0,
     );
   }
 }
 
+/// Where a profile's colour stands against the catalog.
+enum ColourPricingState {
+  /// A colour of the catalog, sold in the material, with its rate.
+  named,
+
+  /// A colour the catalog does not name: *any other colour*.
+  other,
+
+  /// A colour of the catalog that is not sold in the material.
+  notForMaterial,
+
+  /// A colour of the catalog sold in the material, with no rate on it.
+  notConfigured,
+
+  /// A retired colour no longer priced on the material.
+  retiredUnpriced,
+
+  /// An id the catalog does not have.
+  unknown,
+
+  /// The material has no profile rate at all — said by the profile line.
+  noProfile,
+}
+
+/// What a profile's colour adds, or why it cannot be priced — the one
+/// answer [PriceList.colourFor] gives the engine, the price's state, the
+/// selector and the card alike.
+class ColourPricing {
+  final ColourPricingState state;
+  final MaterialKind material;
+
+  /// The finish value the design is in.
+  final int colour;
+
+  /// The catalog's colour, where it is one.
+  final FactoryColour? entry;
+
+  /// What it adds, where it is priced.
+  final ColourSurcharge surcharge;
+
+  const ColourPricing._(
+    this.state,
+    this.material,
+    this.colour, {
+    this.entry,
+    this.surcharge = const ColourSurcharge(),
+  });
+
+  bool get isPriced =>
+      state == ColourPricingState.named || state == ColourPricingState.other;
+
+  /// Whether the answer is for the user to choose another colour — as
+  /// opposed to the owner to price this one.
+  bool get needsSelection =>
+      state == ColourPricingState.notForMaterial ||
+      state == ColourPricingState.retiredUnpriced ||
+      state == ColourPricingState.unknown;
+
+  /// What it is called on a price line: the catalog's name, or *Special
+  /// colour* for one it does not name.
+  String get name => entry?.name ?? ColourGrade.special.label;
+
+  ColourGrade get grade => entry?.grade ?? ColourGrade.special;
+
+  /// Why it cannot be priced, in words — null where it can.
+  String? get problem => switch (state) {
+    ColourPricingState.named || ColourPricingState.other => null,
+    ColourPricingState.notForMaterial =>
+      'Please select a colour available for ${material.label}.',
+    ColourPricingState.notConfigured =>
+      'Colour pricing is not configured for ${material.label}.',
+    ColourPricingState.retiredUnpriced || ColourPricingState.unknown =>
+      'Colour pricing unavailable — please select an active colour.',
+    ColourPricingState.noProfile =>
+      'The price list has no price for ${material.label} profile.',
+  };
+}
+
 /// What a frame material's profile costs — the normal profile (the border
 /// and every line cut from it) and the opening profile, each a metre — and
-/// the colours it comes in.
+/// what a colour the catalog does not name adds on it. The named colours
+/// are the list's catalog ([PriceList.colours]).
 class ProfileRate {
   final double normalPerMetre;
   final double openingPerMetre;
-  final List<ColourRate> colours;
 
-  /// What a colour not on [colours] adds.
+  /// What a colour the catalog does not name adds — *any other colour*.
+  /// Only ever for such a colour: a catalog colour with no rate on this
+  /// material is not priced at this.
   final ColourSurcharge special;
 
   const ProfileRate({
     required this.normalPerMetre,
     required this.openingPerMetre,
-    this.colours = const [],
     this.special = const ColourSurcharge(),
   });
-
-  /// The colour [colour] is sold as: the one on the list with that value,
-  /// or a special colour.
-  ColourRate colourOf(int colour) =>
-      colours.where((c) => c.colour == colour).firstOrNull ??
-      ColourRate._(
-        ColourGrade.special.label,
-        colour,
-        ColourGrade.special,
-        special,
-      );
 
   Map<String, Object?> toJson() => {
     'normalPerMetre': normalPerMetre,
     'openingPerMetre': openingPerMetre,
-    'colours': [for (final c in colours) c.toJson()],
     'special': special.toJson(),
   };
 
@@ -412,10 +661,6 @@ class ProfileRate {
     return ProfileRate(
       normalPerMetre: normal,
       openingPerMetre: opening,
-      colours: [
-        if (json['colours'] case final List<Object?> raw)
-          for (final c in raw) ?ColourRate.fromJson(c),
-      ],
       special: ColourSurcharge.fromJson(json['special']),
     );
   }

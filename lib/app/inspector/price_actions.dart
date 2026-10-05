@@ -132,6 +132,7 @@ typedef ProfileChoice =
       WidgetRef ref,
       MaterialKind material,
       int colour,
+      String? colourId,
     );
 
 /// One design's price, laid out as the factory reads it: the design — its
@@ -189,11 +190,15 @@ class _DesignPriceSheetState extends ConsumerState<DesignPriceSheet> {
   late PriceResult _result = widget.result;
   bool _working = false;
 
-  Future<void> _choose(MaterialKind material, int colour) async {
+  Future<void> _choose(
+    MaterialKind material,
+    int colour,
+    String? colourId,
+  ) async {
     final choose = widget.onChoose;
     if (choose == null || _working) return;
     setState(() => _working = true);
-    final now = await choose(ref, material, colour);
+    final now = await choose(ref, material, colour, colourId);
     if (!mounted) return;
     setState(() {
       _working = false;

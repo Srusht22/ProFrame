@@ -24,9 +24,15 @@ class ProfileSelection {
   final MaterialKind? material;
 
   /// The frame's colour, 0xAARRGGBB, or null where none has been chosen.
+  /// It is what every view draws the profile in.
   final int? colour;
 
-  const ProfileSelection._(this.material, this.colour);
+  /// The factory colour it was chosen as — an id of the price list's
+  /// catalog — or null where it was not chosen from the catalog
+  /// ([Design.profileColourId]).
+  final String? colourId;
+
+  const ProfileSelection._(this.material, this.colour, [this.colourId]);
 
   static const notChosen = ProfileSelection._(null, null);
 
@@ -38,21 +44,46 @@ class ProfileSelection {
     if (frame == null) return notChosen;
     final said = design.profileChosen || frame.finish != Finish.frameDefault;
     if (!said) return notChosen;
-    return ProfileSelection._(frame.finish.material, frame.finish.colour);
+    return ProfileSelection._(
+      frame.finish.material,
+      frame.finish.colour,
+      design.profileColourId,
+    );
+  }
+
+  /// What its colour adds in [list], or why it cannot be priced: always the
+  /// material and the colour together (`PriceList.colourFor`). Null where
+  /// nothing is chosen.
+  ColourPricing? colourIn(PriceList list) {
+    final m = material;
+    final c = colour;
+    if (m == null || c == null) return null;
+    return list.colourFor(m, c, id: colourId);
+  }
+
+  /// The catalog colour it is, in [list]: the one chosen, or — chosen
+  /// before the catalog, or painted in the inspector — the one its value
+  /// matches on its own material. Null where it is no catalog colour.
+  FactoryColour? catalogColourIn(PriceList list) {
+    if (colourId case final id?) return list.colourById(id);
+    final m = material;
+    final c = colour;
+    if (m == null || c == null) return null;
+    return list.colourFor(m, c).entry;
   }
 
   /// What the material is called: *uPVC*, *Aluminium* — or *Not selected*.
   String get materialName => material?.label ?? 'Not selected';
 
-  /// What the colour is called, in words: the name the price list sells it
-  /// under for this material, or else the name the colour picker gives it,
+  /// What the colour is called, in words: the name the catalog gives it —
+  /// retired or not, so a colour the factory no longer offers is still
+  /// named, never *Unknown* — or else the name the colour picker gives it,
   /// or else *Custom* — never only a swatch. *Not selected* where none is.
   String colourName([PriceList? list]) {
     final c = colour;
     if (c == null) return 'Not selected';
-    final rates = list?.profiles[material]?.colours ?? const <ColourRate>[];
-    for (final r in rates) {
-      if (r.colour == c) return r.name;
+    if (list != null) {
+      if (catalogColourIn(list) case final entry?) return entry.name;
     }
     for (final (value, name) in finishPalette) {
       if (value == c) return name;
@@ -60,16 +91,23 @@ class ProfileSelection {
     return 'Custom';
   }
 
-  /// [design] with its profile chosen as [material] in [colour].
+  /// [design] with its profile chosen as [material] in [colour] — the
+  /// catalog's colour [colourId], where it was chosen from the catalog.
   ///
   /// The frame takes the finish, and so does every bar that was in the
   /// frame's own finish — the same profile system, cut from the same
   /// lengths. A bar the user gave a finish of its own keeps it. Nothing
   /// else changes: no line, no pane, no figure, no ironmongery.
+  ///
+  /// **Nothing is chosen for the user.** A material chosen with a colour it
+  /// is not sold in keeps that colour, and the price then asks for one
+  /// that is (`ColourPricing.problem`); no other colour is put in its
+  /// place.
   static Design choose(
     Design design, {
     required MaterialKind material,
     required int colour,
+    String? colourId,
   }) {
     final frame = design.frame;
     if (frame == null) return design;
@@ -82,12 +120,15 @@ class ProfileSelection {
           d.finish == was ? d.copyWith(finish: now) : d,
       ],
       profileChosen: true,
+      profileColourId: colourId,
+      clearProfileColour: colourId == null,
     );
   }
 
   Map<String, Object?> toJson([PriceList? list]) => {
     if (material != null) 'material': material!.name,
     if (colour != null) 'colour': colour,
+    if (colourId != null) 'colourId': colourId,
     if (colour != null) 'colourName': colourName(list),
   };
 
@@ -95,10 +136,11 @@ class ProfileSelection {
   bool operator ==(Object other) =>
       other is ProfileSelection &&
       other.material == material &&
-      other.colour == colour;
+      other.colour == colour &&
+      other.colourId == colourId;
 
   @override
-  int get hashCode => Object.hash(material, colour);
+  int get hashCode => Object.hash(material, colour, colourId);
 }
 
 /// The materials a design's profile can be made of: those the price list

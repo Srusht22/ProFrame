@@ -8,13 +8,19 @@ import '../theme/app_theme.dart';
 /// The design's profile — its **Material** and its **Colour** — as its
 /// price reads them, chosen from what the price list sells.
 ///
-/// The materials are the ones the list prices a profile in, and each
-/// material's colours are the ones the list names for it, each with its
-/// swatch and its name. A colour the design is already in that the list
-/// does not name is offered too, under its own name, so choosing a
-/// material never quietly repaints the design. Nothing here is a rate:
-/// what a choice costs is the price list's, and the price is worked out
-/// again from it.
+/// The materials are the ones the list prices a profile in. The colours are
+/// the catalog's **active colours sold in the material** (`PriceList
+/// .offeredFor`), in the factory's order, each with its swatch and its
+/// name — no list of colours is written here. The colour the design is
+/// already in is shown too where it is not among them: a retired colour
+/// under its name, said to be retired beneath the field, a colour the catalog does not name as *special* — so choosing
+/// a material never quietly repaints the design.
+///
+/// **A material is chosen without choosing a colour for the user.** The
+/// colour goes with it; where the new material is not sold in it, the field
+/// says *Please select a colour available for Aluminium* and the design is
+/// not priced until one is chosen. Nothing here is a rate: what a choice
+/// costs is the price list's, and the price is worked out again from it.
 class ProfileChooser extends StatelessWidget {
   final ProfileSelection selection;
 
@@ -23,8 +29,11 @@ class ProfileChooser extends StatelessWidget {
   final Finish current;
   final PriceList list;
 
-  /// Called with the profile chosen; null where it cannot be changed here.
-  final void Function(MaterialKind material, int colour)? onChanged;
+  /// Called with the profile chosen — the material, the colour it is drawn
+  /// in and the catalog colour it is, where it is one; null where it cannot
+  /// be changed here.
+  final void Function(MaterialKind material, int colour, String? colourId)?
+  onChanged;
 
   const ProfileChooser({
     super.key,
@@ -37,6 +46,9 @@ class ProfileChooser extends StatelessWidget {
   static const materialKey = ValueKey('profile-material');
   static const colourKey = ValueKey('profile-colour');
 
+  /// A colour the catalog does not name, as the colour field holds it.
+  static String _special(int colour) => '#$colour';
+
   @override
   Widget build(BuildContext context) {
     final material = selection.material;
@@ -46,12 +58,34 @@ class ProfileChooser extends StatelessWidget {
       if (material != null && !list.profiles.containsKey(material)) material,
     ];
     final colourMaterial = material ?? current.material;
-    final rates = list.profiles[colourMaterial]?.colours ?? const [];
+    final pricing = selection.colourIn(list);
+    final entry = selection.catalogColourIn(list);
     final offered = [
-      for (final r in rates) (r.colour, r.name),
-      if (colour != null && !rates.any((r) => r.colour == colour))
-        (colour, '${selection.colourName(list)} (special)'),
+      for (final c in list.offeredFor(colourMaterial))
+        (key: c.id, swatch: c.swatch, name: c.name),
     ];
+    String? value;
+    if (colour != null && !(pricing?.needsSelection ?? false)) {
+      if (entry == null) {
+        value = _special(colour);
+        offered.add((
+          key: value,
+          swatch: colour,
+          name: '${selection.colourName(list)} (special)',
+        ));
+      } else {
+        value = entry.id;
+        if (!offered.any((o) => o.key == entry.id)) {
+          offered.add((key: entry.id, swatch: entry.swatch, name: entry.name));
+        }
+      }
+    }
+    final problem = pricing?.problem;
+    // A retired colour the design is still in: said under the field, where
+    // it is read whole, rather than cut off after the name.
+    final retired = problem == null && entry != null && !entry.active
+        ? 'Retired: no longer offered for new designs.'
+        : null;
     final change = onChanged;
 
     Widget field({
@@ -87,10 +121,15 @@ class ProfileChooser extends StatelessWidget {
                 for (final m in materials)
                   DropdownMenuItem(value: m, child: Text(m.label)),
               ],
+              // The colour goes with the material, as the catalog colour it
+              // is: where the new material is not sold in it, the price
+              // asks for one that is — none is chosen in its stead.
               onChanged: change == null
                   ? null
                   : (m) {
-                      if (m != null) change(m, colour ?? current.colour);
+                      if (m != null) {
+                        change(m, colour ?? current.colour, entry?.id);
+                      }
                     },
             ),
           ),
@@ -100,22 +139,28 @@ class ProfileChooser extends StatelessWidget {
           child: field(
             key: colourKey,
             label: 'Colour',
-            child: DropdownButtonFormField<int>(
-              key: ValueKey(('colour', colourMaterial, colour)),
-              initialValue: colour,
+            child: DropdownButtonFormField<String>(
+              key: ValueKey(('colour', colourMaterial, value, problem)),
+              initialValue: value,
               isExpanded: true,
               hint: const Text('Not selected'),
+              decoration: InputDecoration(
+                errorText: problem,
+                errorMaxLines: 3,
+                helperText: retired,
+                helperMaxLines: 2,
+              ),
               items: [
-                for (final (value, name) in offered)
+                for (final o in offered)
                   DropdownMenuItem(
-                    value: value,
+                    value: o.key,
                     child: Row(
                       children: [
-                        _Swatch(value),
+                        _Swatch(o.swatch),
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
-                            name,
+                            o.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -126,8 +171,13 @@ class ProfileChooser extends StatelessWidget {
               ],
               onChanged: change == null
                   ? null
-                  : (c) {
-                      if (c != null) change(colourMaterial, c);
+                  : (key) {
+                      if (key == null) return;
+                      if (list.colourById(key) case final c?) {
+                        change(colourMaterial, c.swatch, c.id);
+                      } else if (colour != null && key == _special(colour)) {
+                        change(colourMaterial, colour, null);
+                      }
                     },
             ),
           ),

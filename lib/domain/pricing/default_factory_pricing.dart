@@ -21,68 +21,106 @@ abstract final class DefaultFactoryPricing {
       MaterialKind.upvc: const ProfileRate(
         normalPerMetre: 7,
         openingPerMetre: 12,
-        colours: [
-          ColourRate('White', 0xFFFFFFFF, ColourGrade.standard),
-          ColourRate('Off white', 0xFFF3F4F2, ColourGrade.standard),
-          ColourRate(
-            'Cream',
-            0xFFD8D5CC,
-            ColourGrade.nonStandard,
-            perMetre: 0.8,
-          ),
-          ColourRate('Grey', 0xFF6E7472, ColourGrade.nonStandard, perMetre: 1),
-          ColourRate(
-            'Graphite',
-            0xFF3A3A38,
-            ColourGrade.nonStandard,
-            perMetre: 1,
-          ),
-          ColourRate('Black', 0xFF1C1C1C, ColourGrade.nonStandard, perMetre: 1),
-          ColourRate(
-            'Oak effect',
-            0xFF7B4A2B,
-            ColourGrade.nonStandard,
-            perMetre: 1.5,
-          ),
-          ColourRate(
-            'Walnut effect',
-            0xFF4A2F1E,
-            ColourGrade.nonStandard,
-            perMetre: 1.5,
-          ),
-        ],
         special: ColourSurcharge(perMetre: 2.5),
       ),
       MaterialKind.aluminium: const ProfileRate(
         normalPerMetre: 11,
         openingPerMetre: 18,
-        colours: [
-          ColourRate('Silver', 0xFF9C9C9C, ColourGrade.standard),
-          ColourRate('White', 0xFFFFFFFF, ColourGrade.standard),
-          ColourRate('Off white', 0xFFF3F4F2, ColourGrade.standard),
-          ColourRate('Black', 0xFF1C1C1C, ColourGrade.nonStandard, perMetre: 1),
-          ColourRate(
-            'Anthracite',
-            0xFF383E42,
-            ColourGrade.nonStandard,
-            perMetre: 1,
-          ),
-          ColourRate(
-            'Graphite',
-            0xFF3A3A38,
-            ColourGrade.nonStandard,
-            perMetre: 1,
-          ),
-          ColourRate(
-            'Oak effect',
-            0xFF7B4A2B,
-            ColourGrade.nonStandard,
-            perMetre: 2,
-          ),
-        ],
         special: ColourSurcharge(perMetre: 3),
       ),
     },
+    // The colour catalog: each colour once, with what it adds on each
+    // material it is sold in. In the order and under the ids a list kept
+    // before the catalog is carried over to (`PriceListMigration`).
+    colours: const [
+      FactoryColour(
+        id: 'colour-white',
+        name: 'White',
+        swatch: 0xFFFFFFFF,
+        grade: ColourGrade.standard,
+        rates: {
+          MaterialKind.upvc: ColourSurcharge(),
+          MaterialKind.aluminium: ColourSurcharge(),
+        },
+      ),
+      FactoryColour(
+        id: 'colour-off-white',
+        name: 'Off white',
+        swatch: 0xFFF3F4F2,
+        grade: ColourGrade.standard,
+        order: 1,
+        rates: {
+          MaterialKind.upvc: ColourSurcharge(),
+          MaterialKind.aluminium: ColourSurcharge(),
+        },
+      ),
+      FactoryColour(
+        id: 'colour-cream',
+        name: 'Cream',
+        swatch: 0xFFD8D5CC,
+        order: 2,
+        rates: {MaterialKind.upvc: ColourSurcharge(perMetre: 0.8)},
+      ),
+      FactoryColour(
+        id: 'colour-grey',
+        name: 'Grey',
+        swatch: 0xFF6E7472,
+        order: 3,
+        rates: {MaterialKind.upvc: ColourSurcharge(perMetre: 1)},
+      ),
+      FactoryColour(
+        id: 'colour-graphite',
+        name: 'Graphite',
+        swatch: 0xFF3A3A38,
+        order: 4,
+        rates: {
+          MaterialKind.upvc: ColourSurcharge(perMetre: 1),
+          MaterialKind.aluminium: ColourSurcharge(perMetre: 1),
+        },
+      ),
+      FactoryColour(
+        id: 'colour-black',
+        name: 'Black',
+        swatch: 0xFF1C1C1C,
+        order: 5,
+        rates: {
+          MaterialKind.upvc: ColourSurcharge(perMetre: 1),
+          MaterialKind.aluminium: ColourSurcharge(perMetre: 1),
+        },
+      ),
+      FactoryColour(
+        id: 'colour-oak-effect',
+        name: 'Oak effect',
+        swatch: 0xFF7B4A2B,
+        order: 6,
+        rates: {
+          MaterialKind.upvc: ColourSurcharge(perMetre: 1.5),
+          MaterialKind.aluminium: ColourSurcharge(perMetre: 2),
+        },
+      ),
+      FactoryColour(
+        id: 'colour-walnut-effect',
+        name: 'Walnut effect',
+        swatch: 0xFF4A2F1E,
+        order: 7,
+        rates: {MaterialKind.upvc: ColourSurcharge(perMetre: 1.5)},
+      ),
+      FactoryColour(
+        id: 'colour-silver',
+        name: 'Silver',
+        swatch: 0xFF9C9C9C,
+        grade: ColourGrade.standard,
+        order: 8,
+        rates: {MaterialKind.aluminium: ColourSurcharge()},
+      ),
+      FactoryColour(
+        id: 'colour-anthracite',
+        name: 'Anthracite',
+        swatch: 0xFF383E42,
+        order: 9,
+        rates: {MaterialKind.aluminium: ColourSurcharge(perMetre: 1)},
+      ),
+    ],
     glassPerM2: const {
       GlassLook.clear: 25,
       GlassLook.frosted: 32,

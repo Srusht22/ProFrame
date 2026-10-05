@@ -1282,17 +1282,23 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     if (updated == null) return;
     final design = state.design.withElement(updated);
     // The frame's finish is the design's profile: setting it is choosing it
-    // (`ProfileSelection`).
+    // (`ProfileSelection`). A finish set here is not a catalog colour
+    // chosen, so the colour is priced by its value, as painted.
     state = state.copyWith(
       design: element is FrameElement
-          ? design.copyWith(profileChosen: true)
+          ? design.copyWith(profileChosen: true, clearProfileColour: true)
           : design,
     );
   }
 
   /// Chooses the design's profile — its material and colour — for its
   /// price and for every view, by `ProfileSelection.choose`.
-  void chooseProfile({required MaterialKind material, required int colour}) {
+  /// [colourId] is the catalog colour it was chosen as, where it was.
+  void chooseProfile({
+    required MaterialKind material,
+    required int colour,
+    String? colourId,
+  }) {
     if (state.design.frame == null) return;
     _remember();
     state = state.copyWith(
@@ -1300,6 +1306,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         state.design,
         material: material,
         colour: colour,
+        colourId: colourId,
       ),
     );
   }

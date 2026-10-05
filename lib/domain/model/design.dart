@@ -204,6 +204,16 @@ class Design {
   /// until somebody does. Kept in the file only while it is true.
   final bool profileChosen;
 
+  /// The factory colour the profile was chosen as — the id of an entry in
+  /// the price list's colour catalog (`PriceList.colours`) — or null where
+  /// it was never chosen from the catalog: a design kept before there was
+  /// one, or a frame painted in the inspector, which is priced by its
+  /// finish's own colour as before. The frame's finish is still the colour
+  /// every view draws; this only says which colour of the factory's it is
+  /// sold as, so a colour renamed or retired is still the same colour.
+  /// Kept in the file only while there is one.
+  final String? profileColourId;
+
   /// What the user has chosen about the price that is not the design
   /// itself: installation, a discount, a price kept from an earlier day.
   /// Nothing about it is geometry, and pricing never writes any other field.
@@ -239,6 +249,7 @@ class Design {
     this.partsAsked = false,
     this.sketchUnread = false,
     this.profileChosen = false,
+    this.profileColourId,
     this.pricing = PricingChoices.none,
   });
 
@@ -608,6 +619,8 @@ class Design {
     bool? partsAsked,
     bool? sketchUnread,
     bool? profileChosen,
+    String? profileColourId,
+    bool clearProfileColour = false,
     PricingChoices? pricing,
     DateTime? updatedAt,
   }) {
@@ -673,6 +686,9 @@ class Design {
       partsAsked: partsAsked ?? this.partsAsked,
       sketchUnread: sketchUnread ?? this.sketchUnread,
       profileChosen: profileChosen ?? this.profileChosen,
+      profileColourId: clearProfileColour
+          ? null
+          : profileColourId ?? this.profileColourId,
       pricing: pricing ?? this.pricing,
     );
   }
@@ -743,6 +759,7 @@ class Design {
         if (partsAsked) 'partsAsked': true,
         if (sketchUnread) 'sketchUnread': true,
         if (profileChosen) 'profileChosen': true,
+        if (profileColourId != null) 'profileColourId': profileColourId,
         if (!pricing.isNone) 'pricing': pricing.toJson(),
         'sketch': sketch.toJson(),
         if (frame != null) 'frame': frame!.toJson(),
@@ -814,6 +831,10 @@ class Design {
       partsAsked: map['partsAsked'] == true,
       sketchUnread: map['sketchUnread'] == true,
       profileChosen: map['profileChosen'] == true,
+      profileColourId: switch (map['profileColourId']) {
+        final String id when id.isNotEmpty => id,
+        _ => null,
+      },
       pricing: PricingChoices.fromJson(map['pricing']),
       sketch: Sketch.fromJson(map['sketch']),
       frame: map['frame'] == null

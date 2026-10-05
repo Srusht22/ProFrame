@@ -165,11 +165,18 @@ class DesignPriceState {
   /// Why it cannot be calculated, where it cannot.
   final String reason;
 
+  /// Where the profile's colour stops the price and is for the user to
+  /// choose again — a colour not sold in the material now chosen, or a
+  /// retired one no longer priced on it. The price sheet is where it is
+  /// chosen, so its button opens it to choose one.
+  final bool needsColour;
+
   const DesignPriceState._(
     this.status,
     this.readiness, {
     this.record,
     this.reason = '',
+    this.needsColour = false,
   });
 
   static DesignPriceState of(
@@ -193,6 +200,21 @@ class DesignPriceState {
         readiness,
         record: record,
         reason: readiness.message,
+      );
+    }
+    // The profile's colour, by material and colour together. One the user
+    // has to choose again is the design still to be completed; one the
+    // list does not price is the list's to put right.
+    if (ProfileSelection.of(design).colourIn(list) case final colour?
+        when !colour.isPriced && colour.state != ColourPricingState.noProfile) {
+      return DesignPriceState._(
+        colour.needsSelection
+            ? DesignPriceStatus.incomplete
+            : DesignPriceStatus.unavailable,
+        readiness,
+        record: record,
+        reason: colour.problem!,
+        needsColour: colour.needsSelection,
       );
     }
     final result = engine.price(design, list);
@@ -240,12 +262,14 @@ class DesignPriceState {
       readiness.missing.firstOrNull?.kind == PriceRequirementKind.notRead;
 
   /// Whether what stops it is only that nobody has chosen its profile's
-  /// material and colour — which the price sheet itself is where they are
-  /// chosen, so its button opens it to choose them.
+  /// material and colour, or a colour it can be priced in — which the
+  /// price sheet itself is where they are chosen, so its button opens it to
+  /// choose them.
   bool get needsOnlyProfile =>
+      needsColour ||
       status == DesignPriceStatus.incomplete &&
-      readiness.missing.length == 1 &&
-      readiness.missing.single.kind == PriceRequirementKind.profile;
+          readiness.missing.length == 1 &&
+          readiness.missing.single.kind == PriceRequirementKind.profile;
 
   String get label => switch (status) {
     _ when notRead => 'Drawing not read',

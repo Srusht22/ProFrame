@@ -1220,9 +1220,14 @@ class CardProfileLine extends ConsumerWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
+    // The material takes the width its word needs and the colour the
+    // rest: a colour's name is the longer, and the one the owner chose.
+    // Where even that is too narrow the name is cut, and held whole in its
+    // tooltip; the price sheet and the customer's summary write it whole.
+    final colourName = design == null ? '…' : profile.colourName(list);
     return Row(
       children: [
-        Expanded(
+        Flexible(
           child: said(
             CustomerDesignCard.materialKey(designId),
             'Material',
@@ -1231,20 +1236,23 @@ class CardProfileLine extends ConsumerWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Row(
-            children: [
-              if (profile.colour case final colour?) ...[
-                colourSwatch(colour),
-                const SizedBox(width: 5),
-              ],
-              Flexible(
-                child: said(
-                  CustomerDesignCard.colourKey(designId),
-                  'Colour',
-                  design == null ? '…' : profile.colourName(list),
+          child: Tooltip(
+            message: colourName,
+            child: Row(
+              children: [
+                if (profile.colour case final colour?) ...[
+                  colourSwatch(colour),
+                  const SizedBox(width: 5),
+                ],
+                Flexible(
+                  child: said(
+                    CustomerDesignCard.colourKey(designId),
+                    'Colour',
+                    colourName,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
@@ -1270,6 +1278,9 @@ class CardPriceValue extends ConsumerWidget {
         'Price: ${PricePanel.money(state.total!, state.record!.result.currency)}',
       // Drawn on since it was read: the price kept is of an older reading.
       _ when state.notRead => 'Price: needs update',
+      // A colour to choose again: not sold in the material now chosen, or
+      // retired and no longer priced on it.
+      _ when state.needsColour => 'Price: choose colour',
       // Nobody has chosen what it is made of, which its price reads.
       _ when state.needsOnlyProfile => 'Price: choose material',
       DesignPriceState(status: DesignPriceStatus.notCalculated) =>
@@ -1317,7 +1328,7 @@ class CardPriceButton extends ConsumerWidget {
       result: result,
       onChoose: kept.design.isUnsupported
           ? null
-          : (ref, material, colour) async {
+          : (ref, material, colour, colourId) async {
               // The design as kept now, its profile chosen, kept again, and
               // priced afresh: its card, its customer's total and the
               // workspace all read it from there.
@@ -1328,6 +1339,7 @@ class CardPriceButton extends ConsumerWidget {
                   latest,
                   material: material,
                   colour: colour,
+                  colourId: colourId,
                 ),
               );
               ref.read(designsRevisionProvider.notifier).changed();

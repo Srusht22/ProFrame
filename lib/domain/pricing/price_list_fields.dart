@@ -7,19 +7,21 @@ import 'price_list.dart';
 /// new figure in it.
 ///
 /// The price editor shows these and nothing else, so every figure the
-/// engine reads can be set — a profile's metre by material, what each
-/// colour adds on it, glass, sealed units, panels, ironmongery, the
+/// engine reads can be set — a profile's metre by material, what a colour
+/// the catalog does not name adds on it, glass, sealed units, panels, ironmongery, the
 /// sliding track and its rollers, labour and installation — and nothing is
 /// dropped from the list by being edited: each figure is written into the
-/// list it came from, with every other figure as it was.
+/// list it came from, with every other figure as it was. The catalog's
+/// named colours are the one part of the list edited as a whole colour at
+/// a time (`ColourCatalog`), so they are not here.
 class RateField {
   /// Stable across lists: `profile.upvc.normal`, `glass.sealed.clear`.
   final String id;
 
-  /// The heading it is listed under: *Normal profile*, *Colour — uPVC*.
+  /// The heading it is listed under: *Normal profile*, *Any other colour — uPVC*.
   final String section;
 
-  /// What it is, under its heading: *uPVC*, *Black, a metre*.
+  /// What it is, under its heading: *uPVC*, *A metre*.
   final String label;
 
   /// What one of it is: `/ m`, `/ m²`, `each`, `%`.
@@ -186,36 +188,17 @@ class RateField {
     ),
   ];
 
-  /// What each colour adds on [m]'s profile — a metre, and a share of the
-  /// profile's price — and what any colour the list does not name adds.
+  /// What a colour the catalog does not name adds on [m]'s profile — a
+  /// metre, and a share of the profile's price. The catalog's own colours
+  /// are edited as colours (`ColourCatalog`), each change a version of the
+  /// list, so their rates are not fields here.
   static List<RateField> _colours(PriceList list, MaterialKind m) {
-    final section = 'Colour — ${m.label}';
-    final colours = list.profiles[m]?.colours ?? const <ColourRate>[];
+    final section = 'Any other colour — ${m.label}';
     return [
-      for (var i = 0; i < colours.length; i++) ...[
-        RateField(
-          id: 'colour.${m.name}.${colours[i].colour}.metre',
-          section: section,
-          label: '${colours[i].name}, a metre',
-          unit: '/ m',
-          read: (l) => _colourAt(l, m, colours[i].colour)?.perMetre,
-          write: (l, v) =>
-              _withColour(l, m, colours[i].colour, perMetre: v ?? 0),
-        ),
-        RateField(
-          id: 'colour.${m.name}.${colours[i].colour}.percent',
-          section: section,
-          label: '${colours[i].name}, on the profile',
-          unit: '%',
-          read: (l) => _colourAt(l, m, colours[i].colour)?.percent,
-          write: (l, v) =>
-              _withColour(l, m, colours[i].colour, percent: v ?? 0),
-        ),
-      ],
       RateField(
         id: 'colour.${m.name}.special.metre',
         section: section,
-        label: 'Any other colour, a metre',
+        label: 'A metre',
         unit: '/ m',
         read: (l) => l.profiles[m]?.special.perMetre,
         write: (l, v) => _withSpecial(l, m, perMetre: v ?? 0),
@@ -223,7 +206,7 @@ class RateField {
       RateField(
         id: 'colour.${m.name}.special.percent',
         section: section,
-        label: 'Any other colour, on the profile',
+        label: 'On the profile',
         unit: '%',
         read: (l) => l.profiles[m]?.special.percent,
         write: (l, v) => _withSpecial(l, m, percent: v ?? 0),
@@ -330,9 +313,6 @@ class RateField {
     return out;
   }
 
-  static ColourRate? _colourAt(PriceList l, MaterialKind m, int colour) =>
-      l.profiles[m]?.colours.where((c) => c.colour == colour).firstOrNull;
-
   static PriceList _withProfile(
     PriceList l,
     MaterialKind m, {
@@ -347,40 +327,6 @@ class RateField {
         m: ProfileRate(
           normalPerMetre: normal ?? was.normalPerMetre,
           openingPerMetre: opening ?? was.openingPerMetre,
-          colours: was.colours,
-          special: was.special,
-        ),
-      },
-    );
-  }
-
-  static PriceList _withColour(
-    PriceList l,
-    MaterialKind m,
-    int colour, {
-    double? perMetre,
-    double? percent,
-  }) {
-    final was = l.profiles[m];
-    if (was == null) return l;
-    return l.copyWith(
-      profiles: {
-        ...l.profiles,
-        m: ProfileRate(
-          normalPerMetre: was.normalPerMetre,
-          openingPerMetre: was.openingPerMetre,
-          colours: [
-            for (final c in was.colours)
-              c.colour == colour
-                  ? ColourRate(
-                      c.name,
-                      c.colour,
-                      c.grade,
-                      perMetre: perMetre ?? c.perMetre,
-                      percent: percent ?? c.percent,
-                    )
-                  : c,
-          ],
           special: was.special,
         ),
       },
@@ -401,7 +347,6 @@ class RateField {
         m: ProfileRate(
           normalPerMetre: was.normalPerMetre,
           openingPerMetre: was.openingPerMetre,
-          colours: was.colours,
           special: ColourSurcharge(
             perMetre: perMetre ?? was.special.perMetre,
             percent: percent ?? was.special.percent,

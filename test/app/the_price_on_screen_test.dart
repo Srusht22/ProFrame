@@ -202,7 +202,6 @@ void main() {
         MaterialKind.upvc: const ProfileRate(
           normalPerMetre: 100,
           openingPerMetre: 12,
-          colours: [ColourRate('Off white', 0xFFF3F4F2, ColourGrade.standard)],
         ),
       },
     );

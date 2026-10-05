@@ -99,8 +99,17 @@ class PricingEngine {
       );
     }
 
+    // The profile's colour, by material and colour together: a colour that
+    // needs choosing again stops the price — nothing is put in its place.
+    // One the list does not price on this material is said where the
+    // colour is charged, below, with everything else the list lacks.
+    final chosen = ProfileSelection.of(design);
+    if (chosen.colourIn(list) case final colour? when colour.needsSelection) {
+      return unavailable(PriceStatus.incomplete, colour.problem!);
+    }
+
     final takeoff = PricingTakeoff.of(design);
-    final sheet = PriceSheet(list);
+    final sheet = PriceSheet(list, profile: chosen);
     strategy.price(takeoff, sheet);
 
     // Labour, by the category's own rate.
@@ -152,13 +161,15 @@ class PricingEngine {
       issues: sheet.issues,
       discount: said.discount,
       measurements: takeoff.summary,
-      profile: switch (ProfileSelection.of(design)) {
+      profile: switch (chosen) {
         ProfileSelection(:final material?, :final colour?) && final p =>
           PricedProfile(
             material: material.name,
             materialLabel: material.label,
             colour: colour,
             colourName: p.colourName(list),
+            colourId: p.catalogColourIn(list)?.id,
+            colourRate: p.colourIn(list)?.surcharge,
           ),
         _ => null,
       },
@@ -176,7 +187,11 @@ class PriceSheet {
   final lines = <PriceLine>[];
   final issues = <PriceIssue>[];
 
-  PriceSheet(this.list);
+  /// What the design's profile was chosen as — its colour is looked up by
+  /// the catalog id it was chosen under.
+  final ProfileSelection profile;
+
+  PriceSheet(this.list, {this.profile = ProfileSelection.notChosen});
 
   void add(
     PriceGroup group,
@@ -222,6 +237,13 @@ class PriceSheet {
         partId: partId,
       ),
     );
+  }
+
+  /// Something that stops the design being priced, said as it is.
+  void unavailable(String message) {
+    if (issues.every((i) => i.message != message)) {
+      issues.add(PriceIssue(message));
+    }
   }
 
   /// Something the price list has no price for: the design cannot be
@@ -318,10 +340,20 @@ class FramedPricing extends CategoryPricing {
         list.profiles[m]!.openingPerMetre,
       );
     }
+    // Each colour is looked up by material and colour together, and what
+    // it adds is charged once, on all the profile in it: so much a metre
+    // and so much in a hundred of what that profile cost.
     for (final MapEntry(key: (m, colour), value: used) in byColour.entries) {
-      final rate = list.profiles[m]!.colourOf(colour);
-      final what =
-          '${rate.name} ${m.label} (${rate.grade.label.toLowerCase()})';
+      final chosen = sheet.profile;
+      final id = chosen.material == m && chosen.colour == colour
+          ? chosen.colourId
+          : null;
+      final rate = list.colourFor(m, colour, id: id);
+      if (!rate.isPriced) {
+        sheet.unavailable(rate.problem!);
+        continue;
+      }
+      final what = '${rate.name} ${m.label} (${rate.grade.label.toLowerCase()})';
       sheet
         ..add(
           PriceGroup.colour,

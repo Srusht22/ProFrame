@@ -206,9 +206,9 @@ void main() {
       final upvc = list.profiles[MaterialKind.upvc]!;
       expect(upvc.normalPerMetre, 9000, reason: 'frame → normal profile');
       expect(upvc.openingPerMetre, 11000, reason: 'sash → opening profile');
-      expect(upvc.colourOf(0xFF7B4A2B).surcharge.percent, 15);
-      expect(upvc.colourOf(0xFF7B4A2B).surcharge.perMetre, 0);
-      expect(upvc.colourOf(0xFF123456).surcharge.percent, 25);
+      expect(list.colourFor(MaterialKind.upvc, 0xFF7B4A2B).surcharge.percent, 15);
+      expect(list.colourFor(MaterialKind.upvc, 0xFF7B4A2B).surcharge.perMetre, 0);
+      expect(list.colourFor(MaterialKind.upvc, 0xFF123456).surcharge.percent, 25);
       expect(list.glassPerM2, {
         GlassLook.clear: 30000,
         GlassLook.frosted: 36000,

@@ -88,9 +88,13 @@ Future<void> calculateOpenDesign(BuildContext context, WidgetRef ref) async {
     context,
     design: design,
     result: result,
-    onChoose: (ref, material, colour) async {
+    onChoose: (ref, material, colour, colourId) async {
       final controller = ref.read(workspaceProvider.notifier)
-        ..chooseProfile(material: material, colour: colour);
+        ..chooseProfile(
+          material: material,
+          colour: colour,
+          colourId: colourId,
+        );
       await controller.keep();
       final now = ref.read(workspaceProvider).design;
       final priced = await ref.priceNow(now);
@@ -172,9 +176,13 @@ class _PricePanelState extends ConsumerState<PricePanel> {
             selection: ProfileSelection.of(design),
             current: design.frame!.finish,
             list: list,
-            onChanged: (material, colour) => ref
+            onChanged: (material, colour, colourId) => ref
                 .read(workspaceProvider.notifier)
-                .chooseProfile(material: material, colour: colour),
+                .chooseProfile(
+                  material: material,
+                  colour: colour,
+                  colourId: colourId,
+                ),
           ),
           const SizedBox(height: 10),
         ],
