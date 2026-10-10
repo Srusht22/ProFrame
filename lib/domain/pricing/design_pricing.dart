@@ -5,6 +5,7 @@ import 'price_list.dart';
 import 'price_result.dart';
 import 'pricing_access.dart';
 import 'pricing_engine.dart';
+import 'profile_category.dart';
 
 /// What a design's own price is made of beyond its geometry — its extras
 /// and its discount — changed by somebody allowed to, and nothing else.
@@ -16,9 +17,10 @@ import 'pricing_engine.dart';
 ///
 /// **Each change asks first, before anything is made** (`Authority.require`):
 /// adding an extra needs `extras.create`, changing one `extras.edit`,
-/// removing one `extras.delete`, and giving or taking away the design's
-/// discount `discounts.apply`. A screen asking too only decides what to
-/// offer.
+/// removing one `extras.delete`, giving or taking away the design's
+/// discount `discounts.apply`, and including its glass or saying which
+/// profile category its aluminium is `designs.edit` — they are how the
+/// design is configured. A screen asking too only decides what to offer.
 ///
 /// **Only the design's pricing choices change.** Not a line, a section, an
 /// opening, a pane, a size or a finish: an extra is never geometry. The
@@ -62,6 +64,52 @@ abstract final class DesignPricing {
   }
 
   /// [design] without the extra [id].
+  /// [design] with its glass charged for, or not. Nothing about the glass
+  /// changes — not its area, not where it is — only whether the price
+  /// includes it; turned on with no glass to measure, nothing is made up.
+  static Design setGlassPriced(
+    Design design,
+    bool on, {
+    required Authority by,
+  }) {
+    by.require(Capability.designsEdit);
+    if (design.pricing.glassPriced == on) return design;
+    return design.copyWith(pricing: design.pricing.copyWith(glassPriced: on));
+  }
+
+  /// [design] with its aluminium profile said to be [category] — every part
+  /// of it, or, with [part], that one part (a frame member's or a bar's
+  /// id). Null takes the choice away: the part follows the design again,
+  /// or, for the design, nothing is chosen.
+  ///
+  /// Saying it for the whole design clears what single parts said, so the
+  /// whole is what was asked for; a part said apart afterwards is kept.
+  static Design setProfileCategory(
+    Design design,
+    ProfileCategory? category, {
+    String? part,
+    required Authority by,
+  }) {
+    by.require(Capability.designsEdit);
+    final choices = design.pricing;
+    if (part == null) {
+      return design.copyWith(
+        pricing: choices.copyWith(
+          profileCategory: category,
+          clearProfileCategory: category == null,
+          profileCategoryOf: const {},
+        ),
+      );
+    }
+    final each = Map<String, ProfileCategory>.of(choices.profileCategoryOf);
+    if (category == null) {
+      each.remove(part);
+    } else {
+      each[part] = category;
+    }
+    return design.copyWith(pricing: choices.copyWith(profileCategoryOf: each));
+  }
+
   static Design removeExtra(Design design, String id, {required Authority by}) {
     by.require(Capability.extrasDelete);
     if (design.pricing.extras.every((e) => e.id != id)) return design;

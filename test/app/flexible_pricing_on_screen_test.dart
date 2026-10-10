@@ -14,6 +14,7 @@ import 'package:proframe/app/state/access.dart';
 import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/pricing/price_list.dart';
+import 'package:proframe/domain/pricing/price_result.dart';
 import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/infrastructure/customer_store.dart';
 import 'package:proframe/infrastructure/design_store.dart';
@@ -36,6 +37,15 @@ import 'the_price_button_test.dart' show cardButton, textOf, toSummary;
 // it — the automatic costs, glass said to be not used where there is none,
 // the extras added by hand, the design's own discount — the customer's own
 // extras before their discount, and the screens following who may do what.
+
+/// The brief's Front Entrance Door, all panel, with nothing said about its
+/// price yet — as a new design starts. Since Phase 33 the shared `given`
+/// says glass is included, which these tests are not about: here the door
+/// is as the factory first sees it, its glass not included.
+Design frontEntranceDoor() => acceptance().copyWith(
+  name: 'Front Entrance Door',
+  pricing: PricingChoices.none,
+);
 
 /// Adam with [designs], and the price list [list] kept as the factory's.
 Future<void> seedWith(
@@ -128,9 +138,7 @@ void main() {
 
   testWidgets('48. Front Entrance Door: glass not used, silicone 5 × 3 and '
       'labour 5 × 10 added by hand, 45 off — 350.00, and kept', (tester) async {
-    await seedWith(tester, [
-      acceptance().copyWith(name: 'Front Entrance Door'),
-    ], factoryList());
+    await seedWith(tester, [frontEntranceDoor()], factoryList());
     final c = await toAdam(tester);
     owner(c);
     await tester.pumpAndSettle();
@@ -209,9 +217,7 @@ void main() {
 
   testWidgets('an extra edited — 5 bottles become 6, 15.00 becomes 18.00 — '
       'and removed only once asked', (tester) async {
-    await seedWith(tester, [
-      acceptance().copyWith(name: 'Front Entrance Door'),
-    ], factoryList());
+    await seedWith(tester, [frontEntranceDoor()], factoryList());
     await toAdam(tester);
     await openPrice(tester, 'acceptance');
     await tapIn(tester, ExtraKeys.add);
@@ -338,9 +344,7 @@ void main() {
       'nothing; a member without designs.edit opens a design view only', (
     tester,
   ) async {
-    await seedWith(tester, [
-      acceptance().copyWith(name: 'Front Entrance Door'),
-    ], factoryList());
+    await seedWith(tester, [frontEntranceDoor()], factoryList());
     await tester.runAsync(
       () => StaffStore().add(
         name: 'Viewer',
@@ -399,9 +403,7 @@ void main() {
         'breakdown, the extra form and the customer\'s extras fit', (
       tester,
     ) async {
-      await seedWith(tester, [
-        acceptance().copyWith(name: 'Front Entrance Door'),
-      ], factoryList());
+      await seedWith(tester, [frontEntranceDoor()], factoryList());
       await toAdam(tester, size: size);
       await openPrice(tester, 'acceptance');
       await tapIn(tester, ExtraKeys.add);

@@ -1,13 +1,15 @@
 import '../model/elements.dart';
 import '../model/materials.dart';
 import 'price_list.dart';
+import 'profile_category.dart';
 
 /// One figure of the price list, as the owner edits it: what it is, in
 /// what unit, how it is read from a list and how a list is written with a
 /// new figure in it.
 ///
 /// The price editor shows these and nothing else, so every figure the
-/// engine reads can be set — a profile's metre by material, what a colour
+/// engine reads can be set — a profile's metre by material (and, for
+/// aluminium, by its profile category, System and Bend Shoulder), what a colour
 /// the catalog does not name adds on it, glass, sealed units, panels, ironmongery, the
 /// sliding track and its rollers, labour and installation — and nothing is
 /// dropped from the list by being edited: each figure is written into the
@@ -60,7 +62,7 @@ class RateField {
   static List<RateField> of(PriceList list) => [
     // Every material's normal profile together, then every opening profile:
     // the two are read as a pair of columns, not one material at a time.
-    for (final m in list.profiles.keys) _profile(m).first,
+    for (final m in list.profiles.keys) ..._normal(m),
     for (final m in list.profiles.keys) _profile(m).last,
     for (final m in list.profiles.keys) ..._colours(list, m),
     ..._looks(
@@ -169,10 +171,44 @@ class RateField {
       ..._labour(name, rate.label),
   ];
 
+  /// A metre of [m]'s border and lines: one figure, or — for a material
+  /// sold by profile category — one figure a category, each its own and
+  /// optional, a category left empty being one that is not priced.
+  static List<RateField> _normal(MaterialKind m) => [
+    if (!ProfileCategory.divides(m))
+      _profile(m).first
+    else
+      for (final c in ProfileCategory.of(m))
+        RateField(
+          id: 'profile.${m.name}.${c.name}',
+          section: 'Border and internal lines',
+          label: c.label,
+          unit: '/ m',
+          optional: true,
+          read: (l) => l.profiles[m]?.categories[c],
+          write: (l, v) {
+            final was = l.profiles[m];
+            if (was == null) return l;
+            final rates = Map<ProfileCategory, double>.of(was.categories);
+            if (v == null) {
+              rates.remove(c);
+            } else {
+              rates[c] = v;
+            }
+            return l.copyWith(
+              profiles: {
+                ...l.profiles,
+                m: was.copyWith(categories: rates),
+              },
+            );
+          },
+        ),
+  ];
+
   static List<RateField> _profile(MaterialKind m) => [
     RateField(
       id: 'profile.${m.name}.normal',
-      section: 'Normal profile',
+      section: 'Border and internal lines',
       label: m.label,
       unit: '/ m',
       read: (l) => l.profiles[m]?.normalPerMetre,
@@ -324,11 +360,7 @@ class RateField {
     return l.copyWith(
       profiles: {
         ...l.profiles,
-        m: ProfileRate(
-          normalPerMetre: normal ?? was.normalPerMetre,
-          openingPerMetre: opening ?? was.openingPerMetre,
-          special: was.special,
-        ),
+        m: was.copyWith(normalPerMetre: normal, openingPerMetre: opening),
       },
     );
   }
@@ -344,9 +376,7 @@ class RateField {
     return l.copyWith(
       profiles: {
         ...l.profiles,
-        m: ProfileRate(
-          normalPerMetre: was.normalPerMetre,
-          openingPerMetre: was.openingPerMetre,
+        m: was.copyWith(
           special: ColourSurcharge(
             perMetre: perMetre ?? was.special.perMetre,
             percent: percent ?? was.special.percent,

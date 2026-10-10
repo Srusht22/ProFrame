@@ -19,6 +19,7 @@ import 'package:proframe/domain/pricing/price_list_migration.dart';
 import 'package:proframe/domain/pricing/price_result.dart';
 import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/pricing/pricing_engine.dart';
+import 'package:proframe/domain/pricing/profile_category.dart';
 import 'package:proframe/domain/pricing/takeoff.dart';
 import 'package:proframe/domain/recognition/interpreter.dart';
 import 'package:proframe/domain/sections/section_builder.dart';
@@ -47,8 +48,19 @@ const engine = PricingEngine();
 final zero = PriceList(
   currency: 'USD',
   profiles: {
-    for (final m in [MaterialKind.upvc, MaterialKind.aluminium])
-      m: const ProfileRate(normalPerMetre: 0, openingPerMetre: 0),
+    MaterialKind.upvc: const ProfileRate(
+      normalPerMetre: 0,
+      openingPerMetre: 0,
+    ),
+    // Since Phase 33 aluminium's border and lines are priced by profile
+    // category, System and Bend Shoulder, each its own figure.
+    MaterialKind.aluminium: const ProfileRate(
+      openingPerMetre: 0,
+      categories: {
+        ProfileCategory.systemAluminium: 0,
+        ProfileCategory.bendShoulderAluminium: 0,
+      },
+    ),
   },
   glassPerM2: {for (final g in GlassLook.values) g: 0},
   customGlassPerM2: 0,
@@ -90,6 +102,11 @@ Sold sold(
 /// colour adds on it, and [colours] sold in it — each added to the
 /// catalog, or given a rate on [m] where the catalog already has a colour
 /// of that name and swatch.
+///
+/// For a material sold by profile category (aluminium, since Phase 33)
+/// [normal] is every category's rate: these tests are about the material,
+/// and the categories' own rates are held by
+/// `aluminium_categories_and_optional_glass_test`.
 PriceList withProfile(
   PriceList list,
   MaterialKind m, {
@@ -125,11 +142,17 @@ PriceList withProfile(
     colours: catalog,
     profiles: {
       ...list.profiles,
-      m: ProfileRate(
-        normalPerMetre: normal,
-        openingPerMetre: opening,
-        special: special,
-      ),
+      m: ProfileCategory.divides(m)
+          ? ProfileRate(
+              openingPerMetre: opening,
+              categories: {for (final c in ProfileCategory.of(m)) c: normal},
+              special: special,
+            )
+          : ProfileRate(
+              normalPerMetre: normal,
+              openingPerMetre: opening,
+              special: special,
+            ),
     },
   );
 }
@@ -150,6 +173,16 @@ Design given(Design d) => d.copyWith(
   // And its profile chosen, as the user chooses it: the frame's finish as
   // it stands, said to be the one.
   profileChosen: true,
+  // Since Phase 33 glass is charged only where the user includes it, and
+  // an aluminium part only once somebody says whether it is System or Bend
+  // Shoulder. These tests are about what a design costs once that is said,
+  // so it is said here; the defaults themselves — glass not included, no
+  // category guessed — are held by
+  // `aluminium_categories_and_optional_glass_test`.
+  pricing: d.pricing.copyWith(
+    glassPriced: true,
+    profileCategory: ProfileCategory.systemAluminium,
+  ),
 );
 
 /// A 100 × 200 cm frame drawn on the sheet, with a `>` in it, of [kind].
@@ -286,11 +319,22 @@ void main() {
       expect(t.openingProfile.label, '6.000 m');
       expect(t.totalProfile.label, '13.600 m');
 
-      // $7 and $12 a metre.
-      final normal = lineOf(d, example, PriceGroup.normalProfile);
-      expect(normal.quantity, closeTo(7.60, 1e-9));
-      expect(normal.rate, 7);
-      expect(normal.amount, 53.20);
+      // $7 and $12 a metre. Since Phase 33 the border and the lines are
+      // two lines at the one rate they share, never folded into one; they
+      // still come to the 7.60 m and $53.20 the brief works out.
+      final normal = linesOf(
+        d,
+        example,
+      ).where((l) => l.group == PriceGroup.normalProfile).toList();
+      expect(normal.map((l) => l.part), [ProfilePart.border, ProfilePart.lines]);
+      expect(normal.first.label, 'uPVC — Border');
+      expect(normal.first.quantity, closeTo(6.00, 1e-9));
+      expect(normal.first.amount, 42.00);
+      expect(normal.last.label, 'uPVC — Internal lines');
+      expect(normal.last.quantity, closeTo(1.60, 1e-9));
+      expect(normal.last.amount, 11.20);
+      expect(normal.every((l) => l.rate == 7), isTrue);
+      expect(normal.fold(0, (sum, l) => sum + l.amountCents), 5320);
       final opening = lineOf(d, example, PriceGroup.openingProfile);
       expect(opening.quantity, closeTo(6.00, 1e-9));
       expect(opening.rate, 12);
@@ -859,7 +903,9 @@ void main() {
     });
 
     test('30. a design kept before pricing opens unchanged and is priced', () {
-      final d = door();
+      // Without the choices `given` makes since Phase 33, so it is a design
+      // with no pricing at all, as one kept before pricing was.
+      final d = door().copyWith(pricing: PricingChoices.none);
       final json = d.toJson();
       expect(json.containsKey('pricing'), isFalse);
       final old = Design.fromJson(jsonDecode(jsonEncode(json)));

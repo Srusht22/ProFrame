@@ -176,82 +176,94 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
 
     return Scaffold(
       backgroundColor: context.palette.shell,
-      body: LayoutBuilder(
-        builder: (context, room) {
-          final phone = room.maxWidth < 600;
-          final gutter = phone ? 16.0 : 32.0;
-          return CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: _Header(
-                  phone: phone,
-                  gutter: gutter,
-                  count: _kept,
-                  search: _search,
-                  onSearch: _searchFor,
-                  onNewCustomer: newCustomer,
-                  onNewDesign: newDesign,
-                ),
-              ),
-              if (!mayView)
-                SliverToBoxAdapter(
-                  child: _Centred(
-                    gutter: gutter,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 28),
-                      child: Text(
-                        'You do not have permission to view customers.',
-                        key: CustomersScreen.noAccessKey,
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                    ),
-                  ),
-                )
-              else if (!_loaded)
-                const SliverToBoxAdapter(child: SizedBox.shrink())
-              else if (_kept == 0)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: _NobodyYet(onNewCustomer: newCustomer),
-                )
-              else ...[
-                SliverToBoxAdapter(
-                  child: _Centred(
-                    gutter: gutter,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 28, bottom: 14),
-                      child: _SectionTitle(
-                        title: _query.trim().isEmpty
-                            ? 'All Customers'
-                            : 'Results',
-                        count: _total,
-                      ),
-                    ),
-                  ),
-                ),
-                if (_total == 0)
+      body: Stack(
+        children: [
+          LayoutBuilder(
+            builder: (context, room) {
+              final phone = room.maxWidth < 600;
+              final gutter = phone ? 16.0 : 32.0;
+              return CustomScrollView(
+                slivers: [
                   SliverToBoxAdapter(
-                    child: _Centred(
+                    child: _Header(
+                      phone: phone,
                       gutter: gutter,
-                      child: _NoMatch(query: _query.trim()),
+                      count: _kept,
+                      search: _search,
+                      onSearch: _searchFor,
+                      onNewCustomer: newCustomer,
+                      onNewDesign: newDesign,
                     ),
-                  )
-                else
-                  _Customers(
-                    customers: _found,
-                    designs: _designs,
-                    width: room.maxWidth,
-                    gutter: gutter,
-                    phone: phone,
-                    onOpen: _open,
-                    onNearEnd: () => WidgetsBinding.instance
-                        .addPostFrameCallback((_) => _more()),
                   ),
-                const SliverToBoxAdapter(child: SizedBox(height: 40)),
-              ],
-            ],
-          );
-        },
+                  if (!mayView)
+                    SliverToBoxAdapter(
+                      child: _Centred(
+                        gutter: gutter,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 28),
+                          child: Text(
+                            'You do not have permission to view customers.',
+                            key: CustomersScreen.noAccessKey,
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (!_loaded)
+                    const SliverToBoxAdapter(child: SizedBox.shrink())
+                  else if (_kept == 0)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: _NobodyYet(onNewCustomer: newCustomer),
+                    )
+                  else ...[
+                    SliverToBoxAdapter(
+                      child: _Centred(
+                        gutter: gutter,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 28, bottom: 14),
+                          child: _SectionTitle(
+                            title: _query.trim().isEmpty
+                                ? 'All Customers'
+                                : 'Results',
+                            count: _total,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (_total == 0)
+                      SliverToBoxAdapter(
+                        child: _Centred(
+                          gutter: gutter,
+                          child: _NoMatch(query: _query.trim()),
+                        ),
+                      )
+                    else
+                      _Customers(
+                        customers: _found,
+                        designs: _designs,
+                        width: room.maxWidth,
+                        gutter: gutter,
+                        phone: phone,
+                        onOpen: _open,
+                        onNearEnd: () => WidgetsBinding.instance
+                            .addPostFrameCallback((_) => _more()),
+                      ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                  ],
+                ],
+              );
+            },
+          ),
+          // Until who is at the device is known, nothing that needs a
+          // permission is offered, and this says it is being worked out.
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(child: PermissionsLoading()),
+          ),
+        ],
       ),
     );
   }

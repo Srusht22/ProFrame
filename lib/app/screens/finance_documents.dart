@@ -26,6 +26,7 @@ abstract final class DiscountKeys {
   static const dialog = ValueKey('discount-dialog');
   static const percent = ValueKey('discount-percent');
   static const fixed = ValueKey('discount-fixed');
+  static const none = ValueKey('discount-none');
   static const value = ValueKey('discount-value');
   static const note = ValueKey('discount-note');
   static const previewDiscount = ValueKey('discount-preview-off');
@@ -117,6 +118,11 @@ class DiscountDialog extends StatefulWidget {
 
 class _DiscountDialogState extends State<DiscountDialog> {
   late DiscountKind _kind = widget.kind ?? DiscountKind.percent;
+
+  /// **None** chosen: no discount — not a percentage of nothing, and not a
+  /// discount nobody configured. Applied, it takes away any discount in
+  /// force.
+  bool _none = false;
   late final _value = TextEditingController(text: widget.valueText);
   final _note = TextEditingController();
   String? _problem;
@@ -156,6 +162,15 @@ class _DiscountDialogState extends State<DiscountDialog> {
   }
 
   void _apply() {
+    if (_none) {
+      // Nothing in force and none asked for: nothing changes.
+      if (widget.kind == null) {
+        Navigator.of(context).pop();
+      } else {
+        _remove();
+      }
+      return;
+    }
     final read = _read();
     final problem =
         read.problem ??
@@ -183,7 +198,7 @@ class _DiscountDialogState extends State<DiscountDialog> {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final subtotal = widget.subtotalCents;
-    final off = _off();
+    final off = _none ? 0 : _off();
     return AlertDialog(
       key: DiscountKeys.dialog,
       scrollable: true,
@@ -200,21 +215,28 @@ class _DiscountDialogState extends State<DiscountDialog> {
                 child: Text(caption, style: text.bodySmall),
               ),
             Text('Discount type', style: text.labelMedium),
-            RadioGroup<DiscountKind>(
-              groupValue: _kind,
+            RadioGroup<DiscountKind?>(
+              groupValue: _none ? null : _kind,
               onChanged: (k) => setState(() {
+                _none = k == null;
                 _kind = k ?? _kind;
                 _problem = null;
               }),
               child: const Column(
                 children: [
-                  RadioListTile(
+                  RadioListTile<DiscountKind?>(
+                    key: DiscountKeys.none,
+                    contentPadding: EdgeInsets.zero,
+                    value: null,
+                    title: Text('None'),
+                  ),
+                  RadioListTile<DiscountKind?>(
                     key: DiscountKeys.percent,
                     contentPadding: EdgeInsets.zero,
                     value: DiscountKind.percent,
                     title: Text('Percentage'),
                   ),
-                  RadioListTile(
+                  RadioListTile<DiscountKind?>(
                     key: DiscountKeys.fixed,
                     contentPadding: EdgeInsets.zero,
                     value: DiscountKind.fixed,
@@ -223,23 +245,24 @@ class _DiscountDialogState extends State<DiscountDialog> {
                 ],
               ),
             ),
-            TextField(
-              key: DiscountKeys.value,
-              controller: _value,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+            if (!_none)
+              TextField(
+                key: DiscountKeys.value,
+                controller: _value,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Discount',
+                  suffixText: _kind == DiscountKind.percent
+                      ? '%'
+                      : widget.currency,
+                  errorText: _problem,
+                  errorMaxLines: 3,
+                ),
+                onChanged: (_) => setState(() => _problem = null),
               ),
-              decoration: InputDecoration(
-                labelText: 'Discount',
-                suffixText: _kind == DiscountKind.percent
-                    ? '%'
-                    : widget.currency,
-                errorText: _problem,
-                errorMaxLines: 3,
-              ),
-              onChanged: (_) => setState(() => _problem = null),
-            ),
             const SizedBox(height: 8),
             TextField(
               key: DiscountKeys.note,
@@ -253,7 +276,11 @@ class _DiscountDialogState extends State<DiscountDialog> {
             ),
             PriceRow(
               'Discount',
-              off == null ? '—' : '−${_money(off)}',
+              _none
+                  ? 'None'
+                  : off == null
+                  ? '—'
+                  : '−${_money(off)}',
               valueKey: DiscountKeys.previewDiscount,
             ),
             PriceRow(

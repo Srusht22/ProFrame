@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/customer.dart';
 import '../../domain/model/design.dart';
+import '../../domain/model/design_completion.dart';
 import '../../domain/model/new_design_setup.dart';
 import '../../domain/pricing/design_price_state.dart';
+import '../../domain/pricing/price_readiness.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/profile_selection.dart';
 import '../../infrastructure/design_store.dart';
@@ -44,6 +46,13 @@ class CustomerScreen extends ConsumerStatefulWidget {
   /// **Edit** on the customer's information: their name, phone, address
   /// and notes, in a form of their own.
   static const editButton = ValueKey('customer-edit');
+
+  /// The menu on the customer's page, and **Delete customer** in it —
+  /// offered only to whoever holds `customers.delete`.
+  static const menuKey = ValueKey('customer-menu');
+  static const deleteKey = ValueKey('customer-delete');
+  static const confirmDeleteKey = ValueKey('customer-confirm-delete');
+  static const cannotDeleteKey = ValueKey('customer-cannot-delete');
 
   /// What stands in place of the page, or of the designs, for somebody who
   /// may not see them.
@@ -204,6 +213,82 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
     ),
   );
 
+  /// **Delete customer**: asked first, by name; then deleted by the store
+  /// only where nothing of theirs would go with them — otherwise refused,
+  /// and why said. Undo keeps them again, whole.
+  Future<void> _delete(Customer customer) async {
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: Text('Delete ${customer.name}?'),
+        content: const Text(
+          'Only a customer with nothing of theirs kept can be deleted: no '
+          'designs, payments, receipts, discounts, quotations or extra '
+          'charges. Their record is then removed, and nothing else.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: CustomerScreen.confirmDeleteKey,
+            onPressed: () => Navigator.of(dialog).pop(true),
+            child: const Text('Delete customer'),
+          ),
+        ],
+      ),
+    );
+    if (sure != true || !mounted) return;
+    final store = ref.read(customerStoreProvider);
+    final by = await ref.actorNow();
+    final ({bool deleted, String? problem}) outcome;
+    try {
+      outcome = await store.deleteCustomer(customer.id, by: by);
+    } on AccessDenied catch (e) {
+      if (mounted) _say(e.toString());
+      return;
+    }
+    if (!mounted) return;
+    if (!outcome.deleted) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          key: CustomerScreen.cannotDeleteKey,
+          title: const Text('Not deleted'),
+          content: Text(outcome.problem ?? ''),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialog).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    // Held now: Undo comes after this page has gone.
+    final revision = ref.read(customersRevisionProvider.notifier)..changed();
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.of(context).popUntil((r) => r.isFirst);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('${customer.name} deleted.'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () async {
+            await store.save(customer, by: by);
+            revision.changed();
+          },
+        ),
+      ),
+    );
+  }
+
+  void _say(String words) =>
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(words)));
+
   /// The customer's own information — name, phone, address, notes — in
   /// the form a customer is made with, filled in. Saving changes the
   /// customer and nothing else, and the page reads them again when it is
@@ -288,6 +373,9 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
         backgroundColor: p.band,
         foregroundColor: AppTheme.accent,
         title: Text(customer?.name ?? ''),
+        // Until who is at the device is known, nothing that needs a
+        // permission is offered, and this says it is being worked out.
+        bottom: const PermissionsLoading(),
         // Their money at a glance, beside their name: how they stand and
         // what is due. The whole of it is under their designs.
         actions: [
@@ -295,6 +383,18 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
             Padding(
               padding: const EdgeInsetsDirectional.only(end: 12),
               child: CustomerMoneyGlance(customer: customer),
+            ),
+          if (customer != null && ref.offers(Capability.customersDelete))
+            PopupMenuButton<String>(
+              key: CustomerScreen.menuKey,
+              onSelected: (_) => _delete(customer),
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  key: CustomerScreen.deleteKey,
+                  value: 'delete',
+                  child: Text('Delete customer'),
+                ),
+              ],
             ),
         ],
       ),
@@ -1212,7 +1312,8 @@ class CardPriceStatus extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(keptDesignPriceProvider(designId)).value?.state;
+    final kept = ref.watch(keptDesignPriceProvider(designId)).value;
+    final state = kept?.state;
     // An unknown category is said by the category itself.
     if (state == null || state.status == DesignPriceStatus.unsupported) {
       return const SizedBox.shrink();
@@ -1222,8 +1323,12 @@ class CardPriceStatus extends ConsumerWidget {
         state.status != DesignPriceStatus.incomplete &&
         state.status != DesignPriceStatus.unsupported;
     final colour = complete ? p.primary : Theme.of(context).colorScheme.error;
+    // Each design its own stage: **Completed** once the user completed it
+    // and it is still that design, a **Draft** while it is ready and not
+    // completed, and otherwise what it still needs.
+    final completed = kept != null && DesignCompletion.isCompleted(kept.design);
     return Text(
-      state.label,
+      complete ? (completed ? 'Completed' : 'Draft') : state.label,
       key: CustomerDesignCard.statusKey(designId),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
@@ -1333,6 +1438,13 @@ class CardPriceValue extends ConsumerWidget {
       // A colour to choose again: not sold in the material now chosen, or
       // retired and no longer priced on it.
       _ when state.needsColour => 'Price: choose colour',
+      // Only the aluminium's profile — System or Bend Shoulder — to say.
+      _
+          when state.needsOnlyProfile &&
+              state.readiness.missing.every(
+                (r) => r.kind == PriceRequirementKind.profileCategory,
+              ) =>
+        'Price: choose profile',
       // Nobody has chosen what it is made of, which its price reads.
       _ when state.needsOnlyProfile => 'Price: choose material',
       DesignPriceState(status: DesignPriceStatus.notCalculated) =>

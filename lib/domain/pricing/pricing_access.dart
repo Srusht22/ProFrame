@@ -24,14 +24,17 @@ library;
 /// One thing a person may be allowed to do.
 ///
 /// Only what is checked where it is done is here: a capability with no
-/// check behind it would be a switch that changes nothing. So there is no
-/// `customers.delete`: no one can delete a customer (see CLAUDE.md, *A
-/// customer cannot be deleted*), and a permission for it would allow
-/// nothing.
+/// check behind it would be a switch that changes nothing. `customers.delete`
+/// is checked by `CustomerStore.deleteCustomer`, which deletes only a
+/// customer with nothing of theirs that would go with them — no design, no
+/// payment, receipt, discount, quotation or extra charge — and refuses any
+/// other, saying why. It is the owner's, and a member of staff's only where
+/// the owner gives it.
 enum Capability {
   customersView('customers.view', 'Customers', 'View'),
   customersCreate('customers.create', 'Customers', 'Add'),
   customersEdit('customers.edit', 'Customers', 'Edit'),
+  customersDelete('customers.delete', 'Customers', 'Delete'),
   designsView('designs.view', 'Designs', 'View'),
   designsCreate('designs.create', 'Designs', 'Create'),
   designsEdit('designs.edit', 'Designs', 'Edit and draw'),

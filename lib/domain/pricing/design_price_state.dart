@@ -99,6 +99,8 @@ abstract final class PriceInputs {
     'sketchUnread',
     'texts',
     'arrows',
+    // Completing a design is not a change to what it costs.
+    'completedAs',
   };
 
   static String of(Design design, PriceList list) =>
@@ -300,8 +302,12 @@ class DesignPriceState {
   bool get needsOnlyProfile =>
       needsColour ||
       status == DesignPriceStatus.incomplete &&
-          readiness.missing.length == 1 &&
-          readiness.missing.single.kind == PriceRequirementKind.profile;
+          readiness.missing.isNotEmpty &&
+          readiness.missing.every(
+            (r) =>
+                r.kind == PriceRequirementKind.profile ||
+                r.kind == PriceRequirementKind.profileCategory,
+          );
 
   String get label => switch (status) {
     _ when notRead => 'Drawing not read',

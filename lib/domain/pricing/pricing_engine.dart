@@ -5,6 +5,7 @@ import 'measurement.dart';
 import 'price_list.dart';
 import 'price_readiness.dart';
 import 'price_result.dart';
+import 'profile_category.dart';
 import 'profile_selection.dart';
 import 'takeoff.dart';
 
@@ -110,7 +111,12 @@ class PricingEngine {
     }
 
     final takeoff = PricingTakeoff.of(design);
-    final sheet = PriceSheet(list, profile: chosen);
+    final sheet = PriceSheet(
+      list,
+      profile: chosen,
+      glassPriced: said.glassPriced,
+      categoryFor: said.categoryFor,
+    );
     strategy.price(takeoff, sheet);
 
     // Labour, by the category's own rate.
@@ -174,6 +180,7 @@ class PricingEngine {
       discount: said.discount,
       extras: said.extras,
       measurements: takeoff.summary,
+      glassPriced: said.glassPriced,
       profile: switch (chosen) {
         ProfileSelection(:final material?, :final colour?) && final p =>
           PricedProfile(
@@ -204,7 +211,22 @@ class PriceSheet {
   /// the catalog id it was chosen under.
   final ProfileSelection profile;
 
-  PriceSheet(this.list, {this.profile = ProfileSelection.notChosen});
+  /// Whether the design's glass is charged for: the user's switch, off
+  /// unless they turned it on.
+  final bool glassPriced;
+
+  /// The profile category the part kept under a key was said to be, or
+  /// null where nobody said — see `ProfileAllocation`.
+  final ProfileCategory? Function(String key) categoryFor;
+
+  PriceSheet(
+    this.list, {
+    this.profile = ProfileSelection.notChosen,
+    this.glassPriced = false,
+    this.categoryFor = _nobodySaid,
+  });
+
+  static ProfileCategory? _nobodySaid(String key) => null;
 
   void add(
     PriceGroup group,
@@ -213,6 +235,8 @@ class PriceSheet {
     PriceUnit unit,
     double rate, {
     String? partId,
+    ProfilePart? part,
+    ProfileCategory? category,
   }) {
     if (!quantity.isFinite || !rate.isFinite || quantity <= 0 || rate <= 0) {
       return;
@@ -227,6 +251,8 @@ class PriceSheet {
         // Charged to the cent here, once; only cents are added after.
         amount: quantity * rate,
         partId: partId,
+        part: part,
+        category: category,
       ),
     );
   }
@@ -286,8 +312,13 @@ abstract class CategoryPricing {
 
 /// A framed design, the factory's way: each measurement at its own rate.
 ///
-/// - **Normal profile** — the frame's border and every bar and line, each
-///   in its own material — by the metre at that material's normal rate.
+/// - **Border and internal lines** — the frame's border and every bar and
+///   line, each in its own material — by the metre at that material's
+///   normal rate, or, for a material sold by profile category (System and
+///   Bend Shoulder aluminium), at the rate of the category each part was
+///   said to be. The border and the lines are measured and charged as two
+///   lines at the rate they share, never folded into one; a part in such a
+///   material that nobody said the category of is not priced at all.
 /// - **Opening profile** — round each opening, in the frame's material —
 ///   by the metre at that material's opening rate. Never the normal rate,
 ///   and never added into the normal profile.
@@ -308,7 +339,9 @@ class FramedPricing extends CategoryPricing {
     // the colour adds.
     // Lengths are added as the millimetres they are kept in, so every sum
     // is exact; a length becomes metres only where it is multiplied.
-    final normal = <MaterialKind, Metres>{};
+    // Border and lines by material, by category where the material is
+    // sold by category, and by which of the two they are.
+    final normal = <(MaterialKind, ProfileCategory?, ProfilePart), Metres>{};
     final opening = <MaterialKind, Metres>{};
     final byColour = <(MaterialKind, int), ({Metres metres, double cost})>{};
     var track = Metres.zero;
@@ -325,9 +358,43 @@ class FramedPricing extends CategoryPricing {
         continue;
       }
       final isOpening = run.use == ProfileUse.opening;
-      final into = isOpening ? opening : normal;
-      into[material] = (into[material] ?? Metres.zero) + metres;
-      final rate = isOpening ? profile.openingPerMetre : profile.normalPerMetre;
+      final double rate;
+      if (isOpening) {
+        opening[material] = (opening[material] ?? Metres.zero) + metres;
+        rate = profile.openingPerMetre;
+      } else {
+        ProfileCategory? category;
+        if (ProfileCategory.divides(material)) {
+          category = switch (sheet.categoryFor(run.id)) {
+            final c? when c.material == material => c,
+            _ => null,
+          };
+          // Never charged at a category nobody chose.
+          if (category == null) {
+            sheet.unavailable(
+              'Please choose whether the ${material.label.toLowerCase()} '
+              'profile is ${ProfileCategory.of(material).map((c) => c.label).join(' or ')} '
+              'to calculate the price.',
+            );
+            continue;
+          }
+        }
+        final perMetre = profile.normalRateFor(category);
+        if (perMetre == null) {
+          sheet.missing(
+            category == null
+                ? '${material.label} border and lines'
+                : '${category.label} border and lines',
+          );
+          continue;
+        }
+        rate = perMetre;
+        final part = run.use == ProfileUse.border
+            ? ProfilePart.border
+            : ProfilePart.lines;
+        final key = (material, category, part);
+        normal[key] = (normal[key] ?? Metres.zero) + metres;
+      }
       final key = (material, run.finish.colour);
       final was = byColour[key] ?? (metres: Metres.zero, cost: 0.0);
       byColour[key] = (
@@ -335,13 +402,25 @@ class FramedPricing extends CategoryPricing {
         cost: was.cost + metres.value * rate,
       );
     }
-    for (final MapEntry(key: m, value: metres) in normal.entries) {
+    // Each category's border, then its lines; the order the factory reads
+    // them in, whatever order the parts were drawn in.
+    final keys = normal.keys.toList()
+      ..sort((a, b) {
+        final m = a.$1.index.compareTo(b.$1.index);
+        if (m != 0) return m;
+        final c = (a.$2?.index ?? -1).compareTo(b.$2?.index ?? -1);
+        return c != 0 ? c : a.$3.index.compareTo(b.$3.index);
+      });
+    for (final key in keys) {
+      final (m, category, part) = key;
       sheet.add(
         PriceGroup.normalProfile,
-        'Normal profile — ${m.label}',
-        metres.value,
+        '${category?.label ?? m.label} — ${part.label}',
+        normal[key]!.value,
         PriceUnit.metre,
-        list.profiles[m]!.normalPerMetre,
+        list.profiles[m]!.normalRateFor(category)!,
+        part: part,
+        category: category,
       );
     }
     for (final MapEntry(key: m, value: metres) in opening.entries) {
@@ -397,6 +476,9 @@ class FramedPricing extends CategoryPricing {
     final glass = <String, ({SquareMetres area, double? rate})>{};
     final panel = <String, ({SquareMetres area, double? rate})>{};
     for (final region in takeoff.regions) {
+      // Glass is charged only where the user included it: the area is
+      // still measured, and said, but not charged.
+      if (region.isGlass && !sheet.glassPriced) continue;
       if (region.isGlass) {
         final look = GlassLook.of(region.finish);
         final kind = '${look?.label ?? 'Custom'} glass';

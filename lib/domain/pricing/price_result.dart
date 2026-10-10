@@ -9,6 +9,7 @@ library;
 import 'extra_charge.dart';
 import 'measurement.dart';
 import 'price_list.dart';
+import 'profile_category.dart';
 
 /// How a price came out.
 enum PriceStatus {
@@ -44,8 +45,10 @@ enum PriceStatus {
 
 /// Which part of the breakdown a line belongs to.
 enum PriceGroup {
-  /// The frame's border and every line cut from the same profile.
-  normalProfile('Normal profile'),
+  /// The frame's border and every line cut from the same profile — each a
+  /// line of its own, the border apart from the lines ([PriceLine.part]),
+  /// at the one rate they share.
+  normalProfile('Border and internal lines'),
 
   /// The profile round each opening.
   openingProfile('Opening profile'),
@@ -100,6 +103,15 @@ class PriceLine {
   /// The part of the design the line is for, where it is one part.
   final String? partId;
 
+  /// For a line of normal profile: whether it is the frame's border or the
+  /// lines — measured and charged apart at the rate they share. Null for
+  /// every other line, and for a line kept before the two were apart.
+  final ProfilePart? part;
+
+  /// For a line of normal profile in a material sold by category: which
+  /// one it was charged as.
+  final ProfileCategory? category;
+
   PriceLine({
     required this.group,
     required this.label,
@@ -108,6 +120,8 @@ class PriceLine {
     required this.rate,
     required double amount,
     this.partId,
+    this.part,
+    this.category,
   }) : amountCents = Money.cents(amount);
 
   Map<String, Object?> toJson() => {
@@ -118,6 +132,8 @@ class PriceLine {
     'rate': rate,
     'amount': amount,
     if (partId != null) 'partId': partId,
+    if (part != null) 'part': part!.name,
+    if (category != null) 'category': category!.name,
   };
 
   static PriceLine fromJson(Map<String, Object?> map) => PriceLine(
@@ -128,6 +144,8 @@ class PriceLine {
     rate: (map['rate']! as num).toDouble(),
     amount: (map['amount']! as num).toDouble(),
     partId: map['partId'] as String?,
+    part: ProfilePart.byName(map['part']),
+    category: ProfileCategory.byName(map['category']),
   );
 
   @override
@@ -254,6 +272,11 @@ class PriceResult {
   /// a quotation still says *5 bottles × 3.00* after the extra changes.
   final List<ExtraCharge> extras;
 
+  /// Whether the design's glass was charged for — the user's switch as it
+  /// stood when it was priced, kept so a quotation says so. Null for a
+  /// price kept before the switch: its lines say what it charged.
+  final bool? glassPriced;
+
   const PriceResult({
     required this.status,
     required this.currency,
@@ -265,6 +288,7 @@ class PriceResult {
     this.measurements = MeasurementSummary.none,
     this.profile,
     this.extras = const [],
+    this.glassPriced,
   });
 
   /// A result with no price, for [status], saying why.
@@ -338,7 +362,20 @@ class PriceResult {
     'measurements': measurements.toJson(),
     if (profile != null) 'profile': profile!.toJson(),
     if (extras.isNotEmpty) 'extras': [for (final e in extras) e.toJson()],
+    if (glassPriced != null) 'glassPriced': glassPriced,
   };
+
+  /// What the result says about glass, for a breakdown to show.
+  GlassState get glassState {
+    final charged = lines.any((l) => l.group == PriceGroup.glass);
+    if (charged) return GlassState.charged;
+    final has = measurements.glassArea.value > 0;
+    return switch ((glassPriced, has)) {
+      (true, _) => GlassState.nothingToCharge,
+      (false, true) => GlassState.notIncluded,
+      _ => GlassState.notUsed,
+    };
+  }
 
   static PriceResult fromJson(Map<String, Object?> map) => PriceResult(
     status: PriceStatus.values.byName(map['status']! as String),
@@ -360,7 +397,35 @@ class PriceResult {
       if (map['extras'] case final List<Object?> kept)
         for (final e in kept) ?ExtraCharge.fromJson(e),
     ],
+    glassPriced: switch (map['glassPriced']) {
+      final bool b => b,
+      _ => null,
+    },
   );
+}
+
+/// Where glass stands in a price.
+enum GlassState {
+  /// Charged: the design has glass and the user included it.
+  charged,
+
+  /// The design has glass, and the user has not included it in the price.
+  notIncluded,
+
+  /// The user included glass, and the design has no measurable glass to
+  /// charge for — nothing is made up.
+  nothingToCharge,
+
+  /// The design has no glass.
+  notUsed;
+
+  /// What the breakdown says in the glass row where nothing is charged.
+  String get words => switch (this) {
+    GlassState.charged => '',
+    GlassState.notIncluded => 'Not included',
+    GlassState.nothingToCharge => 'No measurable glass to price',
+    GlassState.notUsed => 'Not used',
+  };
 }
 
 /// The profile a price was worked out in: its material, its colour and
@@ -479,17 +544,48 @@ class PricingChoices {
   /// What the factory added to this design by hand — see [ExtraCharge].
   final List<ExtraCharge> extras;
 
+  /// Whether the glass the design has is charged for. **Off until the user
+  /// turns it on**: a window is not charged glass for being a window. The
+  /// geometry still says how much glass there is; this only says whether
+  /// that area is in the price. A design kept before the switch existed
+  /// has it off, because nothing it kept says otherwise.
+  final bool glassPriced;
+
+  /// The category every part of the design's normal profile in a material
+  /// sold by category is priced as — System or Bend Shoulder aluminium —
+  /// unless the part has one of its own in [profileCategoryOf]. Null until
+  /// the user says: nothing is priced at a category nobody chose.
+  final ProfileCategory? profileCategory;
+
+  /// Parts given a category of their own, by the frame member's or the
+  /// bar's id (`ProfileAllocation`).
+  final Map<String, ProfileCategory> profileCategoryOf;
+
   const PricingChoices({
     this.installation = false,
     this.discount,
     this.snapshot,
     this.extras = const [],
+    this.glassPriced = false,
+    this.profileCategory,
+    this.profileCategoryOf = const {},
   });
 
   static const none = PricingChoices();
 
   bool get isNone =>
-      !installation && discount == null && snapshot == null && extras.isEmpty;
+      !installation &&
+      discount == null &&
+      snapshot == null &&
+      extras.isEmpty &&
+      !glassPriced &&
+      profileCategory == null &&
+      profileCategoryOf.isEmpty;
+
+  /// The category the part kept under [key] is priced as: its own, or the
+  /// design's.
+  ProfileCategory? categoryFor(String key) =>
+      profileCategoryOf[key] ?? profileCategory;
 
   PricingChoices copyWith({
     bool? installation,
@@ -498,11 +594,20 @@ class PricingChoices {
     PriceSnapshot? snapshot,
     bool clearSnapshot = false,
     List<ExtraCharge>? extras,
+    bool? glassPriced,
+    ProfileCategory? profileCategory,
+    bool clearProfileCategory = false,
+    Map<String, ProfileCategory>? profileCategoryOf,
   }) => PricingChoices(
     installation: installation ?? this.installation,
     discount: clearDiscount ? null : (discount ?? this.discount),
     snapshot: clearSnapshot ? null : (snapshot ?? this.snapshot),
     extras: extras ?? this.extras,
+    glassPriced: glassPriced ?? this.glassPriced,
+    profileCategory: clearProfileCategory
+        ? null
+        : (profileCategory ?? this.profileCategory),
+    profileCategoryOf: profileCategoryOf ?? this.profileCategoryOf,
   );
 
   Map<String, Object?> toJson() => {
@@ -510,6 +615,12 @@ class PricingChoices {
     if (discount != null) 'discount': discount!.toJson(),
     if (snapshot != null) 'snapshot': snapshot!.toJson(),
     if (extras.isNotEmpty) 'extras': [for (final e in extras) e.toJson()],
+    if (glassPriced) 'glassPriced': true,
+    if (profileCategory != null) 'profileCategory': profileCategory!.name,
+    if (profileCategoryOf.isNotEmpty)
+      'profileCategoryOf': {
+        for (final e in profileCategoryOf.entries) e.key: e.value.name,
+      },
   };
 
   static PricingChoices fromJson(Object? json) {
@@ -522,6 +633,15 @@ class PricingChoices {
         if (json['extras'] case final List<Object?> kept)
           for (final e in kept) ?ExtraCharge.fromJson(e),
       ],
+      // Only a choice somebody kept turns it on: a design kept before the
+      // switch has none, and is not charged glass it was never asked about.
+      glassPriced: json['glassPriced'] == true,
+      profileCategory: ProfileCategory.byName(json['profileCategory']),
+      profileCategoryOf: {
+        if (json['profileCategoryOf'] case final Map<String, Object?> kept)
+          for (final e in kept.entries)
+            e.key: ?ProfileCategory.byName(e.value),
+      },
     );
   }
 
@@ -531,7 +651,16 @@ class PricingChoices {
       other.installation == installation &&
       other.discount == discount &&
       identical(other.snapshot, snapshot) &&
-      _sameExtras(other.extras, extras);
+      _sameExtras(other.extras, extras) &&
+      other.glassPriced == glassPriced &&
+      other.profileCategory == profileCategory &&
+      _sameCategories(other.profileCategoryOf, profileCategoryOf);
+
+  static bool _sameCategories(
+    Map<String, ProfileCategory> a,
+    Map<String, ProfileCategory> b,
+  ) =>
+      a.length == b.length && a.entries.every((e) => b[e.key] == e.value);
 
   static bool _sameExtras(List<ExtraCharge> a, List<ExtraCharge> b) {
     if (a.length != b.length) return false;
@@ -542,8 +671,15 @@ class PricingChoices {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(installation, discount, snapshot, Object.hashAll(extras));
+  int get hashCode => Object.hash(
+    installation,
+    discount,
+    snapshot,
+    Object.hashAll(extras),
+    glassPriced,
+    profileCategory,
+    profileCategoryOf.length,
+  );
 }
 
 /// Money, as the application keeps it: whole cents.

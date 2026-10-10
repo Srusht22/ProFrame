@@ -24,6 +24,7 @@ import '../state/tools.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import '../viewer/model_view.dart';
+import 'complete_bar.dart';
 import 'normalized_note.dart';
 import 'tool_bar.dart';
 import 'workspace_bars.dart';
@@ -371,6 +372,9 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                                 onEdit: () => _openDrawer(parts: false),
                                 onClear: () => controller.select(null),
                               ),
+                            // Whether the design is a draft or completed,
+                            // and **Complete!** — where the work is.
+                            CompleteBar(narrow: phone),
                           ],
                         ),
                       ),

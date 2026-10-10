@@ -220,6 +220,14 @@ class Design {
   /// A design kept before there was pricing has none of it.
   final PricingChoices pricing;
 
+  /// What the design was when the user pressed **Complete!**: a
+  /// fingerprint of everything it is (`DesignCompletion.fingerprintOf`), or
+  /// null where it was never completed. It is completed while it is still
+  /// that design (`DesignCompletion.isCompleted`) — any change to it since
+  /// makes it a draft again, and nothing has to remember to say so. Kept in
+  /// the file only while there is one.
+  final String? completedAs;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -251,6 +259,7 @@ class Design {
     this.profileChosen = false,
     this.profileColourId,
     this.pricing = PricingChoices.none,
+    this.completedAs,
   });
 
   factory Design.empty({
@@ -622,6 +631,8 @@ class Design {
     String? profileColourId,
     bool clearProfileColour = false,
     PricingChoices? pricing,
+    String? completedAs,
+    bool clearCompleted = false,
     DateTime? updatedAt,
   }) {
     // Every edit passes through here, so this is where the two things that
@@ -690,6 +701,7 @@ class Design {
           ? null
           : profileColourId ?? this.profileColourId,
       pricing: pricing ?? this.pricing,
+      completedAs: clearCompleted ? null : completedAs ?? this.completedAs,
     );
   }
 
@@ -761,6 +773,7 @@ class Design {
         if (profileChosen) 'profileChosen': true,
         if (profileColourId != null) 'profileColourId': profileColourId,
         if (!pricing.isNone) 'pricing': pricing.toJson(),
+        if (completedAs != null) 'completedAs': completedAs,
         'sketch': sketch.toJson(),
         if (frame != null) 'frame': frame!.toJson(),
         'dividers': [for (final d in dividers) d.toJson()],
@@ -836,6 +849,10 @@ class Design {
         _ => null,
       },
       pricing: PricingChoices.fromJson(map['pricing']),
+      completedAs: switch (map['completedAs']) {
+        final String f when f.isNotEmpty => f,
+        _ => null,
+      },
       sketch: Sketch.fromJson(map['sketch']),
       frame: map['frame'] == null
           ? null

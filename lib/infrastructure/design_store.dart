@@ -212,8 +212,22 @@ class DesignStore {
   /// Where the people the designs belong to are kept.
   final CustomerStore customers;
 
-  DesignStore({CustomerStore? customers})
+  /// Who is reading, for a store the application hands out: asked before
+  /// anything is read through it, so seeing what is kept needs its `.view`
+  /// capability in the store itself and not only on the screen. Null for a
+  /// store with nobody to ask — the device's own housekeeping, or a test —
+  /// which reads as the device always could.
+  final Future<Authority> Function()? readsAs;
+
+  DesignStore({CustomerStore? customers, this.readsAs})
     : customers = customers ?? CustomerStore();
+
+  /// Nothing where whoever is reading may see designs; [AccessDenied]
+  /// otherwise, before anything is read.
+  Future<void> _mayRead() async {
+    final who = readsAs;
+    if (who != null) (await who()).require(Capability.designsView);
+  }
 
   /// Where the index is kept, and where each design is.
   static const indexKey = 'proframe.index.v2';
@@ -432,6 +446,7 @@ class DesignStore {
     int offset = 0,
     int limit = 40,
   }) async {
+    await _mayRead();
     final prefs = await SharedPreferences.getInstance();
     final names = customers.namesNow(prefs);
     // Each design under the name its customer has now: the name typed when
@@ -459,6 +474,7 @@ class DesignStore {
   /// index in one pass — a line a design, never the designs themselves. A
   /// customer with none is not in it.
   Future<Map<String, int>> countsByCustomer() async {
+    await _mayRead();
     final prefs = await SharedPreferences.getInstance();
     final counts = <String, int>{};
     for (final s in await _read(prefs)) {
@@ -472,6 +488,7 @@ class DesignStore {
   /// category, read from the index in one pass. A category they have none
   /// of is not in it.
   Future<Map<DesignKind, int>> kindsOf(String customerId) async {
+    await _mayRead();
     final prefs = await SharedPreferences.getInstance();
     final counts = <DesignKind, int>{};
     for (final s in await _read(prefs)) {
@@ -483,6 +500,7 @@ class DesignStore {
 
   /// How many designs are kept.
   Future<int> count() async {
+    await _mayRead();
     final prefs = await SharedPreferences.getInstance();
     return (await _read(prefs)).length;
   }
@@ -490,6 +508,12 @@ class DesignStore {
   /// The design kept as [id], exactly as it was kept, or null where there is
   /// none.
   Future<Design?> load(String id) async {
+    await _mayRead();
+    return _load(id);
+  }
+
+  /// [load], for the store's own use, which has already been asked.
+  Future<Design?> _load(String id) async {
     final prefs = await SharedPreferences.getInstance();
     await _read(prefs);
     // Read before, and not edited since: the same design.
@@ -655,7 +679,7 @@ class DesignStore {
     DateTime? now,
   }) async {
     by.require(Capability.designsCreate);
-    final original = await load(id);
+    final original = await _load(id);
     // A category this version does not know is not written in its words.
     if (original == null || original.isUnsupported) return null;
     final at = now ?? DateTime.now();
@@ -676,7 +700,7 @@ class DesignStore {
     required Authority by,
   }) async {
     by.require(Capability.designsEdit);
-    final design = await load(id);
+    final design = await _load(id);
     final who = customer.trim();
     if (design == null || who.isEmpty || design.isUnsupported) return null;
     final owner = await customers.obtain(who, by: by);
@@ -694,7 +718,7 @@ class DesignStore {
     required Authority by,
   }) async {
     by.require(Capability.designsEdit);
-    final design = await load(id);
+    final design = await _load(id);
     final called = name.trim();
     if (design == null || called.isEmpty || design.isUnsupported) return null;
     return save(design.copyWith(name: called), by: by);
@@ -703,8 +727,9 @@ class DesignStore {
   /// Every design kept, whole, most recently edited first. For a handful —
   /// a test, an export — never for the list, which reads [page].
   Future<List<Design>> all() async {
+    await _mayRead();
     final prefs = await SharedPreferences.getInstance();
     final index = await _read(prefs);
-    return [for (final s in index) ?await load(s.id)];
+    return [for (final s in index) ?await _load(s.id)];
   }
 }

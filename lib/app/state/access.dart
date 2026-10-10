@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/staff.dart';
@@ -123,19 +124,38 @@ extension ActorOfRef on Ref {
 /// What a screen offers.
 extension Offering on WidgetRef {
   /// Whether to offer what needs [capability]: what the person at the
-  /// device may do, as far as is known now.
+  /// device may do, **once that is known**.
   ///
   /// While the staff are still being read — the first moments of a run —
-  /// it is offered: a screen only offers, and the store it is done through
-  /// asks who is at the device once that is known (`actorNow`), refusing it
-  /// then if it may not be done. Hiding it until then would leave a button
-  /// dead that a moment later works.
-  bool offers(Capability capability) {
-    if (watch(actorProvider).can(capability)) return true;
-    final known =
-        watch(workshopRoleProvider) == WorkshopRole.owner ||
-        watch(signedInStaffProvider) != null ||
-        watch(staffMembersProvider).hasValue;
-    return !known;
+  /// nothing that needs a permission is offered: an unknown permission is
+  /// never treated as one granted, so a control is shown disabled until it
+  /// is known, and then offered or not. The store it is done through asks
+  /// again either way (`actorNow`).
+  bool offers(Capability capability) =>
+      permissionsKnown && watch(actorProvider).can(capability);
+
+  /// Whether who is at the device, and so what they may do, is known yet.
+  bool get permissionsKnown {
+    if (watch(workshopRoleProvider) == WorkshopRole.owner) return true;
+    if (watch(signedInStaffProvider) != null) return true;
+    final staff = watch(staffMembersProvider);
+    // A staff list that could not be read is known, as nobody signed in.
+    return staff.hasValue || staff.hasError;
   }
+}
+
+/// A thin bar under a screen's heading while who is at the device — and so
+/// what may be done — is still being worked out; nothing at all once it is.
+class PermissionsLoading extends ConsumerWidget implements PreferredSizeWidget {
+  const PermissionsLoading({super.key});
+
+  static const barKey = ValueKey('permissions-loading');
+
+  @override
+  Size get preferredSize => const Size.fromHeight(2);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => ref.permissionsKnown
+      ? const SizedBox(height: 2)
+      : const LinearProgressIndicator(key: barKey, minHeight: 2);
 }

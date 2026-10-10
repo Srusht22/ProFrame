@@ -4,7 +4,8 @@
 /// stored list ─ schema? ─ 1 ─ v1 → v2 ─┐
 ///                       ─ 2 ───────────┴─ v2 → v3 ─┐
 ///                       ─ 3 ───────────────────────┴─ v3 → v4 ─┐
-///                       ─ 4 ───────────────────────────────────┴─ current
+///                       ─ 4 ───────────────────────────────────┴─ v4 → v5 ─┐
+///                       ─ 5 ───────────────────────────────────────────────┴─ current
 /// ```
 ///
 /// | Schema | What it held |
@@ -13,6 +14,7 @@
 /// | 2 | the factory model: a metre of normal and of opening profile, a colour's surcharge by the metre and the percentage — kept without a schema number |
 /// | 3 | schema 2 and a sealed glazing unit's own rate by look, kept with `schemaVersion: 3` |
 /// | 4 | schema 3 with the colours as one catalog: each colour an id, a name, a swatch, the materials it is sold in and a rate on each, active or retired, in order |
+/// | 5 | schema 4 with aluminium's border and lines priced by profile category — System and Bend Shoulder, each a rate of its own |
 ///
 /// **Only what has a place is carried, at the same figure.** What has none
 /// is named in the notes and left out; nothing is made up in its stead.
@@ -47,8 +49,44 @@ abstract final class PriceListMigration {
     if (from <= 1) now = _v1ToV2(now, notes);
     if (from <= 2) now = _v2ToV3(now, notes);
     if (from <= 3) now = _v3ToV4(now, notes);
-    now['schemaVersion'] = 4;
+    if (from <= 4) now = _v4ToV5(now, notes);
+    now['schemaVersion'] = 5;
     return (json: now, from: from, notes: List.unmodifiable(notes));
+  }
+
+  /// Aluminium sold as two profile categories.
+  ///
+  /// Schema 4 had one figure for a metre of aluminium's border and lines.
+  /// Schema 5 has one for System Aluminium and one for Bend Shoulder
+  /// Aluminium, and the old figure says nothing about which of the two it
+  /// was — so it is carried to **neither**: it is named in the notes, both
+  /// categories are left unpriced until the owner gives them a figure, and
+  /// aluminium's border and lines are not priced at a figure nobody gave
+  /// them. Its opening profile, its colours and everything else are carried
+  /// as they are.
+  static Map<String, Object?> _v4ToV5(
+    Map<String, Object?> json,
+    List<String> notes,
+  ) {
+    final out = Map<String, Object?>.of(json);
+    if (json['profiles'] case final Map<String, Object?> raw) {
+      final profiles = Map<String, Object?>.of(raw);
+      if (raw['aluminium'] case final Map<String, Object?> alu) {
+        final kept = Map<String, Object?>.of(alu);
+        final old = kept.remove('normalPerMetre');
+        profiles['aluminium'] = kept;
+        if (old is num) {
+          notes.add(
+            'The aluminium border and lines rate ($old a metre): aluminium '
+            'is now priced as System Aluminium and Bend Shoulder Aluminium, '
+            'each its own rate, and nothing says which of the two that rate '
+            'was — so neither has a rate until one is set.',
+          );
+        }
+      }
+      out['profiles'] = profiles;
+    }
+    return out;
   }
 
   /// The first engine's list as the factory model's.

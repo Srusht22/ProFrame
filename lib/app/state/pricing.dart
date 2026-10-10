@@ -378,7 +378,7 @@ extension PriceCalculator on WidgetRef {
 
 /// Where quotations are kept.
 final quotationStoreProvider = Provider<QuotationStore>(
-  (ref) => QuotationStore(),
+  (ref) => QuotationStore(readsAs: ref.actorNow),
 );
 
 /// Changes whenever a quotation is made or its status changes.

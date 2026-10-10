@@ -1001,8 +1001,13 @@ void main() {
       // A member of staff taken off Active may do nothing.
       final off = member('Off', Capability.standard, active: false);
       expect(off.can(Capability.designsEdit), isFalse);
-      // There is no permission to delete a customer, because nobody can.
-      expect(Capability.byKey('customers.delete'), isNull);
+      // Phase 33 brought `customers.delete`: the owner's, never the
+      // device's standard set or nobody's, and the store deletes only a
+      // customer with nothing kept (`store_permissions_test.dart`). It was
+      // asserted absent here while nothing could delete a customer.
+      expect(Capability.byKey('customers.delete'), Capability.customersDelete);
+      expect(WorkshopRole.staff.can(Capability.customersDelete), isFalse);
+      expect(const NobodySignedIn().can(Capability.customersDelete), isFalse);
     });
   });
 }

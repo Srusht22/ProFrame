@@ -261,9 +261,11 @@ void main() {
       final ready = PriceReadiness.of(d).isPriceCalculable;
       final button = await cardButton(tester, d.id);
       expect(enabledAt(tester, button), ready, reason: d.name);
+      // Since Phase 33 a design ready to complete and not yet completed is
+      // a Draft — *Completed* is kept for one the user pressed Complete! on.
       expect(
         textOf(tester, CustomerDesignCard.statusKey(d.id)),
-        ready ? 'Complete' : 'Incomplete',
+        ready ? 'Draft' : 'Incomplete',
       );
     }
     expect(

@@ -1397,25 +1397,33 @@ Basement Door deleted, the device's storage compared key by key before
 and after, his three others and his record byte for byte, and so after a
 reload.
 
-**A customer cannot be deleted, and that is deliberate.** The user's
-rule is to offer deleting a customer only where the application already
-has administrative deletion — somebody entitled to remove a person and
-everything drawn for them — and to protect it heavily when it is offered.
-This application has no administrator, and its staff permissions (Phase
-31 and 32) have no `customers.delete` on purpose, so it is not offered: `CustomerStore` has no way to remove a customer, no screen
-says *delete* about one, and pressing and holding a customer only opens
-them. Whatever else changes, three operations stay apart: deleting a design
+**A customer is deleted only by somebody entitled to, and only when
+nothing of theirs would go with them.** The user's rule is to offer
+deleting a customer only where the application has administrative
+deletion — somebody entitled to remove a person — and to protect it
+heavily when it is offered. Until Phase 33 there was no such permission,
+and nothing deleted a customer. Since then `customers.delete` exists: the
+owner's, a member of staff's only where the owner ticks it, and never the
+device's standard set or nobody's (*Aluminium profiles, optional glass,
+and completing a design*). `CustomerStore.deleteCustomer` checks it
+itself, and then refuses a customer with any design, payment, receipt,
+discount, quotation or extra charge, saying what they have — so no design
+and no financial record ever goes with a customer. It takes the
+customer's record and their line of the index and nothing else. On the
+screen it is **Delete customer** on the ⋮ of the customer's page
+(`CustomerScreen.menuKey`), shown only to whoever holds the permission,
+confirmed by name first, with **Undo** on the notice.
+Whatever else changes, three operations stay apart: deleting a design
 never deletes its customer (deleting all of them leaves the customer with
 *No designs yet*), editing a customer never deletes a design, and nothing
 deletes a customer silently.
 `test/app/customers_are_never_deleted_test.dart` keeps it so: it reads
 every line under `lib/` that takes something off the device and allows only
-a design's record, that design's own kept price, and the list of designs
-kept before customers existed,
-and holds each separation on the stores and the screens. When customer
-deletion comes, it comes with an administrator, and with the customer's
-name, how many designs are theirs and what goes with them, confirmed on
-purpose — and that test changes with it, not before.
+a design's record, that design's own kept price, the list of designs kept
+before customers existed, and the one customer removal in
+`deleteCustomer` — which must ask `customers.delete` before it removes
+anything and check every kind of kept record — and holds each separation
+on the stores and the screens.
 
 **A customer's information is edited on their page, and only there.**
 **Edit**, beside *Customer information* (`CustomerScreen.editButton`), opens
@@ -6394,7 +6402,9 @@ Design ─ PriceReadiness ─ PricingEngine ─ PriceRecord? ─ DesignPriceStat
   - It follows every edit at once (`workspacePriceStateProvider`): a size
     given enables it, a size taken away or a line drawn in a sash disables
     it.
-- **A design's card** shows *Complete* or *Incomplete* beside its
+- **A design's card** shows *Completed* or *Draft* (since Phase 33, the
+  design's completion state — see *Aluminium profiles, optional glass,
+  and completing a design*) or *Incomplete* beside its
   category (`CardPriceStatus`), or *Drawing not read*, then
   *Material:* and *Colour:* in words (`CardProfileLine`). On a row of their
   own under *Last edited* it shows *Price: 189.98 USD*, *not calculated*,
@@ -6896,8 +6906,9 @@ CustomerPricing (designs' current prices) ─ CustomerFinance ─ balance
   What was paid is worked out from the transactions every time, never kept
   beside them, so the two cannot disagree. It is on the customer record
   because a payment is the customer's, not a design's: deleting a design
-  takes no payment with it, and no customer can be deleted (*A customer
-  cannot be deleted*), so no transaction is ever left without its owner.
+  takes no payment with it, and a customer with a payment is never
+  deleted (*A customer is deleted only by somebody entitled to*), so no
+  transaction is ever left without its owner.
 - **The figures, all in whole cents** (`CustomerFinance`, in
   `design_price_state.dart`):
 
@@ -7196,7 +7207,9 @@ Customer ─ Σ design prices + customer extras (Customer.extras)
   never charged glass for being a window, nor a door for having an
   opening; glass over panel is each by its own area, never half and half.
   The breakdown always has a **Glass** and a **Panel** row and says **Not
-  used** where there is none (`PriceBreakdown`).
+  used** where there is none (`PriceBreakdown`). Since Phase 33 glass is
+  also not charged until the design says to include it (*Aluminium
+  profiles, optional glass, and completing a design*).
 - **An extra is one thing** (`ExtraCharge`,
   `lib/domain/pricing/extra_charge.dart`): an id (`EXT-20261005-0001`), a
   name, a category — Material, Labour, Service, Transport, Installation,
@@ -7269,12 +7282,11 @@ Customer ─ Σ design prices + customer extras (Customer.extras)
   permission to view customers* (or designs) in place of the list.
   - The device with no staff accounts may do what it always could, extras
     included; a discount stays the owner's. Nobody signed in, once there are
-    staff, may only look. There is **no `customers.delete`**: nobody can
-    delete a customer (*A customer cannot be deleted*), so a permission for
-    it would allow nothing.
-  - Reading is gated where the screens read (the customers list, a
-    customer's page, opening a design); the stores' own read methods are
-    not, because whatever is on the device can be read by anything on it.
+    staff, may only look. There was **no `customers.delete`** here; Phase
+    33 added it, guarded (*A customer is deleted only by somebody entitled
+    to*).
+  - Reading was gated where the screens read; since Phase 33 the stores
+    the application hands out check `.view` themselves too.
 - **The PIN is a lock on a device, not authentication.** Nothing here
   changed that and nothing says otherwise: there is no server, every check
   above asks who is at the device (`actorProvider`), and anybody who can
@@ -7293,7 +7305,8 @@ Customer ─ Σ design prices + customer extras (Customer.extras)
   current for (`PriceInputs`) reads what each extra and the discount
   charge — not who wrote them or when — so a note changes nothing and a
   quantity makes the kept price *needs recalculation*.
-- **Not here, as the brief says**: a catalog of the factory's usual extras
+- **Not here, as the brief says** (and still not, after Phase 33): a
+  catalog of the factory's usual extras
   with default prices (an `ExtraCharge` is shaped for one: name, category,
   unit and unit price are what a catalog entry would hold), an exchange-rate
   feed (rates are still typed), and printing or a PDF of a quotation or a
@@ -7331,6 +7344,147 @@ see prices `customers.view` and `designs.view`, so the card whose price is
 hidden is still on the screen; and `customers_are_never_deleted_test`
 still holds — the customer store's method taking an extra off is
 `takeExtraOff`, which deletes no customer.
+
+### Aluminium profiles, optional glass, and completing a design
+
+The brief: *aluminium is two products — System Aluminium and Bend Shoulder
+Aluminium — each at its own configurable rate and never guessed; the
+border and the lines inside the design measured and shown apart, at the
+one rate the part's category has; glass charged only when the design says
+so, off by default; and a **Complete!** button that checks, saves and then
+offers a **New Design** for the same customer.*
+
+```
+Design ─ ProfileAllocation (each frame member and bar: its category)
+       ─ PricingChoices.glassPriced (off unless switched on)
+       ─ PricingEngine: (material × category × border|lines) runs, each once
+       ─ PriceResult: Border / Internal lines lines, Combined profile cost,
+                      GlassState
+Design ─ DesignCompletion (completedAs: a fingerprint of the design)
+       ─ WorkspaceController.complete ─ CompleteBar ─ CompletedDialog
+                                                    └─ New Design (same customer)
+```
+
+- **A category is a kind of profile within a material**
+  (`ProfileCategory`, `lib/domain/pricing/profile_category.dart`). Only
+  aluminium is divided — `systemAluminium`, `bendShoulderAluminium`; uPVC
+  and the rest are one profile each and price exactly as they did. Each
+  category has its own **normal** rate in the list
+  (`ProfileRate.categories`; `normalRateFor`), edited in Factory prices
+  like any other figure (`profile.aluminium.systemAluminium`,
+  `.bendShoulderAluminium`, under *Border and internal lines*). The
+  example list (`DefaultFactoryPricing`) has System at $8 a metre and Bend
+  Shoulder at $11 — figures the owner changes, written nowhere else.
+- **It is chosen, never guessed.** The design's whole profile is one
+  category (`PricingChoices.profileCategory`), or each part its own
+  (`profileCategoryOf`, keyed by frame member and bar —
+  `ProfileAllocation.partsOf` names them *Border — Left*, *Line 2*, *Line 1
+  (inside Opening 1)*). A part with no category in an aluminium design is
+  not priced: `PriceReadiness` says *Please choose whether the aluminium
+  profile is System Aluminium or Bend Shoulder Aluminium to calculate the
+  price.*, or names the parts still unallocated, and a card says *Price:
+  choose profile*. The chooser (`PricingOptions`) is on the price sheet
+  and the workspace's Price panel: *Aluminium profile* — Not selected,
+  System, Bend Shoulder — and **Set each part** for a design that is both.
+- **Border and internal lines are measured apart, priced at one rate.**
+  The takeoff measures one run a frame member (*Border — Left*) and one a
+  bar, and `MeasurementSummary` keeps `borderLength` and `lineLength`
+  beside the normal profile they make up. The engine prices a run of
+  (material, category, part) at the category's rate — a line inside an
+  opening still a line, never also in the opening's perimeter, and every
+  run in exactly one cell. The breakdown shows, under **Border and
+  internal lines**, a line each (*System Aluminium — Border · 12.000 m ×
+  8.00*, *Bend Shoulder Aluminium — Internal lines · 4.000 m × 11.00*),
+  then **Combined profile cost**; the measurements say **Border length**,
+  **Internal line length** and **Combined profile length**. A price kept
+  before shows its one normal-profile figure as it was.
+- **Glass is not charged until it is included** (`PricingChoices.glassPriced`,
+  written to the file only when on). Glass is still built, drawn and
+  measured — its area is in the measurements whatever the switch says —
+  but the engine charges a pane only when it is on. **Include glass in
+  price** on the sheet and the Price panel switches it, through
+  `DesignPricing.setGlassPriced` (`designs.edit`). The breakdown's Glass
+  row says which of four it is (`GlassState`): charged, *Not included —
+  0.00 USD*, *No measurable glass to price*, or *Not used*. A design kept
+  before has no switch and reads off, so its next price leaves glass out
+  until somebody includes it; the price kept with it is untouched, and a
+  quotation keeps the price as it was, its glass with it
+  (`PriceResult.glassPriced`). An extra named *Glass* is refused as a
+  duplicate only where glass is actually charged.
+- **The list is schema 5.** A list kept in schema 4 or earlier is read as
+  ever and then (`PriceListMigration._v4ToV5`) its aluminium normal rate is
+  carried to **neither** category — which of the two it was is exactly
+  what the brief says is never guessed — and a note names it, so the
+  owner sets both. Every price calculated against the old list says
+  *needs recalculation* once.
+- **Complete!** (`CompleteBar`, under the drawing in every view, with
+  *Draft — press Complete! when the design is finished* or *Completed and
+  saved* beside it). `WorkspaceController.complete` reads the sheet if it
+  has unread lines, asks `PriceReadiness` — the one answer for whether a
+  design is finished — and, where something is missing, says *This design
+  is not complete yet. Please finish the required parts before completing
+  it.* with what is missing, and saves nothing. Otherwise it marks the
+  design completed (`DesignCompletion.complete`), saves it through the
+  store as the person at the device (`designs.edit`), and only once the
+  save has succeeded says *Design completed and saved successfully.*
+  (`CompletedDialog`). A save that fails puts the design back and says it
+  could not be saved. It creates no quotation and records no payment.
+- **Completed is a fact about the design as it now is.** `completedAs` is
+  a fingerprint of the design less its id, name, customer, dates, ink and
+  the kept price; the design is completed while it matches and nothing is
+  unread. Any edit to what is built makes it a draft again, and undoing
+  the edit makes it completed again — nothing has to remember to clear it.
+  Each design has its own: a card says *Completed*, *Draft* or
+  *Incomplete*.
+- **After it: New Design, View Completed Design, Back to Customer.**
+  **New Design** asks only the name and the category, for the same
+  customer, and makes a new design with its own id and nothing of the
+  last one's — no geometry, no extras, no choices. The completed design is
+  kept exactly as it was saved. Back from the new design is the
+  customer's page. The button and the dialog's choices take one press:
+  a second while the first is under way does nothing.
+- **Permissions, finished.** The stores the application hands out
+  (`customerStoreProvider`, `designStoreProvider`, the quotations') read
+  as the person at the device (`readsAs: ref.actorNow`) and refuse a read
+  without `customers.view`, `designs.view` or `quotations.view` — the
+  store decides, not only the screen. A store made bare (a test, the
+  device's own housekeeping) reads as it always could. While who is at the
+  device is still being read, nothing that needs a permission is offered
+  (`Offering.offers` is false until `permissionsKnown`) and a thin bar
+  says so (`PermissionsLoading`) — unknown is never treated as granted.
+  `customers.delete` deletes only a customer with nothing kept (*A
+  customer is deleted only by somebody entitled to*). The discount form
+  now has an explicit **None**, which takes a discount in force away.
+- **Tests start with the device's storage in memory**
+  (`test/flutter_test_config.dart`). A test file that never mocked storage
+  used to reach the host's disk, whose answer never comes inside a widget
+  test's clock; with permissions now waited for, such a file waited
+  forever.
+
+`test/domain/aluminium_categories_and_optional_glass_test.dart` holds the
+brief's acceptance tests: **A**, a 6 × 4 m aluminium shop front with two
+mullions, one jamb pair and one mullion Bend Shoulder — System border
+12 m × 8 = 96, System lines 4 m × 8 = 32, Bend Shoulder border 8 m × 11 =
+88, Bend Shoulder lines 4 m × 11 = 44, **260**; **B**, 3 m² of glass at
+$20 — 0 off, 60 on, 0 off again, its area measured all three times; each
+category at its own rate and an unallocated part refused by name; uPVC
+unchanged; every run in one cell; migration to schema 5 and older
+designs reading glass off; and nothing in the geometry moved.
+`test/app/complete_and_new_design_test.dart` holds **C** on the real app:
+Front Entrance Door completed and saved, New Design for Adam named
+Kitchen Window as a Window, two designs with two ids, the first
+byte for byte as completed; an incomplete design refused with nothing
+saved; double presses; View and Back to Customer; a failing save; and an
+edit making it a draft. `test/domain/store_permissions_test.dart` and
+`test/app/permissions_on_screen_test.dart` hold the reads, the loading
+state, `customers.delete` and **None**.
+
+Older tests moved with it, each saying why: the pricing tests give a
+design its category and include its glass where they priced glass;
+normal-profile labels are *uPVC — Border* and *System Aluminium —
+Border*; a card's status reads *Draft* where it read *Complete*;
+`flexible_factory_pricing_test` now finds `customers.delete`; and
+`customers_are_never_deleted_test` allows the one guarded removal.
 
 ## Working on this repository
 

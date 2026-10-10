@@ -23,6 +23,22 @@ class QuotationPage {
 /// written whole when it is made and again only when its status changes;
 /// nothing here removes one.
 class QuotationStore {
+  /// Who is reading, for a store the application hands out: asked before
+  /// anything is read through it, so seeing what is kept needs its `.view`
+  /// capability in the store itself and not only on the screen. Null for a
+  /// store with nobody to ask — the device's own housekeeping, or a test —
+  /// which reads as the device always could.
+  final Future<Authority> Function()? readsAs;
+
+  QuotationStore({this.readsAs});
+
+  /// Nothing where whoever is reading may see quotations; [AccessDenied]
+  /// otherwise, before anything is read.
+  Future<void> _mayRead() async {
+    final who = readsAs;
+    if (who != null) (await who()).require(Capability.quotationsView);
+  }
+
   static const keyPrefix = 'proframe.quotation.v1.';
   static const indexPrefix = 'proframe.quotations.v1.';
 
@@ -82,8 +98,10 @@ class QuotationStore {
 
   /// The quotation kept as [id], or null where there is none or it cannot
   /// be read.
-  Future<Quotation?> load(String id) async =>
-      _loadNow(await SharedPreferences.getInstance(), id);
+  Future<Quotation?> load(String id) async {
+    await _mayRead();
+    return _loadNow(await SharedPreferences.getInstance(), id);
+  }
 
   /// [limit] of customer [customerId]'s quotations from [offset], newest
   /// first, and how many they have.
@@ -92,6 +110,7 @@ class QuotationStore {
     int offset = 0,
     int limit = 5,
   }) async {
+    await _mayRead();
     final prefs = await SharedPreferences.getInstance();
     final ids = _ids(prefs, customerId);
     final start = offset.clamp(0, ids.length);

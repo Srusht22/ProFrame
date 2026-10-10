@@ -2,6 +2,7 @@ import '../model/elements.dart';
 import '../model/materials.dart';
 import 'default_factory_pricing.dart';
 import 'price_list_migration.dart';
+import 'profile_category.dart';
 
 /// The workshop's prices: every figure the pricing engine multiplies by,
 /// and nothing else.
@@ -95,8 +96,10 @@ class PriceList {
   /// frame, of sash and of bar, a leaf by its kind, an angled joint; 2 the
   /// factory's normal and opening profile; 3 adds the sealed unit's own
   /// rate; 4 keeps the colours as one catalog, each colour with an id,
-  /// its materials and a rate for each. See [fromJson].
-  static const schemaVersion = 4;
+  /// its materials and a rate for each; 5 prices aluminium's border and
+  /// lines by profile category — System and Bend Shoulder, each its own
+  /// rate ([ProfileRate.categories]). See [fromJson].
+  static const schemaVersion = 5;
 
   const PriceList({
     required this.currency,
@@ -633,8 +636,17 @@ class ColourPricing {
 /// what a colour the catalog does not name adds on it. The named colours
 /// are the list's catalog ([PriceList.colours]).
 class ProfileRate {
-  final double normalPerMetre;
+  /// A metre of the material's normal profile — the border and the lines,
+  /// which share it. **Not read for a material sold by profile category**
+  /// (aluminium): its border and lines are priced at [categories] instead,
+  /// and this is null. Null for any other material is no price.
+  final double? normalPerMetre;
   final double openingPerMetre;
+
+  /// A metre of the border and the lines in each profile category of the
+  /// material — System Aluminium, Bend Shoulder Aluminium — each its own
+  /// figure and never another's. A category with no entry is not priced.
+  final Map<ProfileCategory, double> categories;
 
   /// What a colour the catalog does not name adds — *any other colour*.
   /// Only ever for such a colour: a catalog colour with no rate on this
@@ -642,25 +654,53 @@ class ProfileRate {
   final ColourSurcharge special;
 
   const ProfileRate({
-    required this.normalPerMetre,
+    this.normalPerMetre,
     required this.openingPerMetre,
+    this.categories = const {},
     this.special = const ColourSurcharge(),
   });
 
+  /// What a metre of the border and the lines costs as [category], or —
+  /// for a material with no categories — at its normal rate. Null where
+  /// the list has no figure for it: it is then not priced.
+  double? normalRateFor(ProfileCategory? category) =>
+      category == null ? normalPerMetre : categories[category];
+
+  ProfileRate copyWith({
+    double? normalPerMetre,
+    bool clearNormal = false,
+    double? openingPerMetre,
+    Map<ProfileCategory, double>? categories,
+    ColourSurcharge? special,
+  }) => ProfileRate(
+    normalPerMetre: clearNormal ? null : normalPerMetre ?? this.normalPerMetre,
+    openingPerMetre: openingPerMetre ?? this.openingPerMetre,
+    categories: categories ?? this.categories,
+    special: special ?? this.special,
+  );
+
   Map<String, Object?> toJson() => {
-    'normalPerMetre': normalPerMetre,
+    if (normalPerMetre != null) 'normalPerMetre': normalPerMetre,
     'openingPerMetre': openingPerMetre,
+    if (categories.isNotEmpty)
+      'categories': {for (final e in categories.entries) e.key.name: e.value},
     'special': special.toJson(),
   };
 
   static ProfileRate? fromJson(Object? json) {
     if (json is! Map<String, Object?>) return null;
-    final normal = PriceList.price(json['normalPerMetre']);
     final opening = PriceList.price(json['openingPerMetre']);
-    if (normal == null || opening == null) return null;
+    if (opening == null) return null;
     return ProfileRate(
-      normalPerMetre: normal,
+      normalPerMetre: PriceList.price(json['normalPerMetre']),
       openingPerMetre: opening,
+      categories: {
+        if (json['categories'] case final Map<String, Object?> raw)
+          for (final e in raw.entries)
+            if ((ProfileCategory.byName(e.key), PriceList.price(e.value))
+                case (final c?, final rate?))
+              c: rate,
+      },
       special: ColourSurcharge.fromJson(json['special']),
     );
   }

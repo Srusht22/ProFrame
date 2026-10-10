@@ -9,11 +9,13 @@ import '../../domain/geometry/tolerances.dart';
 import '../../domain/geometry/vec2.dart';
 import '../../domain/hardware/opening_hardware.dart';
 import '../../domain/model/design.dart';
+import '../../domain/model/design_completion.dart';
 import '../../domain/model/elements.dart';
 import '../../domain/model/infill.dart';
 import '../../domain/model/materials.dart';
 import '../../domain/model/new_design_setup.dart';
 import '../../domain/model/question.dart';
+import '../../domain/pricing/price_readiness.dart';
 import '../../domain/pricing/price_result.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/profile_selection.dart';
@@ -1684,15 +1686,135 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       return;
     }
   }
+
+  /// Set while [complete] is under way, so a second press is not a second
+  /// completion.
+  bool _completing = false;
+  bool get completing => _completing;
+
+  /// **Complete!**: the design checked, completed and saved — or why not.
+  ///
+  /// 1. A drawing with lines not yet read is read first, so what is
+  ///    completed is the drawing on the screen and never an older reading.
+  /// 2. It is checked by the one answer every card and price button reads
+  ///    (`PriceReadiness`): anything still to say is said, and it is not
+  ///    completed.
+  /// 3. It is marked completed (`DesignCompletion.complete`) and saved
+  ///    through the store, which asks who is at the device. Only a save that
+  ///    succeeded is a completion: where it fails the design in hand goes
+  ///    back to what it was, nothing is said to have been saved, and the
+  ///    work goes on being there to save.
+  ///
+  /// It makes no quotation and records no payment, and while it runs a
+  /// second press is turned away rather than completing twice.
+  Future<Completion> complete() async {
+    if (_completing) return const Completion(CompletionResult.busy);
+    _completing = true;
+    try {
+      if (state.design.isUnsupported) {
+        return const Completion(
+          CompletionResult.failed,
+          message:
+              'This design was made by a newer ProFrame or with a category '
+              'this version does not recognise, so it cannot be completed '
+              'here.',
+        );
+      }
+      if (state.needsReading) readDrawing();
+      final before = state.design;
+      final ready = PriceReadiness.of(before);
+      if (!ready.isPriceCalculable) {
+        return Completion(
+          CompletionResult.incomplete,
+          message:
+              'This design is not complete yet. Please finish the required '
+              'parts before completing it.',
+          missing: [for (final r in ready.missing) r.message],
+        );
+      }
+      final by = await ref.actorNow();
+      if (!by.can(Capability.designsEdit)) {
+        return const Completion(
+          CompletionResult.failed,
+          message: 'You do not have permission to complete designs.',
+        );
+      }
+      final done = DesignCompletion.complete(before);
+      state = state.copyWith(design: done);
+      try {
+        await save();
+      } on Object catch (e) {
+        // Nothing was kept: the design in hand is what it was, and the
+        // completion is not claimed.
+        if (identical(state.design, done)) {
+          state = state.copyWith(design: before);
+        }
+        return Completion(
+          CompletionResult.failed,
+          message:
+              'The design could not be saved, so it was not completed. '
+              'Your work is still here — try again. ($e)',
+        );
+      }
+      return Completion(CompletionResult.completed, design: state.design);
+    } finally {
+      _completing = false;
+    }
+  }
+}
+
+/// How **Complete!** went.
+enum CompletionResult {
+  /// Completed and saved.
+  completed,
+
+  /// Something is still to be done; nothing was saved by it.
+  incomplete,
+
+  /// It could not be completed or saved; the work is as it was.
+  failed,
+
+  /// A completion was already under way.
+  busy,
+}
+
+/// What came of pressing **Complete!**, and what to say about it.
+class Completion {
+  final CompletionResult result;
+  final String? message;
+
+  /// What is still to be done, each said.
+  final List<String> missing;
+
+  /// The design as completed and saved.
+  final Design? design;
+
+  const Completion(
+    this.result, {
+    this.message,
+    this.missing = const [],
+    this.design,
+  });
 }
 
 /// The workshop's customers, and the one store of them every screen reads.
-final customerStoreProvider = Provider<CustomerStore>((ref) => CustomerStore());
+///
+/// It reads as whoever is at the device (`actorNow`), so seeing customers
+/// needs `customers.view` in the store itself, not only on the screen.
+final customerStoreProvider = Provider<CustomerStore>(
+  (ref) => CustomerStore(readsAs: ref.actorNow),
+);
 
 /// The kept designs, each belonging to one of [customerStoreProvider]'s
 /// customers.
+///
+/// It reads as whoever is at the device, so seeing designs needs
+/// `designs.view` in the store itself.
 final designStoreProvider = Provider<DesignStore>(
-  (ref) => DesignStore(customers: ref.read(customerStoreProvider)),
+  (ref) => DesignStore(
+    customers: ref.read(customerStoreProvider),
+    readsAs: ref.actorNow,
+  ),
 );
 
 /// Counts every change to the kept customers — one made, one changed — so

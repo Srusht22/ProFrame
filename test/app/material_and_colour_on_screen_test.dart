@@ -378,7 +378,9 @@ void main() {
     final line = engine
         .price(kitchen, list)
         .lines
-        .firstWhere((l) => l.label == 'Normal profile — uPVC');
+        // Since Phase 33 the border is its own line, at the rate it shares
+        // with the lines.
+        .firstWhere((l) => l.label == 'uPVC — Border');
     expect(line.rate, 9.5);
   });
 

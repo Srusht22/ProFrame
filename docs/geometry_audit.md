@@ -1541,3 +1541,133 @@ extends those pieces; the engine's own arithmetic is untouched.
 - While the staff list is loading a control is offered and the store
   decides.
 - A PIN is a lock on a device, not authentication.
+
+## 38. Aluminium profiles, optional glass, separate measurements and completing a design (Phase 33)
+
+**Audited first.**
+- Aluminium was one material with one `normalPerMetre`. The frame and
+  every bar of the design were one normal-profile figure, so the border
+  and the lines inside it could be neither seen nor priced apart.
+- Glass was charged whenever a pane was glass. Phase 32 had made it
+  optional only in the sense that a design with no glass was charged for
+  none.
+- Nothing said a design was finished. The cards' *Complete* / *Incomplete*
+  was whether it could be priced. A new design for the same customer meant
+  going back to their page.
+- Phase 32's remaining limitations, all from its final report:
+  - reads were not gated in the stores;
+  - a control was offered while the staff list was loading;
+  - there was no `customers.delete`;
+  - there was no catalog of extras, rate feed or PDF.
+
+  The discount form had Percentage and Fixed amount but no way to choose
+  none in the form itself.
+
+**Built.**
+- `ProfileCategory` (System Aluminium, Bend Shoulder Aluminium).
+  - Each has its own normal rate in `ProfileRate.categories`, edited in
+    Factory prices. The example list has 8 and 11.
+  - `ProfileAllocation` names every frame member and bar and gives each
+    its category: the design's, or the part's own.
+  - `PriceReadiness` refuses an aluminium design with an unallocated part,
+    naming it.
+- The takeoff measures one run a frame member.
+  - `MeasurementSummary` keeps `borderLength` and `lineLength`.
+  - The engine keys every normal run by material, category and part, and
+    prices it at that category's rate.
+  - The breakdown shows a line a cell and the **Combined profile cost**.
+  - The measurements show **Border length**, **Internal line length** and
+    **Combined profile length**.
+- `PricingChoices.glassPriced` is off by default and not written while off.
+  - The engine charges no glass while it is off.
+  - `GlassState` says what the Glass row means.
+  - **Include glass in price** sits on the sheet and in the Price panel.
+- Price list schema 5. `_v4ToV5` carries the old aluminium normal rate to
+  neither category and says so in a note.
+- `DesignCompletion`: `completedAs` is a fingerprint of what is built.
+  - `WorkspaceController.complete` reads, checks, marks, saves, and reverts
+    on failure.
+  - `CompleteBar` / `NotCompleteDialog` / `CompletedDialog`, with **New
+    Design**, **View Completed Design** and **Back to Customer**.
+  - Each choice is guarded against a second press.
+- Store reads. `CustomerStore`, `DesignStore` and `QuotationStore` take
+  `readsAs` and check `.view` before every public read. The providers pass
+  `ref.actorNow`.
+- `Offering.offers` is false until `permissionsKnown`, and
+  `PermissionsLoading` shows a thin bar meanwhile.
+- `customers.delete`.
+  - `CustomerStore.deleteCustomer` checks it and refuses any customer with
+    a design, payment, receipt, discount, quotation or extra charge.
+  - The customer's page has **Delete customer**, confirmed, with Undo.
+- **None** in the discount form.
+- `test/flutter_test_config.dart` gives every test file in-memory storage.
+
+**Found and settled on the way.**
+- Pressing Complete! twice opened two dialogs. The busy flag was cleared
+  before the first dialog was drawn, so it is now held until the dialog
+  closes.
+  - That left the spinner turning under the dialog for ever, so tests
+    never settled. The spinner now has a flag of its own, cleared once the
+    save is done.
+- Forty-three test files had never mocked storage. Once nothing was
+  offered before the staff were known, they waited forever on the host's
+  disk, whose answer never comes inside a widget test's clock.
+  `flutter_test_config.dart` settles it for every file.
+- **Undo** after deleting a customer used the page's `ref` after the page
+  had gone. The revision notifier is now taken before the page is left.
+- The price list editor (`price_list_fields.dart`, `_withProfile` and
+  `_withSpecial`) rebuilt a rate field by field and dropped the
+  categories, so editing any other aluminium figure lost them. Both now
+  use `ProfileRate.copyWith`, and writing every field back as it reads
+  leaves the list identical again.
+
+**Verified.**
+- `aluminium_categories_and_optional_glass_test` (22).
+- `complete_and_new_design_test` (6).
+- `store_permissions_test` (8).
+- `permissions_on_screen_test` (4).
+- The full suite passes and `flutter analyze` is clean.
+- In the browser at 1440 × 900:
+  1. Acceptance A, the shop front's sheet: Aluminium profile *System
+     Aluminium*. Border 20.000 m, internal lines 8.000 m, combined 28.000
+     m; 160 + 64 = 224; glass *Not included — 0.00 USD* with 23.6 m²
+     measured.
+  2. **Set each part**, with both jambs and Line 2 set to Bend Shoulder:
+     - System border 12 m × 8 = 96
+     - System lines 4 m × 8 = 32
+     - Bend Shoulder border 8 m × 11 = 88
+     - Bend Shoulder lines 4 m × 11 = 44
+     - Combined profile cost 260.00, final total 260.00, and the card's
+       price following.
+  3. Acceptance B, the Kitchen Window: 3.0000 m² of glass, *Not included —
+     0.00* and design cost 140. Switched on: *Sealed unit — Clear glass ·
+     3.0000 m² × 20.00 = 60.00* and 200. Switched off: 140 again.
+  4. Acceptance C: Front Entrance Door, **Complete!**, *Design completed
+     and saved successfully.*, **New Design**. The name step shows Adam's
+     chip; then Window and **Start drawing**. Back on Adam's page there
+     are four designs:
+     - Front Entrance Door, *Completed*
+     - Kitchen Window, *Draft*
+     - the new Kitchen Window 2, *Incomplete*
+- At 390 × 844: the price sheet with the glass switch and the separate
+  lengths, and the workspace with *Draft* and **Complete!** above the tools.
+
+**Not done.**
+- A line's amount is rounded to the cent once, and the cents are summed —
+  the rule since Phase 27. Nothing is rounded twice.
+- The opening profile of aluminium is still the material's one rate. The
+  brief divided the normal profile, and nothing says which category a
+  sash is.
+- A price list kept before schema 5 has no aluminium normal rate until the
+  owner sets the two. Every kept price says *needs recalculation* once.
+- A part's category is keyed by its frame member's or bar's id. A
+  re-reading that gives a member a new id loses that one part's override,
+  and the part then asks for its category again. Nothing is guessed.
+- While permissions are unknown, the workspace still lets edits happen in
+  memory. Nothing is kept without the store's own check.
+- A store made without `readsAs` (tests, the device's own housekeeping)
+  reads unchecked.
+- A customer with anything kept cannot be deleted. There is no cascade,
+  because it would delete financial records.
+- There is no catalog of extras, no exchange-rate feed, and no print or PDF.
+- A PIN is a lock on a device, not authentication.

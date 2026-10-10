@@ -103,7 +103,9 @@ void main() {
       expect(rateOf(b, PriceGroup.openingProfile), 18);
       expect(
         b.lines.firstWhere((l) => l.group == PriceGroup.normalProfile).label,
-        'Normal profile — Aluminium',
+        // Since Phase 33 aluminium's border is charged as the profile
+        // category it was said to be, and the border apart from the lines.
+        'System Aluminium — Border',
       );
       // Exactly the difference the rates make on the metres measured.
       final m = PricingTakeoff.of(pvc).summary;

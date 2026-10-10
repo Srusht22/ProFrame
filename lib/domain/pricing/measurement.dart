@@ -105,6 +105,13 @@ class MeasurementSummary {
   /// profile — the design's own bars and those drawn inside openings.
   final Metres normalProfile;
 
+  /// The frame's border alone, and the lines alone — the two parts of
+  /// [normalProfile], measured and shown apart. Both nothing in a price
+  /// kept before they were kept apart, which then says [normalProfile]
+  /// only ([splitsBorder]).
+  final Metres borderLength;
+  final Metres lineLength;
+
   /// The profile round each opening, every opening counted once.
   final Metres openingProfile;
 
@@ -118,6 +125,8 @@ class MeasurementSummary {
 
   const MeasurementSummary({
     this.normalProfile = Metres.zero,
+    this.borderLength = Metres.zero,
+    this.lineLength = Metres.zero,
     this.openingProfile = Metres.zero,
     this.otherProfile = Metres.zero,
     this.panelArea = SquareMetres.zero,
@@ -132,8 +141,15 @@ class MeasurementSummary {
   /// no count is ever added in.
   Metres get totalProfile => normalProfile + openingProfile + otherProfile;
 
+  /// Whether the border and the lines are known apart — false only for a
+  /// price kept before they were.
+  bool get splitsBorder =>
+      normalProfile.value == 0 || borderLength.value + lineLength.value > 0;
+
   MeasurementSummary operator +(MeasurementSummary other) => MeasurementSummary(
     normalProfile: normalProfile + other.normalProfile,
+    borderLength: borderLength + other.borderLength,
+    lineLength: lineLength + other.lineLength,
     openingProfile: openingProfile + other.openingProfile,
     otherProfile: otherProfile + other.otherProfile,
     panelArea: panelArea + other.panelArea,
@@ -144,6 +160,8 @@ class MeasurementSummary {
 
   Map<String, Object?> toJson() => {
     'normalProfileM': normalProfile.value,
+    'borderM': borderLength.value,
+    'linesM': lineLength.value,
     'openingProfileM': openingProfile.value,
     'otherProfileM': otherProfile.value,
     'panelM2': panelArea.value,
@@ -160,6 +178,8 @@ class MeasurementSummary {
     };
     return MeasurementSummary(
       normalProfile: Metres(read('normalProfileM')),
+      borderLength: Metres(read('borderM')),
+      lineLength: Metres(read('linesM')),
       openingProfile: Metres(read('openingProfileM')),
       otherProfile: Metres(read('otherProfileM')),
       panelArea: SquareMetres(read('panelM2')),

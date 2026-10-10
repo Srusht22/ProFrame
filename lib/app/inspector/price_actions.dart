@@ -16,6 +16,7 @@ import '../state/pricing.dart';
 import '../theme/app_theme.dart';
 import 'extra_charges.dart';
 import 'price_panel.dart';
+import 'pricing_options.dart';
 import 'profile_chooser.dart';
 
 /// The price action, wherever a design is: **Calculate price** in the
@@ -409,6 +410,20 @@ class _DesignPriceSheetState extends ConsumerState<DesignPriceSheet> {
                   onChanged: widget.onChoose == null || _working
                       ? null
                       : _choose,
+                ),
+              ),
+            // Which aluminium profile it is, and whether its glass is
+            // charged: said here, as the material is.
+            if (design.frame != null && !design.isUnsupported)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: PricingOptions(
+                  design: design,
+                  onChange: !may(Capability.designsEdit) || _working
+                      ? null
+                      : (change) => _pricing(
+                          (by) => (design: change(by), problem: null),
+                        ),
                 ),
               ),
             if (_working)

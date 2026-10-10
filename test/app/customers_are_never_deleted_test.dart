@@ -15,10 +15,13 @@ import 'customers_screen_test.dart' as customers;
 import 'the_designs_screen_test.dart' as screen;
 
 // Deleting a customer is offered only where the application has
-// administrative deletion — somebody entitled to remove a customer and
-// everything drawn for them. This application has no such thing: no
-// administrator, no roles, no permissions. So there is no way to delete a
-// customer, by design, and this file keeps it so until there is.
+// administrative deletion — somebody entitled to remove a customer. Since
+// Phase 33 it has: `customers.delete`, the owner's and a member of staff's
+// only where the owner gives it, checked by the store itself. And even then
+// a customer is deleted only when nothing of theirs would go with them — no
+// design, payment, receipt, discount, quotation or extra charge — so no
+// design and no financial record is ever deleted with a customer. This file
+// changed with that, as it said it would: it keeps the one way in narrow.
 //
 // And whatever else happens, the three operations stay apart: deleting a
 // design never deletes a customer, editing a customer never deletes a
@@ -63,11 +66,18 @@ Finder deleting() =>
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  test('nothing in the application takes a customer off the device — only '
-      'a design, and the list of designs kept before customers existed', () {
+  test('nothing in the application takes a customer off the device but '
+      'deleteCustomer — only a design, the list of designs kept before '
+      'customers existed, and a customer with nothing of theirs kept', () {
     final found = removals();
     expect(found, isNotEmpty, reason: 'the scan reads the code');
     for (final (path, line) in found) {
+      if (path.endsWith('customer_store.dart')) {
+        // The one way a customer goes: their own record, by
+        // `deleteCustomer` (held below).
+        expect(line, contains('_customerKey(id)'), reason: line);
+        continue;
+      }
       // A design's record, the list of designs kept before customers, and
       // a deleted design's own price, which goes with it.
       expect(
@@ -79,11 +89,33 @@ void main() {
       );
       expect(path, endsWith('design_store.dart'), reason: line);
     }
-    // And the customers' own store has no way to remove one.
+    // And the customers' own store has one way to remove one, which asks
+    // for `customers.delete` before anything else and refuses a customer
+    // with anything kept.
     final store = File('lib/infrastructure/customer_store.dart')
         .readAsStringSync();
-    expect(store, isNot(contains('.remove(')));
-    expect(store, isNot(contains(RegExp('Future<[^>]*> (delete|remove)'))));
+    expect('.remove('.allMatches(store), hasLength(1));
+    expect(
+      RegExp(r'Future<[^\n]*> (delete|remove)\w*\(')
+          .allMatches(store)
+          .map((m) => m.group(0)),
+      [contains('deleteCustomer(')],
+    );
+    final body = store.substring(store.indexOf('deleteCustomer('));
+    expect(
+      body.indexOf('by.require(Capability.customersDelete)'),
+      lessThan(body.indexOf('prefs.remove(')),
+    );
+    for (final kept in [
+      'designs > 0',
+      'customer.payments.isNotEmpty',
+      'customer.receipts.isNotEmpty',
+      'customer.discounts.isNotEmpty',
+      'quotations > 0',
+      'customer.extras.isNotEmpty',
+    ]) {
+      expect(body, contains(kept));
+    }
   });
 
   testWidgets('the customers list and a customer\'s page offer no way to '

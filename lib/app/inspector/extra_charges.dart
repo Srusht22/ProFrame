@@ -12,6 +12,12 @@ import 'price_panel.dart';
 
 /// The fields and buttons of the extra-charge form and the breakdown.
 abstract final class ExtraKeys {
+  /// A line of the border and the lines in a breakdown, by its profile
+  /// category's name (`all` for a material with none) and its part.
+  static ValueKey<String> profileLine(String which) =>
+      ValueKey('extra-keys-profile-$which');
+  static const combinedProfile = ValueKey('extra-keys-combined-profile');
+
   static const dialog = ValueKey('extra-dialog');
   static const name = ValueKey('extra-name');
   static const category = ValueKey('extra-category');
@@ -510,7 +516,33 @@ class PriceBreakdown extends StatelessWidget {
       children: [
         heading('AUTOMATIC DESIGN COSTS'),
         for (final group in PriceGroup.values)
-          if (has(group)) ...[
+          if (has(group) && group == PriceGroup.normalProfile) ...[
+            // The border and the lines, each its own line at the rate
+            // they share — by profile category where the material is sold
+            // by one — and then what they come to together.
+            const SizedBox(height: 4),
+            Text(
+              group.label,
+              style: text.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            for (final line in result.lines)
+              if (line.group == group)
+                PriceRow(
+                  '   ${line.label} · ${PricePanel.quantity(line)}',
+                  PricePanel.money(line.amount, currency),
+                  valueKey: line.part == null
+                      ? null
+                      : ExtraKeys.profileLine(
+                          '${line.category?.name ?? 'all'}.${line.part!.name}',
+                        ),
+                ),
+            PriceRow(
+              'Combined profile cost',
+              PricePanel.money(result.sumOf(group), currency),
+              strong: true,
+              valueKey: ExtraKeys.combinedProfile,
+            ),
+          ] else if (has(group)) ...[
             const SizedBox(height: 4),
             PriceRow(
               group.label,
@@ -528,16 +560,17 @@ class PriceBreakdown extends StatelessWidget {
                   '   ${line.label} · ${PricePanel.quantity(line)}',
                   PricePanel.money(line.amount, currency),
                 ),
-          ] else if (group == PriceGroup.glass || group == PriceGroup.panel)
-            // Glass and panel are each only what the design actually
-            // has: where it has none, it is said, and nothing is charged.
-            PriceRow(
-              group.label,
-              'Not used',
-              valueKey: group == PriceGroup.glass
-                  ? ExtraKeys.glass
-                  : ExtraKeys.panel,
-            ),
+          ] else if (group == PriceGroup.glass)
+            // Glass is only what the design has, and only charged where
+            // the user included it: where nothing is charged, it says why.
+            PriceRow(group.label, switch (result.glassState) {
+              GlassState.notUsed => 'Not used',
+              final state => '${state.words} — ${money(0)}',
+            }, valueKey: ExtraKeys.glass)
+          else if (group == PriceGroup.panel)
+            // A panel is only what the design has: where it has none, it
+            // is said, and nothing is charged.
+            PriceRow('Panel', 'Not used', valueKey: ExtraKeys.panel),
         const SizedBox(height: 4),
         PriceRow(
           'Design cost',

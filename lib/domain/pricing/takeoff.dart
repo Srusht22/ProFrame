@@ -98,6 +98,8 @@ class PricingTakeoff {
 
   MeasurementSummary get summary => MeasurementSummary(
     normalProfile: normalProfile,
+    borderLength: border,
+    lineLength: dividers,
     openingProfile: openingProfile,
     otherProfile: otherProfile,
     panelArea: panelArea,
@@ -136,22 +138,18 @@ class PricingTakeoff {
     final geometry = DesignGeometry.of(design);
     final outline = frame.outline;
 
-    // The border: every side of the outline that carries a member, so a
-    // side left open is not charged as profile.
-    var borderMm = 0.0;
-    final edges = outline.edges;
-    for (var i = 0; i < edges.length; i++) {
-      if (frame.hasMember(i)) borderMm += edges[i].length;
-    }
-
     final runs = <ProfileRun>[
-      ProfileRun(
-        id: frame.id,
-        use: ProfileUse.border,
-        label: 'Frame border',
-        length: Metres.ofMm(borderMm),
-        finish: frame.finish,
-      ),
+      // The border: every side of the outline that carries a member, each a
+      // run of its own — so a side left open is not charged as profile,
+      // and a side can be said to be a profile category of its own.
+      for (final member in design.frameMembers)
+        ProfileRun(
+          id: member.id,
+          use: ProfileUse.border,
+          label: 'Border — ${member.placement}',
+          length: Metres.ofMm(member.run.length),
+          finish: frame.finish,
+        ),
       // Every bar, once — the design's own and those inside an opening —
       // at the length its body is cut to: the canonical body every view
       // draws, from the face it starts at to the face it ends at.

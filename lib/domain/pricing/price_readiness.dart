@@ -2,6 +2,7 @@ import '../dimensions/measurements.dart';
 import '../model/design.dart';
 import '../model/elements.dart';
 import '../recognition/geometry_feedback.dart';
+import 'profile_category.dart';
 import 'profile_selection.dart';
 import 'takeoff.dart';
 
@@ -28,6 +29,7 @@ import 'takeoff.dart';
 /// | What each opening is — door or window | `Design.kindOf` |
 /// | Every size the design asks for | `Measurements.of`, against `Design.measured` |
 /// | The profile's material and colour, chosen | `ProfileSelection.of` |
+/// | Each aluminium part's profile category — System or Bend Shoulder — chosen | `ProfileAllocation.unallocatedIn` |
 ///
 /// So what is required follows the design and its category: a window is
 /// never asked what it is built of, and a door design's leaves are doors
@@ -193,6 +195,32 @@ class PriceReadiness {
         ),
       );
     }
+
+    // Which profile category each part in a material sold by category is —
+    // System or Bend Shoulder aluminium — said by somebody, never guessed
+    // from how the design looks.
+    final unallocated = ProfileAllocation.unallocatedIn(design);
+    if (unallocated.isNotEmpty) {
+      final material = unallocated.first.material;
+      final choices = ProfileCategory.of(material)
+          .map((c) => c.label)
+          .join(' or ');
+      final all = ProfileAllocation.partsOf(design)
+          .where((p) => p.material == material)
+          .length;
+      missing.add(
+        PriceRequirement(
+          PriceRequirementKind.profileCategory,
+          unallocated.length == all
+              ? 'Please choose whether the ${material.label.toLowerCase()} '
+                    'profile is $choices to calculate the price.'
+              : 'Please choose $choices for '
+                    '${unallocated.map((p) => p.name).join(', ')} to '
+                    'calculate the price.',
+          elementId: unallocated.first.key,
+        ),
+      );
+    }
     return missing;
   }
 
@@ -218,6 +246,10 @@ enum PriceRequirementKind {
 
   /// Nobody has chosen the material and colour of the profile.
   profile,
+
+  /// A part in a material sold by profile category — aluminium — has no
+  /// category: System or Bend Shoulder.
+  profileCategory,
 }
 
 /// One thing a design needs before it can be priced, said in words that

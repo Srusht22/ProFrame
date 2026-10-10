@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/model/design.dart';
 import '../../domain/pricing/design_price_state.dart';
 import '../../domain/pricing/measurement.dart';
 import '../../domain/pricing/price_readiness.dart';
@@ -13,6 +14,7 @@ import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'extra_charges.dart';
 import 'price_actions.dart';
+import 'pricing_options.dart';
 import 'profile_chooser.dart';
 
 /// What the design open comes to, under **Price** in its own panel.
@@ -199,6 +201,29 @@ class _PricePanelState extends ConsumerState<PricePanel> {
                 ),
           ),
           const SizedBox(height: 10),
+          PricingOptions(
+            design: design,
+            onChange: !ref.offers(Capability.designsEdit)
+                ? null
+                : (change) async {
+                    final by = await ref.actorNow();
+                    final Design changed;
+                    try {
+                      changed = change(by);
+                    } on AccessDenied catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text(e.toString())));
+                      }
+                      return;
+                    }
+                    ref
+                        .read(workspaceProvider.notifier)
+                        .setPricing(changed.pricing);
+                  },
+          ),
+          const SizedBox(height: 10),
         ],
         if (state == null)
           Text('Reading the price list…', style: text.bodySmall)
@@ -342,6 +367,9 @@ class MeasurementRows extends StatelessWidget {
   const MeasurementRows(this.measurements, {super.key});
 
   static const totalProfileKey = ValueKey('measure-total-profile');
+  static const borderKey = ValueKey('measure-border');
+  static const linesKey = ValueKey('measure-lines');
+  static const combinedKey = ValueKey('measure-combined-profile');
 
   @override
   Widget build(BuildContext context) {
@@ -349,7 +377,24 @@ class MeasurementRows extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        PriceRow('Normal profile', m.normalProfile.label),
+        // The border and the lines share a rate and are still two
+        // measurements: each its own row, then the two together.
+        if (m.splitsBorder) ...[
+          PriceRow('Border length', m.borderLength.label, valueKey: borderKey),
+          PriceRow(
+            'Internal line length',
+            m.lineLength.label,
+            valueKey: linesKey,
+          ),
+          PriceRow(
+            'Combined profile length',
+            m.normalProfile.label,
+            valueKey: combinedKey,
+          ),
+        ] else
+          // A price kept before the two were measured apart says only what
+          // it measured.
+          PriceRow('Border and internal lines', m.normalProfile.label),
         PriceRow('Opening profile', m.openingProfile.label),
         if (m.otherProfile.value > 0)
           PriceRow('Other profile', m.otherProfile.label),

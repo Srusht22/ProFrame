@@ -1,12 +1,14 @@
 import '../model/elements.dart';
 import '../model/materials.dart';
 import 'price_list.dart';
+import 'profile_category.dart';
 
 /// The rates the application prices by until the workshop owner keeps a
 /// price list of their own — **the one place they are written**.
 ///
 /// Every figure here is an example, in US dollars: $7 a metre of uPVC
-/// normal profile and $12 a metre of opening profile among them. The
+/// normal profile and $12 a metre of opening profile, and $8 a metre of
+/// System Aluminium and $11 of Bend Shoulder Aluminium, among them. The
 /// pricing engine never reads a figure from here: it reads whatever
 /// [PriceList] it is given, and the list in use is this one only while
 /// nothing else has been kept (`PriceListStore.load`), which the screen
@@ -23,8 +25,13 @@ abstract final class DefaultFactoryPricing {
         openingPerMetre: 12,
         special: ColourSurcharge(perMetre: 2.5),
       ),
+      // Aluminium's border and lines by profile category, each its own
+      // figure: examples, as every figure here is.
       MaterialKind.aluminium: const ProfileRate(
-        normalPerMetre: 11,
+        categories: {
+          ProfileCategory.systemAluminium: 8,
+          ProfileCategory.bendShoulderAluminium: 11,
+        },
         openingPerMetre: 18,
         special: ColourSurcharge(perMetre: 3),
       ),

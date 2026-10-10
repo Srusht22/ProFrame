@@ -9,6 +9,8 @@ import '../domain/model/receipt.dart';
 import '../domain/pricing/extra_charge.dart';
 import '../domain/pricing/price_result.dart';
 import '../domain/pricing/pricing_access.dart';
+import 'design_store.dart';
+import 'quotation_store.dart';
 
 /// What the list of customers needs to know about one customer: who, how
 /// to reach them by phone, and when they were last changed. The address
@@ -84,6 +86,22 @@ class CustomerPage {
 /// customer is read by [load] only when it is opened. A store kept on a
 /// server can stand in for this one without the screens changing.
 class CustomerStore {
+  /// Who is reading, for a store the application hands out: asked before
+  /// anything is read through it, so seeing what is kept needs its `.view`
+  /// capability in the store itself and not only on the screen. Null for a
+  /// store with nobody to ask — the device's own housekeeping, or a test —
+  /// which reads as the device always could.
+  final Future<Authority> Function()? readsAs;
+
+  CustomerStore({this.readsAs});
+
+  /// Nothing where whoever is reading may see customers; [AccessDenied]
+  /// otherwise, before anything is read.
+  Future<void> _mayRead() async {
+    final who = readsAs;
+    if (who != null) (await who()).require(Capability.customersView);
+  }
+
   static const indexKey = 'proframe.customers.index.v1';
   static const customerKeyPrefix = 'proframe.customer.v1.';
 
@@ -269,6 +287,7 @@ class CustomerStore {
     int offset = 0,
     int limit = 40,
   }) async {
+    await _mayRead();
     final prefs = await SharedPreferences.getInstance();
     final index = _indexNow(prefs);
     final found = query.trim().isEmpty
@@ -284,13 +303,16 @@ class CustomerStore {
 
   /// How many customers are kept.
   Future<int> count() async {
+    await _mayRead();
     final prefs = await SharedPreferences.getInstance();
     return _indexNow(prefs).length;
   }
 
   /// The customer kept as [id], or null where there is none.
-  Future<Customer?> load(String id) async =>
-      _loadNow(await SharedPreferences.getInstance(), id);
+  Future<Customer?> load(String id) async {
+    await _mayRead();
+    return _loadNow(await SharedPreferences.getInstance(), id);
+  }
 
   /// Keeps [customer], new or changed, as asked [by] — `customers.create`
   /// for one not kept yet, `customers.edit` for one that is — and returns
@@ -529,8 +551,73 @@ class CustomerStore {
   /// The customer called [name] — however it is spaced or capitalised — or
   /// null where there is none. Where more than one has that name, the one
   /// changed most recently.
-  Future<Customer?> named(String name) async =>
-      _namedNow(await SharedPreferences.getInstance(), name);
+  Future<Customer?> named(String name) async {
+    await _mayRead();
+    return _namedNow(await SharedPreferences.getInstance(), name);
+  }
+
+  /// Deletes customer [id], as asked [by] whoever holds `customers.delete`
+  /// — or says why not, deleting nothing.
+  ///
+  /// **Only a customer with nothing that would go with them is deleted**: a
+  /// customer made by mistake. One with a design is refused — each design
+  /// is deleted on its own, asked about by its name — and so is one with
+  /// any financial record or charge: a payment or refund, a receipt, a
+  /// discount, a quotation or an extra charge. Those are the workshop's
+  /// history and are never deleted, so neither is the customer they are
+  /// the history of. What is deleted is the customer's record and its line
+  /// of the index, written in one step, and nothing else; it can be kept
+  /// again, whole, by [save].
+  Future<({bool deleted, String? problem})> deleteCustomer(
+    String id, {
+    required Authority by,
+  }) async {
+    by.require(Capability.customersDelete);
+    final prefs = await SharedPreferences.getInstance();
+    final customer = _loadNow(prefs, id);
+    if (customer == null) {
+      return (deleted: false, problem: 'This customer is no longer kept.');
+    }
+    final designs =
+        (await DesignStore(customers: this).countsByCustomer())[id] ?? 0;
+    final quotations = switch (prefs.getString(
+      '${QuotationStore.indexPrefix}$id',
+    )) {
+      final String text when text != '[]' => 1,
+      _ => 0,
+    };
+    String some(int n, String one, String many) => '$n ${n == 1 ? one : many}';
+    final has = [
+      if (designs > 0) some(designs, 'design', 'designs'),
+      if (customer.payments.isNotEmpty)
+        some(customer.payments.length, 'payment', 'payments'),
+      if (customer.receipts.isNotEmpty)
+        some(customer.receipts.length, 'receipt', 'receipts'),
+      if (customer.discounts.isNotEmpty) 'a discount',
+      if (quotations > 0) 'quotations',
+      if (customer.extras.isNotEmpty)
+        some(customer.extras.length, 'extra charge', 'extra charges'),
+    ];
+    if (has.isNotEmpty) {
+      return (
+        deleted: false,
+        problem:
+            '${customer.name} cannot be deleted: they have '
+            '${has.join(', ')}. A customer is deleted only when nothing of '
+            'theirs would go with them — delete each design on its own; '
+            'payments, receipts, discounts and quotations are the '
+            "workshop's records and are kept.",
+      );
+    }
+    // The record and its line of the index, with nothing awaited between
+    // reading the index and writing it back.
+    final index = [
+      for (final s in _indexNow(prefs))
+        if (s.id != id) s,
+    ];
+    await Future.wait([prefs.remove(_customerKey(id)), _write(prefs, index)]);
+    return (deleted: true, problem: null);
+  }
 
   /// The customer a design typed as being for [name] belongs to: the one
   /// already called that, or a new one made for it at [at].
