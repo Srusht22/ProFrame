@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/pricing/pricing_access.dart';
 import '../../infrastructure/design_store.dart';
+import '../state/access.dart';
 import '../state/pricing.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -33,6 +35,16 @@ Future<void> openKeptDesign(
   _opening = true;
   final Future<void> shown;
   try {
+    if (!(await ref.actorNow()).can(Capability.designsView)) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You do not have permission to view designs.'),
+          ),
+        );
+      }
+      return;
+    }
     final design = await ref.read(designStoreProvider).load(summary.id);
     if (!context.mounted) return;
     if (design == null) {
@@ -72,7 +84,9 @@ Future<void> editDesignInformation(
     ),
   );
   if (named == null || named == summary.name) return;
-  await ref.read(designStoreProvider).retitle(summary.id, named);
+  await ref
+      .read(designStoreProvider)
+      .retitle(summary.id, named, by: await ref.actorNow());
   ref.read(designsRevisionProvider.notifier).changed();
 }
 
@@ -102,7 +116,7 @@ Future<bool> deleteDesign(
   final design = await store.load(summary.id);
   // Its price goes with it (`DesignStore.remove`), and comes back with it.
   final price = await ref.read(priceRecordStoreProvider).load(summary.id);
-  await store.remove(summary.id);
+  await store.remove(summary.id, by: await ref.actorNow());
   ref.read(designsRevisionProvider.notifier).changed();
   if (!context.mounted) return true;
   final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
@@ -114,7 +128,7 @@ Future<bool> deleteDesign(
           : SnackBarAction(
               label: 'Undo',
               onPressed: () async {
-                await store.save(design);
+                await store.save(design, by: await ref.actorNow());
                 if (price != null) {
                   await ref
                       .read(priceRecordStoreProvider)

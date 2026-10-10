@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/dimensions/measurements.dart';
 import '../domain/model/design.dart';
+import '../domain/pricing/pricing_access.dart';
 import 'customer_store.dart';
 import 'price_record_store.dart';
 
@@ -308,11 +309,12 @@ class DesignStore {
   /// the customer it was typed as being for, or — kept before anybody was
   /// asked — the one its own name stands for, as the list already showed
   /// it. Nothing else about it changes, not even when it was last edited.
-  Future<Design> _owned(Design design) async {
+  Future<Design> _owned(Design design, Authority by) async {
     if (design.customerId != null) return design;
     final who = design.customer?.trim();
     final customer = await customers.obtain(
       who == null || who.isEmpty ? design.name : who,
+      by: by,
       at: design.createdAt,
     );
     return design.copyWith(
@@ -352,7 +354,7 @@ class DesignStore {
         adopted.add(s);
         continue;
       }
-      final owned = await _owned(design);
+      final owned = await _owned(design, const Housekeeping());
       await prefs.setString(
         _designKey(s.id),
         jsonEncode({...stored, 'customerId': owned.customerId}),
@@ -511,8 +513,15 @@ class DesignStore {
     if (_recent.length > _recentLimit) _recent.remove(_recent.keys.first);
   }
 
-  /// Keeps [design], and returns it as kept — belonging to a customer.
-  Future<Design> save(Design unowned) async {
+  /// Keeps [design], and returns it as kept — belonging to a customer — as
+  /// asked [by]: `designs.create` for one not kept yet, `designs.edit` for
+  /// one that is. Without that, nothing is written ([AccessDenied]).
+  ///
+  /// A change to the design's pricing alone — its extras, its discount —
+  /// is not a change to the design's drawing, and is checked where it is
+  /// made (`DesignPricing`, by `extras.*` and `discounts.apply`); keeping it
+  /// asks nothing more.
+  Future<Design> save(Design unowned, {required Authority by}) async {
     // **A design of a category this version does not know is kept exactly
     // as it was saved.** Its record may hold what only a later version
     // understands, and writing it from this version's model would drop
@@ -520,7 +529,13 @@ class DesignStore {
     // changed (see `WorkspaceController`), so there is nothing to keep.
     if (unowned.isUnsupported) return unowned;
     final prefs = await SharedPreferences.getInstance();
-    final design = await _owned(unowned);
+    final before = prefs.getString(_designKey(unowned.id));
+    if (before == null) {
+      by.require(Capability.designsCreate);
+    } else if (!_onlyPricing(before, unowned)) {
+      by.require(Capability.designsEdit);
+    }
+    final design = await _owned(unowned, by);
     await _read(prefs);
     // From here to the writes nothing is waited on: see [_indexNow].
     final index = [
@@ -546,7 +561,27 @@ class DesignStore {
     return design;
   }
 
-  Future<void> remove(String designId) async {
+  /// Whether [design] differs from the record [kept] in nothing but its
+  /// pricing choices and when it was edited.
+  static bool _onlyPricing(String kept, Design design) {
+    try {
+      final was = jsonDecode(kept) as Map<String, Object?>;
+      final now = jsonDecode(jsonEncode(design.toJson())) as Map<String, Object?>;
+      for (final m in [was, now]) {
+        m
+          ..remove('pricing')
+          ..remove('updatedAt');
+      }
+      return jsonEncode(was) == jsonEncode(now);
+    } on Object {
+      return false;
+    }
+  }
+
+  /// Takes the design [designId] off the device, as asked [by] whoever
+  /// holds `designs.delete`, with its own kept price.
+  Future<void> remove(String designId, {required Authority by}) async {
+    by.require(Capability.designsDelete);
     final prefs = await SharedPreferences.getInstance();
     await _read(prefs);
     // From here to the writes nothing is waited on: see [_indexNow].
@@ -614,7 +649,12 @@ class DesignStore {
   /// without changing the first. The copy is the same customer's — another
   /// of their designs, not another person — and it is the design's own
   /// name that says it is the copy.
-  Future<Design?> duplicate(String id, {DateTime? now}) async {
+  Future<Design?> duplicate(
+    String id, {
+    required Authority by,
+    DateTime? now,
+  }) async {
+    by.require(Capability.designsCreate);
     final original = await load(id);
     // A category this version does not know is not written in its words.
     if (original == null || original.isUnsupported) return null;
@@ -624,18 +664,23 @@ class DesignStore {
       ..['name'] = '${original.name} (copy)'
       ..['createdAt'] = at.toIso8601String()
       ..['updatedAt'] = at.toIso8601String();
-    return save(Design.fromJson(json));
+    return save(Design.fromJson(json), by: by);
   }
 
   /// The design kept as [id], now said to be for [customer] — and so
   /// belonging to the customer of that name, who is made if there is none.
   /// Nothing else about it changes. Null where nothing is kept as [id].
-  Future<Design?> rename(String id, String customer) async {
+  Future<Design?> rename(
+    String id,
+    String customer, {
+    required Authority by,
+  }) async {
+    by.require(Capability.designsEdit);
     final design = await load(id);
     final who = customer.trim();
     if (design == null || who.isEmpty || design.isUnsupported) return null;
-    final owner = await customers.obtain(who);
-    return save(design.copyWith(customer: who, customerId: owner.id));
+    final owner = await customers.obtain(who, by: by);
+    return save(design.copyWith(customer: who, customerId: owner.id), by: by);
   }
 
   /// The design kept as [id], now called [name] — trimmed — and nothing
@@ -643,11 +688,16 @@ class DesignStore {
   /// category, and its drawing, geometry, sizes, openings, lines and
   /// materials exactly as kept. Null where nothing is kept as [id] or the
   /// name is empty.
-  Future<Design?> retitle(String id, String name) async {
+  Future<Design?> retitle(
+    String id,
+    String name, {
+    required Authority by,
+  }) async {
+    by.require(Capability.designsEdit);
     final design = await load(id);
     final called = name.trim();
     if (design == null || called.isEmpty || design.isUnsupported) return null;
-    return save(design.copyWith(name: called));
+    return save(design.copyWith(name: called), by: by);
   }
 
   /// Every design kept, whole, most recently edited first. For a handful —

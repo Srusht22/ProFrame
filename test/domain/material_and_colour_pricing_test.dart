@@ -75,6 +75,9 @@ double profileMetres(Design d) {
   return m.normalProfile.value + m.openingProfile.value;
 }
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -304,11 +307,11 @@ void main() {
     test('a design\'s price stays, an orphan goes, everything else as it '
         'was', () async {
       final people = CustomerStore();
-      final adam = await people.create(name: 'Adam');
+      final adam = await people.create(name: 'Adam', by: WorkshopRole.owner);
       final store = DesignStore(customers: people);
       final records = PriceRecordStore();
       final a = given(madeIn(door(id: 'a'), MaterialKind.upvc, white));
-      await store.save(a.copyWith(customerId: adam.id));
+      await store.save(a.copyWith(customerId: adam.id), by: WorkshopRole.owner);
       final record = PriceRecord.calculate(a, factory())!;
       await records.save('a', record);
       await records.save('b', record); // no design b kept
@@ -331,7 +334,7 @@ void main() {
       final store = DesignStore();
       final records = PriceRecordStore();
       final a = given(madeIn(door(id: 'a'), MaterialKind.upvc, white));
-      await store.save(a);
+      await store.save(a, by: WorkshopRole.owner);
       final record = PriceRecord.calculate(a, factory())!;
       await records.save('a', record);
       await records.save('gone', record);

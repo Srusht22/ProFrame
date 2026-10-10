@@ -11,6 +11,7 @@ import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/customer.dart';
 import 'package:proframe/domain/model/design.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/recognition/interpreter.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 import 'package:proframe/infrastructure/customer_store.dart';
@@ -58,7 +59,7 @@ Future<Map<String, Customer>> keepAdamWithDrawings() async {
   final kept = await customers.keepThreeCustomers();
   final store = DesignStore();
   for (final id in const ['adam-0', 'adam-2']) {
-    await store.save(drawn((await store.load(id))!));
+    await store.save(drawn((await store.load(id))!), by: WorkshopRole.owner);
   }
   return kept;
 }
@@ -146,6 +147,9 @@ Future<ProviderContainer> reopenTheApp(
   return screen.openTheApp(tester, size: size);
 }
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 

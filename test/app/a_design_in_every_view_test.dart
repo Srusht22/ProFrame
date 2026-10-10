@@ -16,6 +16,7 @@ import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/model/materials.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/solid/mesh_builder.dart';
 import 'package:proframe/infrastructure/design_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -54,6 +55,7 @@ Future<void> keepAdam() async {
         ),
       ],
     ),
+    by: WorkshopRole.owner,
   );
 }
 
@@ -109,6 +111,9 @@ String projected(ProviderContainer c, Design design) {
   ].join('\n');
 }
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 

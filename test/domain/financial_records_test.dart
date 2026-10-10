@@ -89,7 +89,8 @@ StaffMember member(String name, Set<Capability> caps, {bool active = true}) =>
       active: active,
     );
 
-Future<Customer> keptAdam() => CustomerStore().create(name: 'Adam', now: _now);
+Future<Customer> keptAdam() =>
+    CustomerStore().create(name: 'Adam', now: _now, by: WorkshopRole.owner);
 
 Quotation quote(
   CustomerPricing pricing, {
@@ -115,6 +116,9 @@ Quotation quote(
   return made.quotation!;
 }
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -309,7 +313,10 @@ void main() {
           percent(10),
           by: WorkshopRole.owner,
         );
-        await CustomerStore().save(stale.copyWith(phone: '0750 123 4567'));
+        await CustomerStore().save(
+          stale.copyWith(phone: '0750 123 4567'),
+          by: WorkshopRole.owner,
+        );
         final back = (await CustomerStore().load(adam.id))!;
         expect(back.phone, '0750 123 4567');
         expect(back.discount?.value, 1000);
@@ -630,7 +637,11 @@ void main() {
         'with the sequence lost', () async {
       final store = CustomerStore();
       final adam = await keptAdam();
-      final sara = await store.create(name: 'Sara', now: _now);
+      final sara = await store.create(
+        name: 'Sara',
+        now: _now,
+        by: WorkshopRole.owner,
+      );
       Future<Receipt> pay(Customer who, int cents) async {
         final t = transaction(PaymentType.payment, cents, customerId: who.id);
         await store.record(t, by: WorkshopRole.staff);

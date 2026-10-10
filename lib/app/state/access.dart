@@ -96,3 +96,46 @@ extension Signing on WidgetRef {
   /// The staff list read again.
   void staffChanged() => read(staffRevisionProvider.notifier).changed();
 }
+
+/// Who is at the device, for what is not a widget — a controller, a
+/// provider.
+extension ActorOfRef on Ref {
+  /// Who is at the device, once the staff have been read.
+  Future<Authority> actorNow() async {
+    await read(staffMembersProvider.future);
+    return read(actorProvider);
+  }
+
+  /// Who is at the device where that is known now — the owner, somebody
+  /// signed in, or nobody once the staff have been read — and null while
+  /// it is still being read. A check that has to answer at once refuses
+  /// only what it knows is not allowed; whatever is then kept is asked of
+  /// the store by [actorNow], which waits.
+  Authority? actorKnown() {
+    if (read(workshopRoleProvider) == WorkshopRole.owner) {
+      return WorkshopRole.owner;
+    }
+    if (read(signedInStaffProvider) != null) return read(actorProvider);
+    return read(staffMembersProvider).hasValue ? read(actorProvider) : null;
+  }
+}
+
+/// What a screen offers.
+extension Offering on WidgetRef {
+  /// Whether to offer what needs [capability]: what the person at the
+  /// device may do, as far as is known now.
+  ///
+  /// While the staff are still being read — the first moments of a run —
+  /// it is offered: a screen only offers, and the store it is done through
+  /// asks who is at the device once that is known (`actorNow`), refusing it
+  /// then if it may not be done. Hiding it until then would leave a button
+  /// dead that a moment later works.
+  bool offers(Capability capability) {
+    if (watch(actorProvider).can(capability)) return true;
+    final known =
+        watch(workshopRoleProvider) == WorkshopRole.owner ||
+        watch(signedInStaffProvider) != null ||
+        watch(staffMembersProvider).hasValue;
+    return !known;
+  }
+}

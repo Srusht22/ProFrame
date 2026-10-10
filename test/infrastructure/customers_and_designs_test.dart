@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/domain/model/customer.dart';
 import 'package:proframe/domain/model/design.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/infrastructure/customer_store.dart';
 import 'package:proframe/infrastructure/design_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -39,6 +40,9 @@ Design design(
   updatedAt: at.add(after),
 );
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   late CustomerStore customers;
   late DesignStore designs;
@@ -49,7 +53,11 @@ void main() {
   });
 
   test('1 — a customer exists on its own, with no design at all', () async {
-    final adam = await customers.create(name: 'Adam', now: at);
+    final adam = await customers.create(
+      name: 'Adam',
+      now: at,
+      by: WorkshopRole.owner,
+    );
     expect(await customers.count(), 1);
     expect((await customers.load(adam.id))!.name, 'Adam');
     expect((await designs.page(customerId: adam.id)).total, 0);
@@ -57,8 +65,16 @@ void main() {
   });
 
   test('2 — a customer has many designs, found by customerId', () async {
-    final adam = await customers.create(name: 'Adam', now: at);
-    final sara = await customers.create(name: 'Sara', now: at);
+    final adam = await customers.create(
+      name: 'Adam',
+      now: at,
+      by: WorkshopRole.owner,
+    );
+    final sara = await customers.create(
+      name: 'Sara',
+      now: at,
+      by: WorkshopRole.owner,
+    );
     final adams = [
       design('d1', 'Basement Door', DesignKind.door, customerId: adam.id),
       design(
@@ -84,10 +100,11 @@ void main() {
       ),
     ];
     for (final d in adams) {
-      await designs.save(d);
+      await designs.save(d, by: WorkshopRole.owner);
     }
     await designs.save(
       design('d5', 'Garden Gate', DesignKind.door, customerId: sara.id),
+      by: WorkshopRole.owner,
     );
 
     final ofAdam = await designs.page(customerId: adam.id);
@@ -113,19 +130,26 @@ void main() {
 
   test('3 — every design kept has a customerId', () async {
     // Given one.
-    final adam = await customers.create(name: 'Adam', now: at);
+    final adam = await customers.create(
+      name: 'Adam',
+      now: at,
+      by: WorkshopRole.owner,
+    );
     final given = await designs.save(
       design('d1', 'Basement Door', DesignKind.door, customerId: adam.id),
+      by: WorkshopRole.owner,
     );
     expect(given.customerId, adam.id);
     // Typed as being for somebody, as the app does today: that customer.
     final typed = await designs.save(
       design('d2', 'Front Door', DesignKind.door, customer: 'adam '),
+      by: WorkshopRole.owner,
     );
     expect(typed.customerId, adam.id, reason: 'the customer called that');
     // For somebody new: a customer is made for them.
     final newcomer = await designs.save(
       design('d3', 'Kitchen Window', DesignKind.window, customer: 'Karwan'),
+      by: WorkshopRole.owner,
     );
     expect((await customers.load(newcomer.customerId!))!.name, 'Karwan');
     // Every line of the index and every kept file says so.
@@ -138,7 +162,11 @@ void main() {
   test(
     '4, 5 — the design\'s name and category are the design\'s own',
     () async {
-      final adam = await customers.create(name: 'Adam', now: at);
+      final adam = await customers.create(
+        name: 'Adam',
+        now: at,
+        by: WorkshopRole.owner,
+      );
       for (final (i, kind) in DesignKind.categories.indexed) {
         await designs.save(
           design(
@@ -148,6 +176,7 @@ void main() {
             customerId: adam.id,
             after: Duration(minutes: i),
           ),
+          by: WorkshopRole.owner,
         );
       }
       // Every category the application has: door, window, sliding, door &
@@ -168,7 +197,10 @@ void main() {
         expect(kept.customerId, adam.id);
       }
       // Changing the customer changes no design's name or category.
-      await customers.save(adam.copyWith(name: 'Adam Karim'));
+      await customers.save(
+        adam.copyWith(name: 'Adam Karim'),
+        by: WorkshopRole.owner,
+      );
       for (final (i, kind) in DesignKind.categories.indexed) {
         final kept = (await designs.load('d$i'))!;
         expect(kept.name, 'Design ${kind.name}');
@@ -185,6 +217,7 @@ void main() {
       address: 'Sulaymaniyah, Salim Street 12',
       notes: 'Prefers dark frames. Call after 5.',
       now: at,
+      by: WorkshopRole.owner,
     );
     final kept = (await customers.load(adam.id))!;
     expect(kept.phone, '0750 123 4567');
@@ -193,6 +226,7 @@ void main() {
 
     final d = await designs.save(
       design('d1', 'Basement Door', DesignKind.door, customerId: adam.id),
+      by: WorkshopRole.owner,
     );
     final text = jsonEncode(d.toJson());
     for (final said in [kept.phone, kept.address, kept.notes]) {
@@ -204,7 +238,10 @@ void main() {
 
     // Editing the customer's details touches no design.
     final before = jsonEncode((await designs.load('d1'))!.toJson());
-    await customers.save(kept.copyWith(phone: '0770 999 0000'));
+    await customers.save(
+      kept.copyWith(phone: '0770 999 0000'),
+      by: WorkshopRole.owner,
+    );
     expect(jsonEncode((await designs.load('d1'))!.toJson()), before);
     expect((await customers.load(adam.id))!.phone, '0770 999 0000');
   });
@@ -215,6 +252,7 @@ void main() {
         name: 'Customer $i',
         phone: '0750 000 ${i.toString().padLeft(4, '0')}',
         now: at.add(Duration(minutes: i)),
+        by: WorkshopRole.owner,
       );
     }
     final first = await customers.page(limit: 25);
@@ -223,7 +261,12 @@ void main() {
     expect(first.items.first.name, 'Customer 59', reason: 'latest first');
     expect((await customers.page(query: 'customer 4')).total, 11);
     // A number is found written the local way or the international way.
-    await customers.create(name: 'Adam', phone: '+964 750 123 4567', now: at);
+    await customers.create(
+      name: 'Adam',
+      phone: '+964 750 123 4567',
+      now: at,
+      by: WorkshopRole.owner,
+    );
     for (final typed in ['0750 123', '+964 750', '00964 750 123 4567']) {
       expect(
         (await customers.page(query: typed)).items.map((s) => s.name),
@@ -324,7 +367,11 @@ void main() {
 
   test('8 — what Phase 2 builds on: a customer opened, their designs listed, '
       'a design made for them, one removed', () async {
-    final adam = await customers.create(name: 'Adam', now: at);
+    final adam = await customers.create(
+      name: 'Adam',
+      now: at,
+      by: WorkshopRole.owner,
+    );
     // Made for this customer.
     final made = await designs.save(
       Design.empty(
@@ -334,6 +381,7 @@ void main() {
         customerId: adam.id,
         now: at,
       ),
+      by: WorkshopRole.owner,
     );
     expect(made.customerId, adam.id);
     await designs.save(
@@ -344,10 +392,11 @@ void main() {
         customerId: adam.id,
         now: at.add(const Duration(minutes: 1)),
       ),
+      by: WorkshopRole.owner,
     );
     expect((await designs.page(customerId: adam.id)).total, 2);
     // One removed: the customer and their other design stay.
-    await designs.remove('d1');
+    await designs.remove('d1', by: WorkshopRole.owner);
     expect((await designs.page(customerId: adam.id)).items.map((s) => s.id), [
       'd2',
     ]);
@@ -355,6 +404,7 @@ void main() {
     // A design saved again keeps its customer.
     final again = await designs.save(
       (await designs.load('d2'))!.copyWith(name: 'Kitchen Window, wide'),
+      by: WorkshopRole.owner,
     );
     expect(again.customerId, adam.id);
     expect(await customers.count(), 1, reason: 'nobody new was made');

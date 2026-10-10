@@ -12,6 +12,7 @@ import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/elements.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/recognition/interpreter.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 import 'package:proframe/infrastructure/customer_store.dart';
@@ -78,9 +79,13 @@ Future<ProviderContainer> openFor(
 }) async {
   await tester.runAsync(() async {
     final people = CustomerStore();
-    final adam = await people.create(name: 'Adam', now: DateTime(2026, 3, 1));
+    final adam = await people.create(
+      name: 'Adam',
+      now: DateTime(2026, 3, 1),
+      by: WorkshopRole.owner,
+    );
     await DesignStore(customers: people)
-        .save(design.copyWith(customerId: adam.id));
+        .save(design.copyWith(customerId: adam.id), by: WorkshopRole.owner);
   });
   final c = await screen.openTheApp(tester, size: size);
   await customers.toCustomers(tester);
@@ -122,6 +127,9 @@ Finder get panel => find.byKey(GeometryCheckPanel.panelKey);
 
 String textOf(Design d) => jsonEncode(d.toJson());
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 

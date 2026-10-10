@@ -1,3 +1,4 @@
+import '../pricing/extra_charge.dart';
 import 'customer_discount.dart';
 import 'payment.dart';
 import 'receipt.dart';
@@ -52,6 +53,13 @@ class Customer {
   /// payment. Nothing is removed from it.
   final List<Receipt> receipts;
 
+  /// What the factory charges for the customer's whole job beyond their
+  /// designs — a trip to deliver it all, say — each quantity × unit price
+  /// (`ExtraCharge`). Belonging to no one design, they are added to the
+  /// designs' prices before the customer's discount. Unlike money received,
+  /// an extra can be changed or taken away while it is only a charge.
+  final List<ExtraCharge> extras;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -66,6 +74,7 @@ class Customer {
     this.payments = const [],
     this.discounts = const [],
     this.receipts = const [],
+    this.extras = const [],
   });
 
   /// The customer's payments and refunds, and what they come to.
@@ -94,6 +103,7 @@ class Customer {
     List<PaymentTransaction>? payments,
     List<CustomerDiscount>? discounts,
     List<Receipt>? receipts,
+    List<ExtraCharge>? extras,
     DateTime? updatedAt,
   }) => Customer(
     id: id,
@@ -104,6 +114,7 @@ class Customer {
     payments: payments ?? this.payments,
     discounts: discounts ?? this.discounts,
     receipts: receipts ?? this.receipts,
+    extras: extras ?? this.extras,
     createdAt: createdAt,
     updatedAt: updatedAt ?? DateTime.now(),
   );
@@ -144,6 +155,7 @@ class Customer {
     if (discounts.isNotEmpty)
       'discounts': [for (final d in discounts) d.toJson()],
     if (receipts.isNotEmpty) 'receipts': [for (final r in receipts) r.toJson()],
+    if (extras.isNotEmpty) 'extras': [for (final e in extras) e.toJson()],
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
   };
@@ -166,6 +178,10 @@ class Customer {
           for (final d in kept) ?CustomerDiscount.fromJson(d),
       ],
       receipts: _receiptsOf(map['receipts'], id),
+      extras: [
+        if (map['extras'] case final List<Object?> kept)
+          for (final e in kept) ?ExtraCharge.fromJson(e),
+      ],
       createdAt: DateTime.parse(map['createdAt']! as String),
       updatedAt: updatedAt,
     );

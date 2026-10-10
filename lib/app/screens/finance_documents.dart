@@ -34,6 +34,11 @@ abstract final class DiscountKeys {
   static const apply = ValueKey('discount-apply');
 }
 
+/// What the discount form answers: a discount of [kind] at [value] —
+/// hundredths of a per cent, or cents — or, where [kind] is null, the one
+/// in force taken away.
+typedef DiscountAnswer = ({DiscountKind? kind, int? value, String note});
+
 /// Asks for [customer]'s discount and gives it — or takes the one in force
 /// away.
 Future<void> editDiscount(
@@ -43,12 +48,35 @@ Future<void> editDiscount(
   CustomerFinance finance,
 ) async {
   final by = ref.read(actorProvider).label;
-  final entry = await showDialog<CustomerDiscount>(
+  final d = customer.discount;
+  final answer = await showDialog<DiscountAnswer>(
     context: context,
-    builder: (_) =>
-        DiscountDialog(customer: customer, finance: finance, by: by),
+    builder: (_) => DiscountDialog(
+      title: 'Discount for ${customer.name}',
+      currency: finance.currency,
+      subtotalCents: finance.subtotalCents,
+      kind: d?.kind,
+      valueText: d == null
+          ? ''
+          : d.kind == DiscountKind.percent
+          ? d.describe((c) => '').replaceAll('%', '')
+          : (d.value / 100).toStringAsFixed(2),
+    ),
   );
-  if (entry == null) return;
+  if (answer == null) return;
+  final at = DateTime.now();
+  final id = customer.discounts.nextDiscountId(at);
+  final entry = answer.kind == null
+      ? CustomerDiscount.removal(id: id, at: at, by: by, note: answer.note)
+      : CustomerDiscount(
+          id: id,
+          kind: answer.kind,
+          value: answer.value!,
+          currency: answer.kind == DiscountKind.fixed ? finance.currency : null,
+          at: at,
+          by: by,
+          note: answer.note,
+        );
   try {
     await ref.applyDiscount(customer.id, entry);
   } on AccessDenied catch (e) {
@@ -56,20 +84,31 @@ Future<void> editDiscount(
   }
 }
 
-/// **Discount**: a percentage or a fixed amount off the subtotal, with the
-/// subtotal, the discount and the final total shown as they would be.
+/// **Discount**: a percentage or a fixed amount off a subtotal — a
+/// customer's whole job, or one design — with the subtotal, the discount
+/// and the final total shown as they would be.
 class DiscountDialog extends StatefulWidget {
-  final Customer customer;
-  final CustomerFinance finance;
-  final String by;
-  final DateTime Function() clock;
+  final String title;
+  final String currency;
+
+  /// What the discount comes off, in cents; null where it is not final.
+  final int? subtotalCents;
+
+  /// The discount in force, if any: its kind and its figure as typed.
+  final DiscountKind? kind;
+  final String valueText;
+
+  /// Where the discount comes off, said under the title.
+  final String? caption;
 
   const DiscountDialog({
     super.key,
-    required this.customer,
-    required this.finance,
-    required this.by,
-    this.clock = DateTime.now,
+    required this.title,
+    required this.currency,
+    required this.subtotalCents,
+    this.kind,
+    this.valueText = '',
+    this.caption,
   });
 
   @override
@@ -77,19 +116,10 @@ class DiscountDialog extends StatefulWidget {
 }
 
 class _DiscountDialogState extends State<DiscountDialog> {
-  late DiscountKind _kind =
-      widget.customer.discount?.kind ?? DiscountKind.percent;
-  late final _value = TextEditingController(text: _initialValue());
+  late DiscountKind _kind = widget.kind ?? DiscountKind.percent;
+  late final _value = TextEditingController(text: widget.valueText);
   final _note = TextEditingController();
   String? _problem;
-
-  String _initialValue() {
-    final d = widget.customer.discount;
-    if (d == null) return '';
-    return d.kind == DiscountKind.percent
-        ? d.describe((c) => '').replaceAll('%', '')
-        : (d.value / 100).toStringAsFixed(2);
-  }
 
   @override
   void dispose() {
@@ -98,8 +128,7 @@ class _DiscountDialogState extends State<DiscountDialog> {
     super.dispose();
   }
 
-  String _money(int cents) =>
-      PricePanel.money(cents / 100, widget.finance.currency);
+  String _money(int cents) => PricePanel.money(cents / 100, widget.currency);
 
   ({int? value, String? problem}) _read() => switch (_kind) {
     DiscountKind.percent => CustomerDiscount.readPercent(_value.text),
@@ -111,18 +140,19 @@ class _DiscountDialogState extends State<DiscountDialog> {
     },
   };
 
-  CustomerDiscount? _entry() {
+  /// What the discount as typed takes off the subtotal, or null.
+  int? _off() {
     final read = _read();
-    if (read.value == null) return null;
+    final subtotal = widget.subtotalCents;
+    if (read.value == null || subtotal == null) return null;
     return CustomerDiscount(
-      id: widget.customer.discounts.nextDiscountId(widget.clock()),
+      id: '',
       kind: _kind,
       value: read.value!,
-      currency: _kind == DiscountKind.fixed ? widget.finance.currency : null,
-      at: widget.clock(),
-      by: widget.by,
-      note: _note.text.trim(),
-    );
+      currency: widget.currency,
+      at: DateTime(2000),
+      by: '',
+    ).offCents(subtotal, widget.currency);
   }
 
   void _apply() {
@@ -132,43 +162,43 @@ class _DiscountDialogState extends State<DiscountDialog> {
         CustomerDiscount.problemWith(
           kind: _kind,
           value: read.value,
-          subtotalCents: widget.finance.subtotalCents,
+          subtotalCents: widget.subtotalCents,
           money: _money,
         );
     if (problem != null) {
       setState(() => _problem = problem);
       return;
     }
-    Navigator.of(context).pop(_entry());
+    Navigator.of(context).pop<DiscountAnswer>((
+      kind: _kind,
+      value: read.value,
+      note: _note.text.trim(),
+    ));
   }
 
-  void _remove() => Navigator.of(context).pop(
-    CustomerDiscount.removal(
-      id: widget.customer.discounts.nextDiscountId(widget.clock()),
-      at: widget.clock(),
-      by: widget.by,
-      note: _note.text.trim(),
-    ),
-  );
+  void _remove() => Navigator.of(context)
+      .pop<DiscountAnswer>((kind: null, value: null, note: _note.text.trim()));
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    final subtotal = widget.finance.subtotalCents;
-    final entry = _entry();
-    final off = subtotal == null || entry == null
-        ? null
-        : entry.offCents(subtotal, widget.finance.currency);
+    final subtotal = widget.subtotalCents;
+    final off = _off();
     return AlertDialog(
       key: DiscountKeys.dialog,
       scrollable: true,
-      title: Text('Discount for ${widget.customer.name}'),
+      title: Text(widget.title),
       content: SizedBox(
         width: 400,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (widget.caption case final caption?)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(caption, style: text.bodySmall),
+              ),
             Text('Discount type', style: text.labelMedium),
             RadioGroup<DiscountKind>(
               groupValue: _kind,
@@ -204,7 +234,7 @@ class _DiscountDialogState extends State<DiscountDialog> {
                 labelText: 'Discount',
                 suffixText: _kind == DiscountKind.percent
                     ? '%'
-                    : widget.finance.currency,
+                    : widget.currency,
                 errorText: _problem,
                 errorMaxLines: 3,
               ),
@@ -236,7 +266,7 @@ class _DiscountDialogState extends State<DiscountDialog> {
         ),
       ),
       actions: [
-        if (widget.customer.discount != null)
+        if (widget.kind != null)
           TextButton(
             key: DiscountKeys.remove,
             onPressed: _remove,
@@ -260,6 +290,9 @@ class _DiscountDialogState extends State<DiscountDialog> {
 
 /// The fields and buttons of the quotation forms.
 abstract final class QuotationKeys {
+  static const designs = ValueKey('quotation-designs');
+  static const extras = ValueKey('quotation-extras');
+  static ValueKey<String> extra(String id) => ValueKey('quotation-extra-$id');
   static const dialog = ValueKey('quotation-new');
   static const notes = ValueKey('quotation-notes');
   static const problem = ValueKey('quotation-problem');
@@ -581,9 +614,40 @@ class QuotationSheet extends ConsumerWidget {
                       '${l.category} · ${l.material} · ${l.colour}',
                       style: text.bodySmall?.copyWith(color: p.muted),
                     ),
+                    // The design's own extras and discount, as they were
+                    // when it was quoted.
+                    for (final e in l.result.extras)
+                      PriceRow(
+                        '   ${e.name} · ${e.sum(money)}',
+                        money(e.totalCents),
+                      ),
+                    if (l.result.discount case final d?)
+                      PriceRow(
+                        '   Design discount (${d.describe(money)})',
+                        '−${money(l.result.discountCents)}',
+                      ),
                   ],
                 ),
               ),
+            if (q.extras.isNotEmpty) ...[
+              const Divider(),
+              PriceRow(
+                'Designs',
+                money(q.designsCents),
+                valueKey: QuotationKeys.designs,
+              ),
+              for (final e in q.extras)
+                PriceRow(
+                  key: QuotationKeys.extra(e.id),
+                  '${e.name} · ${e.sum(money)}',
+                  money(e.totalCents),
+                ),
+              PriceRow(
+                'Extra charges (whole job)',
+                money(q.extrasCents),
+                valueKey: QuotationKeys.extras,
+              ),
+            ],
             const Divider(),
             PriceRow(
               'Subtotal',

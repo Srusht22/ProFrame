@@ -1,5 +1,6 @@
 import '../model/design.dart';
 import '../model/materials.dart';
+import 'extra_charge.dart';
 import 'measurement.dart';
 import 'price_list.dart';
 import 'price_readiness.dart';
@@ -151,6 +152,17 @@ class PricingEngine {
         );
     }
 
+    // The extras the factory added by hand, each quantity × unit price,
+    // kept beside the design's own cost and never folded into a line of it.
+    // One in another currency is never added to this one: it stops the
+    // price until it is written in the list's currency.
+    for (final e in said.extras.notIn(list.currency)) {
+      sheet.unavailable(
+        'The extra charge "${e.name}" is in ${e.currency}, and this design '
+        'is priced in ${list.currency}. Write it in ${list.currency}.',
+      );
+    }
+
     final blocking = sheet.issues.where((i) => i.blocking).toList();
     return PriceResult(
       status: blocking.isEmpty ? PriceStatus.priced : PriceStatus.notConfigured,
@@ -160,6 +172,7 @@ class PricingEngine {
       lines: sheet.lines,
       issues: sheet.issues,
       discount: said.discount,
+      extras: said.extras,
       measurements: takeoff.summary,
       profile: switch (chosen) {
         ProfileSelection(:final material?, :final colour?) && final p =>

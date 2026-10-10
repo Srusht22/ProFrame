@@ -7,6 +7,7 @@ import 'package:proframe/app/app.dart';
 import 'package:proframe/app/screens/customers_screen.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 import 'package:proframe/infrastructure/design_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -45,11 +46,14 @@ Design numbered(int i) => Design(
 Future<DesignStore> keep(int count) async {
   final store = DesignStore();
   for (var i = 0; i < count; i++) {
-    await store.save(numbered(i));
+    await store.save(numbered(i), by: WorkshopRole.owner);
   }
   return store;
 }
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -115,7 +119,7 @@ void main() {
   test('keeping a design again moves it to the top, and only it', () async {
     final store = await keep(100);
     final edited = numbered(3).copyWith(customer: 'Customer 3, again');
-    await store.save(edited);
+    await store.save(edited, by: WorkshopRole.owner);
     final top = await store.page(limit: 2);
     expect(top.total, 100, reason: 'kept again, not kept twice');
     expect(top.items.first.id, edited.id);
@@ -125,7 +129,7 @@ void main() {
 
   test('a design removed is gone from the list and the store', () async {
     final store = await keep(10);
-    await store.remove(numbered(4).id);
+    await store.remove(numbered(4).id, by: WorkshopRole.owner);
     final all = await store.page(limit: 100);
     expect(all.total, 9);
     expect(all.items.map((s) => s.id), isNot(contains(numbered(4).id)));

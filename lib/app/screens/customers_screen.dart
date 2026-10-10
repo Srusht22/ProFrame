@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/pricing/pricing_access.dart';
 import '../../infrastructure/customer_store.dart';
+import '../state/access.dart';
 import '../state/pricing.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -45,6 +47,9 @@ class CustomersScreen extends ConsumerStatefulWidget {
 
   /// The **New Customer** button.
   static const newCustomerButton = ValueKey('new-customer');
+
+  /// What stands in place of the list for somebody who may not see it.
+  static const noAccessKey = ValueKey('customers-no-access');
 
   /// The **New Design** button: who it is for, its name, its category.
   static const newDesignButton = ValueKey('new-design');
@@ -161,6 +166,13 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
     ref
       ..listen(customersRevisionProvider, (_, _) => _reload())
       ..listen(designsRevisionProvider, (_, _) => _reload());
+    // What is offered follows who is at the device; what is refused is
+    // refused by the stores as well (`CustomerStore`, `DesignStore`).
+    final mayView = ref.offers(Capability.customersView);
+    final newCustomer = ref.offers(Capability.customersCreate)
+        ? _newCustomer
+        : null;
+    final newDesign = ref.offers(Capability.designsCreate) ? _newDesign : null;
 
     return Scaffold(
       backgroundColor: context.palette.shell,
@@ -177,16 +189,30 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                   count: _kept,
                   search: _search,
                   onSearch: _searchFor,
-                  onNewCustomer: _newCustomer,
-                  onNewDesign: _newDesign,
+                  onNewCustomer: newCustomer,
+                  onNewDesign: newDesign,
                 ),
               ),
-              if (!_loaded)
+              if (!mayView)
+                SliverToBoxAdapter(
+                  child: _Centred(
+                    gutter: gutter,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 28),
+                      child: Text(
+                        'You do not have permission to view customers.',
+                        key: CustomersScreen.noAccessKey,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                    ),
+                  ),
+                )
+              else if (!_loaded)
                 const SliverToBoxAdapter(child: SizedBox.shrink())
               else if (_kept == 0)
                 SliverFillRemaining(
                   hasScrollBody: false,
-                  child: _NobodyYet(onNewCustomer: _newCustomer),
+                  child: _NobodyYet(onNewCustomer: newCustomer),
                 )
               else ...[
                 SliverToBoxAdapter(
@@ -260,8 +286,8 @@ class _Header extends StatelessWidget {
   final int count;
   final TextEditingController search;
   final ValueChanged<String> onSearch;
-  final VoidCallback onNewCustomer;
-  final VoidCallback onNewDesign;
+  final VoidCallback? onNewCustomer;
+  final VoidCallback? onNewDesign;
 
   const _Header({
     required this.phone,
@@ -717,7 +743,7 @@ class _CustomerCardState extends State<CustomerCard> {
 }
 
 class _NobodyYet extends StatelessWidget {
-  final VoidCallback onNewCustomer;
+  final VoidCallback? onNewCustomer;
 
   const _NobodyYet({required this.onNewCustomer});
 

@@ -7,6 +7,7 @@ import 'package:proframe/app/screens/new_customer_screen.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/domain/model/customer.dart';
 import 'package:proframe/domain/model/design.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/infrastructure/customer_store.dart';
 import 'package:proframe/infrastructure/design_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -29,15 +30,18 @@ Future<Map<String, Customer>> keepThreeCustomers() async {
     name: 'Adam',
     phone: '+964 750 123 4567',
     now: at,
+    by: WorkshopRole.owner,
   );
   final sara = await customers.create(
     name: 'Sara',
     phone: '0770 555 1212',
     now: at.add(const Duration(minutes: 1)),
+    by: WorkshopRole.owner,
   );
   final karwan = await customers.create(
     name: 'Karwan',
     now: at.add(const Duration(minutes: 2)),
+    by: WorkshopRole.owner,
   );
   final adams = [
     ('Basement Door', DesignKind.door),
@@ -54,6 +58,7 @@ Future<Map<String, Customer>> keepThreeCustomers() async {
         customerId: adam.id,
         now: at,
       ),
+      by: WorkshopRole.owner,
     );
   }
   await designs.save(
@@ -64,6 +69,7 @@ Future<Map<String, Customer>> keepThreeCustomers() async {
       customerId: sara.id,
       now: at,
     ),
+    by: WorkshopRole.owner,
   );
   return {'Adam': adam, 'Sara': sara, 'Karwan': karwan};
 }
@@ -93,6 +99,9 @@ List<String> overflowing(WidgetTester tester) => [
       r.debugCreator.toString().split('\n').first,
 ];
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 

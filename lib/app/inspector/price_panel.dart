@@ -11,6 +11,7 @@ import '../state/access.dart';
 import '../state/pricing.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
+import 'extra_charges.dart';
 import 'price_actions.dart';
 import 'profile_chooser.dart';
 
@@ -97,6 +98,16 @@ Future<void> calculateOpenDesign(BuildContext context, WidgetRef ref) async {
           colour: colour,
           colourId: colourId,
         );
+      await controller.keep();
+      final now = ref.read(workspaceProvider).design;
+      final priced = await ref.priceNow(now);
+      return priced == null ? null : (now, priced);
+    },
+    // An extra or the discount changed on the sheet goes into the design
+    // in hand as its pricing alone, is kept, and is priced afresh.
+    onPricing: (ref, changed) async {
+      final controller = ref.read(workspaceProvider.notifier)
+        ..setPricing(changed.pricing);
       await controller.keep();
       final now = ref.read(workspaceProvider).design;
       final priced = await ref.priceNow(now);
@@ -276,23 +287,7 @@ class _PricePanelState extends ConsumerState<PricePanel> {
               label: Text(_open ? 'Hide the breakdown' : 'Show the breakdown'),
               style: TextButton.styleFrom(alignment: Alignment.centerLeft),
             ),
-            if (_open)
-              for (final group in PriceGroup.values)
-                if (result.lines.any((l) => l.group == group)) ...[
-                  const SizedBox(height: 6),
-                  Text(group.label, style: text.labelMedium),
-                  for (final line in result.lines)
-                    if (line.group == group)
-                      PriceRow(
-                        '${line.label} · ${PricePanel.quantity(line)}',
-                        PricePanel.money(line.amount, result.currency),
-                      ),
-                  PriceRow(
-                    '${group.label} in all',
-                    PricePanel.money(result.sumOf(group), result.currency),
-                    strong: true,
-                  ),
-                ],
+            if (_open) PriceBreakdown(result),
           ],
           if (starter)
             Padding(

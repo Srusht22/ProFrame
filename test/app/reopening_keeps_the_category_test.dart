@@ -11,6 +11,7 @@ import 'package:proframe/domain/geometry/polygon.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/hardware/opening_hardware.dart';
 import 'package:proframe/domain/model/design.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 import 'package:proframe/domain/solid/mesh.dart';
 import 'package:proframe/domain/solid/mesh_builder.dart';
@@ -164,14 +165,18 @@ List<String> facetsOf(Mesh mesh) => [
 /// [d] kept for Adam, under its own id as its name.
 Future<Design> keep(Design d) async {
   final people = CustomerStore();
-  final adam = await people.obtain('Adam');
+  final adam = await people.obtain('Adam', by: WorkshopRole.owner);
   return DesignStore(customers: people).save(
     d.copyWith(customer: adam.name, customerId: adam.id, name: d.id),
+    by: WorkshopRole.owner,
   );
 }
 
 Future<Design> reopen(String id) async => (await DesignStore().load(id))!;
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 

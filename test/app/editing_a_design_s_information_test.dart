@@ -12,6 +12,7 @@ import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/model/materials.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/infrastructure/design_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -49,6 +50,7 @@ Future<({String adamId, Design door})> keepAdam() async {
         ),
       ],
     ),
+    by: WorkshopRole.owner,
   );
   return (adamId: kept.adam.id, door: door);
 }
@@ -168,6 +170,9 @@ Future<void> toAdam(WidgetTester tester) async {
   await page.openCustomer(tester, 'Adam');
 }
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -341,9 +346,19 @@ void main() {
   test('the store renames by id and refuses an empty name', () async {
     final kept = await keepAdam();
     final store = DesignStore();
-    expect(await store.retitle('basement-door', '   '), isNull);
-    expect(await store.retitle('nothing-kept', renamed), isNull);
-    final done = await store.retitle('basement-door', ' $renamed ');
+    expect(
+      await store.retitle('basement-door', '   ', by: WorkshopRole.owner),
+      isNull,
+    );
+    expect(
+      await store.retitle('nothing-kept', renamed, by: WorkshopRole.owner),
+      isNull,
+    );
+    final done = await store.retitle(
+      'basement-door',
+      ' $renamed ',
+      by: WorkshopRole.owner,
+    );
     expect(done!.id, 'basement-door');
     expect(done.name, renamed);
     expect(allButTheName(done), allButTheName(kept.door));

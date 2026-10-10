@@ -1,5 +1,6 @@
 import '../model/customer_discount.dart';
 import 'design_price_state.dart';
+import 'extra_charge.dart';
 import 'price_result.dart';
 
 /// Where a quotation stands.
@@ -149,6 +150,20 @@ class Quotation {
   final QuotationStatus status;
   final String currency;
   final List<QuotationLine> lines;
+
+  /// The customer's own extras as they were when it was made — each one's
+  /// quantity, unit and unit price kept, so an extra changed or removed
+  /// afterwards changes nothing here. Each design's own extras are in its
+  /// line's [QuotationLine.result].
+  final List<ExtraCharge> extras;
+
+  /// The designs' prices, summed.
+  final int designsCents;
+
+  /// The customer's extras, summed.
+  final int extrasCents;
+
+  /// The designs and the extras together, before the discount.
   final int subtotalCents;
 
   /// The customer's discount as it stood when it was made, if any.
@@ -175,13 +190,16 @@ class Quotation {
     required this.lines,
     required this.subtotalCents,
     required this.discountCents,
+    this.extras = const [],
+    int? designsCents,
+    this.extrasCents = 0,
     required this.totalCents,
     required this.priceListVersion,
     this.discount,
     this.notes = '',
     this.createdBy = '',
     this.history = const [],
-  });
+  }) : designsCents = designsCents ?? subtotalCents - extrasCents;
 
   /// [number] as it is written: `Q-000001`.
   static String numbered(int number) =>
@@ -213,6 +231,7 @@ class Quotation {
     required String by,
     required String Function(int cents) money,
     CustomerDiscount? discount,
+    List<ExtraCharge> extras = const [],
     String notes = '',
   }) {
     if (chosen.isEmpty) {
@@ -241,7 +260,19 @@ class Quotation {
           designKey: d.designKey,
         ),
     ];
-    final subtotal = lines.fold(0, (s, l) => s + l.totalCents);
+    final other = extras.notIn(currency);
+    if (other.isNotEmpty) {
+      return (
+        quotation: null,
+        problem:
+            'The extra charge "${other.first.name}" is in '
+            '${other.first.currency}, not $currency. Write it in $currency '
+            'first.',
+      );
+    }
+    final designs = lines.fold(0, (s, l) => s + l.totalCents);
+    final extrasCents = extras.totalCentsIn(currency);
+    final subtotal = designs + extrasCents;
     if (discount != null && discount.exceeds(subtotal)) {
       return (
         quotation: null,
@@ -265,6 +296,9 @@ class Quotation {
         status: QuotationStatus.draft,
         currency: currency,
         lines: lines,
+        extras: List.unmodifiable(extras),
+        designsCents: designs,
+        extrasCents: extrasCents,
         subtotalCents: subtotal,
         discount: discount,
         discountCents: off,
@@ -304,6 +338,9 @@ class Quotation {
         status: next,
         currency: currency,
         lines: lines,
+        extras: extras,
+        designsCents: designsCents,
+        extrasCents: extrasCents,
         subtotalCents: subtotalCents,
         discount: discount,
         discountCents: discountCents,
@@ -335,6 +372,9 @@ class Quotation {
     'status': status.name,
     'currency': currency,
     'lines': [for (final l in lines) l.toJson()],
+    if (extras.isNotEmpty) 'extras': [for (final e in extras) e.toJson()],
+    'designsCents': designsCents,
+    'extrasCents': extrasCents,
     'subtotalCents': subtotalCents,
     if (discount != null) 'discount': discount!.toJson(),
     'discountCents': discountCents,
@@ -366,6 +406,12 @@ class Quotation {
         status: status,
         currency: json['currency']! as String,
         lines: lines,
+        extras: [
+          if (json['extras'] case final List<Object?> kept)
+            for (final e in kept) ?ExtraCharge.fromJson(e),
+        ],
+        designsCents: json['designsCents'] as int?,
+        extrasCents: json['extrasCents'] as int? ?? 0,
         subtotalCents: json['subtotalCents']! as int,
         discount: CustomerDiscount.fromJson(json['discount']),
         discountCents: json['discountCents'] as int? ?? 0,

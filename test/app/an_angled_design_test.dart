@@ -10,6 +10,7 @@ import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/elements.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/infrastructure/design_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -34,6 +35,9 @@ Future<Map<String, Object?>> storedJson(WidgetTester tester, String id) async =>
       return jsonDecode(jsonEncode(design!.toJson())) as Map<String, Object?>;
     }))!;
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -225,6 +229,7 @@ void main() {
           name: 'Under-stair Window',
           customerId: kept['Adam']!.id,
         ),
+        by: WorkshopRole.owner,
       ),
     );
     for (final size in const [

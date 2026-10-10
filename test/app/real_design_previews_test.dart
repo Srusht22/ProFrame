@@ -12,6 +12,7 @@ import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/customer.dart';
 import 'package:proframe/domain/model/design.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/recognition/interpreter.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 import 'package:proframe/infrastructure/customer_store.dart';
@@ -70,9 +71,13 @@ Design kitchenWindow(Customer adam) {
 Future<Customer> keepAdam() async {
   final people = CustomerStore();
   final store = DesignStore(customers: people);
-  final adam = await people.create(name: 'Adam', now: DateTime(2026, 3, 1));
-  await store.save(existing.basementDoor(adam));
-  await store.save(kitchenWindow(adam));
+  final adam = await people.create(
+    name: 'Adam',
+    now: DateTime(2026, 3, 1),
+    by: WorkshopRole.owner,
+  );
+  await store.save(existing.basementDoor(adam), by: WorkshopRole.owner);
+  await store.save(kitchenWindow(adam), by: WorkshopRole.owner);
   await store.save(
     Design.empty(
       id: 'third-floor',
@@ -81,6 +86,7 @@ Future<Customer> keepAdam() async {
       customerId: adam.id,
       now: DateTime(2026, 3, 1, 8),
     ),
+    by: WorkshopRole.owner,
   );
   await store.save(
     Design.empty(
@@ -97,6 +103,7 @@ Future<Customer> keepAdam() async {
       ),
       updatedAt: DateTime(2026, 3, 1, 7),
     ),
+    by: WorkshopRole.owner,
   );
   await store.save(
     Design.empty(
@@ -116,6 +123,7 @@ Future<Customer> keepAdam() async {
       ),
       updatedAt: DateTime(2026, 3, 1, 6),
     ),
+    by: WorkshopRole.owner,
   );
   await store.save(
     Design.empty(
@@ -125,6 +133,7 @@ Future<Customer> keepAdam() async {
       customerId: adam.id,
       now: DateTime(2026, 3, 1, 5),
     ),
+    by: WorkshopRole.owner,
   );
   // Its record spoiled on the device, its line in the index still there.
   final prefs = await SharedPreferences.getInstance();
@@ -194,6 +203,9 @@ Future<Uint8List> drawnAlone(
   return bytes!;
 }
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -330,7 +342,9 @@ void main() {
         ),
       ),
     ).design.copyWith(updatedAt: DateTime(2026, 3, 2));
-    await tester.runAsync(() => DesignStore().save(changed));
+    await tester.runAsync(
+      () => DesignStore().save(changed, by: WorkshopRole.owner),
+    );
     c.read(designsRevisionProvider.notifier).changed();
     await tester.pumpAndSettle();
 

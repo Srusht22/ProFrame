@@ -5,8 +5,10 @@ import '../../domain/model/customer.dart';
 import '../../domain/model/payment.dart';
 import '../../domain/model/receipt.dart';
 import '../../domain/pricing/design_price_state.dart';
+import '../../domain/pricing/extra_charge.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/quotation.dart';
+import '../inspector/extra_charges.dart';
 import '../inspector/price_panel.dart';
 import '../state/access.dart';
 import '../state/pricing.dart';
@@ -65,6 +67,13 @@ class CustomerFinancialSummary extends ConsumerStatefulWidget {
   static const newQuotationKey = ValueKey('customer-finance-new-quotation');
   static const moreQuotationsKey = ValueKey('customer-finance-quotes-more');
   static const toggleKey = ValueKey('customer-finance-toggle');
+
+  /// The designs' prices summed, the customer's own extras summed, the
+  /// list of those extras and the button adding one.
+  static const designsTotalKey = ValueKey('customer-finance-designs-total');
+  static const extrasTotalKey = ValueKey('customer-finance-extras-total');
+  static const extrasKey = ValueKey('customer-finance-extras');
+  static const addExtraKey = ValueKey('customer-finance-add-extra');
 
   /// One transaction of the history, by its id.
   static ValueKey<String> transactionKey(String id) =>
@@ -158,6 +167,7 @@ class _CustomerFinancialSummaryState
       pricing,
       ledger,
       discount: customer.discount,
+      extras: customer.extras,
     );
     final currency = pricing.currency;
     String money(double v) => PricePanel.money(v, currency);
@@ -182,7 +192,21 @@ class _CustomerFinancialSummaryState
             'Designs',
             '${pricing.designs.length} · ${pricing.priced.length} priced',
           ),
-          if (discount != null)
+          if (customer.extras.isNotEmpty) ...[
+            PriceRow(
+              'Designs total',
+              finance.designsCents == null
+                  ? 'Not final'
+                  : cents(finance.designsCents!),
+              valueKey: CustomerFinancialSummary.designsTotalKey,
+            ),
+            PriceRow(
+              'Extra charges (whole job)',
+              cents(finance.extrasCents),
+              valueKey: CustomerFinancialSummary.extrasTotalKey,
+            ),
+          ],
+          if (discount != null || customer.extras.isNotEmpty)
             PriceRow(
               'Subtotal',
               finance.subtotal == null ? 'Not final' : money(finance.subtotal!),
@@ -197,7 +221,9 @@ class _CustomerFinancialSummaryState
               valueKey: CustomerFinancialSummary.discountKey,
             ),
           _BigRow(
-            discount == null ? 'Total price' : 'Final total',
+            discount == null && customer.extras.isEmpty
+                ? 'Total price'
+                : 'Final total',
             finance.total == null ? 'Not final' : money(finance.total!),
             valueKey: CustomerFinancialSummary.totalKey,
           ),
@@ -212,7 +238,7 @@ class _CustomerFinancialSummaryState
             ),
           if (finance.total == null) ...[
             Text(
-              'Customer price is not final. ${pricing.notFinalReason}',
+              'Customer price is not final. ${finance.notFinalReason}',
               key: CustomerFinancialSummary.notFinalKey,
               style: text.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.error,
@@ -315,6 +341,14 @@ class _CustomerFinancialSummaryState
                 ],
               ),
             ],
+          ),
+          _CustomerExtras(
+            customer: customer,
+            heading: heading,
+            pricing: pricing,
+            canAdd: ref.offers(Capability.extrasCreate),
+            canEdit: ref.offers(Capability.extrasEdit),
+            canRemove: ref.offers(Capability.extrasDelete),
           ),
           if (actor.can(Capability.paymentsView)) ...[
             heading(
@@ -425,6 +459,112 @@ class _CustomerFinancialSummaryState
           ],
         ],
       ),
+    );
+  }
+}
+
+/// The customer's own extras — the whole job's, no one design's — each
+/// quantity × unit price, with **Add extra**, edit and remove where the
+/// person at the device may.
+class _CustomerExtras extends ConsumerWidget {
+  final Customer customer;
+  final CustomerPricing pricing;
+  final Widget Function(String words, {Key? key, Widget? trailing}) heading;
+  final bool canAdd;
+  final bool canEdit;
+  final bool canRemove;
+
+  const _CustomerExtras({
+    required this.customer,
+    required this.pricing,
+    required this.heading,
+    required this.canAdd,
+    required this.canEdit,
+    required this.canRemove,
+  });
+
+  Future<void> _write(
+    BuildContext context,
+    WidgetRef ref, [
+    ExtraCharge? editing,
+  ]) async {
+    final answer = await ExtraDialog.show(
+      context,
+      newId: customer.extras.nextExtraId(DateTime.now()),
+      currency: pricing.currency,
+      scope: ExtraScope.customer,
+      by: ref.read(actorProvider).label,
+      where: "${customer.name}'s whole job — no one design's",
+      editing: editing,
+      calculated: [
+        for (final d in pricing.priced) ...d.state.record!.result.lines,
+      ],
+    );
+    if (answer == null) return;
+    try {
+      await ref.saveCustomerExtra(
+        customer.id,
+        answer.extra,
+        additional: answer.additional,
+      );
+    } on AccessDenied catch (e) {
+      if (context.mounted) say(context, e.toString());
+    } on StateError catch (e) {
+      if (context.mounted) say(context, e.message);
+    }
+  }
+
+  Future<void> _remove(
+    BuildContext context,
+    WidgetRef ref,
+    ExtraCharge extra,
+  ) async {
+    if (!await confirmRemoveExtra(
+      context,
+      extra,
+      "${customer.name}'s whole job",
+    )) {
+      return;
+    }
+    try {
+      await ref.removeCustomerExtra(customer.id, extra.id);
+    } on AccessDenied catch (e) {
+      if (context.mounted) say(context, e.toString());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final text = Theme.of(context).textTheme;
+    final p = context.palette;
+    return Column(
+      key: CustomerFinancialSummary.extrasKey,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        heading(
+          'EXTRA CHARGES — WHOLE JOB',
+          trailing: canAdd
+              ? TextButton.icon(
+                  key: CustomerFinancialSummary.addExtraKey,
+                  onPressed: () => _write(context, ref),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add extra'),
+                )
+              : null,
+        ),
+        if (customer.extras.isEmpty)
+          Text(
+            "No extra charges for the whole job. A design's own extras are "
+            'on its price.',
+            style: text.bodySmall?.copyWith(color: p.muted),
+          ),
+        for (final e in customer.extras)
+          ExtraRow(
+            e,
+            onEdit: canEdit ? () => _write(context, ref, e) : null,
+            onRemove: canRemove ? () => _remove(context, ref, e) : null,
+          ),
+      ],
     );
   }
 }
@@ -640,6 +780,7 @@ class CustomerMoneyGlance extends ConsumerWidget {
       pricing,
       customer.ledger,
       discount: customer.discount,
+      extras: customer.extras,
     );
     final words = switch (finance.status) {
       PaymentStatus.outstanding =>

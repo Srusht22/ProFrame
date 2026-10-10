@@ -13,6 +13,7 @@ import 'package:proframe/app/viewer/model_painter.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/materials.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/infrastructure/customer_store.dart';
 import 'package:proframe/infrastructure/design_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -41,16 +42,23 @@ const phone = Size(390, 844);
 Future<void> seed(WidgetTester tester, List<(Design, Object?)> unknown) async {
   await tester.runAsync(() async {
     final people = CustomerStore();
-    final adam = await people.create(name: 'Adam', now: DateTime(2026, 3, 1));
+    final adam = await people.create(
+      name: 'Adam',
+      now: DateTime(2026, 3, 1),
+      by: WorkshopRole.owner,
+    );
     final store = DesignStore(customers: people);
     final door = Design.empty(
       id: 'door',
       kind: DesignKind.door,
     ).copyWith(name: 'Basement Door', customerId: adam.id);
-    await store.save(door);
+    await store.save(door, by: WorkshopRole.owner);
     final prefs = await SharedPreferences.getInstance();
     for (final (design, category) in unknown) {
-      final kept = await store.save(design.copyWith(customerId: adam.id));
+      final kept = await store.save(
+        design.copyWith(customerId: adam.id),
+        by: WorkshopRole.owner,
+      );
       await prefs.setString(
         '${DesignStore.designKeyPrefix}${kept.id}',
         jsonEncode(keptAs(kept, category)),
@@ -108,6 +116,9 @@ Future<void> openCard(WidgetTester tester, String id) async {
   await tester.pumpAndSettle();
 }
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 

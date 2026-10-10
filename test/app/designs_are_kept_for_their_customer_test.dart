@@ -10,11 +10,11 @@ import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/model/customer.dart';
 import 'package:proframe/domain/model/design.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/infrastructure/customer_store.dart';
 import 'package:proframe/infrastructure/design_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'a_customer_s_designs_as_cards_test.dart' as cards;
 import 'a_customer_s_page_test.dart' as page;
 import 'customers_screen_test.dart' as customers;
 import 'new_design.dart';
@@ -109,19 +109,32 @@ Future<Map<String, String>> keptFor(
 }
 
 /// The names on the design cards of the customer's page now open.
+///
+/// Read as the page scrolls past each card rather than looked up once the
+/// scroll is done: since Phase 32 the page goes on below the cards — the
+/// customer's extra charges — so a card scrolled far enough away is no
+/// longer built, and asking for it afterwards found nothing.
 Future<Set<String>> namesOnThePage(WidgetTester tester) async {
-  final ids = await cards.everyCard(tester);
-  return {
-    for (final id in ids)
-      tester
-          .widget<CustomerDesignCard>(
-            find.byKey(CustomerScreen.designKey(id), skipOffstage: false),
-          )
-          .design
-          .name,
+  Set<String> shown() => {
+    for (final e in find.byType(CustomerDesignCard).evaluate())
+      (e.widget as CustomerDesignCard).design.name,
   };
+  final seen = shown();
+  final scroll = find.descendant(
+    of: find.byType(CustomerScreen),
+    matching: find.byType(Scrollable),
+  );
+  for (var i = 0; i < 20; i++) {
+    await tester.drag(scroll.first, const Offset(0, -300));
+    await tester.pumpAndSettle();
+    seen.addAll(shown());
+  }
+  return seen;
 }
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -274,7 +287,8 @@ void main() {
     test('designs saved at the same moment are all kept', () async {
       final store = DesignStore();
       await Future.wait([
-        for (var i = 0; i < 12; i++) store.save(design('d$i', 'c-adam')),
+        for (var i = 0; i < 12; i++)
+          store.save(design('d$i', 'c-adam'), by: WorkshopRole.owner),
       ]);
       final again = await DesignStore().page(limit: 100);
       expect(again.total, 12);
@@ -286,7 +300,10 @@ void main() {
     test('two stores saving at the same moment lose nothing', () async {
       await Future.wait([
         for (var i = 0; i < 6; i++)
-          DesignStore().save(design('d$i', i.isEven ? 'c-adam' : 'c-sara')),
+          DesignStore().save(
+            design('d$i', i.isEven ? 'c-adam' : 'c-sara'),
+            by: WorkshopRole.owner,
+          ),
       ]);
       final adams = await DesignStore().page(customerId: 'c-adam');
       final saras = await DesignStore().page(customerId: 'c-sara');
@@ -296,10 +313,19 @@ void main() {
 
     test('a design saved again is one design, not two', () async {
       final store = DesignStore();
-      final first = await store.save(design('d', 'c-adam'));
+      final first = await store.save(
+        design('d', 'c-adam'),
+        by: WorkshopRole.owner,
+      );
       await Future.wait([
-        store.save(first.copyWith(name: 'Basement Door')),
-        store.save(first.copyWith(name: 'Basement Door')),
+        store.save(
+          first.copyWith(name: 'Basement Door'),
+          by: WorkshopRole.owner,
+        ),
+        store.save(
+          first.copyWith(name: 'Basement Door'),
+          by: WorkshopRole.owner,
+        ),
       ]);
       final again = await DesignStore().page();
       expect(again.total, 1);
@@ -319,6 +345,7 @@ void main() {
               name: id,
               customer: 'Adam',
             ),
+            by: WorkshopRole.owner,
           ),
       ]);
       expect(await CustomerStore().count(), 1);
@@ -330,7 +357,7 @@ void main() {
     test('customers made at the same moment are all kept', () async {
       await Future.wait([
         for (final name in ['Adam', 'Sara', 'Karwan', 'Dilan'])
-          CustomerStore().create(name: name),
+          CustomerStore().create(name: name, by: WorkshopRole.owner),
       ]);
       final all = await CustomerStore().page();
       expect(all.items.map((s) => s.name).toSet(), {

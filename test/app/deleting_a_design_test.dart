@@ -6,6 +6,7 @@ import 'package:proframe/app/screens/customer_screen.dart';
 import 'package:proframe/app/screens/design_actions.dart';
 import 'package:proframe/app/screens/designs_screen.dart';
 import 'package:proframe/domain/model/customer.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/infrastructure/customer_store.dart';
 import 'package:proframe/infrastructure/design_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -33,6 +34,7 @@ Future<Map<String, Customer>> keepAdam() async {
       notes: 'Wants the basement door by May.',
       updatedAt: kept['Adam']!.updatedAt,
     ),
+    by: WorkshopRole.owner,
   );
   return {...kept, 'Adam': adam};
 }
@@ -116,6 +118,9 @@ Future<void> toTop(WidgetTester tester) async {
 Finder inDialog(Finder finder) =>
     find.descendant(of: find.byType(DeleteDesignDialog), matching: finder);
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 

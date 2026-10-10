@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/model/customer_discount.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/materials.dart';
 import '../../domain/pricing/design_price_state.dart';
+import '../../domain/pricing/design_pricing.dart';
+import '../../domain/pricing/extra_charge.dart';
 import '../../domain/pricing/price_result.dart';
+import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/profile_selection.dart';
+import '../screens/finance_documents.dart' show DiscountAnswer, DiscountDialog;
+import '../state/access.dart';
 import '../state/pricing.dart';
 import '../theme/app_theme.dart';
+import 'extra_charges.dart';
 import 'price_panel.dart';
 import 'profile_chooser.dart';
 
@@ -146,6 +153,11 @@ class PriceButton extends StatelessWidget {
 /// It is handed the sheet's own [WidgetRef], which stands for as long as the
 /// sheet is open — the screen it was opened from can rebuild beneath it as
 /// the price it shows is kept.
+/// How a design whose pricing alone changed is kept and priced afresh:
+/// the design as kept and its new price, or null where it cannot be.
+typedef PricingChange =
+    Future<(Design, PriceResult)?> Function(WidgetRef ref, Design changed);
+
 typedef ProfileChoice =
     Future<(Design, PriceResult)?> Function(
       WidgetRef ref,
@@ -171,11 +183,17 @@ class DesignPriceSheet extends ConsumerStatefulWidget {
   /// it cannot be changed from here.
   final ProfileChoice? onChoose;
 
+  /// How a design whose pricing alone was changed here — an extra added,
+  /// changed or removed, its discount given or taken away — is kept and
+  /// priced afresh; null where its pricing cannot be changed from here.
+  final PricingChange? onPricing;
+
   const DesignPriceSheet({
     super.key,
     required this.design,
     required this.result,
     this.onChoose,
+    this.onPricing,
   });
 
   static const sheetKey = ValueKey('design-price-sheet');
@@ -191,13 +209,18 @@ class DesignPriceSheet extends ConsumerStatefulWidget {
     required Design design,
     required PriceResult result,
     ProfileChoice? onChoose,
+    PricingChange? onPricing,
   }) => showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
     backgroundColor: context.palette.surface,
-    builder: (_) =>
-        DesignPriceSheet(design: design, result: result, onChoose: onChoose),
+    builder: (_) => DesignPriceSheet(
+      design: design,
+      result: result,
+      onChoose: onChoose,
+      onPricing: onPricing,
+    ),
   );
 
   @override
@@ -228,11 +251,120 @@ class _DesignPriceSheetState extends ConsumerState<DesignPriceSheet> {
     });
   }
 
+  /// [change] made to the design as it is in the sheet, by whoever is at
+  /// the device — refused by [DesignPricing] where they may not — then
+  /// kept and priced afresh through [DesignPriceSheet.onPricing].
+  Future<void> _pricing(
+    ({Design? design, String? problem}) Function(Authority by) change,
+  ) async {
+    final keep = widget.onPricing;
+    if (keep == null || _working) return;
+    final by = await ref.actorNow();
+    final ({Design? design, String? problem}) made;
+    try {
+      made = change(by);
+    } on AccessDenied catch (e) {
+      if (mounted) _say(e.toString());
+      return;
+    }
+    if (made.design == null) {
+      if (mounted && made.problem != null) _say(made.problem!);
+      return;
+    }
+    setState(() => _working = true);
+    final now = await keep(ref, made.design!);
+    if (!mounted) return;
+    setState(() {
+      _working = false;
+      if (now != null) {
+        _design = now.$1;
+        _result = now.$2;
+      }
+    });
+  }
+
+  void _say(String words) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(words)));
+
+  String _money(int cents) => PricePanel.money(cents / 100, _result.currency);
+
+  Future<void> _extra([ExtraCharge? editing]) async {
+    final answer = await ExtraDialog.show(
+      context,
+      newId: _design.pricing.extras.nextExtraId(DateTime.now()),
+      currency: _result.currency,
+      scope: ExtraScope.design,
+      by: ref.read(actorProvider).label,
+      where: _design.shownName,
+      editing: editing,
+      calculated: _result.lines,
+    );
+    if (answer == null) return;
+    await _pricing(
+      (by) => DesignPricing.putExtra(
+        _design,
+        answer.extra,
+        by: by,
+        calculated: _result.lines,
+        additional: answer.additional,
+        money: _money,
+      ),
+    );
+  }
+
+  Future<void> _remove(ExtraCharge extra) async {
+    if (!await confirmRemoveExtra(context, extra, 'this design')) return;
+    await _pricing(
+      (by) => (
+        design: DesignPricing.removeExtra(_design, extra.id, by: by),
+        problem: null,
+      ),
+    );
+  }
+
+  Future<void> _discount() async {
+    final list = ref.read(priceListProvider).value;
+    if (list == null) return;
+    final d = _design.pricing.discount;
+    final answer = await showDialog<DiscountAnswer>(
+      context: context,
+      builder: (_) => DiscountDialog(
+        title: 'Discount on ${_design.shownName}',
+        caption: 'Off this design alone: its cost and its extras together.',
+        currency: _result.currency,
+        subtotalCents: DesignPricing.subtotalCentsOf(_design, list),
+        kind: d == null
+            ? null
+            : d.percent > 0
+            ? DiscountKind.percent
+            : DiscountKind.fixed,
+        valueText: d == null
+            ? ''
+            : d.percent > 0
+            ? d.describe(_money).replaceAll('%', '')
+            : d.amount.toStringAsFixed(2),
+      ),
+    );
+    if (answer == null) return;
+    await _pricing(
+      (by) => DesignPricing.setDiscount(
+        _design,
+        kind: answer.kind,
+        value: answer.value,
+        list: list,
+        by: by,
+        money: _money,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final p = context.palette;
     final result = _result;
+    final edits = widget.onPricing != null && !_design.isUnsupported;
+    bool may(Capability c) => edits && ref.offers(c);
     final design = _design;
     final list = ref.watch(priceListProvider).value;
     final currency = result.currency;
@@ -297,37 +429,26 @@ class _DesignPriceSheetState extends ConsumerState<DesignPriceSheet> {
               heading('MATERIAL MEASUREMENTS'),
               MeasurementRows(result.measurements),
               heading('COST BREAKDOWN'),
-              for (final group in PriceGroup.values)
-                if (result.lines.any((l) => l.group == group)) ...[
-                  const SizedBox(height: 4),
-                  PriceRow(
-                    group.label,
-                    PricePanel.money(result.sumOf(group), currency),
-                    strong: true,
-                  ),
-                  for (final line in result.lines)
-                    if (line.group == group)
-                      PriceRow(
-                        '   ${line.label} · ${PricePanel.quantity(line)}',
-                        PricePanel.money(line.amount, currency),
-                      ),
-                ],
-              if (result.discountAmount > 0) ...[
-                const SizedBox(height: 6),
-                PriceRow(
-                  'Subtotal',
-                  PricePanel.money(result.subtotal, currency),
-                ),
-                PriceRow(
-                  'Discount',
-                  '− ${PricePanel.money(result.discountAmount, currency)}',
-                ),
-              ],
+              PriceBreakdown(
+                result,
+                onAddExtra: may(Capability.extrasCreate)
+                    ? _extra
+                    : null,
+                onEditExtra: may(Capability.extrasEdit)
+                    ? _extra
+                    : null,
+                onRemoveExtra: may(Capability.extrasDelete)
+                    ? _remove
+                    : null,
+                onDiscount: may(Capability.discountsApply)
+                    ? _discount
+                    : null,
+              ),
               const Divider(height: 24),
               Row(
                 children: [
                   Expanded(
-                    child: Text('DESIGN TOTAL', style: text.titleMedium),
+                    child: Text('FINAL TOTAL', style: text.titleMedium),
                   ),
                   Text(
                     PricePanel.money(result.total!, currency),

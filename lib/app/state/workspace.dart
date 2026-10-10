@@ -15,6 +15,7 @@ import '../../domain/model/materials.dart';
 import '../../domain/model/new_design_setup.dart';
 import '../../domain/model/question.dart';
 import '../../domain/pricing/price_result.dart';
+import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/profile_selection.dart';
 import '../../domain/recognition/geometry_feedback.dart';
 import '../../domain/recognition/interpreter.dart';
@@ -27,6 +28,7 @@ import '../../infrastructure/customer_store.dart';
 import '../../infrastructure/design_store.dart';
 import '../canvas/cad_layers.dart';
 import '../viewer/view_mode.dart';
+import 'access.dart';
 import 'tools.dart';
 
 /// Everything on screen at once.
@@ -465,15 +467,38 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   /// Everything that is only a way of looking — the view, the camera, what
   /// is picked, a highlight — goes on as for any design, and opening
   /// another design or beginning one is not a change to this one.
+  ///
+  /// **A design is changed only by somebody who may edit designs.** The
+  /// same gate refuses a new version of the design in hand from anybody
+  /// known not to hold `designs.edit` — drawing, reading, a size, a part,
+  /// a material — so the work stays exactly as opened and only looking
+  /// goes on. The design's pricing alone is the exception: its extras and
+  /// its discount are checked where they are made (`DesignPricing`, by
+  /// `extras.*` and `discounts.apply`) and come through [setPricing].
+  /// Whatever is kept is asked of the store as well (`DesignStore.save`).
   @override
   set state(WorkspaceState value) {
     final was = super.state.design;
-    super.state =
-        was.isUnsupported && value.design.id == was.id &&
-            !identical(value.design, was)
-        ? value.copyWith(design: was)
-        : value;
+    final changes =
+        value.design.id == was.id && !identical(value.design, was);
+    final refused =
+        changes &&
+        (was.isUnsupported || (!_pricingOnly && !_mayEdit(was)));
+    super.state = refused ? value.copyWith(design: was) : value;
   }
+
+  /// Set while [setPricing] writes, so the gate knows the change is to the
+  /// design's pricing alone.
+  bool _pricingOnly = false;
+
+  bool _mayEdit(Design design) {
+    final actor = ref.actorKnown();
+    return actor == null || actor.can(Capability.designsEdit);
+  }
+
+  /// Whether the person at the device may change the design in hand, as
+  /// far as is known now.
+  bool get mayEdit => _mayEdit(state.design);
 
   bool get canUndo => _undo.isNotEmpty;
   bool get canRedo => _redo.isNotEmpty;
@@ -509,6 +534,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   /// design comes into being from the screens. Nothing is filled in that
   /// the setup does not say: see `NewDesignSetup.begin`.
   void begin(NewDesignSetup setup) {
+    if (ref.actorKnown() case final actor?) {
+      actor.require(Capability.designsCreate);
+    }
     _undo.clear();
     _redo.clear();
     state = WorkspaceState(design: setup.begin(id: _newId('design')));
@@ -1613,7 +1641,12 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   void setPricing(PricingChoices choices) {
     if (choices == state.design.pricing) return;
     _remember();
-    state = state.copyWith(design: state.design.copyWith(pricing: choices));
+    _pricingOnly = true;
+    try {
+      state = state.copyWith(design: state.design.copyWith(pricing: choices));
+    } finally {
+      _pricingOnly = false;
+    }
   }
 
   /// Keeps the design, sketch and all.
@@ -1625,7 +1658,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   Future<void> save() async {
     // Kept exactly as it was saved, and so never written again here.
     if (state.design.isUnsupported) return;
-    final kept = await ref.read(designStoreProvider).save(state.design);
+    final kept = await ref
+        .read(designStoreProvider)
+        .save(state.design, by: await ref.actorNow());
     final now = state.design;
     if (now.id == kept.id && now.customerId == null) {
       state = state.copyWith(

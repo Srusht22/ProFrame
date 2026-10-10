@@ -350,10 +350,18 @@ void main() {
         Capability.paymentsCreate,
       }, by: WorkshopRole.owner);
       cashierId = cashier.id;
+      // Since Phase 32 a customer's page needs customers.view and its
+      // cards designs.view; Blind is given both so that what is held here —
+      // the price hidden from somebody without prices.view — is still what
+      // the card shows, rather than no page at all.
       await staff.add(
         name: 'Blind',
         pin: '2222',
-        capabilities: {Capability.financialView},
+        capabilities: {
+          Capability.financialView,
+          Capability.customersView,
+          Capability.designsView,
+        },
         by: WorkshopRole.owner,
       );
     });

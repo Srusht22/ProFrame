@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/customer.dart';
+import '../state/access.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'customer_screen.dart';
@@ -76,6 +77,7 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
               address: _address.text.trim(),
               notes: _notes.text.trim(),
             ),
+            by: await ref.actorNow(),
           );
       if (!mounted) return;
       ref.read(customersRevisionProvider.notifier).changed();
@@ -89,6 +91,7 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
           phone: _phone.text,
           address: _address.text,
           notes: _notes.text,
+          by: await ref.actorNow(),
         );
     if (!mounted) return;
     ref.read(customersRevisionProvider.notifier).changed();

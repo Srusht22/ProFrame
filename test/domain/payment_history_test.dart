@@ -105,6 +105,9 @@ Customer adam({List<PaymentTransaction> payments = const []}) => Customer(
 
 // Since Phase 31 the store asks who records money (`by:`); these record as
 // the device with no staff accounts, which may (`WorkshopRole.staff`).
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -595,7 +598,11 @@ void main() {
     test('32. on the device: payments and refunds survive a reload, and the '
         'customer\'s other details do not move them', () async {
       final people = CustomerStore();
-      final made = await people.create(name: 'Adam', phone: '0750');
+      final made = await people.create(
+        name: 'Adam',
+        phone: '0750',
+        by: WorkshopRole.owner,
+      );
       final pay = transaction(
         PaymentType.payment,
         50000,
@@ -618,7 +625,7 @@ void main() {
       expect(back.payments.last.method, PaymentMethod.card);
       // Editing the customer from a copy made before the payments keeps
       // every one of them.
-      await people.save(made.copyWith(phone: '0751'));
+      await people.save(made.copyWith(phone: '0751'), by: WorkshopRole.owner);
       final edited = (await CustomerStore().load(made.id))!;
       expect(edited.phone, '0751');
       expect(edited.payments.map((t) => t.id), [pay.id, refund.id]);
@@ -634,7 +641,7 @@ void main() {
 
     test('two recorded at once are both kept', () async {
       final people = CustomerStore();
-      final made = await people.create(name: 'Adam');
+      final made = await people.create(name: 'Adam', by: WorkshopRole.owner);
       await Future.wait([
         for (var i = 0; i < 6; i++)
           CustomerStore().record(
@@ -746,12 +753,12 @@ void main() {
         '1,000 paid; the first deleted leaves 700 and 300 credit', () async {
       final people = CustomerStore();
       final designs = DesignStore(customers: people);
-      final made = await people.create(name: 'Adam');
+      final made = await people.create(name: 'Adam', by: WorkshopRole.owner);
       final list = await PriceListStore().load();
       final one = given(door(id: 'one')).copyWith(customerId: made.id);
       final two = given(door(id: 'two')).copyWith(customerId: made.id);
-      await designs.save(one);
-      await designs.save(two);
+      await designs.save(one, by: WorkshopRole.owner);
+      await designs.save(two, by: WorkshopRole.owner);
       await people.record(
         transaction(PaymentType.payment, 100000, customerId: made.id),
         by: WorkshopRole.staff,
@@ -764,7 +771,7 @@ void main() {
       );
       expect(before.netPaid, 1000);
 
-      await designs.remove('one');
+      await designs.remove('one', by: WorkshopRole.owner);
       final after = (await people.load(made.id))!;
       expect(after.payments, hasLength(1), reason: 'the payment is kept');
       final left = CustomerPricing.of([(two, rec(two))], list);
@@ -787,9 +794,9 @@ void main() {
       () async {
         final people = CustomerStore();
         final designs = DesignStore(customers: people);
-        final made = await people.create(name: 'Adam');
+        final made = await people.create(name: 'Adam', by: WorkshopRole.owner);
         final d = given(door(id: 'front')).copyWith(customerId: made.id);
-        await designs.save(d);
+        await designs.save(d, by: WorkshopRole.owner);
         final list = await PriceListStore().load();
         final record = PriceRecord.calculate(d, list)!;
         await PriceRecordStore().save(d.id, record);

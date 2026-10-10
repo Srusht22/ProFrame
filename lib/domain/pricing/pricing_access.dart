@@ -24,10 +24,18 @@ library;
 /// One thing a person may be allowed to do.
 ///
 /// Only what is checked where it is done is here: a capability with no
-/// check behind it would be a switch that changes nothing. Customers and
-/// designs are not among them yet — drawing, editing a customer and keeping
-/// a design are open to whoever is at the device, as they always were.
+/// check behind it would be a switch that changes nothing. So there is no
+/// `customers.delete`: no one can delete a customer (see CLAUDE.md, *A
+/// customer cannot be deleted*), and a permission for it would allow
+/// nothing.
 enum Capability {
+  customersView('customers.view', 'Customers', 'View'),
+  customersCreate('customers.create', 'Customers', 'Add'),
+  customersEdit('customers.edit', 'Customers', 'Edit'),
+  designsView('designs.view', 'Designs', 'View'),
+  designsCreate('designs.create', 'Designs', 'Create'),
+  designsEdit('designs.edit', 'Designs', 'Edit and draw'),
+  designsDelete('designs.delete', 'Designs', 'Delete'),
   pricingView('pricing.view', 'Pricing', 'View prices'),
   pricingEdit('pricing.edit', 'Pricing', 'Edit factory prices'),
   financialView('financial.view', 'Customer finances', 'View summary'),
@@ -40,6 +48,9 @@ enum Capability {
   paymentsRefund('payments.refund', 'Payments', 'Record refunds'),
   receiptsView('receipts.view', 'Receipts', 'View'),
   receiptsCreate('receipts.create', 'Receipts', 'Issue'),
+  extrasCreate('extras.create', 'Extra charges', 'Add'),
+  extrasEdit('extras.edit', 'Extra charges', 'Edit'),
+  extrasDelete('extras.delete', 'Extra charges', 'Remove'),
   usersManage('users.manage', 'Staff', 'Add and edit staff'),
   permissionsManage('permissions.manage', 'Staff', 'Change permissions');
 
@@ -61,6 +72,8 @@ enum Capability {
   /// with, and what the device allows with nobody signed in once the
   /// workshop has staff accounts.
   static const viewOnly = {
+    customersView,
+    designsView,
     pricingView,
     financialView,
     quotationsView,
@@ -70,11 +83,20 @@ enum Capability {
 
   /// What the device allowed before there were staff accounts, and still
   /// allows with nobody signed in while there are none: seeing everything,
-  /// recording money, issuing receipts and quotations. Never changing the
-  /// factory's prices, giving a discount, or managing staff — those were
-  /// the owner's and stay the owner's.
+  /// adding and editing customers and designs, recording money, issuing
+  /// receipts and quotations, and writing a job's extra charges. Never
+  /// changing the factory's prices, giving a discount, or managing staff —
+  /// those were the owner's and stay the owner's.
   static const standard = {
     ...viewOnly,
+    customersCreate,
+    customersEdit,
+    designsCreate,
+    designsEdit,
+    designsDelete,
+    extrasCreate,
+    extrasEdit,
+    extrasDelete,
     quotationsCreate,
     quotationsEdit,
     paymentsCreate,
@@ -131,6 +153,20 @@ class NobodySignedIn implements Authority {
 
   @override
   bool can(Capability capability) => Capability.viewOnly.contains(capability);
+}
+
+/// The application's own housekeeping, done when a store is read and asked
+/// for by nobody: a design kept before customers existed is given the
+/// customer its name stands for. That makes a customer, and nothing else
+/// — it is never handed to anything a person does.
+class Housekeeping implements Authority {
+  const Housekeeping();
+
+  @override
+  String get label => 'ProFrame';
+
+  @override
+  bool can(Capability capability) => capability == Capability.customersCreate;
 }
 
 /// Something asked for by somebody who may not do it. Nothing was written.

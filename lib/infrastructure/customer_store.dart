@@ -6,6 +6,8 @@ import '../domain/model/customer.dart';
 import '../domain/model/customer_discount.dart';
 import '../domain/model/payment.dart';
 import '../domain/model/receipt.dart';
+import '../domain/pricing/extra_charge.dart';
+import '../domain/pricing/price_result.dart';
 import '../domain/pricing/pricing_access.dart';
 
 /// What the list of customers needs to know about one customer: who, how
@@ -151,8 +153,24 @@ class CustomerStore {
   /// The same holds for the customer's discount log and their receipts:
   /// each only grows, so a copy read before a discount was given or a
   /// receipt issued keeps them when it is saved.
-  Future<void> _keepNow(SharedPreferences prefs, Customer customer) {
+  ///
+  /// **A customer's extras are changed only by [saveExtra] and
+  /// [takeExtraOff]** ([extrasToo]). Anything else that keeps a customer —
+  /// their phone edited, a payment recorded — keeps the extras the device
+  /// has, so a copy read before an extra was added, changed or removed
+  /// cannot put back what it saw.
+  Future<void> _keepNow(
+    SharedPreferences prefs,
+    Customer customer, {
+    bool extrasToo = false,
+  }) {
     final kept = _loadNow(prefs, customer.id);
+    if (kept != null && !extrasToo) {
+      customer = customer.copyWith(
+        extras: kept.extras,
+        updatedAt: customer.updatedAt,
+      );
+    }
     if (kept != null) {
       var ledger = customer.ledger;
       for (final t in kept.payments) {
@@ -274,10 +292,84 @@ class CustomerStore {
   Future<Customer?> load(String id) async =>
       _loadNow(await SharedPreferences.getInstance(), id);
 
-  /// Keeps [customer], new or changed, and returns it as kept.
-  Future<Customer> save(Customer customer) async {
-    await _keepNow(await SharedPreferences.getInstance(), customer);
+  /// Keeps [customer], new or changed, as asked [by] — `customers.create`
+  /// for one not kept yet, `customers.edit` for one that is — and returns
+  /// it as kept. Without that, nothing is written ([AccessDenied]).
+  Future<Customer> save(Customer customer, {required Authority by}) async {
+    final prefs = await SharedPreferences.getInstance();
+    by.require(
+      _loadNow(prefs, customer.id) == null
+          ? Capability.customersCreate
+          : Capability.customersEdit,
+    );
+    await _keepNow(prefs, customer);
     return customer;
+  }
+
+  /// Puts [extra] on customer [customerId]'s job — added where it is new,
+  /// changed where it is already there by id — as asked [by] whoever holds
+  /// `extras.create` or `extras.edit`, and returns the customer as kept, or
+  /// null where they are not kept.
+  ///
+  /// An extra that is not one (`ExtraCharge.problemWith`) is refused
+  /// ([ArgumentError]); one that looks like a cost the designs' prices
+  /// already work out — [calculated] — is refused unless [additional] says
+  /// it is meant on top ([StateError] with the reason). Nothing but the
+  /// customer's extras changes: no design, no price, no payment.
+  Future<Customer?> saveExtra(
+    String customerId,
+    ExtraCharge extra, {
+    required Authority by,
+    Iterable<PriceLine> calculated = const [],
+    bool additional = false,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final customer = _loadNow(prefs, customerId);
+    final exists = customer?.extras.any((e) => e.id == extra.id) ?? false;
+    by.require(exists ? Capability.extrasEdit : Capability.extrasCreate);
+    final problem = ExtraCharge.problemWith(
+      name: extra.name,
+      quantityMilli: extra.quantityMilli,
+      unit: extra.unit,
+      unitPriceCents: extra.unitPriceCents,
+    );
+    if (problem != null) throw ArgumentError(problem);
+    if (!additional) {
+      final same = ExtraCharge.alreadyCalculated(
+        extra.name,
+        extra.category,
+        calculated,
+      );
+      if (same.isNotEmpty) {
+        throw StateError(
+          ExtraCharge.alreadyCalculatedMessage(
+            same,
+            (c) => (c / 100).toStringAsFixed(2),
+          ),
+        );
+      }
+    }
+    if (customer == null) return null;
+    final now = customer.copyWith(extras: customer.extras.withExtra(extra));
+    await _keepNow(prefs, now, extrasToo: true);
+    return now;
+  }
+
+  /// Takes the extra [extraId] off customer [customerId]'s job, as asked
+  /// [by] whoever holds `extras.delete`, and returns the customer as kept.
+  Future<Customer?> takeExtraOff(
+    String customerId,
+    String extraId, {
+    required Authority by,
+  }) async {
+    by.require(Capability.extrasDelete);
+    final prefs = await SharedPreferences.getInstance();
+    final customer = _loadNow(prefs, customerId);
+    if (customer == null) return null;
+    if (customer.extras.every((e) => e.id != extraId)) return customer;
+    final now = customer.copyWith(extras: customer.extras.without(extraId));
+    await _keepNow(prefs, now, extrasToo: true);
+    return now;
   }
 
   /// Records [transaction] in the ledger of the customer it belongs to,
@@ -411,22 +503,28 @@ class CustomerStore {
     return now;
   }
 
-  /// A new customer called [name], kept, with whatever else is known.
+  /// A new customer called [name], kept, with whatever else is known, as
+  /// asked [by] whoever holds `customers.create`.
   Future<Customer> create({
     required String name,
+    required Authority by,
     String phone = '',
     String address = '',
     String notes = '',
     DateTime? now,
-  }) => save(
-    _newCustomer(
-      name: name,
-      phone: phone,
-      address: address,
-      notes: notes,
-      now: now,
-    ),
-  );
+  }) async {
+    by.require(Capability.customersCreate);
+    return save(
+      _newCustomer(
+        name: name,
+        phone: phone,
+        address: address,
+        notes: notes,
+        now: now,
+      ),
+      by: by,
+    );
+  }
 
   /// The customer called [name] — however it is spaced or capitalised — or
   /// null where there is none. Where more than one has that name, the one
@@ -445,10 +543,18 @@ class CustomerStore {
   /// Looking and making are one step with nothing waited on between them,
   /// so two designs kept at once for somebody nobody has made yet make one
   /// customer between them, not two.
-  Future<Customer> obtain(String name, {DateTime? at}) async {
+  ///
+  /// Making one is adding a customer, so it needs [by] to hold
+  /// `customers.create`; finding one needs nothing more.
+  Future<Customer> obtain(
+    String name, {
+    required Authority by,
+    DateTime? at,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final found = _namedNow(prefs, name);
     if (found != null) return found;
+    by.require(Capability.customersCreate);
     final made = _newCustomer(name: name, now: at);
     await _keepNow(prefs, made);
     return made;

@@ -11,6 +11,7 @@ import 'package:proframe/app/screens/start_screen.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/model/design.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/infrastructure/design_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -66,6 +67,9 @@ List<String> overflowing(WidgetTester tester) => [
       r.debugCreator.toString().split('\n').first,
 ];
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -141,7 +145,7 @@ void main() {
             edited: DateTime(2026, 3, 2),
           )
           .copyWith(customerId: kept['Adam']!.id, name: 'Drawn Door');
-      return DesignStore().save(design);
+      return DesignStore().save(design, by: WorkshopRole.owner);
     });
     await screen.openTheApp(tester, size: const Size(1280, 900));
     await customers.toCustomers(tester);
@@ -202,6 +206,7 @@ void main() {
             customerId: kept[who]!.id,
             now: DateTime(2026, 3, 5, 10, i),
           ),
+          by: WorkshopRole.owner,
         );
       }
     });

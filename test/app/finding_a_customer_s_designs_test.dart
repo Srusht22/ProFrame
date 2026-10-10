@@ -6,6 +6,7 @@ import 'package:proframe/app/screens/start_screen.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/model/design.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/infrastructure/customer_store.dart';
 import 'package:proframe/infrastructure/design_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -30,10 +31,15 @@ Future<({String adam, String sara})> keepAdamsMany() async {
   final people = CustomerStore();
   final store = DesignStore(customers: people);
   final at = DateTime(2026, 3, 1, 8);
-  final adam = await people.create(name: 'Adam', now: at);
+  final adam = await people.create(
+    name: 'Adam',
+    now: at,
+    by: WorkshopRole.owner,
+  );
   final sara = await people.create(
     name: 'Sara',
     now: at.add(const Duration(minutes: 1)),
+    by: WorkshopRole.owner,
   );
   final adams = <(String, DesignKind)>[
     ('Basement Door', DesignKind.door),
@@ -54,6 +60,7 @@ Future<({String adam, String sara})> keepAdamsMany() async {
         customerId: adam.id,
         now: at.add(Duration(minutes: i)),
       ),
+      by: WorkshopRole.owner,
     );
   }
   for (final (i, (name, kind)) in const [
@@ -68,6 +75,7 @@ Future<({String adam, String sara})> keepAdamsMany() async {
         customerId: sara.id,
         now: at.add(Duration(hours: 1, minutes: i)),
       ),
+      by: WorkshopRole.owner,
     );
   }
   return (adam: adam.id, sara: sara.id);
@@ -140,6 +148,9 @@ String chipLabel(WidgetTester tester, DesignKind? kind) => tester
     )
     .data!;
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -339,7 +350,7 @@ void main() {
     tester,
   ) async {
     final people = CustomerStore();
-    final karwan = await people.create(name: 'Karwan');
+    final karwan = await people.create(name: 'Karwan', by: WorkshopRole.owner);
     await DesignStore(customers: people).save(
       Design.empty(
         id: 'karwan-0',
@@ -347,6 +358,7 @@ void main() {
         name: 'Gate',
         customerId: karwan.id,
       ),
+      by: WorkshopRole.owner,
     );
     await screen.openTheApp(tester, size: phone);
     await customers.toCustomers(tester);
@@ -365,7 +377,7 @@ void main() {
   testWidgets('a customer with no designs has nothing to search', (
     tester,
   ) async {
-    await CustomerStore().create(name: 'Dilan');
+    await CustomerStore().create(name: 'Dilan', by: WorkshopRole.owner);
     await screen.openTheApp(tester, size: phone);
     await customers.toCustomers(tester);
     await page.openCustomer(tester, 'Dilan');

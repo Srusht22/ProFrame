@@ -12,6 +12,7 @@ import 'package:proframe/domain/model/materials.dart';
 import 'package:proframe/domain/pricing/design_price_state.dart';
 import 'package:proframe/domain/pricing/price_list.dart';
 import 'package:proframe/domain/pricing/price_readiness.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/pricing/pricing_engine.dart';
 import 'package:proframe/infrastructure/customer_store.dart';
 import 'package:proframe/infrastructure/design_store.dart';
@@ -92,14 +93,23 @@ List<Design> adams() => [
 Future<void> seed(WidgetTester tester, List<Design> designs) async {
   await tester.runAsync(() async {
     final people = CustomerStore();
-    final adam = await people.create(name: 'Adam', now: DateTime(2026, 3, 1));
-    final sara = await people.create(name: 'Sara', now: DateTime(2026, 3, 2));
+    final adam = await people.create(
+      name: 'Adam',
+      now: DateTime(2026, 3, 1),
+      by: WorkshopRole.owner,
+    );
+    final sara = await people.create(
+      name: 'Sara',
+      now: DateTime(2026, 3, 2),
+      by: WorkshopRole.owner,
+    );
     final store = DesignStore(customers: people);
     for (final d in designs) {
-      await store.save(d.copyWith(customerId: adam.id));
+      await store.save(d.copyWith(customerId: adam.id), by: WorkshopRole.owner);
     }
     await store.save(
       door(kind: DesignKind.window, id: 'saras').copyWith(customerId: sara.id),
+      by: WorkshopRole.owner,
     );
   });
 }
@@ -130,6 +140,9 @@ Future<void> toSummary(WidgetTester tester) async {
   );
 }
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -409,7 +422,7 @@ void main() {
     await tester.runAsync(() async {
       final store = DesignStore(customers: CustomerStore());
       basement = (await store.load('basement'))!;
-      await store.remove('basement');
+      await store.remove('basement', by: WorkshopRole.owner);
     });
     // Closed and opened again.
     await tester.pumpWidget(const SizedBox());
@@ -463,7 +476,8 @@ void main() {
     // The incomplete design kept again: still incomplete, its Price still
     // disabled, after another reload; and the total no longer final.
     await tester.runAsync(() async {
-      await DesignStore(customers: CustomerStore()).save(basement);
+      await DesignStore(customers: CustomerStore())
+          .save(basement, by: WorkshopRole.owner);
     });
     await tester.pumpWidget(const SizedBox());
     await toAdam(tester);

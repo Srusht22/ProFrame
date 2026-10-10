@@ -18,6 +18,7 @@ import '../inspector/outline_gap_alert.dart';
 import '../inspector/price_panel.dart';
 import '../inspector/questions_panel.dart';
 import '../inspector/unsupported_category_note.dart';
+import '../inspector/view_only_note.dart';
 import '../state/everything_shown.dart';
 import '../state/tools.dart';
 import '../state/workspace.dart';
@@ -334,6 +335,8 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                             // A design of a category this version does
                             // not know: shown as saved, and said so.
                             const UnsupportedCategoryNote(),
+                            // Somebody who may look and not change it.
+                            const ViewOnlyNote(),
                             // What is wrong with an angled design's
                             // geometry: said, never mended.
                             GeometryCheckPanel(

@@ -17,6 +17,7 @@ import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/dimensions/measurements.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 import 'package:proframe/infrastructure/design_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -103,7 +104,10 @@ Future<List<Design>> keepThree() async {
   // What the store kept — each design now belonging to its customer — which
   // is what everything afterwards is compared with.
   final store = DesignStore();
-  return [for (final design in designs) await store.save(design)];
+  return [
+    for (final design in designs)
+      await store.save(design, by: WorkshopRole.owner),
+  ];
 }
 
 Future<ProviderContainer> openTheApp(
@@ -162,6 +166,9 @@ Future<void> openCard(WidgetTester tester, String id) async {
   await tester.pumpAndSettle();
 }
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -261,6 +268,7 @@ void main() {
           edited: now,
           wide: 1800,
         ).copyWith(customerId: karwan.customerId),
+        by: WorkshopRole.owner,
       );
       final c = await openTheApp(tester);
       expect(find.text('2 designs'), findsOneWidget);
@@ -285,6 +293,7 @@ void main() {
           kind: DesignKind.door,
           edited: now,
         ).copyWith(customerId: kept.last.customerId),
+        by: WorkshopRole.owner,
       );
       final c = await openTheApp(tester);
       await openCustomer(tester, 'Sara');

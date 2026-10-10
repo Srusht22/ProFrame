@@ -1401,8 +1401,8 @@ reload.
 rule is to offer deleting a customer only where the application already
 has administrative deletion — somebody entitled to remove a person and
 everything drawn for them — and to protect it heavily when it is offered.
-This application has no administrator, no roles and no permissions, so it
-is not offered: `CustomerStore` has no way to remove a customer, no screen
+This application has no administrator, and its staff permissions (Phase
+31 and 32) have no `customers.delete` on purpose, so it is not offered: `CustomerStore` has no way to remove a customer, no screen
 says *delete* about one, and pressing and holding a customer only opens
 them. Whatever else changes, three operations stay apart: deleting a design
 never deletes its customer (deleting all of them leaves the customer with
@@ -6557,10 +6557,10 @@ version kept it.* Each fault is fixed where the fact it depends on lives.
 - **Rollers** are the existing rule, kept: each sliding panel runs on
   `rollersPerSlidingPanel` rollers (the list's, 2 unless the owner says
   otherwise) at `rollerEach`; a fixed panel on none.
-- **Discounts** are applied by the engine and kept in the design, but
-  nothing on the screen gives a design one. The discount the screen gives
-  (Phase 31) is the customer's, off the sum of their designs — see
-  *Financial records*.
+- **Discounts** are applied by the engine and kept in the design. Since
+  Phase 32 a design's own discount is given on its price sheet (see
+  *Flexible factory pricing*); the customer's discount (Phase 31) comes off
+  the sum of their designs — see *Financial records*.
 - **Payment** was one figure here; since Phase 30 it is a ledger of
   payments and refunds, and paying more than a final total is credit (see
   *A customer's payments, refunds and credit*).
@@ -7124,9 +7124,9 @@ Authority (owner | staff member | nobody) ─ require(Capability) ─ every stor
     is signed in, signs in the owner or a member of staff, opens **Staff &
     permissions** for whoever may manage them, and signs out. Every run
     starts with nobody signed in.
-  - **Not covered:** customers and designs are not behind capabilities;
-    anybody at the device may still add and edit them, as before. A PIN is
-    a lock on a device, not security.
+  - Customers and designs were not behind capabilities here; since Phase
+    32 they are (see *Flexible factory pricing*). A PIN is a lock on a
+    device, not security.
 - **Nothing financial is deleted.** No transaction, receipt, discount entry
   or quotation is ever removed or edited; a mistake is put right by a
   refund, a new discount or a new quotation. `CustomerStore._keepNow`
@@ -7168,6 +7168,169 @@ read the owner's PIN store from `state/access.dart`; and
 `deleting_a_design_test` and `pricing_integrity_on_screen_test` return to
 the top of the customer's page before looking for a card, because the
 summary under the cards is longer.
+
+### Flexible factory pricing: optional glass, extra charges, design discounts and who may edit
+
+The brief: *a real factory job — glass only where the design has glass,
+silicone and labour and a trip added by hand without a field for any of
+them, a design's own discount beside the customer's, all of it in the
+quotation as it was, and customers and designs behind permissions too —
+extending the engine, never rebuilding it.*
+
+```
+Design ─ automatic costs (PricingEngine, from the canonical geometry)
+   │       profile · opening profile · colour · panel? · glass? · hardware?
+   │       · labour · installation             ── PriceResult.lines
+   ├─ design extras (PricingChoices.extras)    ── PriceResult.extras
+   └─ design discount (PricingChoices.discount)
+        design price = cost + extras − discount   (PriceResult.total)
+Customer ─ Σ design prices + customer extras (Customer.extras)
+           − customer discount = final total − net paid = due | credit
+```
+
+- **Glass is optional, as every material is.** It already was in the
+  engine — glass, panel and hardware are each charged only for what the
+  canonical design has (`PricingTakeoff.regions`, `hardwareCounts`) — and
+  this phase holds it and says it. A design all panel measures 0 m² of
+  glass and has no glass line however high the glass rate; a window is
+  never charged glass for being a window, nor a door for having an
+  opening; glass over panel is each by its own area, never half and half.
+  The breakdown always has a **Glass** and a **Panel** row and says **Not
+  used** where there is none (`PriceBreakdown`).
+- **An extra is one thing** (`ExtraCharge`,
+  `lib/domain/pricing/extra_charge.dart`): an id (`EXT-20261005-0001`), a
+  name, a category — Material, Labour, Service, Transport, Installation,
+  Other, labels only — a quantity, a unit, a unit price, a currency, a
+  note, whose it is (`ExtraScope`), and who wrote it when. **Its total is
+  always quantity × unit price** and nothing else: no unit changes the
+  arithmetic, and silicone, labour, transport and a special aluminium
+  accessory are all typed in by the factory — no field, rate or name for
+  any of them is in the code, and a test scans the pricing code to keep it
+  so. The units offered (`ExtraUnit`: piece, bottle, hour, metre, square
+  metre, kg, set, roll, day, trip) only say what is counted, and any other
+  can be typed.
+- **Exact money.** A quantity is kept in thousandths (`quantityMilli`, so
+  2.5 m is 2500) and a unit price in whole cents, so the total is worked
+  out once, in integers, half a cent up — 2.5 × 3.25 = 8.13, 1.5 × 12.75 =
+  19.13, ten of 0.10 exactly 1.00 — and every sum after is a sum of cents.
+  A quantity must be more than nothing, to three places; a unit price
+  nothing or more, to the cent; each is checked as typed.
+- **A design's extras are its pricing, kept in it** (`PricingChoices.extras`,
+  in the design's file). The engine hands them through to the result
+  (`PriceResult.extras`), apart from the lines its geometry costs:
+  `designCostCents`, `extrasCents`, `subtotalCents` — cost and extras — and
+  the design's discount off that subtotal. An extra in another currency
+  than the price list's is never added: it stops the price and says so.
+- **A customer's extras are the whole job's** (`Customer.extras`) — a
+  delivery for everything, no one design's. `CustomerFinance` adds them to
+  the designs' prices before the customer's discount, and one in another
+  currency keeps the total from being final. They are changed only by
+  `CustomerStore.saveExtra` and `takeExtraOff`; anything else that keeps a
+  customer keeps the extras the device has, so a copy read before cannot
+  put one back or take one away. Unlike money received, an extra can be
+  changed or taken away while it is only a charge.
+- **The order is fixed, and nothing comes off twice.** Design: cost +
+  its extras − its discount = its price. Customer: Σ design prices + the
+  customer's extras − the customer's discount = final total; then payments,
+  then what is due. An extra is never a payment and never makes one: what
+  is owed rises, and a payment, with its receipt, is still how money comes
+  in.
+- **The design's own discount has its screen** (`DesignPricing.setDiscount`,
+  the engine's `PricingChoices.discount`, which had none): a
+  **percentage** or a **fixed amount**, and back to none by **Remove
+  discount**, checked by the customer discount's
+  own rules (`CustomerDiscount.problemWith`) against the design's cost and
+  extras, and kept with who gave it and when. The discount form is one
+  (`DiscountDialog`), for a customer and for a design.
+- **The same cost is not charged twice by accident.** An extra whose name or
+  category looks like something the price already works out —
+  *Glass* where the design has glass, labour where the category's labour is
+  charged, a hinge, the profile, installation — is refused
+  (`ExtraCharge.alreadyCalculated`) unless the user ticks **This is an
+  additional charge**; the form says what is already calculated and what it
+  comes to. A design with no glass has no glass to duplicate.
+- **Who may** (`Capability`, checked where the thing is written):
+  `extras.create`, `extras.edit`, `extras.delete` in `DesignPricing` and
+  `CustomerStore`; `discounts.apply` for a design's discount as for a
+  customer's; and now **customers and designs**: `customers.view`,
+  `customers.create`, `customers.edit` (`CustomerStore.save`, `create`,
+  `obtain` where it makes one) and `designs.view`, `designs.create`,
+  `designs.edit`, `designs.delete` (`DesignStore.save` — create for one not
+  kept, edit for one that is — `remove`, `duplicate`, `rename`, `retitle`).
+  A save that changes nothing but the design's pricing asks for no
+  `designs.edit`, because its extras and discount were checked where they
+  were made; anything else riding along with it is refused. The workspace's
+  one gate (`WorkspaceController`'s state setter) refuses a new version of
+  the design in hand from anybody known not to hold `designs.edit`, says
+  **View only** under the drawing (`ViewOnlyNote`), and lets only looking
+  through; `begin` refuses without `designs.create`. The screens offer
+  only what may be done — New Customer, New Design, Edit, Edit information,
+  Duplicate, Delete, Add extra, Discount — and say *You do not have
+  permission to view customers* (or designs) in place of the list.
+  - The device with no staff accounts may do what it always could, extras
+    included; a discount stays the owner's. Nobody signed in, once there are
+    staff, may only look. There is **no `customers.delete`**: nobody can
+    delete a customer (*A customer cannot be deleted*), so a permission for
+    it would allow nothing.
+  - Reading is gated where the screens read (the customers list, a
+    customer's page, opening a design); the stores' own read methods are
+    not, because whatever is on the device can be read by anything on it.
+- **The PIN is a lock on a device, not authentication.** Nothing here
+  changed that and nothing says otherwise: there is no server, every check
+  above asks who is at the device (`actorProvider`), and anybody who can
+  clear the device's storage can remove the PINs. Real accounts need a
+  backend; when they come, they stand in for `actorProvider` and nothing
+  that asks `Authority.can` changes.
+- **Quotations keep the extras as they were.** Each design's whole
+  `PriceResult` was already kept, and now carries its extras and discount;
+  the quotation also keeps the customer's extras (`Quotation.extras`), the
+  designs' sum and the extras' sum. Silicone made dearer afterwards changes
+  nothing in it: it still says *5 bottles × 3.00 USD*. Its sheet lists each
+  design's extras and discount and the customer's extras.
+- **Persistence and older records.** Extras are kept in the design's file
+  and the customer's record, with their metadata; a design, customer or
+  quotation kept before has none and reads as it did. What a price is
+  current for (`PriceInputs`) reads what each extra and the discount
+  charge — not who wrote them or when — so a note changes nothing and a
+  quantity makes the kept price *needs recalculation*.
+- **Not here, as the brief says**: a catalog of the factory's usual extras
+  with default prices (an `ExtraCharge` is shaped for one: name, category,
+  unit and unit price are what a catalog entry would hold), an exchange-rate
+  feed (rates are still typed), and printing or a PDF of a quotation or a
+  receipt (each holds everything one would print: lines, extras,
+  discounts, who, when and the currency).
+
+`test/domain/flexible_factory_pricing_test.dart` holds it: **48** the
+Front Entrance Door — profile 200, panel 100, glass 0, hardware 30, 330;
+silicone 5 × 3 = 15 and labour 5 × 10 = 50; 395 less 45 is 350, with no
+glass line and each extra once; **49** Adam — A 500 + B 400 + a trip 30 =
+930, less 30 is 900, the trip on no design; glass optional all ways; the
+same glass refused as an extra unless additional; 85 from three extras;
+decimal quantities and prices; a custom item and a unit nobody predicted;
+every refusal; edited 5 → 6 and removed; categories; another currency;
+the scan for hard-coded extras; the order of the two discounts; the design
+discount's rules; a price stale for a quantity and not for a note; a
+quotation kept with its extras after silicone changes; kept extras on
+designs and customers, never put back by a stale copy; extras moving no
+geometry; and the permissions on extras, customers and designs, by the
+stores. `test/app/flexible_pricing_on_screen_test.dart` holds it on the
+real app: the acceptance door to 350.00 through the form and kept through
+a reload; an extra edited and removed after Cancel; refusals and the
+duplicate-glass check; Adam's 900.00 with the trip on the summary; nobody
+signed in seeing and changing nothing, the workspace view only and the
+store refusing; and the breakdown, the form and the summary at a phone, a
+tablet and a laptop.
+
+Older tests moved with it, each saying so: twenty-eight files whose writes
+to the stores now say who writes (`by: WorkshopRole.owner`), because the
+stores ask; `designs_are_kept_for_their_customer_test` reads each card's
+name as the page scrolls past it, because the customer's extras now follow
+the cards and a card scrolled far away is no longer built;
+`financial_records_on_screen_test` gives the member of staff who may not
+see prices `customers.view` and `designs.view`, so the card whose price is
+hidden is still on the screen; and `customers_are_never_deleted_test`
+still holds — the customer store's method taking an extra off is
+`takeExtraOff`, which deletes no customer.
 
 ## Working on this repository
 

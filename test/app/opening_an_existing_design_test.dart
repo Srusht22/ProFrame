@@ -14,6 +14,7 @@ import 'package:proframe/domain/model/customer.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/infill.dart';
 import 'package:proframe/domain/model/materials.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/recognition/interpreter.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 import 'package:proframe/infrastructure/customer_store.dart';
@@ -103,12 +104,14 @@ Future<({Customer adam, Design door, Design window})> keepAdam() async {
     name: 'Adam',
     phone: '+964 750 123 4567',
     now: DateTime(2026, 3, 1, 8),
+    by: WorkshopRole.owner,
   );
   final sara = await people.create(
     name: 'Sara',
     now: DateTime(2026, 3, 1, 8, 5),
+    by: WorkshopRole.owner,
   );
-  final door = await store.save(basementDoor(adam));
+  final door = await store.save(basementDoor(adam), by: WorkshopRole.owner);
   final window = await store.save(
     Design.empty(
       id: 'kitchen-window',
@@ -117,6 +120,7 @@ Future<({Customer adam, Design door, Design window})> keepAdam() async {
       customerId: adam.id,
       now: DateTime(2026, 3, 1, 10),
     ),
+    by: WorkshopRole.owner,
   );
   await store.save(
     Design.empty(
@@ -126,6 +130,7 @@ Future<({Customer adam, Design door, Design window})> keepAdam() async {
       customerId: sara.id,
       now: DateTime(2026, 3, 1, 11),
     ),
+    by: WorkshopRole.owner,
   );
   return (adam: adam, door: door, window: window);
 }
@@ -181,6 +186,9 @@ Future<void> pressOpen(WidgetTester tester, String id) async {
   await tester.tap(open);
 }
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -344,7 +352,9 @@ void main() {
       tester.element(find.byType(CustomerScreen)),
     );
     await tester.runAsync(
-      () => c.read(designStoreProvider).remove(kept.window.id),
+      () => c
+          .read(designStoreProvider)
+          .remove(kept.window.id, by: WorkshopRole.owner),
     );
     await pressOpen(tester, kept.window.id);
     await tester.pumpAndSettle();

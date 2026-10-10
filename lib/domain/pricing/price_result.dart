@@ -6,6 +6,7 @@
 /// has changed, without being worked out again.
 library;
 
+import 'extra_charge.dart';
 import 'measurement.dart';
 import 'price_list.dart';
 
@@ -163,9 +164,22 @@ class Discount {
   final double percent;
   final double amount;
 
-  const Discount({this.percent = 0, this.amount = 0});
+  /// Who gave it and when — said with it, never part of what it takes off.
+  final String by;
+  final DateTime? at;
+
+  const Discount({this.percent = 0, this.amount = 0, this.by = '', this.at});
 
   bool get isNone => percent <= 0 && amount <= 0;
+
+  /// What it says, in words: *10%*, *45.00 USD* — [money] writes an amount.
+  String describe(String Function(int cents) money) => percent > 0
+      ? '${_trim(percent)}%'
+      : money(Money.cents(amount));
+
+  static String _trim(double v) => v == v.roundToDouble()
+      ? v.toInt().toString()
+      : v.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '');
 
   /// How much it takes off [subtotal]: never less than nothing, never more
   /// than the whole.
@@ -179,6 +193,8 @@ class Discount {
   Map<String, Object?> toJson() => {
     if (percent != 0) 'percent': percent,
     if (amount != 0) 'amount': amount,
+    if (by.isNotEmpty) 'by': by,
+    if (at != null) 'at': at!.toIso8601String(),
   };
 
   static Discount? fromJson(Object? json) {
@@ -188,6 +204,8 @@ class Discount {
     final d = Discount(
       percent: read(json['percent']),
       amount: read(json['amount']),
+      by: json['by'] as String? ?? '',
+      at: DateTime.tryParse(json['at'] as String? ?? ''),
     );
     return d.isNone ? null : d;
   }
@@ -230,6 +248,12 @@ class PriceResult {
   /// price of. Null where nothing was priced.
   final PricedProfile? profile;
 
+  /// The extras the factory added to the design by hand — silicone,
+  /// labour, a trip — each quantity × unit price, kept apart from [lines],
+  /// which are what the design's own geometry costs. Kept as they were, so
+  /// a quotation still says *5 bottles × 3.00* after the extra changes.
+  final List<ExtraCharge> extras;
+
   const PriceResult({
     required this.status,
     required this.currency,
@@ -240,6 +264,7 @@ class PriceResult {
     this.discount,
     this.measurements = MeasurementSummary.none,
     this.profile,
+    this.extras = const [],
   });
 
   /// A result with no price, for [status], saying why.
@@ -265,13 +290,27 @@ class PriceResult {
       if (l.group == group) l,
   ]) / 100;
 
-  int get _subtotalCents => isPriced ? _cents(lines) : 0;
+  /// What the design's own geometry costs, worked out from it by the price
+  /// list's rates — profile, panel, glass, hardware, colour, labour and
+  /// installation — in whole cents.
+  int get designCostCents => isPriced ? _cents(lines) : 0;
+
+  /// What the extras added by hand come to, in whole cents.
+  int get extrasCents => isPriced ? extras.totalCentsIn(currency) : 0;
+
+  int get _subtotalCents => designCostCents + extrasCents;
 
   int get _discountCents =>
       isPriced ? Money.cents(discount?.off(subtotal) ?? 0) : 0;
 
-  /// Everything before the discount, installation included.
+  /// Everything before the discount: the design's own cost and its extras.
   double get subtotal => _subtotalCents / 100;
+
+  /// [subtotal] in whole cents.
+  int get subtotalCents => _subtotalCents;
+
+  /// [discountAmount] in whole cents.
+  int get discountCents => _discountCents;
 
   double get discountAmount => _discountCents / 100;
 
@@ -298,6 +337,7 @@ class PriceResult {
     if (discount != null) 'discount': discount!.toJson(),
     'measurements': measurements.toJson(),
     if (profile != null) 'profile': profile!.toJson(),
+    if (extras.isNotEmpty) 'extras': [for (final e in extras) e.toJson()],
   };
 
   static PriceResult fromJson(Map<String, Object?> map) => PriceResult(
@@ -316,6 +356,10 @@ class PriceResult {
     discount: Discount.fromJson(map['discount']),
     measurements: MeasurementSummary.fromJson(map['measurements']),
     profile: PricedProfile.fromJson(map['profile']),
+    extras: [
+      if (map['extras'] case final List<Object?> kept)
+        for (final e in kept) ?ExtraCharge.fromJson(e),
+    ],
   );
 }
 
@@ -427,18 +471,25 @@ class PriceSnapshot {
 class PricingChoices {
   /// Whether installation is included. Never on unless the user says so.
   final bool installation;
+
+  /// The design's own discount, off its cost and its extras together.
   final Discount? discount;
   final PriceSnapshot? snapshot;
+
+  /// What the factory added to this design by hand — see [ExtraCharge].
+  final List<ExtraCharge> extras;
 
   const PricingChoices({
     this.installation = false,
     this.discount,
     this.snapshot,
+    this.extras = const [],
   });
 
   static const none = PricingChoices();
 
-  bool get isNone => !installation && discount == null && snapshot == null;
+  bool get isNone =>
+      !installation && discount == null && snapshot == null && extras.isEmpty;
 
   PricingChoices copyWith({
     bool? installation,
@@ -446,16 +497,19 @@ class PricingChoices {
     bool clearDiscount = false,
     PriceSnapshot? snapshot,
     bool clearSnapshot = false,
+    List<ExtraCharge>? extras,
   }) => PricingChoices(
     installation: installation ?? this.installation,
     discount: clearDiscount ? null : (discount ?? this.discount),
     snapshot: clearSnapshot ? null : (snapshot ?? this.snapshot),
+    extras: extras ?? this.extras,
   );
 
   Map<String, Object?> toJson() => {
     if (installation) 'installation': true,
     if (discount != null) 'discount': discount!.toJson(),
     if (snapshot != null) 'snapshot': snapshot!.toJson(),
+    if (extras.isNotEmpty) 'extras': [for (final e in extras) e.toJson()],
   };
 
   static PricingChoices fromJson(Object? json) {
@@ -464,6 +518,10 @@ class PricingChoices {
       installation: json['installation'] == true,
       discount: Discount.fromJson(json['discount']),
       snapshot: PriceSnapshot.fromJson(json['snapshot']),
+      extras: [
+        if (json['extras'] case final List<Object?> kept)
+          for (final e in kept) ?ExtraCharge.fromJson(e),
+      ],
     );
   }
 
@@ -472,10 +530,20 @@ class PricingChoices {
       other is PricingChoices &&
       other.installation == installation &&
       other.discount == discount &&
-      identical(other.snapshot, snapshot);
+      identical(other.snapshot, snapshot) &&
+      _sameExtras(other.extras, extras);
+
+  static bool _sameExtras(List<ExtraCharge> a, List<ExtraCharge> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 
   @override
-  int get hashCode => Object.hash(installation, discount, snapshot);
+  int get hashCode =>
+      Object.hash(installation, discount, snapshot, Object.hashAll(extras));
 }
 
 /// Money, as the application keeps it: whole cents.

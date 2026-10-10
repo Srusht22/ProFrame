@@ -89,6 +89,9 @@ Map<String, Object?> firstEngineList() => {
 
 // Since Phase 31 the store asks who records money (`by:`); these record as
 // the device with no staff accounts, which may (`WorkshopRole.staff`).
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -161,14 +164,14 @@ void main() {
     test('its record is gone, the others\' stay, and the customer total '
         'is the rest', () async {
       final people = CustomerStore();
-      final adam = await people.create(name: 'Adam');
+      final adam = await people.create(name: 'Adam', by: WorkshopRole.owner);
       final store = DesignStore(customers: people);
       final records = PriceRecordStore();
       final a = door(id: 'a');
       final b = door(kind: DesignKind.window, id: 'b');
       final c = door(id: 'c');
       for (final d in [a, b, c]) {
-        await store.save(d.copyWith(customerId: adam.id));
+        await store.save(d.copyWith(customerId: adam.id), by: WorkshopRole.owner);
         await records.save(d.id, PriceRecord.calculate(d, fixed)!);
       }
       final prefs = await SharedPreferences.getInstance();
@@ -177,7 +180,7 @@ void main() {
           if (!k.contains('.b') && k != DesignStore.indexKey) k: prefs.get(k),
       };
 
-      await store.remove('b');
+      await store.remove('b', by: WorkshopRole.owner);
       expect(await store.load('b'), isNull);
       expect(await records.load('b'), isNull);
       expect(prefs.getString(PriceRecordStore.keyOf('b')), isNull);
@@ -584,7 +587,7 @@ void main() {
       expect(finance.status, PaymentStatus.outstanding);
 
       final people = CustomerStore();
-      final adam = await people.create(name: 'Adam');
+      final adam = await people.create(name: 'Adam', by: WorkshopRole.owner);
       final payment = paid(500).transactions.single;
       await people.record(
         PaymentTransaction.fromJson(payment.toJson(), customerId: adam.id)!, by: WorkshopRole.staff,

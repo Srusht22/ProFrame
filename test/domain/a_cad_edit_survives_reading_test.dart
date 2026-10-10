@@ -13,6 +13,7 @@ import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/model/infill.dart';
 import 'package:proframe/domain/model/materials.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/recognition/geometry_normalizer.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
 import 'package:proframe/domain/solid/mesh_builder.dart';
@@ -104,6 +105,9 @@ double inkTop(Design d) =>
     [for (final s in d.sketch.byId('outline')!.samples) s.at.y]
         .reduce(math.min);
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -476,10 +480,16 @@ void main() {
     test('edit, save, edit, Read, save, reload: everything kept', () async {
       final c = opened(drawn(DesignKind.door));
       c.moveFrameMember(memberAt(c.state.design, 'Head'), -100);
-      await DesignStore().save(c.state.design.copyWith(customer: 'Adam'));
+      await DesignStore().save(
+        c.state.design.copyWith(customer: 'Adam'),
+        by: WorkshopRole.owner,
+      );
       c.moveDividerAcross(transomOf(c.state.design).id, const Vec2(450, 650));
       c.readDrawing();
-      final kept = await DesignStore().save(c.state.design);
+      final kept = await DesignStore().save(
+        c.state.design,
+        by: WorkshopRole.owner,
+      );
       final back = (await DesignStore().load(kept.id))!;
       expect(textOf(back), textOf(kept));
       final again = opened(back);

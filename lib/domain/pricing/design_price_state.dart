@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../model/customer_discount.dart';
 import '../model/design.dart';
 import '../model/payment.dart';
+import 'extra_charge.dart';
 import 'measurement.dart';
 import 'price_list.dart';
 import 'price_readiness.dart';
@@ -113,7 +114,26 @@ abstract final class PriceInputs {
     final kept = Map<String, Object?>.of(design.toJson())
       ..removeWhere((key, _) => _notRead.contains(key));
     if (kept['pricing'] case final Map<String, Object?> choices) {
-      kept['pricing'] = Map<String, Object?>.of(choices)..remove('snapshot');
+      final priced = Map<String, Object?>.of(choices)..remove('snapshot');
+      // Who wrote an extra or gave the discount, and when, says nothing of
+      // the price: only what each one charges is read.
+      if (priced['extras'] case final List<Object?> extras) {
+        priced['extras'] = [
+          for (final e in extras)
+            if (e is Map<String, Object?>)
+              Map<String, Object?>.of(e)
+                ..remove('createdAt')
+                ..remove('updatedAt')
+                ..remove('by')
+                ..remove('note'),
+        ];
+      }
+      if (priced['discount'] case final Map<String, Object?> d) {
+        priced['discount'] = Map<String, Object?>.of(d)
+          ..remove('by')
+          ..remove('at');
+      }
+      kept['pricing'] = priced;
     }
     return kept;
   }
@@ -496,12 +516,23 @@ enum PaymentStatus {
 /// the ledger says they have paid, and what is due — or in credit.
 ///
 /// ```
-/// Design prices ─ CustomerPricing ─ subtotal ─ discount ─ final total ─┐
-/// Customer.payments ─ PaymentLedger ─ net paid ─────────────────────────┴─
+/// Design prices ─ CustomerPricing ─┐
+/// Customer.extras ─────────────────┴─ subtotal ─ discount ─ final total ─┐
+/// Customer.payments ─ PaymentLedger ─ net paid ───────────────────────────┴─
 ///                                      CustomerFinance (due or credit)
 /// ```
 ///
-/// - Subtotal = the designs' current prices, summed.
+/// **The order is fixed, and nothing is taken off twice.** Each design's
+/// price is already its own cost, plus its own extras, less its own
+/// discount (`PriceResult.total`). Here those prices are summed, the
+/// customer's own extras — a delivery for the whole job — are added, and
+/// the customer's discount is taken off that once.
+///
+/// - Designs = the designs' current prices, summed ([designsCents]).
+/// - Extras = the customer's own extras in the customer's currency
+///   ([extrasCents]). An extra in another currency is never added: while
+///   there is one, the total is not final ([extrasInOtherCurrency]).
+/// - Subtotal = designs + extras.
 /// - Discount = what the customer's discount takes off the subtotal.
 /// - Final total = subtotal − discount.
 /// - Gross payments = every payment; gross refunds = every refund — each
@@ -528,13 +559,33 @@ class CustomerFinance {
   /// The customer's discount in force, if any.
   final CustomerDiscount? discount;
 
-  const CustomerFinance._(this.pricing, this.ledger, this.discount);
+  /// The customer's own extras — the whole job's, no one design's.
+  final List<ExtraCharge> extras;
+
+  const CustomerFinance._(
+    this.pricing,
+    this.ledger,
+    this.discount,
+    this.extras,
+  );
 
   static CustomerFinance of(
     CustomerPricing pricing,
     PaymentLedger ledger, {
     CustomerDiscount? discount,
-  }) => CustomerFinance._(pricing, ledger, discount);
+    List<ExtraCharge> extras = const [],
+  }) => CustomerFinance._(pricing, ledger, discount, extras);
+
+  /// The designs' current prices summed, where every one is current.
+  int? get designsCents => pricing.totalCents;
+
+  /// The customer's own extras in [currency], summed.
+  int get extrasCents => extras.totalCentsIn(currency);
+
+  /// The customer's extras written in another currency: never added to
+  /// [currency], and keeping the total from being final until they are
+  /// written in it.
+  List<ExtraCharge> get extrasInOtherCurrency => extras.notIn(currency);
 
   /// The customer's currency: the one their designs are priced in.
   String get currency => pricing.currency;
@@ -554,10 +605,25 @@ class CustomerFinance {
   /// That money, currency by currency.
   List<CurrencyTotals> get otherCurrencies => ledger.uncountedIn(currency);
 
-  /// The designs' prices summed, where final.
-  int? get subtotalCents => pricing.totalCents;
+  /// The designs' prices and the customer's extras, summed, where final.
+  int? get subtotalCents => switch (designsCents) {
+    final d? when extrasInOtherCurrency.isEmpty => d + extrasCents,
+    _ => null,
+  };
 
   double? get subtotal => subtotalCents == null ? null : subtotalCents! / 100;
+
+  /// Why the total is not final, in words, or empty where it is.
+  String get notFinalReason {
+    final other = extrasInOtherCurrency;
+    return [
+      if (pricing.notFinalReason.isNotEmpty) pricing.notFinalReason,
+      if (other.isNotEmpty)
+        '${other.length == 1 ? 'An extra charge is' : '${other.length} extra charges are'} '
+            'in ${{for (final e in other) e.currency}.join(', ')}, not '
+            '$currency.',
+    ].join(' ');
+  }
 
   /// What the discount takes off the subtotal, where it is final.
   int? get discountCents => switch (subtotalCents) {

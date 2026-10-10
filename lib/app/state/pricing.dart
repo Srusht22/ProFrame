@@ -6,6 +6,7 @@ import '../../domain/model/design.dart';
 import '../../domain/model/payment.dart';
 import '../../domain/model/receipt.dart';
 import '../../domain/pricing/design_price_state.dart';
+import '../../domain/pricing/extra_charge.dart';
 import '../../domain/pricing/price_list.dart';
 import '../../domain/pricing/price_result.dart';
 import '../../domain/pricing/pricing_access.dart';
@@ -247,6 +248,7 @@ extension PriceCalculator on WidgetRef {
       pricing,
       customer.ledger,
       discount: customer.discount,
+      extras: customer.extras,
     );
     final receipt = await read(customerStoreProvider).issueReceipt(
       customerId: customerId,
@@ -267,6 +269,41 @@ extension PriceCalculator on WidgetRef {
   ) async {
     final kept = await read(customerStoreProvider)
         .applyDiscount(customerId, entry, by: await actorNow());
+    read(customersRevisionProvider.notifier).changed();
+    return kept;
+  }
+
+  /// Puts [extra] on [customerId]'s whole job — new, or changed where it is
+  /// already there — as whoever is at the device. [additional] says it is
+  /// meant on top of a cost the designs' prices already work out; without
+  /// it, one that looks like such a cost is refused ([StateError]).
+  Future<Customer?> saveCustomerExtra(
+    String customerId,
+    ExtraCharge extra, {
+    bool additional = false,
+  }) async {
+    final pricing = await read(customerPricingProvider(customerId).future);
+    final kept = await read(customerStoreProvider).saveExtra(
+      customerId,
+      extra,
+      by: await actorNow(),
+      calculated: [
+        for (final d in pricing.priced) ...d.state.record!.result.lines,
+      ],
+      additional: additional,
+    );
+    read(customersRevisionProvider.notifier).changed();
+    return kept;
+  }
+
+  /// Takes the extra [extraId] off [customerId]'s whole job, as whoever is
+  /// at the device.
+  Future<Customer?> removeCustomerExtra(
+    String customerId,
+    String extraId,
+  ) async {
+    final kept = await read(customerStoreProvider)
+        .takeExtraOff(customerId, extraId, by: await actorNow());
     read(customersRevisionProvider.notifier).changed();
     return kept;
   }
@@ -316,6 +353,7 @@ extension PriceCalculator on WidgetRef {
         by: by.label,
         money: money,
         discount: customer.discount,
+        extras: customer.extras,
         notes: notes,
       ),
       by: by,

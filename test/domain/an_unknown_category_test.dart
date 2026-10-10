@@ -5,6 +5,7 @@ import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/model/materials.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/recognition/geometry_normalizer.dart';
 import 'package:proframe/domain/recognition/interpreter.dart';
 import 'package:proframe/domain/sections/section_builder.dart';
@@ -65,6 +66,9 @@ String allBut(Design d) => jsonEncode(
     ..remove('futureShape'),
 );
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -263,9 +267,12 @@ void main() {
     /// own, in the file and in the index.
     Future<(DesignStore, String)> seed(Design design, Object? category) async {
       final people = CustomerStore();
-      final adam = await people.create(name: 'Adam');
+      final adam = await people.create(name: 'Adam', by: WorkshopRole.owner);
       final store = DesignStore(customers: people);
-      final kept = await store.save(design.copyWith(customerId: adam.id));
+      final kept = await store.save(
+        design.copyWith(customerId: adam.id),
+        by: WorkshopRole.owner,
+      );
       final prefs = await SharedPreferences.getInstance();
       final key = '${DesignStore.designKeyPrefix}${kept.id}';
       await prefs.setString(key, jsonEncode(keptAs(kept, category)));
@@ -315,11 +322,20 @@ void main() {
 
       // Keeping it, duplicating it, renaming it or giving it to somebody
       // else writes nothing: its record is the later version's.
-      final kept = await store.save(loaded.copyWith(name: 'Changed'));
+      final kept = await store.save(
+        loaded.copyWith(name: 'Changed'),
+        by: WorkshopRole.owner,
+      );
       expect(kept.name, 'Changed');
-      expect(await store.duplicate('angled'), isNull);
-      expect(await store.retitle('angled', 'Changed'), isNull);
-      expect(await store.rename('angled', 'Sara'), isNull);
+      expect(await store.duplicate('angled', by: WorkshopRole.owner), isNull);
+      expect(
+        await store.retitle('angled', 'Changed', by: WorkshopRole.owner),
+        isNull,
+      );
+      expect(
+        await store.rename('angled', 'Sara', by: WorkshopRole.owner),
+        isNull,
+      );
       expect(prefs.getString(key), record);
       expect(await store.count(), 1);
     });
@@ -329,6 +345,7 @@ void main() {
       final (store, adam) = await seed(sloped(), 'circular');
       await store.save(
         sloped(id: 'second').copyWith(customerId: adam, name: 'Second'),
+        by: WorkshopRole.owner,
       );
       final prefs = await SharedPreferences.getInstance();
       final index = (jsonDecode(prefs.getString(DesignStore.indexKey)!) as List)

@@ -45,6 +45,11 @@ class CustomerScreen extends ConsumerStatefulWidget {
   /// and notes, in a form of their own.
   static const editButton = ValueKey('customer-edit');
 
+  /// What stands in place of the page, or of the designs, for somebody who
+  /// may not see them.
+  static const noAccessKey = ValueKey('customer-no-access');
+  static const noDesignsAccessKey = ValueKey('customer-designs-no-access');
+
   /// The search across the customer's designs, by what they are called.
   static const searchField = ValueKey('customer-search');
 
@@ -223,7 +228,17 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
       showDragHandle: true,
       isScrollControlled: true,
       backgroundColor: context.palette.surface,
-      builder: (context) => DesignActionsSheet(summary: summary),
+      builder: (context) => Consumer(
+        builder: (context, ref, _) => DesignActionsSheet(
+          summary: summary,
+          actions: {
+            if (ref.offers(Capability.designsView)) DesignAction.open,
+            if (ref.offers(Capability.designsEdit)) DesignAction.information,
+            if (ref.offers(Capability.designsCreate)) DesignAction.duplicate,
+            if (ref.offers(Capability.designsDelete)) DesignAction.delete,
+          },
+        ),
+      ),
     );
     if (chosen == null || !mounted) return;
     switch (chosen) {
@@ -239,7 +254,9 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
   }
 
   Future<void> _duplicate(DesignSummary summary) async {
-    final copy = await ref.read(designStoreProvider).duplicate(summary.id);
+    final copy = await ref
+        .read(designStoreProvider)
+        .duplicate(summary.id, by: await ref.actorNow());
     if (copy == null || !mounted) return;
     ref.read(designsRevisionProvider.notifier).changed();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -259,6 +276,11 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
       ..listen(designsRevisionProvider, (_, _) => _load());
     final p = context.palette;
     final customer = _customer;
+    // What is offered follows who is at the device; what is refused is
+    // refused by the stores as well (`CustomerStore`, `DesignStore`).
+    final mayView = ref.offers(Capability.customersView);
+    final mayViewDesigns = ref.offers(Capability.designsView);
+    final mayCreate = ref.offers(Capability.designsCreate);
 
     return Scaffold(
       backgroundColor: p.shell,
@@ -281,7 +303,8 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
       // begin the forty-first without scrolling back to the top. Where they
       // have none, the empty state carries it instead, in the middle of the
       // page.
-      floatingActionButton: customer == null || _all == 0
+      floatingActionButton:
+          customer == null || _all == 0 || !mayCreate || !mayView
           ? null
           : FloatingActionButton.extended(
               key: CustomerScreen.newDesignButton,
@@ -291,7 +314,15 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
               icon: const Icon(Icons.add),
               label: const Text('New Design'),
             ),
-      body: !_loaded
+      body: !mayView
+          ? Center(
+              child: Text(
+                'You do not have permission to view customers.',
+                key: CustomerScreen.noAccessKey,
+                style: TextStyle(color: p.muted),
+              ),
+            )
+          : !_loaded
           ? const SizedBox.shrink()
           : customer == null
           ? Center(
@@ -314,7 +345,9 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
                         child: _Person(
                           customer: customer,
                           designs: _all,
-                          onEdit: () => _edit(customer),
+                          onEdit: ref.offers(Capability.customersEdit)
+                              ? () => _edit(customer)
+                              : null,
                         ),
                       ),
                     ),
@@ -341,13 +374,26 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
                           ),
                         ),
                       ),
-                    if (_all == 0)
+                    if (!mayViewDesigns)
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(horizontal: across),
+                        sliver: SliverToBoxAdapter(
+                          child: Text(
+                            'You do not have permission to view designs.',
+                            key: CustomerScreen.noDesignsAccessKey,
+                            style: TextStyle(color: p.muted),
+                          ),
+                        ),
+                      )
+                    else if (_all == 0)
                       SliverPadding(
                         padding: EdgeInsets.symmetric(horizontal: across),
                         sliver: SliverToBoxAdapter(
                           child: _NoDesigns(
                             name: customer.name,
-                            onNewDesign: () => _newDesign(customer),
+                            onNewDesign: mayCreate
+                                ? () => _newDesign(customer)
+                                : null,
                           ),
                         ),
                       )
@@ -369,7 +415,9 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
                           designs: _designs,
                           width: room.maxWidth - across * 2,
                           onOpen: _open,
-                          onEdit: _editInformation,
+                          onEdit: ref.offers(Capability.designsEdit)
+                              ? _editInformation
+                              : null,
                           onMore: _moreFor,
                           onNearEnd: () => WidgetsBinding.instance
                               .addPostFrameCallback((_) => _more()),
@@ -378,7 +426,7 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
                     // What all of their designs come to, what they have paid
                     // and what is due — under the cards, so it moves none of
                     // them.
-                    if (_all > 0)
+                    if (_all > 0 && mayViewDesigns)
                       SliverPadding(
                         padding: EdgeInsets.fromLTRB(across, 16, across, 0),
                         sliver: SliverToBoxAdapter(
@@ -405,7 +453,7 @@ const _contentWidth = 960.0;
 class _Person extends StatelessWidget {
   final Customer customer;
   final int designs;
-  final VoidCallback onEdit;
+  final VoidCallback? onEdit;
 
   const _Person({
     required this.customer,
@@ -787,7 +835,7 @@ class _NoMatch extends StatelessWidget {
 /// A customer with no designs yet, and the way to begin their first.
 class _NoDesigns extends StatelessWidget {
   final String name;
-  final VoidCallback onNewDesign;
+  final VoidCallback? onNewDesign;
 
   const _NoDesigns({required this.name, required this.onNewDesign});
 
@@ -838,7 +886,7 @@ class _Cards extends StatelessWidget {
   final List<DesignSummary> designs;
   final double width;
   final ValueChanged<DesignSummary> onOpen;
-  final ValueChanged<DesignSummary> onEdit;
+  final ValueChanged<DesignSummary>? onEdit;
   final ValueChanged<DesignSummary> onMore;
 
   /// Called as the last few cards read so far are built, so the next page
@@ -866,9 +914,9 @@ class _Cards extends StatelessWidget {
         now: now,
         onOpen: () => onOpen(design),
         // Not for a design of a category this version does not know.
-        onEdit: design.kind == DesignKind.unsupported
+        onEdit: design.kind == DesignKind.unsupported || onEdit == null
             ? null
-            : () => onEdit(design),
+            : () => onEdit!(design),
         onMore: () => onMore(design),
       );
     }
@@ -1345,7 +1393,20 @@ class CardPriceButton extends ConsumerWidget {
                   colour: colour,
                   colourId: colourId,
                 ),
+                by: await ref.actorNow(),
               );
+              ref.read(designsRevisionProvider.notifier).changed();
+              final priced = await ref.priceNow(saved);
+              return priced == null ? null : (saved, priced);
+            },
+      // An extra or the discount changed on the sheet: the design kept
+      // with that pricing — nothing else of it changed — and priced afresh.
+      onPricing: kept.design.isUnsupported
+          ? null
+          : (ref, changed) async {
+              final saved = await ref
+                  .read(designStoreProvider)
+                  .save(changed, by: await ref.actorNow());
               ref.read(designsRevisionProvider.notifier).changed();
               final priced = await ref.priceNow(saved);
               return priced == null ? null : (saved, priced);

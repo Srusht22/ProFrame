@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/screens/customer_screen.dart';
 import 'package:proframe/app/screens/customers_screen.dart';
 import 'package:proframe/domain/model/customer.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/infrastructure/customer_store.dart';
 import 'package:proframe/infrastructure/design_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -56,6 +57,9 @@ Future<Map<String, Object?>> designsKept(WidgetTester tester) async =>
 Finder deleting() =>
     find.textContaining(RegExp(r'\b(delete|remove)\b', caseSensitive: false));
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -113,7 +117,7 @@ void main() {
     await tester.runAsync(() async {
       final store = DesignStore();
       for (final id in ['adam-0', 'adam-1', 'adam-2', 'adam-3']) {
-        await store.remove(id);
+        await store.remove(id, by: WorkshopRole.owner);
       }
     });
     expect(await customersKept(tester), before);
@@ -141,6 +145,7 @@ void main() {
           address: 'Erbil',
           notes: '',
         ),
+        by: WorkshopRole.owner,
       ),
     );
     expect(await designsKept(tester), before);
@@ -157,10 +162,14 @@ void main() {
     final before = await customersKept(tester);
     await tester.runAsync(() async {
       final store = DesignStore();
-      final copy = await store.duplicate('adam-0');
-      await store.retitle('adam-1', 'Front Entrance Door - New PVC');
-      await store.remove(copy!.id);
-      await store.remove('sara-0');
+      final copy = await store.duplicate('adam-0', by: WorkshopRole.owner);
+      await store.retitle(
+        'adam-1',
+        'Front Entrance Door - New PVC',
+        by: WorkshopRole.owner,
+      );
+      await store.remove(copy!.id, by: WorkshopRole.owner);
+      await store.remove('sara-0', by: WorkshopRole.owner);
     });
     expect(await customersKept(tester), before);
     expect(

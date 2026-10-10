@@ -54,6 +54,9 @@ Future<void> calculate(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -266,9 +269,9 @@ void main() {
     final design = OpeningHardware.settle(door());
     await tester.runAsync(() async {
       final people = CustomerStore();
-      final adam = await people.create(name: 'Adam');
+      final adam = await people.create(name: 'Adam', by: WorkshopRole.owner);
       await DesignStore(customers: people)
-          .save(design.copyWith(customerId: adam.id));
+          .save(design.copyWith(customerId: adam.id), by: WorkshopRole.owner);
     });
     late Map<String, Object?> before;
     await tester.runAsync(() async {

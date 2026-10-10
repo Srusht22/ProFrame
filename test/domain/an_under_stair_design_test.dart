@@ -10,6 +10,7 @@ import 'package:proframe/domain/hardware/opening_hardware.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/model/materials.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/recognition/geometry_normalizer.dart';
 import 'package:proframe/domain/recognition/interpreter.dart';
 import 'package:proframe/domain/sketch/stroke.dart';
@@ -119,6 +120,9 @@ List<Vec2> cornersOf(Design d) => [
 /// The design's whole text, for "the same" to mean the same.
 String textOf(Design d) => jsonEncode(d.toJson());
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -396,7 +400,7 @@ void main() {
         'read again the same shape', () async {
       final d = built();
       final store = DesignStore();
-      final kept = await store.save(d);
+      final kept = await store.save(d, by: WorkshopRole.owner);
       final opened = (await store.load(kept.id))!;
       expect(textOf(opened), textOf(kept));
       expect(opened.frame!.outline, d.frame!.outline);

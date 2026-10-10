@@ -32,6 +32,7 @@ import 'package:proframe/domain/model/elements.dart';
 import 'package:proframe/domain/model/infill.dart';
 import 'package:proframe/domain/model/materials.dart';
 import 'package:proframe/domain/model/surface.dart';
+import 'package:proframe/domain/pricing/pricing_access.dart';
 import 'package:proframe/domain/solid/camera.dart';
 import 'package:proframe/domain/solid/mesh.dart';
 import 'package:proframe/domain/solid/mesh_builder.dart';
@@ -505,6 +506,9 @@ String _mesh(Mesh mesh) => [
     ].join('|'),
 ].join('\n');
 
+// Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
+// without the capability; the writes here are the owner's, who may do
+// everything, because what these tests hold is not about permissions.
 void main() {
   final d = qaDesign();
   final lights = d.topLevelSections;
@@ -1199,8 +1203,12 @@ void main() {
       final adam = await people.create(
         name: 'Adam',
         now: DateTime(2026, 3, 1, 8),
+        by: WorkshopRole.owner,
       );
-      await store.save(d.copyWith(name: 'Shop front', customerId: adam.id));
+      await store.save(
+        d.copyWith(name: 'Shop front', customerId: adam.id),
+        by: WorkshopRole.owner,
+      );
     }
 
     Future<void> openIt(WidgetTester tester) async {
