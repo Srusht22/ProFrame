@@ -1,0 +1,843 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../domain/model/customer.dart';
+import '../../domain/model/customer_discount.dart';
+import '../../domain/model/payment.dart';
+import '../../domain/model/receipt.dart';
+import '../../domain/pricing/design_price_state.dart';
+import '../../domain/pricing/pricing_access.dart';
+import '../../domain/pricing/quotation.dart';
+import '../../domain/text/names.dart';
+import '../inspector/price_panel.dart';
+import '../l10n/l10n.dart';
+import '../state/access.dart';
+import '../state/language.dart';
+import '../state/pricing.dart';
+import '../theme/app_theme.dart';
+import 'customer_finance.dart' show dayOf, say;
+
+// The customer's financial documents: the discount given them, the
+// quotations made them and the receipts issued them. Each is read from what
+// is kept and changed only through the actions in `state/pricing.dart`,
+// which the stores authorise.
+
+// ─── Discount ───────────────────────────────────────────────────────────
+
+/// The fields and buttons of the discount form.
+abstract final class DiscountKeys {
+  static const dialog = ValueKey('discount-dialog');
+  static const percent = ValueKey('discount-percent');
+  static const fixed = ValueKey('discount-fixed');
+  static const none = ValueKey('discount-none');
+  static const value = ValueKey('discount-value');
+  static const note = ValueKey('discount-note');
+  static const previewDiscount = ValueKey('discount-preview-off');
+  static const previewTotal = ValueKey('discount-preview-total');
+  static const remove = ValueKey('discount-remove');
+  static const apply = ValueKey('discount-apply');
+}
+
+/// What the discount form answers: a discount of [kind] at [value] —
+/// hundredths of a per cent, or cents — or, where [kind] is null, the one
+/// in force taken away.
+typedef DiscountAnswer = ({DiscountKind? kind, int? value, String note});
+
+/// Asks for [customer]'s discount and gives it — or takes the one in force
+/// away.
+Future<void> editDiscount(
+  BuildContext context,
+  WidgetRef ref,
+  Customer customer,
+  CustomerFinance finance,
+) async {
+  final by = ref.read(actorProvider).label;
+  final d = customer.discount;
+  final answer = await showDialog<DiscountAnswer>(
+    context: context,
+    builder: (_) => DiscountDialog(
+      title: context.l10n.discountFor(customer.name),
+      currency: finance.currency,
+      subtotalCents: finance.subtotalCents,
+      kind: d?.kind,
+      valueText: d == null
+          ? ''
+          : d.kind == DiscountKind.percent
+          ? d.describe((c) => '').replaceAll('%', '')
+          : (d.value / 100).toStringAsFixed(2),
+    ),
+  );
+  if (answer == null) return;
+  final at = DateTime.now();
+  final id = customer.discounts.nextDiscountId(at);
+  final entry = answer.kind == null
+      ? CustomerDiscount.removal(id: id, at: at, by: by, note: answer.note)
+      : CustomerDiscount(
+          id: id,
+          kind: answer.kind,
+          value: answer.value!,
+          currency: answer.kind == DiscountKind.fixed ? finance.currency : null,
+          at: at,
+          by: by,
+          note: answer.note,
+        );
+  try {
+    await ref.applyDiscount(customer.id, entry);
+  } on AccessDenied catch (e) {
+    if (context.mounted) say(context, e.messageIn(context.words));
+  }
+}
+
+/// **Discount**: a percentage or a fixed amount off a subtotal — a
+/// customer's whole job, or one design — with the subtotal, the discount
+/// and the final total shown as they would be.
+class DiscountDialog extends StatefulWidget {
+  final String title;
+  final String currency;
+
+  /// What the discount comes off, in cents; null where it is not final.
+  final int? subtotalCents;
+
+  /// The discount in force, if any: its kind and its figure as typed.
+  final DiscountKind? kind;
+  final String valueText;
+
+  /// Where the discount comes off, said under the title.
+  final String? caption;
+
+  const DiscountDialog({
+    super.key,
+    required this.title,
+    required this.currency,
+    required this.subtotalCents,
+    this.kind,
+    this.valueText = '',
+    this.caption,
+  });
+
+  @override
+  State<DiscountDialog> createState() => _DiscountDialogState();
+}
+
+class _DiscountDialogState extends State<DiscountDialog> {
+  late DiscountKind _kind = widget.kind ?? DiscountKind.percent;
+
+  /// **None** chosen: no discount — not a percentage of nothing, and not a
+  /// discount nobody configured. Applied, it takes away any discount in
+  /// force.
+  bool _none = false;
+  late final _value = TextEditingController(text: widget.valueText);
+  final _note = TextEditingController();
+  String? _problem;
+
+  @override
+  void dispose() {
+    _value.dispose();
+    _note.dispose();
+    super.dispose();
+  }
+
+  String _money(int cents) => PricePanel.money(cents / 100, widget.currency);
+
+  ({int? value, String? problem}) _read() {
+    final w = context.words;
+    return switch (_kind) {
+      DiscountKind.percent => CustomerDiscount.readPercent(_value.text, w),
+      DiscountKind.fixed => switch (PaymentLedger.readAmount(_value.text, w)) {
+        (cents: final c, problem: final p) => (
+          value: c,
+          problem: p == w.amtEnter ? w.discountEnter : p,
+        ),
+      },
+    };
+  }
+
+  /// What the discount as typed takes off the subtotal, or null.
+  int? _off() {
+    final read = _read();
+    final subtotal = widget.subtotalCents;
+    if (read.value == null || subtotal == null) return null;
+    return CustomerDiscount(
+      id: '',
+      kind: _kind,
+      value: read.value!,
+      currency: widget.currency,
+      at: DateTime(2000),
+      by: '',
+    ).offCents(subtotal, widget.currency);
+  }
+
+  void _apply() {
+    if (_none) {
+      // Nothing in force and none asked for: nothing changes.
+      if (widget.kind == null) {
+        Navigator.of(context).pop();
+      } else {
+        _remove();
+      }
+      return;
+    }
+    final read = _read();
+    final problem =
+        read.problem ??
+        CustomerDiscount.problemWith(
+          kind: _kind,
+          value: read.value,
+          subtotalCents: widget.subtotalCents,
+          money: _money,
+          words: context.words,
+        );
+    if (problem != null) {
+      setState(() => _problem = problem);
+      return;
+    }
+    Navigator.of(context).pop<DiscountAnswer>((
+      kind: _kind,
+      value: read.value,
+      note: _note.text.trim(),
+    ));
+  }
+
+  void _remove() => Navigator.of(context)
+      .pop<DiscountAnswer>((kind: null, value: null, note: _note.text.trim()));
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final subtotal = widget.subtotalCents;
+    final off = _none ? 0 : _off();
+    final l = context.l10n;
+    return AlertDialog(
+      key: DiscountKeys.dialog,
+      scrollable: true,
+      title: Text(widget.title),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.caption case final caption?)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(caption, style: text.bodySmall),
+              ),
+            Text(l.discountType, style: text.labelMedium),
+            RadioGroup<DiscountKind?>(
+              groupValue: _none ? null : _kind,
+              onChanged: (k) => setState(() {
+                _none = k == null;
+                _kind = k ?? _kind;
+                _problem = null;
+              }),
+              child: Column(
+                children: [
+                  RadioListTile<DiscountKind?>(
+                    key: DiscountKeys.none,
+                    contentPadding: EdgeInsets.zero,
+                    value: null,
+                    title: Text(l.discountNoneChoice),
+                  ),
+                  RadioListTile<DiscountKind?>(
+                    key: DiscountKeys.percent,
+                    contentPadding: EdgeInsets.zero,
+                    value: DiscountKind.percent,
+                    title: Text(l.discountPercent),
+                  ),
+                  RadioListTile<DiscountKind?>(
+                    key: DiscountKeys.fixed,
+                    contentPadding: EdgeInsets.zero,
+                    value: DiscountKind.fixed,
+                    title: Text(l.discountFixed),
+                  ),
+                ],
+              ),
+            ),
+            if (!_none)
+              TextField(
+                key: DiscountKeys.value,
+                controller: _value,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: InputDecoration(
+                  labelText: l.finDiscount,
+                  suffixText: _kind == DiscountKind.percent
+                      ? '%'
+                      : widget.currency,
+                  errorText: _problem,
+                  errorMaxLines: 3,
+                ),
+                onChanged: (_) => setState(() => _problem = null),
+              ),
+            const SizedBox(height: 8),
+            TextField(
+              key: DiscountKeys.note,
+              controller: _note,
+              decoration: InputDecoration(labelText: l.discountReason),
+            ),
+            const SizedBox(height: 12),
+            PriceRow(
+              l.finSubtotal,
+              subtotal == null ? l.finNotFinal : _money(subtotal),
+            ),
+            PriceRow(
+              l.finDiscount,
+              _none
+                  ? l.discountNoneChoice
+                  : off == null
+                  ? '—'
+                  : '−${_money(off)}',
+              valueKey: DiscountKeys.previewDiscount,
+            ),
+            PriceRow(
+              l.finFinalTotal,
+              subtotal == null ? l.finNotFinal : _money(subtotal - (off ?? 0)),
+              strong: true,
+              valueKey: DiscountKeys.previewTotal,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        if (widget.kind != null)
+          TextButton(
+            key: DiscountKeys.remove,
+            onPressed: _remove,
+            child: Text(l.discountRemove),
+          ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l.actCancel),
+        ),
+        FilledButton(
+          key: DiscountKeys.apply,
+          onPressed: _apply,
+          child: Text(l.actApply),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Quotations ─────────────────────────────────────────────────────────
+
+/// The fields and buttons of the quotation forms.
+abstract final class QuotationKeys {
+  static const designs = ValueKey('quotation-designs');
+  static const extras = ValueKey('quotation-extras');
+  static ValueKey<String> extra(String id) => ValueKey('quotation-extra-$id');
+  static const dialog = ValueKey('quotation-new');
+  static const notes = ValueKey('quotation-notes');
+  static const problem = ValueKey('quotation-problem');
+  static const create = ValueKey('quotation-create');
+  static const sheet = ValueKey('quotation-sheet');
+  static const total = ValueKey('quotation-total');
+  static const subtotal = ValueKey('quotation-subtotal');
+  static const discount = ValueKey('quotation-discount');
+  static const changed = ValueKey('quotation-changed');
+  static const status = ValueKey('quotation-status');
+
+  static ValueKey<String> design(String id) => ValueKey('quotation-pick-$id');
+  static ValueKey<String> line(String id) => ValueKey('quotation-line-$id');
+  static ValueKey<String> become(QuotationStatus s) =>
+      ValueKey('quotation-become-${s.name}');
+}
+
+/// Asks which of [customer]'s designs go on a new quotation, makes it, and
+/// shows it.
+Future<void> newQuotation(
+  BuildContext context,
+  WidgetRef ref,
+  Customer customer,
+) async {
+  final id = await showDialog<String>(
+    context: context,
+    builder: (_) => NewQuotationDialog(customer: customer),
+  );
+  if (id != null && context.mounted) await showQuotation(context, id);
+}
+
+/// **New quotation**: the customer's designs, each with where its price
+/// stands, to choose from — all chosen to begin with — and a note.
+class NewQuotationDialog extends ConsumerStatefulWidget {
+  final Customer customer;
+
+  const NewQuotationDialog({super.key, required this.customer});
+
+  @override
+  ConsumerState<NewQuotationDialog> createState() => _NewQuotationState();
+}
+
+class _NewQuotationState extends ConsumerState<NewQuotationDialog> {
+  Set<String>? _chosen;
+  final _notes = TextEditingController();
+  String? _problem;
+  bool _making = false;
+
+  @override
+  void dispose() {
+    _notes.dispose();
+    super.dispose();
+  }
+
+  Future<void> _create(CustomerPricing pricing) async {
+    setState(() => _making = true);
+    try {
+      final made = await ref.createQuotation(
+        widget.customer,
+        _chosen!,
+        notes: _notes.text,
+        money: (c) => PricePanel.money(c / 100, pricing.currency),
+      );
+      if (!mounted) return;
+      if (made.quotation == null) {
+        setState(() => _problem = made.problem);
+        return;
+      }
+      Navigator.of(context).pop(made.quotation!.id);
+    } on AccessDenied catch (e) {
+      if (mounted) setState(() => _problem = e.messageIn(ref.words));
+    } finally {
+      if (mounted) setState(() => _making = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pricing = ref
+        .watch(customerPricingProvider(widget.customer.id))
+        .value;
+    final text = Theme.of(context).textTheme;
+    final error = Theme.of(context).colorScheme.error;
+    if (pricing != null) {
+      _chosen ??= {for (final d in pricing.designs) d.designId};
+    }
+    final l = context.l10n;
+    final w = context.words;
+    return AlertDialog(
+      key: QuotationKeys.dialog,
+      scrollable: true,
+      title: Text(l.quoteNewFor(widget.customer.name)),
+      content: SizedBox(
+        width: 440,
+        child: pricing == null
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(l.quoteKeepsPrices, style: text.bodySmall),
+                  if (pricing.designs.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(l.quoteNoDesigns),
+                    ),
+                  for (final d in pricing.designs)
+                    CheckboxListTile(
+                      key: QuotationKeys.design(d.designId),
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      value: _chosen!.contains(d.designId),
+                      onChanged: (on) => setState(() {
+                        _problem = null;
+                        on ?? false
+                            ? _chosen!.add(d.designId)
+                            : _chosen!.remove(d.designId);
+                      }),
+                      title: Text(d.nameIn(w)),
+                      subtitle: Text(
+                        d.state.isCurrent
+                            ? PricePanel.money(d.state.total!, pricing.currency)
+                            : d.state.canCalculate
+                            ? l.quotePricedWhenQuoted
+                            : d.state.labelIn(w),
+                        style: TextStyle(
+                          color: d.state.isCurrent || d.state.canCalculate
+                              ? null
+                              : error,
+                        ),
+                      ),
+                    ),
+                  if (widget.customer.discount case final dsc?)
+                    Text(
+                      l.quoteDiscountLine(
+                        dsc.describe(
+                          (c) => PricePanel.money(c / 100, pricing.currency),
+                          w,
+                        ),
+                      ),
+                      style: text.bodySmall,
+                    ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    key: QuotationKeys.notes,
+                    controller: _notes,
+                    maxLines: 3,
+                    minLines: 1,
+                    decoration: InputDecoration(labelText: l.quoteNotes),
+                  ),
+                  if (_problem case final problem?)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        problem,
+                        key: QuotationKeys.problem,
+                        style: TextStyle(color: error),
+                      ),
+                    ),
+                ],
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l.actCancel),
+        ),
+        FilledButton(
+          key: QuotationKeys.create,
+          onPressed: pricing == null || _making || (_chosen?.isEmpty ?? true)
+              ? null
+              : () => _create(pricing),
+          child: Text(l.quoteCreate),
+        ),
+      ],
+    );
+  }
+}
+
+/// Where a quotation stands, in a word.
+class QuotationStatusChip extends StatelessWidget {
+  final QuotationStatus status;
+
+  const QuotationStatusChip(this.status, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final colour = switch (status) {
+      QuotationStatus.accepted => p.primary,
+      QuotationStatus.rejected ||
+      QuotationStatus.expired => Theme.of(context).colorScheme.error,
+      QuotationStatus.draft || QuotationStatus.issued => p.ink,
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: colour.withValues(alpha: 0.5)),
+      ),
+      child: Text(
+        status.labelIn(context.words).toUpperCase(),
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.6,
+          color: colour,
+        ),
+      ),
+    );
+  }
+}
+
+/// Quotation [id], as kept.
+final quotationProvider = FutureProvider.autoDispose.family<Quotation?, String>(
+  (ref, id) {
+    ref.watch(quotationsRevisionProvider);
+    return ref.read(quotationStoreProvider).load(id);
+  },
+);
+
+Future<void> showQuotation(BuildContext context, String id) =>
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      constraints: const BoxConstraints(maxWidth: 680),
+      builder: (_) => QuotationSheet(id: id),
+    );
+
+/// A quotation as it was offered: each design with its price as quoted,
+/// the subtotal, the discount and the final total — never worked out again
+/// — and where it stands, with what it may become next.
+class QuotationSheet extends ConsumerWidget {
+  final String id;
+
+  const QuotationSheet({super.key, required this.id});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final q = ref.watch(quotationProvider(id)).value;
+    final text = Theme.of(context).textTheme;
+    final p = context.palette;
+    if (q == null) {
+      return const SizedBox(
+        height: 160,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    String money(int cents) => PricePanel.money(cents / 100, q.currency);
+    final pricing = ref.watch(customerPricingProvider(q.customerId)).value;
+    final changed = pricing == null
+        ? const <QuotationLine>[]
+        : q.changedDesigns({
+            for (final d in pricing.designs) d.designId: d.designKey,
+          });
+    final list = ref.watch(priceListProvider).value;
+    final pricesMoved =
+        list != null && !list.isStarter && list.version != q.priceListVersion;
+    final canEdit = ref.watch(actorProvider).can(Capability.quotationsEdit);
+    final l = context.l10n;
+    final w = context.words;
+    return SafeArea(
+      child: SingleChildScrollView(
+        key: QuotationKeys.sheet,
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(l.quoteHeading, style: text.labelMedium),
+            Wrap(
+              spacing: 10,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(q.label, style: text.headlineSmall),
+                KeyedSubtree(
+                  key: QuotationKeys.status,
+                  child: QuotationStatusChip(q.status),
+                ),
+              ],
+            ),
+            Text(
+              '${l.quoteFor(q.customerName, dayOf(q.createdAt, l))}'
+              '${q.createdBy.isEmpty ? '' : l.quoteBy(q.createdBy)} · '
+              '${l.quoteListVersion(q.priceListVersion)}',
+              style: text.bodySmall?.copyWith(color: p.muted),
+            ),
+            if (changed.isNotEmpty || pricesMoved)
+              Container(
+                key: QuotationKeys.changed,
+                margin: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: p.notice,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  [
+                    if (changed.isNotEmpty)
+                      l.quoteDesignChanged(
+                        changed.map((c) => c.designName).join(w.listComma),
+                      ),
+                    if (pricesMoved) l.quotePricesChanged,
+                    l.quoteStaysAsOffered,
+                  ].join(' '),
+                  style: text.bodySmall?.copyWith(color: p.onNotice),
+                ),
+              ),
+            const SizedBox(height: 12),
+            for (final line in q.lines)
+              Padding(
+                key: QuotationKeys.line(line.designId),
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    PriceRow(
+                      line.designName,
+                      money(line.totalCents),
+                      strong: true,
+                    ),
+                    Text(
+                      '${keptCategoryIn(w, line.category)} · '
+                      '${keptMaterialIn(w, line.material)} · '
+                      '${keptColourIn(w, line.colour)}',
+                      style: text.bodySmall?.copyWith(color: p.muted),
+                    ),
+                    // The design's own extras and discount, as they were
+                    // when it was quoted.
+                    for (final e in line.result.extras)
+                      PriceRow(
+                        '   ${e.name} · ${e.sum(money, w)}',
+                        money(e.totalCents),
+                      ),
+                    if (line.result.discount case final d?)
+                      PriceRow(
+                        '   ${l.quoteDesignDiscount(d.describe(money))}',
+                        '−${money(line.result.discountCents)}',
+                      ),
+                  ],
+                ),
+              ),
+            if (q.extras.isNotEmpty) ...[
+              const Divider(),
+              PriceRow(
+                l.finDesigns,
+                money(q.designsCents),
+                valueKey: QuotationKeys.designs,
+              ),
+              for (final e in q.extras)
+                PriceRow(
+                  key: QuotationKeys.extra(e.id),
+                  '${e.name} · ${e.sum(money, w)}',
+                  money(e.totalCents),
+                ),
+              PriceRow(
+                l.finExtrasWholeJob,
+                money(q.extrasCents),
+                valueKey: QuotationKeys.extras,
+              ),
+            ],
+            const Divider(),
+            PriceRow(
+              l.finSubtotal,
+              money(q.subtotalCents),
+              valueKey: QuotationKeys.subtotal,
+            ),
+            if (q.discount case final d?)
+              PriceRow(
+                l.finDiscountOf(d.describe(money, w)),
+                '−${money(q.discountCents)}',
+                valueKey: QuotationKeys.discount,
+              ),
+            PriceRow(
+              l.finFinalTotal,
+              money(q.totalCents),
+              strong: true,
+              valueKey: QuotationKeys.total,
+            ),
+            if (q.notes.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(q.notes, style: text.bodySmall),
+            ],
+            const SizedBox(height: 8),
+            for (final h in q.history)
+              Text(
+                '${l.quoteStatusOn(h.status.labelIn(w), dayOf(h.at, l))}'
+                '${h.by.isEmpty ? '' : l.quoteBy(h.by)}',
+                style: text.bodySmall?.copyWith(color: p.muted),
+              ),
+            if (canEdit && q.status.next.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final next in q.status.next)
+                    OutlinedButton(
+                      key: QuotationKeys.become(next),
+                      onPressed: () async {
+                        final done = await ref.setQuotationStatus(q.id, next);
+                        if (done.problem != null && context.mounted) {
+                          say(context, done.problem!);
+                        }
+                      },
+                      child: Text(switch (next) {
+                        QuotationStatus.issued => l.quoteIssue,
+                        QuotationStatus.accepted => l.quoteMarkAccepted,
+                        QuotationStatus.rejected => l.quoteMarkRejected,
+                        QuotationStatus.expired => l.quoteMarkExpired,
+                        QuotationStatus.draft => l.qsDraft,
+                      }),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Receipts ───────────────────────────────────────────────────────────
+
+/// The parts of a receipt.
+abstract final class ReceiptKeys {
+  static const sheet = ValueKey('receipt-sheet');
+  static const number = ValueKey('receipt-number');
+  static const amount = ValueKey('receipt-amount');
+  static const balance = ValueKey('receipt-balance');
+}
+
+Future<void> showReceipt(
+  BuildContext context,
+  Receipt receipt,
+  String customerName,
+) => showModalBottomSheet<void>(
+  context: context,
+  isScrollControlled: true,
+  showDragHandle: true,
+  constraints: const BoxConstraints(maxWidth: 560),
+  builder: (_) => ReceiptSheet(receipt: receipt, customerName: customerName),
+);
+
+/// A receipt as it was issued: what was received, when, how, and the
+/// balance as it then stood. Showing it changes nothing.
+class ReceiptSheet extends StatelessWidget {
+  final Receipt receipt;
+  final String customerName;
+
+  const ReceiptSheet({
+    super.key,
+    required this.receipt,
+    required this.customerName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final r = receipt;
+    final text = Theme.of(context).textTheme;
+    final p = context.palette;
+    final balance = r.balanceAfterCents;
+    final l = context.l10n;
+    return SafeArea(
+      child: SingleChildScrollView(
+        key: ReceiptKeys.sheet,
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(l.rcpHeading, style: text.labelMedium),
+            Text(r.label, key: ReceiptKeys.number, style: text.headlineSmall),
+            Text(l.rcpReceivedFrom(customerName), style: text.bodyMedium),
+            const SizedBox(height: 12),
+            PriceRow(
+              l.rcpAmount,
+              PricePanel.money(r.amountCents / 100, r.currency),
+              strong: true,
+              valueKey: ReceiptKeys.amount,
+            ),
+            if (r.conversion case final c?)
+              PriceRow(
+                l.rcpAtRate(r.currency, '${c.rate}', c.to),
+                PricePanel.money(c.cents / 100, c.to),
+              ),
+            PriceRow(l.rcpDate, dayOf(r.paidAt, l)),
+            PriceRow(l.finPaymentMethod, r.methodLabelIn(context.words)),
+            if (r.note.isNotEmpty) PriceRow(l.finNote, r.note),
+            PriceRow(l.rcpBalance, switch (balance) {
+              null => l.rcpNotFinal,
+              > 0 => l.rcpDue(
+                PricePanel.money(balance / 100, r.balanceCurrency),
+              ),
+              < 0 => l.rcpCredit(
+                PricePanel.money(-balance / 100, r.balanceCurrency),
+              ),
+              _ => l.rcpPaidInFull,
+            }, valueKey: ReceiptKeys.balance),
+            const SizedBox(height: 8),
+            Text(
+              '${l.rcpIssued(dayOf(r.issuedAt, l))}'
+              '${r.issuedBy.isEmpty ? '' : l.quoteBy(r.issuedBy)}'
+              '${l.rcpForPayment(r.transactionId)}',
+              style: text.bodySmall?.copyWith(color: p.muted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

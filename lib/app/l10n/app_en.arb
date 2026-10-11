@@ -1,0 +1,6211 @@
+{
+  "@@locale": "en",
+  "appTitle": "ProFrame",
+  "@appTitle": {
+    "description": "The application's name; a product name, not translated."
+  },
+  "fwBack": "Back",
+  "@fwBack": {
+    "description": "Tooltip of the back arrow."
+  },
+  "fwClose": "Close",
+  "@fwClose": {
+    "description": "Close button or tooltip."
+  },
+  "fwCancel": "Cancel",
+  "@fwCancel": {
+    "description": "Cancel button."
+  },
+  "fwOk": "OK",
+  "@fwOk": {
+    "description": "OK button."
+  },
+  "fwSave": "Save",
+  "@fwSave": {
+    "description": "Save button."
+  },
+  "fwContinue": "Continue",
+  "@fwContinue": {
+    "description": "Continue button."
+  },
+  "fwDelete": "Delete",
+  "@fwDelete": {
+    "description": "Delete button or tooltip."
+  },
+  "fwMore": "More",
+  "@fwMore": {
+    "description": "More options tooltip."
+  },
+  "fwShowMenu": "Show menu",
+  "@fwShowMenu": {
+    "description": "Tooltip of a menu button."
+  },
+  "fwSearch": "Search",
+  "@fwSearch": {
+    "description": "Search field label."
+  },
+  "fwClearText": "Clear text",
+  "@fwClearText": {
+    "description": "Clear a text field."
+  },
+  "fwDismiss": "Dismiss",
+  "@fwDismiss": {
+    "description": "Dismiss a dialog or menu (screen reader)."
+  },
+  "fwDialog": "Dialog",
+  "@fwDialog": {
+    "description": "A dialog (screen reader)."
+  },
+  "fwAlert": "Alert",
+  "@fwAlert": {
+    "description": "An alert dialog (screen reader)."
+  },
+  "fwPopupMenu": "Popup menu",
+  "@fwPopupMenu": {
+    "description": "A popup menu (screen reader)."
+  },
+  "fwBottomSheet": "Bottom sheet",
+  "@fwBottomSheet": {
+    "description": "A sheet rising from the bottom (screen reader)."
+  },
+  "fwSelectDate": "Select date",
+  "@fwSelectDate": {
+    "description": "Date picker heading."
+  },
+  "fwEnterDate": "Enter date",
+  "@fwEnterDate": {
+    "description": "Date picker text field."
+  },
+  "fwDateFormat": "dd/mm/yyyy",
+  "@fwDateFormat": {
+    "description": "Date picker format hint."
+  },
+  "fwInvalidDate": "Invalid format.",
+  "@fwInvalidDate": {
+    "description": "Date picker error."
+  },
+  "fwDateOutOfRange": "Out of range.",
+  "@fwDateOutOfRange": {
+    "description": "Date picker error."
+  },
+  "fwToCalendar": "Switch to calendar",
+  "@fwToCalendar": {
+    "description": "Date picker mode button."
+  },
+  "fwToInput": "Switch to input",
+  "@fwToInput": {
+    "description": "Date picker mode button."
+  },
+  "fwNextMonth": "Next month",
+  "@fwNextMonth": {
+    "description": "Date picker tooltip."
+  },
+  "fwPreviousMonth": "Previous month",
+  "@fwPreviousMonth": {
+    "description": "Date picker tooltip."
+  },
+  "fwSelectYear": "Select year",
+  "@fwSelectYear": {
+    "description": "Date picker (screen reader)."
+  },
+  "fwToday": "Today",
+  "@fwToday": {
+    "description": "Today, in a calendar."
+  },
+  "fwSelected": "Selected",
+  "@fwSelected": {
+    "description": "A selected date (screen reader)."
+  },
+  "fwCopy": "Copy",
+  "@fwCopy": {
+    "description": "Text selection menu."
+  },
+  "fwCut": "Cut",
+  "@fwCut": {
+    "description": "Text selection menu."
+  },
+  "fwPaste": "Paste",
+  "@fwPaste": {
+    "description": "Text selection menu."
+  },
+  "fwSelectAll": "Select all",
+  "@fwSelectAll": {
+    "description": "Text selection menu."
+  },
+  "fwExpand": "Expand",
+  "@fwExpand": {
+    "description": "Expand a folded section (screen reader)."
+  },
+  "fwCollapse": "Collapse",
+  "@fwCollapse": {
+    "description": "Fold a section (screen reader)."
+  },
+  "fwRefresh": "Refresh",
+  "@fwRefresh": {
+    "description": "Refresh (screen reader)."
+  },
+  "fwJanuary": "January",
+  "@fwJanuary": {
+    "description": "Month name."
+  },
+  "fwFebruary": "February",
+  "@fwFebruary": {
+    "description": "Month name."
+  },
+  "fwMarch": "March",
+  "@fwMarch": {
+    "description": "Month name."
+  },
+  "fwApril": "April",
+  "@fwApril": {
+    "description": "Month name."
+  },
+  "fwMay": "May",
+  "@fwMay": {
+    "description": "Month name."
+  },
+  "fwJune": "June",
+  "@fwJune": {
+    "description": "Month name."
+  },
+  "fwJuly": "July",
+  "@fwJuly": {
+    "description": "Month name."
+  },
+  "fwAugust": "August",
+  "@fwAugust": {
+    "description": "Month name."
+  },
+  "fwSeptember": "September",
+  "@fwSeptember": {
+    "description": "Month name."
+  },
+  "fwOctober": "October",
+  "@fwOctober": {
+    "description": "Month name."
+  },
+  "fwNovember": "November",
+  "@fwNovember": {
+    "description": "Month name."
+  },
+  "fwDecember": "December",
+  "@fwDecember": {
+    "description": "Month name."
+  },
+  "fwSunday": "Sunday",
+  "@fwSunday": {
+    "description": "Weekday."
+  },
+  "fwMonday": "Monday",
+  "@fwMonday": {
+    "description": "Weekday."
+  },
+  "fwTuesday": "Tuesday",
+  "@fwTuesday": {
+    "description": "Weekday."
+  },
+  "fwWednesday": "Wednesday",
+  "@fwWednesday": {
+    "description": "Weekday."
+  },
+  "fwThursday": "Thursday",
+  "@fwThursday": {
+    "description": "Weekday."
+  },
+  "fwFriday": "Friday",
+  "@fwFriday": {
+    "description": "Weekday."
+  },
+  "fwSaturday": "Saturday",
+  "@fwSaturday": {
+    "description": "Weekday."
+  },
+  "fwNarrowWeekdays": "S,M,T,W,T,F,S",
+  "@fwNarrowWeekdays": {
+    "description": "The seven weekdays' initials, Sunday first, separated by commas, for a calendar's column heads."
+  },
+  "settingsTitle": "Settings",
+  "@settingsTitle": {
+    "description": "The settings screen's title, and the button that opens it."
+  },
+  "settingsLanguage": "Language",
+  "@settingsLanguage": {
+    "description": "Heading of the language choice."
+  },
+  "settingsLanguageNote": "The application changes language at once. Customers, designs, prices and records are not changed.",
+  "@settingsLanguageNote": {
+    "description": "Under the language choice."
+  },
+  "settingsAppearance": "Appearance",
+  "@settingsAppearance": {
+    "description": "Heading of the light or dark choice, and its button's tooltip."
+  },
+  "appearanceSystem": "Match device",
+  "@appearanceSystem": {
+    "description": "Follow the device's light or dark setting."
+  },
+  "appearanceLight": "Light",
+  "@appearanceLight": {
+    "description": "Light appearance."
+  },
+  "appearanceDark": "Dark",
+  "@appearanceDark": {
+    "description": "Dark appearance."
+  },
+  "kindDoor": "Door",
+  "@kindDoor": {
+    "description": "[domain] Design category: a door."
+  },
+  "kindWindow": "Window",
+  "@kindWindow": {
+    "description": "[domain] Design category: a window."
+  },
+  "kindBoth": "Door & window",
+  "@kindBoth": {
+    "description": "[domain] Design category: doors and windows in one frame."
+  },
+  "kindSliding": "Sliding",
+  "@kindSliding": {
+    "description": "[domain] Design category: sliding panels."
+  },
+  "kindAngled": "Angled / Asymmetrical",
+  "@kindAngled": {
+    "description": "[domain] Design category: sloped, under-stair and custom shapes."
+  },
+  "kindUnsupported": "Unsupported category",
+  "@kindUnsupported": {
+    "description": "[domain] A category this version does not know."
+  },
+  "nounDoor": "door",
+  "@nounDoor": {
+    "description": "[domain] A door, in the middle of a sentence."
+  },
+  "nounWindow": "window",
+  "@nounWindow": {
+    "description": "[domain] A window, in the middle of a sentence."
+  },
+  "nounBoth": "door & window",
+  "@nounBoth": {
+    "description": "[domain] A door and window design, in the middle of a sentence."
+  },
+  "nounSliding": "sliding",
+  "@nounSliding": {
+    "description": "[domain] A sliding design, in the middle of a sentence."
+  },
+  "nounAngled": "angled design",
+  "@nounAngled": {
+    "description": "[domain] An angled design, in the middle of a sentence."
+  },
+  "nounUnsupported": "design of an unsupported category",
+  "@nounUnsupported": {
+    "description": "[domain] A design of an unknown category, in the middle of a sentence."
+  },
+  "untitledDesign": "Untitled {noun}",
+  "@untitledDesign": {
+    "description": "[domain] A design with no name, e.g. 'Untitled window'.",
+    "placeholders": {
+      "noun": {
+        "type": "String"
+      }
+    }
+  },
+  "constructionPending": "Not said",
+  "@constructionPending": {
+    "description": "[domain] What a door is built of: not said yet."
+  },
+  "constructionPanel": "Panel",
+  "@constructionPanel": {
+    "description": "[domain] Built of panel."
+  },
+  "constructionGlass": "Glass",
+  "@constructionGlass": {
+    "description": "[domain] Built of glass."
+  },
+  "constructionBoth": "Panel + glass",
+  "@constructionBoth": {
+    "description": "[domain] Built of panel and glass."
+  },
+  "matUpvc": "uPVC",
+  "@matUpvc": {
+    "description": "[domain] Material: uPVC profile (kept as the trade name)."
+  },
+  "matAluminium": "Aluminium",
+  "@matAluminium": {
+    "description": "[domain] Material: aluminium."
+  },
+  "matWood": "Wood",
+  "@matWood": {
+    "description": "[domain] Material: wood."
+  },
+  "matSteel": "Steel",
+  "@matSteel": {
+    "description": "[domain] Material: steel."
+  },
+  "matClearGlass": "Clear glass",
+  "@matClearGlass": {
+    "description": "[domain] Material: clear glass."
+  },
+  "matFrostedGlass": "Frosted glass",
+  "@matFrostedGlass": {
+    "description": "[domain] Material: frosted (obscured) glass."
+  },
+  "matTintedGlass": "Tinted glass",
+  "@matTintedGlass": {
+    "description": "[domain] Material: tinted glass."
+  },
+  "matPanel": "Solid panel",
+  "@matPanel": {
+    "description": "[domain] Material: a solid (opaque) panel."
+  },
+  "matLouvre": "Louvre",
+  "@matLouvre": {
+    "description": "[domain] Material: louvre slats."
+  },
+  "matMesh": "Insect mesh",
+  "@matMesh": {
+    "description": "[domain] Material: insect mesh."
+  },
+  "matRubber": "Rubber gasket",
+  "@matRubber": {
+    "description": "[domain] Material: rubber gasket."
+  },
+  "classGlass": "Glass",
+  "@classGlass": {
+    "description": "[domain] Material class: glass."
+  },
+  "classPanel": "Panel",
+  "@classPanel": {
+    "description": "[domain] Material class: panel."
+  },
+  "classPvc": "PVC",
+  "@classPvc": {
+    "description": "[domain] Material class: PVC."
+  },
+  "classAluminium": "Aluminium",
+  "@classAluminium": {
+    "description": "[domain] Material class: aluminium."
+  },
+  "classWood": "Wood",
+  "@classWood": {
+    "description": "[domain] Material class: wood."
+  },
+  "classRubber": "Rubber gasket",
+  "@classRubber": {
+    "description": "[domain] Material class: rubber."
+  },
+  "classMetal": "Metal",
+  "@classMetal": {
+    "description": "[domain] Material class: metal."
+  },
+  "classHandleMetal": "Handle metal",
+  "@classHandleMetal": {
+    "description": "[domain] Material class: polished metal of a handle."
+  },
+  "classHingeMetal": "Hinge metal",
+  "@classHingeMetal": {
+    "description": "[domain] Material class: satin metal of a hinge."
+  },
+  "classMesh": "Mesh",
+  "@classMesh": {
+    "description": "[domain] Material class: mesh."
+  },
+  "colourBlack": "Black",
+  "@colourBlack": {
+    "description": "[domain] Colour name."
+  },
+  "colourWhite": "White",
+  "@colourWhite": {
+    "description": "[domain] Colour name."
+  },
+  "colourSilver": "Silver",
+  "@colourSilver": {
+    "description": "[domain] Colour name."
+  },
+  "colourGrey": "Grey",
+  "@colourGrey": {
+    "description": "[domain] Colour name."
+  },
+  "colourBronze": "Bronze",
+  "@colourBronze": {
+    "description": "[domain] Colour name."
+  },
+  "colourBrown": "Brown",
+  "@colourBrown": {
+    "description": "[domain] Colour name."
+  },
+  "colourOffWhite": "Off white",
+  "@colourOffWhite": {
+    "description": "[domain] Colour name: a white with a little grey."
+  },
+  "colourCream": "Cream",
+  "@colourCream": {
+    "description": "[domain] Colour name."
+  },
+  "colourGraphite": "Graphite",
+  "@colourGraphite": {
+    "description": "[domain] Colour name: a very dark grey."
+  },
+  "colourDeepGreen": "Deep green",
+  "@colourDeepGreen": {
+    "description": "[domain] Colour name."
+  },
+  "colourSteelBlue": "Steel blue",
+  "@colourSteelBlue": {
+    "description": "[domain] Colour name."
+  },
+  "colourOak": "Oak",
+  "@colourOak": {
+    "description": "[domain] Colour name: the colour of oak wood."
+  },
+  "colourWalnut": "Walnut",
+  "@colourWalnut": {
+    "description": "[domain] Colour name: the colour of walnut wood."
+  },
+  "colourOxblood": "Oxblood",
+  "@colourOxblood": {
+    "description": "[domain] Colour name: a deep dark red."
+  },
+  "colourClearGlass": "Clear glass",
+  "@colourClearGlass": {
+    "description": "[domain] Colour name: the colour of clear glass."
+  },
+  "colourFrosted": "Frosted",
+  "@colourFrosted": {
+    "description": "[domain] Colour name: frosted glass."
+  },
+  "colourWarmCream": "Warm cream",
+  "@colourWarmCream": {
+    "description": "[domain] Colour name."
+  },
+  "glassClear": "Clear",
+  "@glassClear": {
+    "description": "[domain] Glass look: clear."
+  },
+  "glassTinted": "Tinted",
+  "@glassTinted": {
+    "description": "[domain] Glass look: tinted."
+  },
+  "glassFrosted": "Frosted",
+  "@glassFrosted": {
+    "description": "[domain] Glass look: frosted."
+  },
+  "glassDark": "Dark",
+  "@glassDark": {
+    "description": "[domain] Glass look: dark tinted."
+  },
+  "glassBlueGrey": "Blue-grey",
+  "@glassBlueGrey": {
+    "description": "[domain] Glass look: blue-grey tinted."
+  },
+  "mechFixed": "Fixed",
+  "@mechFixed": {
+    "description": "[domain] How a section opens: it does not."
+  },
+  "mechFixedHint": "Does not open",
+  "@mechFixedHint": {
+    "description": "[domain] Explains Fixed."
+  },
+  "mechHingedLeft": "Hinged left",
+  "@mechHingedLeft": {
+    "description": "[domain] How a section opens: hinged on the left."
+  },
+  "mechHingedLeftHint": "Hinges on the left, opens from the right",
+  "@mechHingedLeftHint": {
+    "description": "[domain] Explains Hinged left."
+  },
+  "mechHingedRight": "Hinged right",
+  "@mechHingedRight": {
+    "description": "[domain] How a section opens: hinged on the right."
+  },
+  "mechHingedRightHint": "Hinges on the right, opens from the left",
+  "@mechHingedRightHint": {
+    "description": "[domain] Explains Hinged right."
+  },
+  "mechTopHung": "Top hung",
+  "@mechTopHung": {
+    "description": "[domain] How a section opens: hinged at the top."
+  },
+  "mechTopHungHint": "Hinges at the top, opens outward at the bottom",
+  "@mechTopHungHint": {
+    "description": "[domain] Explains Top hung."
+  },
+  "mechBottomHung": "Bottom hung",
+  "@mechBottomHung": {
+    "description": "[domain] How a section opens: hinged at the bottom."
+  },
+  "mechBottomHungHint": "Hinges at the bottom, opens inward at the top",
+  "@mechBottomHungHint": {
+    "description": "[domain] Explains Bottom hung."
+  },
+  "mechSlidingLeft": "Sliding left",
+  "@mechSlidingLeft": {
+    "description": "[domain] How a section opens: slides to the left."
+  },
+  "mechSlidingLeftHint": "Slides to the left",
+  "@mechSlidingLeftHint": {
+    "description": "[domain] Explains Sliding left."
+  },
+  "mechSlidingRight": "Sliding right",
+  "@mechSlidingRight": {
+    "description": "[domain] How a section opens: slides to the right."
+  },
+  "mechSlidingRightHint": "Slides to the right",
+  "@mechSlidingRightHint": {
+    "description": "[domain] Explains Sliding right."
+  },
+  "mechTiltAndTurn": "Tilt and turn",
+  "@mechTiltAndTurn": {
+    "description": "[domain] How a section opens: tilt and turn."
+  },
+  "mechTiltAndTurnHint": "Tilts at the top and turns on one side",
+  "@mechTiltAndTurnHint": {
+    "description": "[domain] Explains Tilt and turn."
+  },
+  "mechBifold": "Bi-fold",
+  "@mechBifold": {
+    "description": "[domain] How a section opens: folds in leaves."
+  },
+  "mechBifoldHint": "Folds back in leaves",
+  "@mechBifoldHint": {
+    "description": "[domain] Explains Bi-fold."
+  },
+  "mechPivot": "Pivot",
+  "@mechPivot": {
+    "description": "[domain] How a section opens: turns about a central axis."
+  },
+  "mechPivotHint": "Turns about a central axis",
+  "@mechPivotHint": {
+    "description": "[domain] Explains Pivot."
+  },
+  "hwHandle": "Handle",
+  "@hwHandle": {
+    "description": "[domain] Ironmongery: a handle."
+  },
+  "hwLever": "Lever",
+  "@hwLever": {
+    "description": "[domain] Ironmongery: a lever handle on a backplate."
+  },
+  "hwKnob": "Knob",
+  "@hwKnob": {
+    "description": "[domain] Ironmongery: a round knob."
+  },
+  "hwLock": "Lock",
+  "@hwLock": {
+    "description": "[domain] Ironmongery: a lock."
+  },
+  "hwHinge": "Hinge",
+  "@hwHinge": {
+    "description": "[domain] Ironmongery: a hinge."
+  },
+  "hwLetterplate": "Letter plate",
+  "@hwLetterplate": {
+    "description": "[domain] Ironmongery: a letter plate."
+  },
+  "hwPeephole": "Peephole",
+  "@hwPeephole": {
+    "description": "[domain] Ironmongery: a door viewer."
+  },
+  "hwCloser": "Closer",
+  "@hwCloser": {
+    "description": "[domain] Ironmongery: a door closer."
+  },
+  "hwPull": "Pull handle",
+  "@hwPull": {
+    "description": "[domain] Ironmongery: the long bar a sliding panel is pulled by."
+  },
+  "hwScreen": "Pleated screen",
+  "@hwScreen": {
+    "description": "[domain] A pleated insect screen in a cassette."
+  },
+  "hwSensor": "Sensor",
+  "@hwSensor": {
+    "description": "[domain] The sensor that opens an automatic entrance."
+  },
+  "elFrame": "Frame",
+  "@elFrame": {
+    "description": "[domain] The frame of the design."
+  },
+  "elSection": "Section",
+  "@elSection": {
+    "description": "[domain] A section of the design."
+  },
+  "elNote": "Note",
+  "@elNote": {
+    "description": "[domain] A note written on the drawing."
+  },
+  "elArrow": "Arrow",
+  "@elArrow": {
+    "description": "[domain] An arrow drawn on the drawing."
+  },
+  "elVerticalDivider": "Vertical divider",
+  "@elVerticalDivider": {
+    "description": "[domain] An upright line dividing the design."
+  },
+  "elHorizontalDivider": "Horizontal divider",
+  "@elHorizontalDivider": {
+    "description": "[domain] A level line dividing the design."
+  },
+  "elAngledDivider": "Angled divider",
+  "@elAngledDivider": {
+    "description": "[domain] A sloped line dividing the design."
+  },
+  "payTypePayment": "Payment",
+  "@payTypePayment": {
+    "description": "[domain] Money received from the customer."
+  },
+  "payTypeRefund": "Refund",
+  "@payTypeRefund": {
+    "description": "[domain] Money returned to the customer."
+  },
+  "payCash": "Cash",
+  "@payCash": {
+    "description": "[domain] Payment method."
+  },
+  "payBankTransfer": "Bank transfer",
+  "@payBankTransfer": {
+    "description": "[domain] Payment method."
+  },
+  "payCard": "Card",
+  "@payCard": {
+    "description": "[domain] Payment method."
+  },
+  "payOther": "Other",
+  "@payOther": {
+    "description": "[domain] Payment method: another way."
+  },
+  "payLegacy": "Legacy / unknown",
+  "@payLegacy": {
+    "description": "[domain] Payment method of a payment brought over from before the ledger."
+  },
+  "payOtherDetail": "Other — {detail}",
+  "@payOtherDetail": {
+    "description": "[domain] A payment method described by the user.",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "discountPercent": "Percentage",
+  "@discountPercent": {
+    "description": "[domain] A discount as a percentage."
+  },
+  "discountFixed": "Fixed amount",
+  "@discountFixed": {
+    "description": "[domain] A discount as a fixed amount of money."
+  },
+  "projectionPerspective": "Perspective",
+  "@projectionPerspective": {
+    "description": "[domain] 3D projection as the eye sees it."
+  },
+  "projectionParallel": "Orthographic",
+  "@projectionParallel": {
+    "description": "[domain] 3D projection keeping parallel edges parallel."
+  },
+  "groupNormalProfile": "Border and internal lines",
+  "@groupNormalProfile": {
+    "description": "[domain] Price group: the frame's border and the lines inside the design."
+  },
+  "groupOpeningProfile": "Opening profile",
+  "@groupOpeningProfile": {
+    "description": "[domain] Price group: the profile round each opening."
+  },
+  "groupOtherProfile": "Other profile",
+  "@groupOtherProfile": {
+    "description": "[domain] Price group: other profile by the metre, a sliding track."
+  },
+  "groupColour": "Colour",
+  "@groupColour": {
+    "description": "[domain] Price group: what a colour adds."
+  },
+  "groupGlass": "Glass",
+  "@groupGlass": {
+    "description": "[domain] Price group: glass."
+  },
+  "groupPanel": "Panel",
+  "@groupPanel": {
+    "description": "[domain] Price group: panel."
+  },
+  "groupHardware": "Hardware",
+  "@groupHardware": {
+    "description": "[domain] Price group: handles, hinges, locks."
+  },
+  "groupLabour": "Labour",
+  "@groupLabour": {
+    "description": "[domain] Price group: labour."
+  },
+  "groupInstallation": "Installation",
+  "@groupInstallation": {
+    "description": "[domain] Price group: installation."
+  },
+  "unitEach": "each",
+  "@unitEach": {
+    "description": "[domain] Price unit: counted by the piece."
+  },
+  "glassNotIncluded": "Not included",
+  "@glassNotIncluded": {
+    "description": "[domain] Glass row: the design has glass, not included in the price."
+  },
+  "glassNothingToCharge": "No measurable glass to price",
+  "@glassNothingToCharge": {
+    "description": "[domain] Glass row: included, but no glass to charge."
+  },
+  "glassNotUsed": "Not used",
+  "@glassNotUsed": {
+    "description": "[domain] A material the design does not use."
+  },
+  "catSystemAluminium": "System Aluminium",
+  "@catSystemAluminium": {
+    "description": "[domain] Aluminium profile category: System Aluminium."
+  },
+  "catBendShoulderAluminium": "Bend Shoulder Aluminium",
+  "@catBendShoulderAluminium": {
+    "description": "[domain] Aluminium profile category: Bend Shoulder Aluminium (product term, kept in English pending review)."
+  },
+  "partBorder": "Border",
+  "@partBorder": {
+    "description": "[domain] The frame's border profile."
+  },
+  "partLines": "Internal lines",
+  "@partLines": {
+    "description": "[domain] The lines inside the design, cut from the same profile."
+  },
+  "designsCount": "{count, plural, =0{No designs yet} =1{1 design} other{{count} designs}}",
+  "@designsCount": {
+    "description": "How many designs a customer has.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "customersNoAccess": "You do not have permission to view customers.",
+  "@customersNoAccess": {
+    "description": "Customers screen, for somebody not allowed to see them."
+  },
+  "customersAll": "All Customers",
+  "@customersAll": {
+    "description": "Heading over the list of customers."
+  },
+  "customersResults": "Results",
+  "@customersResults": {
+    "description": "Heading over the customers a search found."
+  },
+  "newCustomer": "New Customer",
+  "@newCustomer": {
+    "description": "Button: add a customer."
+  },
+  "newDesign": "New Design",
+  "@newDesign": {
+    "description": "Button: begin a new design."
+  },
+  "brandWordmark": "PROFRAME",
+  "@brandWordmark": {
+    "description": "The product's name in capitals over the customers' heading; a name, not translated."
+  },
+  "customersTitle": "Customers",
+  "@customersTitle": {
+    "description": "The customers screen's title."
+  },
+  "customersEmptyLine": "Everyone you draw for is kept here.",
+  "@customersEmptyLine": {
+    "description": "Under the title when there are no customers."
+  },
+  "customersCount": "{count, plural, =1{1 customer} other{{count} customers}}",
+  "@customersCount": {
+    "description": "How many customers are kept.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "customersSearchHint": "Search by name or phone...",
+  "@customersSearchHint": {
+    "description": "Hint in the customers' search field."
+  },
+  "clearSearch": "Clear search",
+  "@clearSearch": {
+    "description": "Tooltip: empty the search field."
+  },
+  "noPhoneNumber": "No phone number",
+  "@noPhoneNumber": {
+    "description": "A customer card with no phone number."
+  },
+  "customersNoneYet": "No customers yet",
+  "@customersNoneYet": {
+    "description": "Empty customers list heading."
+  },
+  "customersNoneYetLine": "Add the people you draw for, and keep their designs together.",
+  "@customersNoneYetLine": {
+    "description": "Empty customers list explanation."
+  },
+  "customersNoMatch": "No customer matches \"{query}\".",
+  "@customersNoMatch": {
+    "description": "A search that found nobody.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "openingNumbered": "Opening {number}",
+  "@openingNumbered": {
+    "description": "[domain] An opening (a part of the design that opens) by its number across the drawing.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "openingAlone": "Opening",
+  "@openingAlone": {
+    "description": "[domain] An opening, where it has no number."
+  },
+  "openingThe": "the opening",
+  "@openingThe": {
+    "description": "[domain] The opening, in a sentence."
+  },
+  "partA": "a part",
+  "@partA": {
+    "description": "[domain] A part of the design, in a sentence."
+  },
+  "placeHead": "Head",
+  "@placeHead": {
+    "description": "[domain] The top member of a frame."
+  },
+  "placeSill": "Sill",
+  "@placeSill": {
+    "description": "[domain] The bottom member of a frame."
+  },
+  "placeLeftJamb": "Left jamb",
+  "@placeLeftJamb": {
+    "description": "[domain] The left upright member of a frame."
+  },
+  "placeRightJamb": "Right jamb",
+  "@placeRightJamb": {
+    "description": "[domain] The right upright member of a frame."
+  },
+  "placeRakingUpperLeft": "Raking upper left side",
+  "@placeRakingUpperLeft": {
+    "description": "[domain] A sloping side of a frame, upper left."
+  },
+  "placeRakingUpperRight": "Raking upper right side",
+  "@placeRakingUpperRight": {
+    "description": "[domain] A sloping side of a frame, upper right."
+  },
+  "placeRakingLowerLeft": "Raking lower left side",
+  "@placeRakingLowerLeft": {
+    "description": "[domain] A sloping side of a frame, lower left."
+  },
+  "placeRakingLowerRight": "Raking lower right side",
+  "@placeRakingLowerRight": {
+    "description": "[domain] A sloping side of a frame, lower right."
+  },
+  "lineNumbered": "Line {n}",
+  "@lineNumbered": {
+    "description": "[domain] A line of the design by its number.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "lineInside": "Line {n} (inside {opening})",
+  "@lineInside": {
+    "description": "[domain] A line drawn inside an opening.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "opening": {
+        "type": "String"
+      }
+    }
+  },
+  "measFrameBorder": "Frame border",
+  "@measFrameBorder": {
+    "description": "[domain] Size: the width of the frame's border profile."
+  },
+  "measBarThickness": "Bar thickness",
+  "@measBarThickness": {
+    "description": "[domain] Size: the thickness of the lines dividing the design."
+  },
+  "measOverallWidth": "Overall width",
+  "@measOverallWidth": {
+    "description": "[domain] Size: the whole design's width."
+  },
+  "measOverallHeight": "Overall height",
+  "@measOverallHeight": {
+    "description": "[domain] Size: the whole design's height."
+  },
+  "axisWidth": "Width",
+  "@axisWidth": {
+    "description": "[domain] A width."
+  },
+  "axisHeight": "Height",
+  "@axisHeight": {
+    "description": "[domain] A height."
+  },
+  "measFixedLight": "Fixed light {n}",
+  "@measFixedLight": {
+    "description": "[domain] A part of the design that does not open, by its number.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "measPane": "{around} — {material} {n}",
+  "@measPane": {
+    "description": "[domain] A pane inside a part: the part, what fills the pane, and its number.",
+    "placeholders": {
+      "around": {
+        "type": "String"
+      },
+      "material": {
+        "type": "String"
+      },
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "sideHeight": "{side} height",
+  "@sideHeight": {
+    "description": "[domain] The height of one side of an angled frame.",
+    "placeholders": {
+      "side": {
+        "type": "String"
+      }
+    }
+  },
+  "sideWidth": "{side} width",
+  "@sideWidth": {
+    "description": "[domain] The width of one side of an angled frame.",
+    "placeholders": {
+      "side": {
+        "type": "String"
+      }
+    }
+  },
+  "joinAnd": "{a} and {b}",
+  "@joinAnd": {
+    "description": "[domain] Two things joined: a and b.",
+    "placeholders": {
+      "a": {
+        "type": "String"
+      },
+      "b": {
+        "type": "String"
+      }
+    }
+  },
+  "joinOr": "{a} or {b}",
+  "@joinOr": {
+    "description": "[domain] Two things offered: a or b.",
+    "placeholders": {
+      "a": {
+        "type": "String"
+      },
+      "b": {
+        "type": "String"
+      }
+    }
+  },
+  "reqUnsupported": "This design's category is not supported by this version of ProFrame, so its price is unavailable.",
+  "@reqUnsupported": {
+    "description": "[domain] Why a design cannot be priced."
+  },
+  "reqNotRead": "The drawing has changes that have not been read. Please Read the drawing before calculating the price.",
+  "@reqNotRead": {
+    "description": "[domain] Why a design cannot be priced: lines drawn since the last reading."
+  },
+  "reqFrame": "Please complete the outer frame to calculate the price.",
+  "@reqFrame": {
+    "description": "[domain] Why a design cannot be priced."
+  },
+  "reqDraw": "Please draw the design to calculate the price.",
+  "@reqDraw": {
+    "description": "[domain] Why a design cannot be priced."
+  },
+  "reqGeometry": "Please correct the geometry to calculate the price: {problem}",
+  "@reqGeometry": {
+    "description": "[domain] Why a design cannot be priced, with the geometry problem.",
+    "placeholders": {
+      "problem": {
+        "type": "String"
+      }
+    }
+  },
+  "reqConstruction": "Please choose what the door is built of — panel, glass or both — to calculate the price.",
+  "@reqConstruction": {
+    "description": "[domain] Why a door cannot be priced."
+  },
+  "reqPanelOrGlass": "Please complete the panel/glass selection to calculate the price.",
+  "@reqPanelOrGlass": {
+    "description": "[domain] Why a design cannot be priced."
+  },
+  "reqOpeningKind": "Please say whether {opening} is a door or a window to calculate the price.",
+  "@reqOpeningKind": {
+    "description": "[domain] Why a design cannot be priced.",
+    "placeholders": {
+      "opening": {
+        "type": "String"
+      }
+    }
+  },
+  "reqFrameSizes": "Please give the {which} to calculate the price.",
+  "@reqFrameSizes": {
+    "description": "[domain] Why a design cannot be priced: sizes of the frame not given.",
+    "placeholders": {
+      "which": {
+        "type": "String"
+      }
+    }
+  },
+  "reqGroupSizes": "Please complete the dimensions of {group} (its {which}) to calculate the price.",
+  "@reqGroupSizes": {
+    "description": "[domain] Why a design cannot be priced: sizes of one part not given.",
+    "placeholders": {
+      "group": {
+        "type": "String"
+      },
+      "which": {
+        "type": "String"
+      }
+    }
+  },
+  "reqProfile": "Please choose the material and colour of the profile to calculate the price.",
+  "@reqProfile": {
+    "description": "[domain] Why a design cannot be priced."
+  },
+  "reqCategoryAll": "Please choose whether the {material} profile is {choices} to calculate the price.",
+  "@reqCategoryAll": {
+    "description": "[domain] Why an aluminium design cannot be priced: no profile category chosen.",
+    "placeholders": {
+      "material": {
+        "type": "String"
+      },
+      "choices": {
+        "type": "String"
+      }
+    }
+  },
+  "reqCategorySome": "Please choose {choices} for {parts} to calculate the price.",
+  "@reqCategorySome": {
+    "description": "[domain] Why an aluminium design cannot be priced: some parts have no category.",
+    "placeholders": {
+      "choices": {
+        "type": "String"
+      },
+      "parts": {
+        "type": "String"
+      }
+    }
+  },
+  "readinessMoreOne": "{first} {more} more thing needs completing too.",
+  "@readinessMoreOne": {
+    "description": "[domain] The first missing thing, and how many more (one).",
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "more": {
+        "type": "int"
+      }
+    }
+  },
+  "readinessMoreMany": "{first} {more} more things need completing too.",
+  "@readinessMoreMany": {
+    "description": "[domain] The first missing thing, and how many more (several).",
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "more": {
+        "type": "int"
+      }
+    }
+  },
+  "takeoffNothing": "Nothing has been drawn yet.",
+  "@takeoffNothing": {
+    "description": "[domain] Why a design cannot be measured."
+  },
+  "takeoffOutline": "The outline cannot be measured.",
+  "@takeoffOutline": {
+    "description": "[domain] Why a design cannot be measured."
+  },
+  "takeoffNoSize": "The design has no width or no height.",
+  "@takeoffNoSize": {
+    "description": "[domain] Why a design cannot be measured."
+  },
+  "colourNotForMaterial": "Please select a colour available for {material}.",
+  "@colourNotForMaterial": {
+    "description": "[domain] The chosen colour is not sold in this material.",
+    "placeholders": {
+      "material": {
+        "type": "String"
+      }
+    }
+  },
+  "colourNotConfigured": "Colour pricing is not configured for {material}.",
+  "@colourNotConfigured": {
+    "description": "[domain] The price list has no rate for this colour on this material.",
+    "placeholders": {
+      "material": {
+        "type": "String"
+      }
+    }
+  },
+  "colourUnavailable": "Colour pricing unavailable — please select an active colour.",
+  "@colourUnavailable": {
+    "description": "[domain] The chosen colour is retired or unknown."
+  },
+  "colourNoProfile": "The price list has no price for {material} profile.",
+  "@colourNoProfile": {
+    "description": "[domain] The price list has no price for this material.",
+    "placeholders": {
+      "material": {
+        "type": "String"
+      }
+    }
+  },
+  "gradeStandard": "Standard colour",
+  "@gradeStandard": {
+    "description": "[domain] A colour the factory stocks as standard."
+  },
+  "gradeNonStandard": "Non-standard colour",
+  "@gradeNonStandard": {
+    "description": "[domain] A colour the factory sells at a surcharge."
+  },
+  "gradeSpecial": "Special colour",
+  "@gradeSpecial": {
+    "description": "[domain] A colour the price list does not name."
+  },
+  "engineUnsupported": "This version of ProFrame cannot price a design of this category.",
+  "@engineUnsupported": {
+    "description": "[domain] Why a design cannot be priced."
+  },
+  "engineNoCategory": "The price list has no prices for {kind} designs.",
+  "@engineNoCategory": {
+    "description": "[domain] Why a design cannot be priced.",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "engineMissing": "The price list has no price for {what}.",
+  "@engineMissing": {
+    "description": "[domain] Something the price list has no rate for.",
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "engineExtraCurrency": "The extra charge \"{name}\" is in {currency}, and this design is priced in {listCurrency}. Write it in {listCurrency}.",
+  "@engineExtraCurrency": {
+    "description": "[domain] An extra charge in another currency than the price list's.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      },
+      "listCurrency": {
+        "type": "String"
+      }
+    }
+  },
+  "missProfile": "{material} profile",
+  "@missProfile": {
+    "description": "[domain] What the price list lacks: a material's profile.",
+    "placeholders": {
+      "material": {
+        "type": "String"
+      }
+    }
+  },
+  "missBorderLines": "{what} border and lines",
+  "@missBorderLines": {
+    "description": "[domain] What the price list lacks: border and lines of a material or category.",
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "missInfill": "{material} infill",
+  "@missInfill": {
+    "description": "[domain] What the price list lacks: an infill material.",
+    "placeholders": {
+      "material": {
+        "type": "String"
+      }
+    }
+  },
+  "missPiece": "a {piece}",
+  "@missPiece": {
+    "description": "[domain] What the price list lacks: a piece of ironmongery.",
+    "placeholders": {
+      "piece": {
+        "type": "String"
+      }
+    }
+  },
+  "custom": "Custom",
+  "@custom": {
+    "description": "[domain] A colour or glass of the user's own, not one of the named ones."
+  },
+  "notSelected": "Not selected",
+  "@notSelected": {
+    "description": "[domain] Nothing chosen yet."
+  },
+  "lineProfile": "{what} — {part}",
+  "@lineProfile": {
+    "description": "[domain] A price line: a material or category, and border or internal lines.",
+    "placeholders": {
+      "what": {
+        "type": "String"
+      },
+      "part": {
+        "type": "String"
+      }
+    }
+  },
+  "lineOpeningProfile": "Opening profile — {material}",
+  "@lineOpeningProfile": {
+    "description": "[domain] A price line: the opening profile of a material.",
+    "placeholders": {
+      "material": {
+        "type": "String"
+      }
+    }
+  },
+  "lineColour": "{colour} {material} ({grade})",
+  "@lineColour": {
+    "description": "[domain] A price line: what a colour adds to a material's profile.",
+    "placeholders": {
+      "colour": {
+        "type": "String"
+      },
+      "material": {
+        "type": "String"
+      },
+      "grade": {
+        "type": "String"
+      }
+    }
+  },
+  "lineTrack": "Sliding track",
+  "@lineTrack": {
+    "description": "[domain] A price line: the track sliding panels run on."
+  },
+  "lineGlass": "{look} glass",
+  "@lineGlass": {
+    "description": "[domain] A price line: glass of a look.",
+    "placeholders": {
+      "look": {
+        "type": "String"
+      }
+    }
+  },
+  "lineSealed": "Sealed unit — {glass}",
+  "@lineSealed": {
+    "description": "[domain] A price line: a sealed double-glazed unit.",
+    "placeholders": {
+      "glass": {
+        "type": "String"
+      }
+    }
+  },
+  "linePanel": "{colour} panel",
+  "@linePanel": {
+    "description": "[domain] A price line: a panel of a colour.",
+    "placeholders": {
+      "colour": {
+        "type": "String"
+      }
+    }
+  },
+  "linePieces": "{piece}s",
+  "@linePieces": {
+    "description": "[domain] A price line: several pieces of ironmongery (English adds an s).",
+    "placeholders": {
+      "piece": {
+        "type": "String"
+      }
+    }
+  },
+  "lineRollers": "Rollers",
+  "@lineRollers": {
+    "description": "[domain] A price line: the rollers sliding panels run on."
+  },
+  "lineMaking": "Making",
+  "@lineMaking": {
+    "description": "[domain] A price line: the labour of making."
+  },
+  "lineMakingArea": "Making, by area",
+  "@lineMakingArea": {
+    "description": "[domain] A price line: labour priced by area."
+  },
+  "lineMakingMaterials": "Making, on materials",
+  "@lineMakingMaterials": {
+    "description": "[domain] A price line: labour as a share of the materials."
+  },
+  "lineInstallation": "Installation",
+  "@lineInstallation": {
+    "description": "[domain] A price line: installation."
+  },
+  "lineInstallationArea": "Installation, by area",
+  "@lineInstallationArea": {
+    "description": "[domain] A price line: installation by area."
+  },
+  "stateNotRead": "Drawing not read",
+  "@stateNotRead": {
+    "description": "[domain] A design's card: lines drawn and not read."
+  },
+  "stateComplete": "Complete",
+  "@stateComplete": {
+    "description": "[domain] A design that can be priced."
+  },
+  "stateIncomplete": "Incomplete",
+  "@stateIncomplete": {
+    "description": "[domain] A design that cannot be priced yet."
+  },
+  "noteNotRead": "Price unavailable until drawing is read",
+  "@noteNotRead": {
+    "description": "[domain] Where the price would be."
+  },
+  "noteNotCalculated": "Not calculated yet",
+  "@noteNotCalculated": {
+    "description": "[domain] Where the price would be."
+  },
+  "noteRecalculate": "Price needs recalculation",
+  "@noteRecalculate": {
+    "description": "[domain] Where the price would be: the design or prices changed."
+  },
+  "noteIncomplete": "Price unavailable until design is completed",
+  "@noteIncomplete": {
+    "description": "[domain] Where the price would be."
+  },
+  "noteUnavailable": "Price unavailable",
+  "@noteUnavailable": {
+    "description": "[domain] Where the price would be."
+  },
+  "msgRecalculate": "The design or the prices changed since this price was calculated. Calculate it again.",
+  "@msgRecalculate": {
+    "description": "[domain] Why the kept price is not current."
+  },
+  "msgCalculate": "Calculate the price.",
+  "@msgCalculate": {
+    "description": "[domain] A design that can be priced and has not been."
+  },
+  "reasonUnsupported": "Unsupported category. Price unavailable.",
+  "@reasonUnsupported": {
+    "description": "[domain] Why a design of an unknown category has no price."
+  },
+  "reasonListCannot": "The price list cannot price this design.",
+  "@reasonListCannot": {
+    "description": "[domain] Why a design has no price."
+  },
+  "gfPartOfDesign": "part of the design",
+  "@gfPartOfDesign": {
+    "description": "[domain] Geometry check: a part with no name."
+  },
+  "gfFrame": "the frame",
+  "@gfFrame": {
+    "description": "[domain] Geometry check: the frame."
+  },
+  "gfMemberOfFrame": "the {member} of the frame",
+  "@gfMemberOfFrame": {
+    "description": "[domain] Geometry check: one side of the frame.",
+    "placeholders": {
+      "member": {
+        "type": "String"
+      }
+    }
+  },
+  "gfLineInside": "a line inside {parent}",
+  "@gfLineInside": {
+    "description": "[domain] Geometry check: a line inside an opening or a light.",
+    "placeholders": {
+      "parent": {
+        "type": "String"
+      }
+    }
+  },
+  "gfBar": "a bar",
+  "@gfBar": {
+    "description": "[domain] Geometry check: a line dividing the design."
+  },
+  "gfMullion": "a mullion",
+  "@gfMullion": {
+    "description": "[domain] Geometry check: an upright dividing line."
+  },
+  "gfTransom": "a transom",
+  "@gfTransom": {
+    "description": "[domain] Geometry check: a level dividing line."
+  },
+  "gfSlopedBar": "a sloped bar",
+  "@gfSlopedBar": {
+    "description": "[domain] Geometry check: a sloping dividing line."
+  },
+  "gfPaneOf": "a pane of {parent}",
+  "@gfPaneOf": {
+    "description": "[domain] Geometry check: a pane inside an opening.",
+    "placeholders": {
+      "parent": {
+        "type": "String"
+      }
+    }
+  },
+  "gfRegionOf": "the region of {opening}",
+  "@gfRegionOf": {
+    "description": "[domain] Geometry check: the region an opening fills.",
+    "placeholders": {
+      "opening": {
+        "type": "String"
+      }
+    }
+  },
+  "gfFixedLight": "a fixed light",
+  "@gfFixedLight": {
+    "description": "[domain] Geometry check: a part that does not open."
+  },
+  "gfPieceOf": "a {piece} of {opening}",
+  "@gfPieceOf": {
+    "description": "[domain] Geometry check: a piece of ironmongery of an opening.",
+    "placeholders": {
+      "piece": {
+        "type": "String"
+      },
+      "opening": {
+        "type": "String"
+      }
+    }
+  },
+  "gfPiece": "a {piece}",
+  "@gfPiece": {
+    "description": "[domain] Geometry check: a piece of ironmongery.",
+    "placeholders": {
+      "piece": {
+        "type": "String"
+      }
+    }
+  },
+  "gfDimensionGiven": "the dimension you gave as {size}",
+  "@gfDimensionGiven": {
+    "description": "[domain] Geometry check: a dimension the user stated.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "gfDimension": "a dimension",
+  "@gfDimension": {
+    "description": "[domain] Geometry check: a dimension."
+  },
+  "gfNote": "a note",
+  "@gfNote": {
+    "description": "[domain] Geometry check: a note."
+  },
+  "gfArrow": "an arrow",
+  "@gfArrow": {
+    "description": "[domain] Geometry check: an arrow."
+  },
+  "gfLightItBelongsTo": "the light it belongs to",
+  "@gfLightItBelongsTo": {
+    "description": "[domain] Geometry check: the light a child belongs to."
+  },
+  "gfPartItBelongsTo": "the part it belongs to",
+  "@gfPartItBelongsTo": {
+    "description": "[domain] Geometry check: the part a child belongs to."
+  },
+  "gfNotANumber": "{name} has a point that is not a number, so it cannot be placed.",
+  "@gfNotANumber": {
+    "description": "[domain] Geometry check message.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "gfFrameEnclosesNothing": "The frame's outline does not enclose a shape.",
+  "@gfFrameEnclosesNothing": {
+    "description": "[domain] Geometry check message."
+  },
+  "gfEnclosesNothing": "{name} encloses no area.",
+  "@gfEnclosesNothing": {
+    "description": "[domain] Geometry check message.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "gfSidesCross": "Two sides of the frame cross each other.",
+  "@gfSidesCross": {
+    "description": "[domain] Geometry check message."
+  },
+  "gfSideCrosses": "The {first} of the frame crosses the {second}.",
+  "@gfSideCrosses": {
+    "description": "[domain] Geometry check message: two named sides cross.",
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      }
+    }
+  },
+  "gfFrameTouchesItself": "The frame's outline touches itself.",
+  "@gfFrameTouchesItself": {
+    "description": "[domain] Geometry check message."
+  },
+  "gfCrossesItself": "{name} crosses itself.",
+  "@gfCrossesItself": {
+    "description": "[domain] Geometry check message.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "gfNotConnected": "{name} is not connected to the frame or to another bar.",
+  "@gfNotConnected": {
+    "description": "[domain] Geometry check message.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "gfOutsideFrame": "{name} lies outside the frame.",
+  "@gfOutsideFrame": {
+    "description": "[domain] Geometry check message.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "gfNotOnLeaf": "{name} is not on its leaf.",
+  "@gfNotOnLeaf": {
+    "description": "[domain] Geometry check message: a hinge or handle off the leaf it belongs to.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "gfLiesOutside": "{name} lies outside {within}.",
+  "@gfLiesOutside": {
+    "description": "[domain] Geometry check message.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "within": {
+        "type": "String"
+      }
+    }
+  },
+  "gfReachesOutside": "{name} reaches outside {within}.",
+  "@gfReachesOutside": {
+    "description": "[domain] Geometry check message.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "within": {
+        "type": "String"
+      }
+    }
+  },
+  "gfLostRegion": "{name} has lost the region it opens.",
+  "@gfLostRegion": {
+    "description": "[domain] Geometry check message.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "gfMarkOutside": "The mark of {name} is outside the region it opens.",
+  "@gfMarkOutside": {
+    "description": "[domain] Geometry check message.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "gfDimensionNothing": "A dimension measures nothing: its two ends are at the same point.",
+  "@gfDimensionNothing": {
+    "description": "[domain] Geometry check message."
+  },
+  "gfDimensionNotSize": "A dimension gives {size}, which is not a size.",
+  "@gfDimensionNotSize": {
+    "description": "[domain] Geometry check message.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "gfDimensionDisagrees": "The dimension you gave as {stated} no longer matches the drawing, which measures {measured}.",
+  "@gfDimensionDisagrees": {
+    "description": "[domain] Geometry check message.",
+    "placeholders": {
+      "stated": {
+        "type": "String"
+      },
+      "measured": {
+        "type": "String"
+      }
+    }
+  },
+  "gfDimensionMismatch": "A dimension does not match the drawing.",
+  "@gfDimensionMismatch": {
+    "description": "[domain] Geometry check message."
+  },
+  "gfTitleAttention": "Geometry needs attention",
+  "@gfTitleAttention": {
+    "description": "[domain] Heading of the geometry check where there is an error."
+  },
+  "gfTitleReview": "Geometry may need review",
+  "@gfTitleReview": {
+    "description": "[domain] Heading of the geometry check where there are only warnings."
+  },
+  "gfSummaryError": "Part of this design cannot be built as it is drawn. Nothing has been changed for you — put it right on your drawing.",
+  "@gfSummaryError": {
+    "description": "[domain] Under the geometry check heading where there is an error."
+  },
+  "gfSummaryWarning": "This design can be built, but something in it may not be what you meant. Nothing has been changed for you.",
+  "@gfSummaryWarning": {
+    "description": "[domain] Under the geometry check heading where there are only warnings."
+  },
+  "whyIncompleteOne": "1 design is incomplete",
+  "@whyIncompleteOne": {
+    "description": "[domain] Why a customer's total is not final."
+  },
+  "whyIncompleteMany": "{n} designs are incomplete",
+  "@whyIncompleteMany": {
+    "description": "[domain] Why a customer's total is not final.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "whyCannotOne": "1 design cannot be priced",
+  "@whyCannotOne": {
+    "description": "[domain] Why a customer's total is not final."
+  },
+  "whyCannotMany": "{n} designs cannot be priced",
+  "@whyCannotMany": {
+    "description": "[domain] Why a customer's total is not final.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "whyCalculateOne": "1 design needs its price calculated",
+  "@whyCalculateOne": {
+    "description": "[domain] Why a customer's total is not final."
+  },
+  "whyCalculateMany": "{n} designs need their prices calculated",
+  "@whyCalculateMany": {
+    "description": "[domain] Why a customer's total is not final.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "listComma": ", ",
+  "@listComma": {
+    "description": "[domain] What separates items in a list, with its space."
+  },
+  "sentenceStop": ".",
+  "@sentenceStop": {
+    "description": "[domain] The full stop that ends a sentence."
+  },
+  "whyExtraOne": "An extra charge is in {currencies}, not {currency}.",
+  "@whyExtraOne": {
+    "description": "[domain] Why a customer's total is not final: an extra in another currency.",
+    "placeholders": {
+      "currencies": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "whyExtraMany": "{n} extra charges are in {currencies}, not {currency}.",
+  "@whyExtraMany": {
+    "description": "[domain] Why a customer's total is not final: extras in another currency.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "currencies": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "payNothingToPay": "Nothing to pay",
+  "@payNothingToPay": {
+    "description": "[domain] A customer's money: nothing to pay."
+  },
+  "payPricingIncomplete": "Pricing incomplete",
+  "@payPricingIncomplete": {
+    "description": "[domain] A customer's money: the total is not final yet."
+  },
+  "payOutstanding": "Outstanding",
+  "@payOutstanding": {
+    "description": "[domain] A customer's money: some is still due."
+  },
+  "payPaidInFull": "Paid in full",
+  "@payPaidInFull": {
+    "description": "[domain] A customer's money: all paid."
+  },
+  "payCredit": "Credit",
+  "@payCredit": {
+    "description": "[domain] A customer's money: paid more than the total; the customer has credit."
+  },
+  "deleteCustomerTitle": "Delete {name}?",
+  "@deleteCustomerTitle": {
+    "description": "Asked before a customer is deleted.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteCustomerBody": "Only a customer with nothing of theirs kept can be deleted: no designs, payments, receipts, discounts, quotations or extra charges. Their record is then removed, and nothing else.",
+  "@deleteCustomerBody": {
+    "description": "Explains deleting a customer."
+  },
+  "deleteCustomer": "Delete customer",
+  "@deleteCustomer": {
+    "description": "Button and menu item: delete this customer."
+  },
+  "notDeleted": "Not deleted",
+  "@notDeleted": {
+    "description": "Heading when a customer could not be deleted."
+  },
+  "customerDeleted": "{name} deleted.",
+  "@customerDeleted": {
+    "description": "Notice after a customer is deleted.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "undo": "Undo",
+  "@undo": {
+    "description": "Undo the last action."
+  },
+  "copyMade": "Copy made: {name}",
+  "@copyMade": {
+    "description": "Notice after a design is duplicated.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "designsNoAccess": "You do not have permission to view designs.",
+  "@designsNoAccess": {
+    "description": "For somebody not allowed to see designs."
+  },
+  "customerGone": "This customer is no longer kept.",
+  "@customerGone": {
+    "description": "A customer page whose customer has been removed."
+  },
+  "notGiven": "Not given",
+  "@notGiven": {
+    "description": "A customer detail left empty."
+  },
+  "customerSubtitle": "{count, plural, =0{Customer · no designs yet} =1{Customer · 1 design} other{Customer · {count} designs}}",
+  "@customerSubtitle": {
+    "description": "Under a customer's name on their page.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "customerInformation": "Customer information",
+  "@customerInformation": {
+    "description": "Heading of a customer's details."
+  },
+  "edit": "Edit",
+  "@edit": {
+    "description": "Button: edit."
+  },
+  "phone": "Phone",
+  "@phone": {
+    "description": "A customer's phone number."
+  },
+  "address": "Address",
+  "@address": {
+    "description": "A customer's address."
+  },
+  "notes": "Notes",
+  "@notes": {
+    "description": "Notes about a customer."
+  },
+  "designsTitle": "Designs",
+  "@designsTitle": {
+    "description": "Heading of a customer's designs."
+  },
+  "foundOf": "{found} of {count}",
+  "@foundOf": {
+    "description": "How many designs a search or filter shows, of all.",
+    "placeholders": {
+      "found": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "searchDesignsHint": "Search designs by name...",
+  "@searchDesignsHint": {
+    "description": "Hint in the designs' search field."
+  },
+  "filterAll": "All",
+  "@filterAll": {
+    "description": "Filter chip: every category."
+  },
+  "quoted": "“{query}”",
+  "@quoted": {
+    "description": "A search, quoted.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "inCategory": "in {category}",
+  "@inCategory": {
+    "description": "A filter by category.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "noDesignsMatch": "No designs match {what}",
+  "@noDesignsMatch": {
+    "description": "A search or filter that found nothing.",
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "noDesignsMatchHint": "Search by the design's name, or choose another category.",
+  "@noDesignsMatchHint": {
+    "description": "Under a search that found nothing."
+  },
+  "showAllDesigns": "Show all designs",
+  "@showAllDesigns": {
+    "description": "Button: clear the search and filter."
+  },
+  "noDesignsYet": "No designs yet",
+  "@noDesignsYet": {
+    "description": "A customer with no designs."
+  },
+  "beginFirstDesign": "Begin {name}'s first door, window or sliding set.",
+  "@beginFirstDesign": {
+    "description": "A customer with no designs.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "todayAt": "Today, {time}",
+  "@todayAt": {
+    "description": "When a design was last edited: today.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "yesterdayAt": "Yesterday, {time}",
+  "@yesterdayAt": {
+    "description": "When a design was last edited: yesterday.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "dateAt": "{day} {month} {year}, {time}",
+  "@dateAt": {
+    "description": "When a design was last edited: a date and a time.",
+    "placeholders": {
+      "day": {
+        "type": "int"
+      },
+      "month": {
+        "type": "String"
+      },
+      "year": {
+        "type": "int"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "moreOptions": "More options",
+  "@moreOptions": {
+    "description": "Tooltip of the three-dot menu."
+  },
+  "lastEdited": "Last edited: {when}",
+  "@lastEdited": {
+    "description": "When a design was last edited.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "editInformation": "Edit information",
+  "@editInformation": {
+    "description": "Button: change a design's name."
+  },
+  "open": "Open",
+  "@open": {
+    "description": "Button: open a design."
+  },
+  "stageCompleted": "Completed",
+  "@stageCompleted": {
+    "description": "A design the user completed."
+  },
+  "stageDraft": "Draft",
+  "@stageDraft": {
+    "description": "A design ready but not completed."
+  },
+  "labelMaterial": "Material",
+  "@labelMaterial": {
+    "description": "Label: what the profile is made of."
+  },
+  "labelColour": "Colour",
+  "@labelColour": {
+    "description": "Label: the profile's colour."
+  },
+  "labelled": "{label}: ",
+  "@labelled": {
+    "description": "A label followed by its value.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "priceHidden": "Price: hidden",
+  "@priceHidden": {
+    "description": "A design's card, for somebody not allowed to see prices."
+  },
+  "priceLoading": "Price: …",
+  "@priceLoading": {
+    "description": "A design's card while its price is read."
+  },
+  "priceIs": "Price: {amount}",
+  "@priceIs": {
+    "description": "A design's card: its price.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "priceNeedsUpdate": "Price: needs update",
+  "@priceNeedsUpdate": {
+    "description": "A design's card: drawn on since it was read."
+  },
+  "priceChooseColour": "Price: choose colour",
+  "@priceChooseColour": {
+    "description": "A design's card: a colour to choose again."
+  },
+  "priceChooseProfile": "Price: choose profile",
+  "@priceChooseProfile": {
+    "description": "A design's card: the aluminium profile category to choose."
+  },
+  "priceChooseMaterial": "Price: choose material",
+  "@priceChooseMaterial": {
+    "description": "A design's card: the material to choose."
+  },
+  "priceNotCalculated": "Price: not calculated",
+  "@priceNotCalculated": {
+    "description": "A design's card."
+  },
+  "priceRecalculate": "Price: recalculate",
+  "@priceRecalculate": {
+    "description": "A design's card: the kept price is not current."
+  },
+  "priceUnavailable": "Price: unavailable",
+  "@priceUnavailable": {
+    "description": "A design's card."
+  },
+  "price": "Price",
+  "@price": {
+    "description": "Button: see or calculate a design's price."
+  },
+  "fwShortMonths": "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",
+  "@fwShortMonths": {
+    "description": "The twelve months as a date on a card writes them, January first, separated by commas."
+  },
+  "capGroupCustomers": "Customers",
+  "@capGroupCustomers": {
+    "description": "[domain] Permission group."
+  },
+  "capGroupDesigns": "Designs",
+  "@capGroupDesigns": {
+    "description": "[domain] Permission group."
+  },
+  "capGroupPricing": "Pricing",
+  "@capGroupPricing": {
+    "description": "[domain] Permission group."
+  },
+  "capGroupFinances": "Customer finances",
+  "@capGroupFinances": {
+    "description": "[domain] Permission group."
+  },
+  "capGroupDiscounts": "Discounts",
+  "@capGroupDiscounts": {
+    "description": "[domain] Permission group."
+  },
+  "capGroupQuotations": "Quotations",
+  "@capGroupQuotations": {
+    "description": "[domain] Permission group."
+  },
+  "capGroupPayments": "Payments",
+  "@capGroupPayments": {
+    "description": "[domain] Permission group."
+  },
+  "capGroupReceipts": "Receipts",
+  "@capGroupReceipts": {
+    "description": "[domain] Permission group."
+  },
+  "capGroupExtras": "Extra charges",
+  "@capGroupExtras": {
+    "description": "[domain] Permission group."
+  },
+  "capGroupStaff": "Staff",
+  "@capGroupStaff": {
+    "description": "[domain] Permission group."
+  },
+  "capView": "View",
+  "@capView": {
+    "description": "[domain] Permission: view."
+  },
+  "capAdd": "Add",
+  "@capAdd": {
+    "description": "[domain] Permission: add."
+  },
+  "capEdit": "Edit",
+  "@capEdit": {
+    "description": "[domain] Permission: edit."
+  },
+  "capDelete": "Delete",
+  "@capDelete": {
+    "description": "[domain] Permission: delete."
+  },
+  "capCreate": "Create",
+  "@capCreate": {
+    "description": "[domain] Permission: create."
+  },
+  "capEditAndDraw": "Edit and draw",
+  "@capEditAndDraw": {
+    "description": "[domain] Permission: edit and draw designs."
+  },
+  "capViewPrices": "View prices",
+  "@capViewPrices": {
+    "description": "[domain] Permission."
+  },
+  "capEditFactoryPrices": "Edit factory prices",
+  "@capEditFactoryPrices": {
+    "description": "[domain] Permission."
+  },
+  "capViewSummary": "View summary",
+  "@capViewSummary": {
+    "description": "[domain] Permission: see a customer's financial summary."
+  },
+  "capApplyAndChange": "Apply and change",
+  "@capApplyAndChange": {
+    "description": "[domain] Permission: give and change discounts."
+  },
+  "capChangeStatus": "Change status",
+  "@capChangeStatus": {
+    "description": "[domain] Permission: change a quotation's status."
+  },
+  "capViewHistory": "View history",
+  "@capViewHistory": {
+    "description": "[domain] Permission: see the payment history."
+  },
+  "capRecordPayments": "Record payments",
+  "@capRecordPayments": {
+    "description": "[domain] Permission."
+  },
+  "capRecordRefunds": "Record refunds",
+  "@capRecordRefunds": {
+    "description": "[domain] Permission."
+  },
+  "capIssue": "Issue",
+  "@capIssue": {
+    "description": "[domain] Permission: issue receipts."
+  },
+  "capRemove": "Remove",
+  "@capRemove": {
+    "description": "[domain] Permission: remove extra charges."
+  },
+  "capAddEditStaff": "Add and edit staff",
+  "@capAddEditStaff": {
+    "description": "[domain] Permission."
+  },
+  "capChangePermissions": "Change permissions",
+  "@capChangePermissions": {
+    "description": "[domain] Permission."
+  },
+  "roleOwner": "Owner",
+  "@roleOwner": {
+    "description": "[domain] Who is signed in: the workshop's owner."
+  },
+  "roleStaff": "Staff",
+  "@roleStaff": {
+    "description": "[domain] Who is at the device: staff."
+  },
+  "roleNobody": "Nobody signed in",
+  "@roleNobody": {
+    "description": "[domain] Who is at the device: nobody signed in."
+  },
+  "deniedPriceList": "Only the owner can change the price list (asked by {who}).",
+  "@deniedPriceList": {
+    "description": "[domain] Refusal: somebody else tried to change the price list.",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "deniedAction": "{who} does not have permission to {action} ({key}).",
+  "@deniedAction": {
+    "description": "[domain] Refusal: a permission somebody does not hold. The key is the permission's code.",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      },
+      "action": {
+        "type": "String"
+      },
+      "key": {
+        "type": "String"
+      }
+    }
+  },
+  "storeCustomerGone": "This customer is no longer kept.",
+  "@storeCustomerGone": {
+    "description": "[domain] A customer that has been removed."
+  },
+  "hasDesignOne": "1 design",
+  "@hasDesignOne": {
+    "description": "[domain] What a customer has: one design."
+  },
+  "hasDesignMany": "{n} designs",
+  "@hasDesignMany": {
+    "description": "[domain] What a customer has: designs.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "hasPaymentOne": "1 payment",
+  "@hasPaymentOne": {
+    "description": "[domain] What a customer has: one payment."
+  },
+  "hasPaymentMany": "{n} payments",
+  "@hasPaymentMany": {
+    "description": "[domain] What a customer has: payments.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "hasReceiptOne": "1 receipt",
+  "@hasReceiptOne": {
+    "description": "[domain] What a customer has: one receipt."
+  },
+  "hasReceiptMany": "{n} receipts",
+  "@hasReceiptMany": {
+    "description": "[domain] What a customer has: receipts.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "hasDiscount": "a discount",
+  "@hasDiscount": {
+    "description": "[domain] What a customer has: a discount."
+  },
+  "hasQuotations": "quotations",
+  "@hasQuotations": {
+    "description": "[domain] What a customer has: quotations."
+  },
+  "hasExtraOne": "1 extra charge",
+  "@hasExtraOne": {
+    "description": "[domain] What a customer has: one extra charge."
+  },
+  "hasExtraMany": "{n} extra charges",
+  "@hasExtraMany": {
+    "description": "[domain] What a customer has: extra charges.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "cannotDeleteCustomer": "{name} cannot be deleted: they have {has}. A customer is deleted only when nothing of theirs would go with them — delete each design on its own; payments, receipts, discounts and quotations are the workshop's records and are kept.",
+  "@cannotDeleteCustomer": {
+    "description": "[domain] Why a customer cannot be deleted.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "has": {
+        "type": "String"
+      }
+    }
+  },
+  "quotationGone": "That quotation is not kept.",
+  "@quotationGone": {
+    "description": "[domain] A quotation that is not kept."
+  },
+  "staffNameNeeded": "Enter a name.",
+  "@staffNameNeeded": {
+    "description": "[domain] A member of staff with no name."
+  },
+  "staffNameTaken": "A member of staff is already called that.",
+  "@staffNameTaken": {
+    "description": "[domain] A member of staff's name already used."
+  },
+  "pinTooShort": "Use at least {n} digits.",
+  "@pinTooShort": {
+    "description": "[domain] A PIN that is too short.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "copyOf": "{name} (copy)",
+  "@copyOf": {
+    "description": "[domain] The name of a duplicated design.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editCustomer": "Edit Customer",
+  "@editCustomer": {
+    "description": "Title of the form editing a customer."
+  },
+  "editCustomerLine": "Change how to reach them or what to remember. Their designs stay exactly as they are.",
+  "@editCustomerLine": {
+    "description": "Under the title of the form editing a customer."
+  },
+  "newCustomerLine": "Who are you drawing for? Their designs are kept together under them.",
+  "@newCustomerLine": {
+    "description": "Under the title of the form making a customer."
+  },
+  "optionalField": "  optional",
+  "@optionalField": {
+    "description": "After the label of a field that may be left empty (with its leading spaces)."
+  },
+  "name": "Name",
+  "@name": {
+    "description": "A customer's name field."
+  },
+  "nameHint": "e.g. Adam",
+  "@nameHint": {
+    "description": "Example in the customer's name field."
+  },
+  "phoneNumber": "Phone number",
+  "@phoneNumber": {
+    "description": "A customer's phone number field."
+  },
+  "phoneHint": "e.g. +964 750 123 4567",
+  "@phoneHint": {
+    "description": "Example in the phone field."
+  },
+  "addressHint": "e.g. Salim Street 12, Sulaymaniyah",
+  "@addressHint": {
+    "description": "Example in the address field."
+  },
+  "notesHint": "Anything to remember about them",
+  "@notesHint": {
+    "description": "Hint in the notes field."
+  },
+  "saveChanges": "Save changes",
+  "@saveChanges": {
+    "description": "Button: keep the changes made."
+  },
+  "saveCustomer": "Save customer",
+  "@saveCustomer": {
+    "description": "Button: keep a new customer."
+  },
+  "designName": "Design name",
+  "@designName": {
+    "description": "The design name field and its heading."
+  },
+  "designNameQuestion": "What is this design called?",
+  "@designNameQuestion": {
+    "description": "Under the design name heading."
+  },
+  "designNameHint": "e.g. Basement Door",
+  "@designNameHint": {
+    "description": "Example in the design name field."
+  },
+  "designNameNote": "The customer is who it is for; this is the name of the design itself.",
+  "@designNameNote": {
+    "description": "Under the design name field."
+  },
+  "nameProblem": "Enter a name for this design, such as the room or the place it is for.",
+  "@nameProblem": {
+    "description": "[domain] A design's name left empty."
+  },
+  "blurbDoor": "Create a custom door design",
+  "@blurbDoor": {
+    "description": "Choose your design: the door card."
+  },
+  "blurbWindow": "Create a custom window design",
+  "@blurbWindow": {
+    "description": "Choose your design: the window card."
+  },
+  "blurbSliding": "Panels that slide past each other",
+  "@blurbSliding": {
+    "description": "Choose your design: the sliding card."
+  },
+  "blurbBoth": "Doors and windows in one frame",
+  "@blurbBoth": {
+    "description": "Choose your design: the door and window card."
+  },
+  "blurbAngled": "Sloped, under-stair & custom shapes",
+  "@blurbAngled": {
+    "description": "Choose your design: the angled card."
+  },
+  "straighteningNote": "Door, Window, Sliding and Door & window straighten lines drawn a little out of square. Angled / Asymmetrical keeps every slope exactly as you draw it.",
+  "@straighteningNote": {
+    "description": "Under the category cards: what separates the standard categories from the angled one."
+  },
+  "startDrawing": "Start drawing",
+  "@startDrawing": {
+    "description": "Button: begin the design and go to the drawing."
+  },
+  "chooseYourDesign": "Choose your design",
+  "@chooseYourDesign": {
+    "description": "Title of the category choice."
+  },
+  "chooseYourDesignLine": "Select the type of product you want to create.",
+  "@chooseYourDesignLine": {
+    "description": "Under the category choice's title."
+  },
+  "stillMixed": "This is where the design starts, not a limit on it: any opening you mark can still be made a door or a window, and fixed areas sit beside them in the same frame.",
+  "@stillMixed": {
+    "description": "Note under the category cards."
+  },
+  "chooseTypeToContinue": "Choose a type to continue",
+  "@chooseTypeToContinue": {
+    "description": "Foot bar before a category is chosen."
+  },
+  "kindSelected": "{kind} selected",
+  "@kindSelected": {
+    "description": "Foot bar once a category is chosen.",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "category": "Category",
+  "@category": {
+    "description": "A design's category label."
+  },
+  "editInformationLine": "Change what this design is called. The drawing, its sizes and everything in it stay exactly as they are.",
+  "@editInformationLine": {
+    "description": "Under the title of Edit information."
+  },
+  "categoryStays": "The category stays with the design.",
+  "@categoryStays": {
+    "description": "Why a design's category cannot be changed."
+  },
+  "whoIsThisFor": "Who is this design for?",
+  "@whoIsThisFor": {
+    "description": "New design from the first screen: who it is for."
+  },
+  "personCustomer": "Person / Customer",
+  "@personCustomer": {
+    "description": "The field for who a new design is for."
+  },
+  "personHint": "e.g. Ahmed",
+  "@personHint": {
+    "description": "Example in the person field."
+  },
+  "designNumber": "#{number}",
+  "@designNumber": {
+    "description": "A design's short number.",
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "actionOpenLine": "Carry on with this design.",
+  "@actionOpenLine": {
+    "description": "Design actions sheet: Open."
+  },
+  "actionEditLine": "Change the name of this design.",
+  "@actionEditLine": {
+    "description": "Design actions sheet: Edit information."
+  },
+  "duplicate": "Duplicate",
+  "@duplicate": {
+    "description": "Design actions sheet: make a copy."
+  },
+  "actionDuplicateLine": "A copy to change without touching this one.",
+  "@actionDuplicateLine": {
+    "description": "Design actions sheet: Duplicate."
+  },
+  "actionDeleteLine": "Remove it from this device.",
+  "@actionDeleteLine": {
+    "description": "Design actions sheet: Delete."
+  },
+  "couldNotOpen": "{name} could not be opened.",
+  "@couldNotOpen": {
+    "description": "A design that could not be opened.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "designDeleted": "{name} deleted",
+  "@designDeleted": {
+    "description": "Notice after a design is deleted.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteDesignTitle": "Delete {name}?",
+  "@deleteDesignTitle": {
+    "description": "Asked before a design is deleted.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteDesignAlone": "This design will be removed from this device. No other design is touched.",
+  "@deleteDesignAlone": {
+    "description": "Deleting a design with no customer named."
+  },
+  "deleteDesignOf": "This design will be removed from this device. {who}, their phone, address and notes, and their other designs stay exactly as they are.",
+  "@deleteDesignOf": {
+    "description": "Deleting a customer's design.",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "undoAfterwards": "You can undo it straight afterwards.",
+  "@undoAfterwards": {
+    "description": "Under the delete question."
+  },
+  "deleteDesign": "Delete design",
+  "@deleteDesign": {
+    "description": "Button: delete the design."
+  },
+  "completeButton": "Complete!",
+  "@completeButton": {
+    "description": "The button that completes and saves the design."
+  },
+  "notCompleted": "Not completed",
+  "@notCompleted": {
+    "description": "Heading when completing failed."
+  },
+  "completedAndSaved": "Completed and saved",
+  "@completedAndSaved": {
+    "description": "Beside Complete!, once the design is completed."
+  },
+  "draftHint": "Draft — press Complete! when the design is finished",
+  "@draftHint": {
+    "description": "Beside Complete!, while the design is a draft."
+  },
+  "notCompleteYet": "Not complete yet",
+  "@notCompleteYet": {
+    "description": "Heading when the design is incomplete."
+  },
+  "completedSuccess": "Design completed and saved successfully.",
+  "@completedSuccess": {
+    "description": "After Complete! saved the design."
+  },
+  "forCustomer": "for {customer}",
+  "@forCustomer": {
+    "description": "Who a design is for.",
+    "placeholders": {
+      "customer": {
+        "type": "String"
+      }
+    }
+  },
+  "openingsCount": "{count, plural, =1{1 opening} other{{count} openings}}",
+  "@openingsCount": {
+    "description": "How many openings a design has.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "viewCompletedDesign": "View Completed Design",
+  "@viewCompletedDesign": {
+    "description": "After completing: stay on the design."
+  },
+  "backToCustomer": "Back to Customer",
+  "@backToCustomer": {
+    "description": "After completing: go to the customer's page."
+  },
+  "completeUnsupported": "This design was made by a newer ProFrame or with a category this version does not recognise, so it cannot be completed here.",
+  "@completeUnsupported": {
+    "description": "Completing a design of an unknown category."
+  },
+  "completeIncomplete": "This design is not complete yet. Please finish the required parts before completing it.",
+  "@completeIncomplete": {
+    "description": "Completing a design that is not finished."
+  },
+  "completeNoPermission": "You do not have permission to complete designs.",
+  "@completeNoPermission": {
+    "description": "Completing without permission."
+  },
+  "completeSaveFailed": "The design could not be saved, so it was not completed. Your work is still here — try again. ({error})",
+  "@completeSaveFailed": {
+    "description": "Completing when the save failed; the error is technical text.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "bulleted": "• {item}",
+  "@bulleted": {
+    "description": "An item in a list, with a bullet.",
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "drawingOf": "Drawing of {name}",
+  "@drawingOf": {
+    "description": "Screen reader: a design's picture.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "nothingDrawnYet": "Nothing drawn yet",
+  "@nothingDrawnYet": {
+    "description": "A design card with nothing drawn."
+  },
+  "previewUnavailable": "Preview unavailable",
+  "@previewUnavailable": {
+    "description": "A design card whose record cannot be read."
+  },
+  "unsupportedTitle": "Unsupported design category",
+  "@unsupportedTitle": {
+    "description": "Note on a design of an unknown category."
+  },
+  "unsupportedMessage": "This design was made with a newer version of ProFrame, or has a category this version does not recognise. It is shown exactly as it was saved and cannot be changed here, so nothing in it is lost. Its original category is kept.",
+  "@unsupportedMessage": {
+    "description": "Note on a design of an unknown category."
+  },
+  "viewOnlyMessage": "View only. You do not have permission to edit designs, so nothing you change here is kept. Sign in as somebody who may.",
+  "@viewOnlyMessage": {
+    "description": "Note under the drawing for somebody who may not edit."
+  },
+  "normalizedMessage": "Geometry normalized for standard design.",
+  "@normalizedMessage": {
+    "description": "Brief note after lines drawn a little out of square were straightened."
+  },
+  "qSymbolPrompt": "Which section does this {glyph} belong to?",
+  "@qSymbolPrompt": {
+    "description": "[domain] Question: a mark drawn outside the design.",
+    "placeholders": {
+      "glyph": {
+        "type": "String"
+      }
+    }
+  },
+  "qSymbolDetail": "The mark is outside the design, so there is no section it could be in. Say which one you meant.",
+  "@qSymbolDetail": {
+    "description": "[domain] Question: a mark drawn outside the design."
+  },
+  "qSymbolOpen": "Open this one, {meaning}.",
+  "@qSymbolOpen": {
+    "description": "[domain] Answer: open this section, and how.",
+    "placeholders": {
+      "meaning": {
+        "type": "String"
+      }
+    }
+  },
+  "qNotASymbol": "It is not an opening mark",
+  "@qNotASymbol": {
+    "description": "[domain] Answer: the mark is not an opening mark."
+  },
+  "qNotASymbolDetail": "Build it as lines, exactly where it was drawn.",
+  "@qNotASymbolDetail": {
+    "description": "[domain] Explains the answer."
+  },
+  "meanPointsLeft": "hinged on the right, opening from the left",
+  "@meanPointsLeft": {
+    "description": "[domain] What a < mark says."
+  },
+  "meanPointsRight": "hinged on the left, opening from the right",
+  "@meanPointsRight": {
+    "description": "[domain] What a > mark says."
+  },
+  "meanPointsUp": "hinged at the bottom, opening at the top",
+  "@meanPointsUp": {
+    "description": "[domain] What a ^ mark says."
+  },
+  "meanPointsDown": "hinged at the top, opening at the bottom",
+  "@meanPointsDown": {
+    "description": "[domain] What a v mark says."
+  },
+  "whereUpper": "upper",
+  "@whereUpper": {
+    "description": "[domain] Where a section is: upper."
+  },
+  "whereLower": "lower",
+  "@whereLower": {
+    "description": "[domain] Where a section is: lower."
+  },
+  "whereLeft": "left",
+  "@whereLeft": {
+    "description": "[domain] Where a section is: left."
+  },
+  "whereRight": "right",
+  "@whereRight": {
+    "description": "[domain] Where a section is: right."
+  },
+  "whereBoth": "{vertical} {horizontal}",
+  "@whereBoth": {
+    "description": "[domain] Where a section is: e.g. upper left.",
+    "placeholders": {
+      "vertical": {
+        "type": "String"
+      },
+      "horizontal": {
+        "type": "String"
+      }
+    }
+  },
+  "sectionDescribed": "The {place} section — {size}",
+  "@sectionDescribed": {
+    "description": "[domain] A section named by where it is and its size.",
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "gapBottom": "the bottom",
+  "@gapBottom": {
+    "description": "[domain] The side of an outline left open: the bottom."
+  },
+  "gapTop": "the top",
+  "@gapTop": {
+    "description": "[domain] The side of an outline left open: the top."
+  },
+  "gapLeft": "the left side",
+  "@gapLeft": {
+    "description": "[domain] The side of an outline left open: the left."
+  },
+  "gapRight": "the right side",
+  "@gapRight": {
+    "description": "[domain] The side of an outline left open: the right."
+  },
+  "gapOne": "one side",
+  "@gapOne": {
+    "description": "[domain] The side of an outline left open: unnamed."
+  },
+  "qGapPrompt": "Your design is not closed — {side} is open.",
+  "@qGapPrompt": {
+    "description": "[domain] Question: one side of the outline left open.",
+    "placeholders": {
+      "side": {
+        "type": "String"
+      }
+    }
+  },
+  "qGapDetail": "Do you want it this way, or are you going to change it? Nothing has been added or taken away.",
+  "@qGapDetail": {
+    "description": "[domain] Question: one side of the outline left open."
+  },
+  "qKeepOpen": "Keep it open",
+  "@qKeepOpen": {
+    "description": "[domain] Answer: keep the side open."
+  },
+  "qKeepOpenDetail": "Build it as drawn, with no frame across {side}.",
+  "@qKeepOpenDetail": {
+    "description": "[domain] Explains Keep it open.",
+    "placeholders": {
+      "side": {
+        "type": "String"
+      }
+    }
+  },
+  "qKeepOpenFootDetail": "Build it as drawn, with no frame across {side} — a door runs down to the floor.",
+  "@qKeepOpenFootDetail": {
+    "description": "[domain] Explains Keep it open, for the bottom.",
+    "placeholders": {
+      "side": {
+        "type": "String"
+      }
+    }
+  },
+  "qCloseIt": "Close it",
+  "@qCloseIt": {
+    "description": "[domain] Answer: close the side."
+  },
+  "qCloseItDetail": "Put the frame across {side}, straight between the two ends you drew.",
+  "@qCloseItDetail": {
+    "description": "[domain] Explains Close it.",
+    "placeholders": {
+      "side": {
+        "type": "String"
+      }
+    }
+  },
+  "qChangeIt": "I will change it",
+  "@qChangeIt": {
+    "description": "[domain] Answer: the user will change the drawing."
+  },
+  "qChangeItDetail": "Go back to the drawing and draw it as you want it.",
+  "@qChangeItDetail": {
+    "description": "[domain] Explains I will change it."
+  },
+  "qNotClosedPrompt": "The outline does not close. What would you like to do?",
+  "@qNotClosedPrompt": {
+    "description": "[domain] Question: lines that do not close into a shape."
+  },
+  "qNotClosedDetail": "Your lines do not join up into a shape, so there is no outer frame yet. Nothing has been changed or added.",
+  "@qNotClosedDetail": {
+    "description": "[domain] Question: lines that do not close into a shape."
+  },
+  "qDrawRest": "Let me draw the rest",
+  "@qDrawRest": {
+    "description": "[domain] Answer: the user will finish the outline."
+  },
+  "qDrawRestDetail": "Go back to the drawing and close the outline yourself.",
+  "@qDrawRestDetail": {
+    "description": "[domain] Explains Let me draw the rest."
+  },
+  "actNotNow": "Not now",
+  "@actNotNow": {
+    "description": "Button: put a question away without answering."
+  },
+  "actShowMe": "Show me",
+  "@actShowMe": {
+    "description": "Button: light the part a message is about on the drawing."
+  },
+  "actHide": "Hide",
+  "@actHide": {
+    "description": "Button: stop showing a highlighted part."
+  },
+  "actLater": "Later",
+  "@actLater": {
+    "description": "Button: answer later."
+  },
+  "actDone": "Done",
+  "@actDone": {
+    "description": "Button: finished choosing."
+  },
+  "actBack": "Back",
+  "@actBack": {
+    "description": "Button: go back a step."
+  },
+  "actContinue": "Continue",
+  "@actContinue": {
+    "description": "Button: go on to the next step."
+  },
+  "actCancel": "Cancel",
+  "@actCancel": {
+    "description": "Button: close a dialog without doing anything."
+  },
+  "actSave": "Save",
+  "@actSave": {
+    "description": "Button: save."
+  },
+  "actDelete": "Delete",
+  "@actDelete": {
+    "description": "Button: delete."
+  },
+  "actClose": "Close",
+  "@actClose": {
+    "description": "Button: close."
+  },
+  "actApply": "Apply",
+  "@actApply": {
+    "description": "Button: apply a typed value."
+  },
+  "actRemove": "Remove",
+  "@actRemove": {
+    "description": "Button: remove."
+  },
+  "actAdd": "Add",
+  "@actAdd": {
+    "description": "Button: add."
+  },
+  "checkOne": "One thing to check",
+  "@checkOne": {
+    "description": "Heading over the questions the reading raised: one question."
+  },
+  "checkMany": "{count} things to check",
+  "@checkMany": {
+    "description": "Heading over the questions the reading raised.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "checkNothingDecided": "Nothing has been decided for you. Your drawing is unchanged until you answer.",
+  "@checkNothingDecided": {
+    "description": "Under the questions the reading raised."
+  },
+  "openingTypeTitle": "Opening type",
+  "@openingTypeTitle": {
+    "description": "Title of the alert asking whether an opening is a door or a window."
+  },
+  "oneOfMany": "1 of {count}",
+  "@oneOfMany": {
+    "description": "How many questions are left, the one shown being the first.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "designNotClosedTitle": "Design not closed",
+  "@designNotClosedTitle": {
+    "description": "Title of the alert: the outline has a side missing."
+  },
+  "gcFewerDetails": "Fewer details",
+  "@gcFewerDetails": {
+    "description": "Screen reader: fold the geometry check."
+  },
+  "gcMoreDetails": "More details",
+  "@gcMoreDetails": {
+    "description": "Screen reader: unfold the geometry check."
+  },
+  "gcError": "Error",
+  "@gcError": {
+    "description": "Severity of a geometry problem: it cannot be built as drawn."
+  },
+  "gcWarning": "Warning",
+  "@gcWarning": {
+    "description": "Severity of a geometry problem: it may not be what was meant."
+  },
+  "qKindPrompt": "What is {opening}?",
+  "@qKindPrompt": {
+    "description": "[domain] Question: is this opening a door or a window.",
+    "placeholders": {
+      "opening": {
+        "type": "String"
+      }
+    }
+  },
+  "qKindDetail": "A mark says this section opens. It does not say whether it is a door or a window, and the two are not made the same. This is about this one opening; every other section is untouched.",
+  "@qKindDetail": {
+    "description": "[domain] Question detail: door or window."
+  },
+  "qKindDoorDetail": "A leaf you walk through.",
+  "@qKindDoorDetail": {
+    "description": "[domain] Answer detail: a door."
+  },
+  "qKindWindowDetail": "A leaf you open from indoors.",
+  "@qKindWindowDetail": {
+    "description": "[domain] Answer detail: a window."
+  },
+  "qConstructionDoor": "How should this door be constructed?",
+  "@qConstructionDoor": {
+    "description": "[domain] Question as a door design starts: panel, glass or both."
+  },
+  "qConstructionDesign": "How should this design be constructed?",
+  "@qConstructionDesign": {
+    "description": "[domain] Question as a door & window design starts: panel, glass or both."
+  },
+  "qConstructionDetail": "You decide what fills the parts you draw. Nothing is divided or moved for you, and every part can be changed later.",
+  "@qConstructionDetail": {
+    "description": "[domain] Question detail: what a door is built of."
+  },
+  "qOnePart": "Your design has no internal division yet",
+  "@qOnePart": {
+    "description": "[domain] Said where a design to be both glass and panel has only one part."
+  },
+  "qOnePartDetail": "Draw a divider first to create separate panel and glass parts. Nothing is divided for you.",
+  "@qOnePartDetail": {
+    "description": "[domain] Detail for the one-part case."
+  },
+  "qParts": "Which parts should be glass and which should be panel?",
+  "@qParts": {
+    "description": "[domain] Question: glass or panel, part by part."
+  },
+  "qPartsDetail": "Choose for each part you drew. The lines stay exactly where you drew them.",
+  "@qPartsDetail": {
+    "description": "[domain] Detail of the glass-or-panel question."
+  },
+  "glassOrPanelTitle": "Glass or panel",
+  "@glassOrPanelTitle": {
+    "description": "Title of the alert asking what a door is built of."
+  },
+  "whatPanelColour": "What colour is the panel?",
+  "@whatPanelColour": {
+    "description": "Second step: the panel's colour."
+  },
+  "whatGlass": "What glass is it?",
+  "@whatGlass": {
+    "description": "Second step: the glass."
+  },
+  "everyPartStartsAs": "Every part you draw starts as this. Any part can be changed later with Material.",
+  "@everyPartStartsAs": {
+    "description": "Under the second step."
+  },
+  "wholePanel": "Entire design = Panel",
+  "@wholePanel": {
+    "description": "Choice: the whole design is panel."
+  },
+  "wholePanelDetail": "Every part is a solid panel.",
+  "@wholePanelDetail": {
+    "description": "Detail of the choice."
+  },
+  "wholeGlass": "Entire design = Glass",
+  "@wholeGlass": {
+    "description": "Choice: the whole design is glass."
+  },
+  "wholeGlassDetail": "Every part is glazed.",
+  "@wholeGlassDetail": {
+    "description": "Detail of the choice."
+  },
+  "bothPanelGlass": "Both Panel + Glass",
+  "@bothPanelGlass": {
+    "description": "Choice: some parts glass, some panel."
+  },
+  "bothPanelGlassDetail": "You choose which parts are glass and which are panel.",
+  "@bothPanelGlassDetail": {
+    "description": "Detail of the choice."
+  },
+  "drawDivider": "Draw divider",
+  "@drawDivider": {
+    "description": "Button: back to the drawing to draw a divider."
+  },
+  "drawDividerDetail": "Back to the drawing with a straight line.",
+  "@drawDividerDetail": {
+    "description": "Detail of the button."
+  },
+  "everyPartChosen": "Every part is chosen.",
+  "@everyPartChosen": {
+    "description": "All parts said glass or panel."
+  },
+  "partsLeft": "{count, plural, =1{1 part still to choose.} other{{count} parts still to choose.}}",
+  "@partsLeft": {
+    "description": "How many parts are still to be said glass or panel.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fillGlass": "Glass",
+  "@fillGlass": {
+    "description": "What fills a part: glass."
+  },
+  "fillPanel": "Panel",
+  "@fillPanel": {
+    "description": "What fills a part: panel."
+  },
+  "chooseThePanelColour": "Choose the panel colour",
+  "@chooseThePanelColour": {
+    "description": "Prompt in the material form."
+  },
+  "chooseTheGlass": "Choose the glass",
+  "@chooseTheGlass": {
+    "description": "Prompt in the material form."
+  },
+  "panelColour": "Panel colour",
+  "@panelColour": {
+    "description": "Label over the panel's colours."
+  },
+  "gcMore": "{message}  +{count} more",
+  "@gcMore": {
+    "description": "A geometry problem, and how many more there are.",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "gcErrors": "{count, plural, =1{1 error} other{{count} errors}}",
+  "@gcErrors": {
+    "description": "How many errors the geometry check found.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "gcWarnings": "{count, plural, =1{1 warning} other{{count} warnings}}",
+  "@gcWarnings": {
+    "description": "How many warnings the geometry check found.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "partNumbered": "Part {number}",
+  "@partNumbered": {
+    "description": "[domain] A part of the design, by its place in reading order.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "partFixed": "Fixed",
+  "@partFixed": {
+    "description": "[domain] Where a part is: a fixed part of the design, in no opening."
+  },
+  "inDesign": "Design",
+  "@inDesign": {
+    "description": "Heading of the design's own panel, when nothing is picked."
+  },
+  "inTapAnyPart": "Tap any part of the drawing to change it.",
+  "@inTapAnyPart": {
+    "description": "Under the design's own panel heading."
+  },
+  "inWidth": "Width",
+  "@inWidth": {
+    "description": "Field: a width."
+  },
+  "inHeight": "Height",
+  "@inHeight": {
+    "description": "Field: a height."
+  },
+  "inFrameProfile": "Frame profile",
+  "@inFrameProfile": {
+    "description": "Field: the frame's border width."
+  },
+  "inDepth": "Depth",
+  "@inDepth": {
+    "description": "Field: the design's depth."
+  },
+  "inSideHelp": "Moves this side's free end. The other sides keep their sizes, and the slope between them follows.",
+  "@inSideHelp": {
+    "description": "Help under a side's own size."
+  },
+  "inLength": "Length",
+  "@inLength": {
+    "description": "Field: a length."
+  },
+  "inAngle": "Angle",
+  "@inAngle": {
+    "description": "Field: an angle."
+  },
+  "inRise": "Rise",
+  "@inRise": {
+    "description": "Readout: how far a slope climbs."
+  },
+  "inRun": "Run",
+  "@inRun": {
+    "description": "Readout: how far across a slope goes."
+  },
+  "inFrom": "From",
+  "@inFrom": {
+    "description": "Readout: where a side starts."
+  },
+  "inTo": "To",
+  "@inTo": {
+    "description": "Readout: where a side ends."
+  },
+  "inDragSide": "Drag its handle to move this side of the frame square to itself. The other sides stay where they are.",
+  "@inDragSide": {
+    "description": "Help on a frame member's panel."
+  },
+  "inProfileHelp": "One figure for the whole frame, as it is cut from one section of material.",
+  "@inProfileHelp": {
+    "description": "Help under the frame profile."
+  },
+  "inBarWidth": "Bar width",
+  "@inBarWidth": {
+    "description": "Field: a bar's width."
+  },
+  "inDeleteBar": "Delete this bar",
+  "@inDeleteBar": {
+    "description": "Button on a bar's panel."
+  },
+  "inPosition": "Position",
+  "@inPosition": {
+    "description": "Field: where something is."
+  },
+  "inRemovePiece": "Remove this {piece}",
+  "@inRemovePiece": {
+    "description": "Button on a piece of hardware's panel.",
+    "placeholders": {
+      "piece": {
+        "type": "String"
+      }
+    }
+  },
+  "inAsDrawn": "As drawn",
+  "@inAsDrawn": {
+    "description": "Readout: a dimension as drawn."
+  },
+  "inRealSize": "Real size",
+  "@inRealSize": {
+    "description": "Field: a dimension's true measurement."
+  },
+  "inRealSizeHelp": "Type the true measurement. The whole design is scaled to match it, in proportion — nothing moves relative to anything else.",
+  "@inRealSizeHelp": {
+    "description": "Help under a dimension's real size."
+  },
+  "inDeleteDimension": "Delete this dimension",
+  "@inDeleteDimension": {
+    "description": "Button on a dimension's panel."
+  },
+  "inNote": "Note",
+  "@inNote": {
+    "description": "Readout: a note's text."
+  },
+  "inDeleteNote": "Delete this note",
+  "@inDeleteNote": {
+    "description": "Button on a note's panel."
+  },
+  "inArrow": "Arrow",
+  "@inArrow": {
+    "description": "Readout heading for an arrow."
+  },
+  "inDragToMove": "Drag it to move it.",
+  "@inDragToMove": {
+    "description": "Readout for an arrow."
+  },
+  "inDeleteArrow": "Delete this arrow",
+  "@inDeleteArrow": {
+    "description": "Button on an arrow's panel."
+  },
+  "inDrawOutline": "Draw the outline of your {noun}, then read the drawing. Whatever you draw is what gets built — nothing is assumed and nothing is filled in for you.",
+  "@inDrawOutline": {
+    "description": "Design panel before anything is read.",
+    "placeholders": {
+      "noun": {
+        "type": "String"
+      }
+    }
+  },
+  "inOverallWidth": "Overall width",
+  "@inOverallWidth": {
+    "description": "Field: the design's overall width."
+  },
+  "inOverallWidthHelp": "The width alone: the height stays as it is.",
+  "@inOverallWidthHelp": {
+    "description": "Help under the overall width."
+  },
+  "inOverallHeight": "Overall height",
+  "@inOverallHeight": {
+    "description": "Field: the design's overall height."
+  },
+  "inAllSizes": "All sizes",
+  "@inAllSizes": {
+    "description": "Button: open the sizes form, every size given."
+  },
+  "inEnterSizes": "Enter the sizes",
+  "@inEnterSizes": {
+    "description": "Button: open the sizes form."
+  },
+  "inSections": "Sections",
+  "@inSections": {
+    "description": "Readout: how many sections."
+  },
+  "inBars": "Bars",
+  "@inBars": {
+    "description": "Readout: how many bars."
+  },
+  "inOpenings": "Openings",
+  "@inOpenings": {
+    "description": "Readout: how many openings."
+  },
+  "inOpeningTypes": "Opening types",
+  "@inOpeningTypes": {
+    "description": "Heading over each opening's door or window switch."
+  },
+  "inPickedWrong": "Picked the wrong one? Change it here.",
+  "@inPickedWrong": {
+    "description": "Under the opening types."
+  },
+  "inOnLeaf": "On {mechanism} — {description}. This is the opening's, so it moves with it.",
+  "@inOnLeaf": {
+    "description": "On a hinge's or handle's panel.",
+    "placeholders": {
+      "mechanism": {
+        "type": "String"
+      },
+      "description": {
+        "type": "String"
+      }
+    }
+  },
+  "inFirstHinge": "First hinge from the top",
+  "@inFirstHinge": {
+    "description": "Field: where the first hinge is."
+  },
+  "inFromLeft": "From the left",
+  "@inFromLeft": {
+    "description": "Field: a distance from the left."
+  },
+  "inLastHinge": "Last hinge from the bottom",
+  "@inLastHinge": {
+    "description": "Field: where the last hinge is."
+  },
+  "inFromRight": "From the right",
+  "@inFromRight": {
+    "description": "Field: a distance from the right."
+  },
+  "inHingeCount": "Number of hinges",
+  "@inHingeCount": {
+    "description": "Label over the hinge count."
+  },
+  "inEvenly": "Evenly spaced between the two ends, because evenly is the only spacing that is not a decision about where they look best.",
+  "@inEvenly": {
+    "description": "Under the hinge count."
+  },
+  "inHandleType": "Handle type",
+  "@inHandleType": {
+    "description": "Label over the handle's form."
+  },
+  "inHandleBar": "Bar",
+  "@inHandleBar": {
+    "description": "Handle form: a long pull bar for a sliding panel."
+  },
+  "inHandleLever": "Lever",
+  "@inHandleLever": {
+    "description": "Handle form: a lever."
+  },
+  "inHandleKnob": "Knob",
+  "@inHandleKnob": {
+    "description": "Handle form: a knob."
+  },
+  "inHandlePull": "Pull",
+  "@inHandlePull": {
+    "description": "Handle form: a pull handle."
+  },
+  "inHeightFromBottom": "Height from the bottom",
+  "@inHeightFromBottom": {
+    "description": "Field: the handle's height."
+  },
+  "inHandleHelp": "Measured on the leaf, not on the frame, so it stays where you put it when the opening moves.",
+  "@inHandleHelp": {
+    "description": "Help under the handle's height."
+  },
+  "inThisDiagonal": "This diagonal",
+  "@inThisDiagonal": {
+    "description": "Heading on a diagonal bar's panel."
+  },
+  "inDiagonalHelp": "It is built as a bar, exactly where you drew it. On a drawing a diagonal often means the pane opens instead — if that is what you meant, say so and the line becomes the opening.",
+  "@inDiagonalHelp": {
+    "description": "Help on a diagonal bar's panel."
+  },
+  "inOpensAs": "Opens {how}",
+  "@inOpensAs": {
+    "description": "Button: the diagonal's pane opens this way.",
+    "placeholders": {
+      "how": {
+        "type": "String"
+      }
+    }
+  },
+  "inFromTopOfOpening": "From the top of the opening",
+  "@inFromTopOfOpening": {
+    "description": "Field: a bar's place inside an opening."
+  },
+  "inFromLeftOfOpening": "From the left of the opening",
+  "@inFromLeftOfOpening": {
+    "description": "Field: a bar's place inside an opening."
+  },
+  "inIntoOpening": "Into the opening, square to this bar",
+  "@inIntoOpening": {
+    "description": "Field: a diagonal bar's place inside an opening."
+  },
+  "inMeasuredInSection": "Measured inside the section this bar divides.",
+  "@inMeasuredInSection": {
+    "description": "Help under a bar's place."
+  },
+  "inMeasuredInOpening": "Measured inside the opening, so it stays where you put it when the opening moves.",
+  "@inMeasuredInOpening": {
+    "description": "Help under a bar's place."
+  },
+  "inTheOpeningIs": "The opening is",
+  "@inTheOpeningIs": {
+    "description": "Readout: the opening's size."
+  },
+  "inPaneInside": "This pane is inside the opening, so it moves and swings with it.",
+  "@inPaneInside": {
+    "description": "Under a pane's place inside an opening."
+  },
+  "inDivides": "Divides",
+  "@inDivides": {
+    "description": "Label: what a bar divides."
+  },
+  "inWholeDesign": "The whole design",
+  "@inWholeDesign": {
+    "description": "Choice: the bar divides the whole design."
+  },
+  "inInsideOpening": "Inside the opening — {section}",
+  "@inInsideOpening": {
+    "description": "Choice: the bar divides an opening.",
+    "placeholders": {
+      "section": {
+        "type": "String"
+      }
+    }
+  },
+  "inInsideSection": "Inside {section}",
+  "@inInsideSection": {
+    "description": "Choice: the bar divides a section.",
+    "placeholders": {
+      "section": {
+        "type": "String"
+      }
+    }
+  },
+  "inLineInside": "This line is inside that section. It divides that section only, and travels with it.",
+  "@inLineInside": {
+    "description": "Under the Divides choice."
+  },
+  "inLineDividesDesign": "This line divides the design itself.",
+  "@inLineDividesDesign": {
+    "description": "Under the Divides choice."
+  },
+  "inOpeningType": "Opening type",
+  "@inOpeningType": {
+    "description": "Label: door or window."
+  },
+  "inNobodyAngled": "Nobody has said what this leaf is. An angled design can hold doors or windows, so it does not say which — until you choose, it hangs on its hinges and carries no handle.",
+  "@inNobodyAngled": {
+    "description": "Under the opening type, in an angled design."
+  },
+  "inNobodyBoth": "Nobody has said what this leaf is. This design holds doors and windows, so it does not say either — until you choose, it hangs on its hinges and carries no handle.",
+  "@inNobodyBoth": {
+    "description": "Under the opening type, in a door & window design."
+  },
+  "inFollowsDesign": "Nobody has said yet, so this leaf follows the design — a {kind}. Choose to say.",
+  "@inFollowsDesign": {
+    "description": "Under the opening type, where the leaf follows the design.",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "inDirection": "Direction",
+  "@inDirection": {
+    "description": "Label: which way the leaf opens."
+  },
+  "inDrewChanged": "You drew {drawn} here. You have since changed it to {now}.",
+  "@inDrewChanged": {
+    "description": "Under the direction: the mark drawn and the one now.",
+    "placeholders": {
+      "drawn": {
+        "type": "String"
+      },
+      "now": {
+        "type": "String"
+      }
+    }
+  },
+  "inMarkedWith": "You marked this section with a {drawn}.",
+  "@inMarkedWith": {
+    "description": "Under the direction: the mark drawn.",
+    "placeholders": {
+      "drawn": {
+        "type": "String"
+      }
+    }
+  },
+  "inPleated": "Pleated screen",
+  "@inPleated": {
+    "description": "Switch: a pleated insect screen on a sliding panel."
+  },
+  "inPleatedHelp": "An insect screen that fans out of a cassette at the jamb across the passage as the panel opens.",
+  "@inPleatedHelp": {
+    "description": "Help under the pleated screen."
+  },
+  "inAutomatic": "Automatic, by sensor",
+  "@inAutomatic": {
+    "description": "Switch: an automatic sliding panel."
+  },
+  "inAutomaticHelp": "Opened by a drive when the sensor on the head sees somebody coming.",
+  "@inAutomaticHelp": {
+    "description": "Help under the automatic switch."
+  },
+  "inHowItOpens": "How it opens",
+  "@inHowItOpens": {
+    "description": "Label: the opening's mechanism."
+  },
+  "inInward": "Inward",
+  "@inInward": {
+    "description": "The leaf opens inward."
+  },
+  "inOutward": "Outward",
+  "@inOutward": {
+    "description": "The leaf opens outward."
+  },
+  "inMovingOpening": "Moving the opening changes which section opens. Neither section changes shape, and whatever you have drawn inside the opening goes with it.",
+  "@inMovingOpening": {
+    "description": "Under the opening's position."
+  },
+  "inDoesNotOpen": "This section does not open",
+  "@inDoesNotOpen": {
+    "description": "Button: make the opening fixed."
+  },
+  "secUpper": "Upper",
+  "@secUpper": {
+    "description": "Where a section is: the upper row."
+  },
+  "secLower": "Lower",
+  "@secLower": {
+    "description": "Where a section is: the lower row."
+  },
+  "secLeft": "left",
+  "@secLeft": {
+    "description": "Where a section is: the left column."
+  },
+  "secRight": "right",
+  "@secRight": {
+    "description": "Where a section is: the right column."
+  },
+  "secPlaced": "{place} section — {size}",
+  "@secPlaced": {
+    "description": "A section, named by where it is and its size.",
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "inOpens": "Opens",
+  "@inOpens": {
+    "description": "Label: whether a section opens."
+  },
+  "inEditOpening": "Edit this opening",
+  "@inEditOpening": {
+    "description": "Button on a section's panel."
+  },
+  "inMarkedNothingElse": "You marked this section with a {drawn}. Nothing else opens.",
+  "@inMarkedNothingElse": {
+    "description": "On a marked section's panel.",
+    "placeholders": {
+      "drawn": {
+        "type": "String"
+      }
+    }
+  },
+  "inAddHardware": "Add hardware here",
+  "@inAddHardware": {
+    "description": "Label on a section's panel."
+  },
+  "inAddHardwareHelp": "Nothing is added on its own. What you add goes in the middle of this section, and you can drag it where you want it.",
+  "@inAddHardwareHelp": {
+    "description": "Help on a section's panel."
+  },
+  "inMaterial": "Material",
+  "@inMaterial": {
+    "description": "Label: a part's material."
+  },
+  "inColour": "Colour",
+  "@inColour": {
+    "description": "Label: a part's colour."
+  },
+  "payLegacyNote": "Migrated from the previous customer payment balance.",
+  "@payLegacyNote": {
+    "description": "[domain] Note on the one payment carried over from an older customer record."
+  },
+  "amtEnter": "Enter an amount.",
+  "@amtEnter": {
+    "description": "[domain] Amount check."
+  },
+  "amtMoreThanNothing": "The amount must be more than nothing.",
+  "@amtMoreThanNothing": {
+    "description": "[domain] Amount check."
+  },
+  "amtToTheCent": "Enter the amount to the cent — two decimal places at most.",
+  "@amtToTheCent": {
+    "description": "[domain] Amount check."
+  },
+  "amtAsNumber": "Enter the amount as a number, such as 500.00.",
+  "@amtAsNumber": {
+    "description": "[domain] Amount check."
+  },
+  "amtSmaller": "Enter a smaller amount.",
+  "@amtSmaller": {
+    "description": "[domain] Amount check."
+  },
+  "refundNothingPaid": "Nothing has been paid, so nothing can be refunded.",
+  "@refundNothingPaid": {
+    "description": "[domain] Refund check."
+  },
+  "refundNothingPaidIn": "Nothing has been paid in {currency}, so nothing can be refunded.",
+  "@refundNothingPaidIn": {
+    "description": "[domain] Refund check, in another currency.",
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "refundTooMuch": "A refund cannot be more than the net paid, {amount}.",
+  "@refundTooMuch": {
+    "description": "[domain] Refund check.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentNotFuture": "Payments cannot be dated in the future.",
+  "@paymentNotFuture": {
+    "description": "[domain] Date check for a payment."
+  },
+  "refundNotFuture": "Refunds cannot be dated in the future.",
+  "@refundNotFuture": {
+    "description": "[domain] Date check for a refund."
+  },
+  "rateAsNumber": "Enter the rate as a number, such as 1.10.",
+  "@rateAsNumber": {
+    "description": "[domain] Exchange rate check."
+  },
+  "rateMoreThanNothing": "The rate must be more than nothing.",
+  "@rateMoreThanNothing": {
+    "description": "[domain] Exchange rate check."
+  },
+  "discountNone": "No discount",
+  "@discountNone": {
+    "description": "[domain] No discount in force."
+  },
+  "discountEnter": "Enter the discount.",
+  "@discountEnter": {
+    "description": "[domain] Discount check."
+  },
+  "discountMoreThanNothing": "A discount must be more than nothing.",
+  "@discountMoreThanNothing": {
+    "description": "[domain] Discount check."
+  },
+  "discountOver100": "A percentage cannot be more than 100%.",
+  "@discountOver100": {
+    "description": "[domain] Discount check."
+  },
+  "discountNotFinal": "The total is not final yet. A fixed discount can be given once every design is priced.",
+  "@discountNotFinal": {
+    "description": "[domain] Discount check."
+  },
+  "discountOverSubtotal": "The discount cannot be more than the subtotal, {amount}.",
+  "@discountOverSubtotal": {
+    "description": "[domain] Discount check.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "discountPercentNumber": "Enter the percentage as a number, such as 10 or 12.5.",
+  "@discountPercentNumber": {
+    "description": "[domain] Discount check."
+  },
+  "finNoAccess": "You do not have permission to view this customer's finances.",
+  "@finNoAccess": {
+    "description": "Customer's finances, without permission."
+  },
+  "finSummary": "FINANCIAL SUMMARY",
+  "@finSummary": {
+    "description": "Heading of the customer's money."
+  },
+  "finDesigns": "Designs",
+  "@finDesigns": {
+    "description": "Row: how many designs."
+  },
+  "finDesignsPriced": "{count} · {priced} priced",
+  "@finDesignsPriced": {
+    "description": "How many designs, and how many have a price.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "priced": {
+        "type": "int"
+      }
+    }
+  },
+  "finDesignsTotal": "Designs total",
+  "@finDesignsTotal": {
+    "description": "Row: the designs' prices summed."
+  },
+  "finNotFinal": "Not final",
+  "@finNotFinal": {
+    "description": "A total that is not final."
+  },
+  "finExtrasWholeJob": "Extra charges (whole job)",
+  "@finExtrasWholeJob": {
+    "description": "Row: the customer's own extras."
+  },
+  "finSubtotal": "Subtotal",
+  "@finSubtotal": {
+    "description": "Row: before the discount."
+  },
+  "finDiscountOf": "Discount ({amount})",
+  "@finDiscountOf": {
+    "description": "Row: the discount in force.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "finWhenFinal": "when the total is final",
+  "@finWhenFinal": {
+    "description": "A discount that cannot be worked out yet."
+  },
+  "finTotalPrice": "Total price",
+  "@finTotalPrice": {
+    "description": "Row: the total price."
+  },
+  "finFinalTotal": "Final total",
+  "@finFinalTotal": {
+    "description": "Row: the total after discount and extras."
+  },
+  "finDiscountExceeds": "The discount of {amount} is more than the subtotal now, so it takes the whole subtotal and no more.",
+  "@finDiscountExceeds": {
+    "description": "Warning under the total.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "finCustomerNotFinal": "Customer price is not final. {reason}",
+  "@finCustomerNotFinal": {
+    "description": "Why the customer's total is not final.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "finPricedSoFar": "Priced so far (not the total)",
+  "@finPricedSoFar": {
+    "description": "Row: what is priced so far."
+  },
+  "finTotalPayments": "Total payments",
+  "@finTotalPayments": {
+    "description": "Row: every payment."
+  },
+  "finRefunds": "Refunds",
+  "@finRefunds": {
+    "description": "Row: every refund."
+  },
+  "finNetPaid": "Net paid",
+  "@finNetPaid": {
+    "description": "Row: payments less refunds."
+  },
+  "finAmountDue": "Amount due",
+  "@finAmountDue": {
+    "description": "Row: what is still owed."
+  },
+  "finCredit": "Credit",
+  "@finCredit": {
+    "description": "Row: paid more than the total."
+  },
+  "finCreditNote": "The customer has paid {amount} more than their designs now come to. It is theirs: it can be refunded, or stand against a later design.",
+  "@finCreditNote": {
+    "description": "Under the credit.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "finDiscount": "Discount",
+  "@finDiscount": {
+    "description": "Button: give a discount."
+  },
+  "finAddPayment": "Add payment",
+  "@finAddPayment": {
+    "description": "Button: record a payment."
+  },
+  "finRefund": "Refund",
+  "@finRefund": {
+    "description": "Button: record a refund."
+  },
+  "finHistory": "PAYMENT HISTORY",
+  "@finHistory": {
+    "description": "Heading of the payment history."
+  },
+  "finNoHistory": "No payment history yet.",
+  "@finNoHistory": {
+    "description": "The history is empty."
+  },
+  "finLoadMore": "Load more ({count} more)",
+  "@finLoadMore": {
+    "description": "Button: show the next page.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "finShowDesigns": "Show each design and the materials",
+  "@finShowDesigns": {
+    "description": "Unfold the summary."
+  },
+  "finHideDesigns": "Hide each design and the materials",
+  "@finHideDesigns": {
+    "description": "Fold the summary."
+  },
+  "finDesignsHeading": "DESIGNS",
+  "@finDesignsHeading": {
+    "description": "Heading over each design's price."
+  },
+  "finDesignFacts": "Category: {category} · Material: {material} · Colour: {colour}",
+  "@finDesignFacts": {
+    "description": "What a design is and is made of.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "material": {
+        "type": "String"
+      },
+      "colour": {
+        "type": "String"
+      }
+    }
+  },
+  "finMaterialSummary": "CUSTOMER MATERIAL SUMMARY",
+  "@finMaterialSummary": {
+    "description": "Heading over the customer's measurements."
+  },
+  "finOfPriced": "Of the {priced} of {count} designs with a current price.",
+  "@finOfPriced": {
+    "description": "Under the material summary.",
+    "placeholders": {
+      "priced": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "finWholeJobOf": "{name}'s whole job — no one design's",
+  "@finWholeJobOf": {
+    "description": "Where a customer's extra charge belongs.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "finWholeJob": "{name}'s whole job",
+  "@finWholeJob": {
+    "description": "Where a customer's extra charge belongs.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "finExtrasHeading": "EXTRA CHARGES — WHOLE JOB",
+  "@finExtrasHeading": {
+    "description": "Heading over the customer's own extras."
+  },
+  "finAddExtra": "Add extra",
+  "@finAddExtra": {
+    "description": "Button: add an extra charge."
+  },
+  "finNoExtras": "No extra charges for the whole job. A design's own extras are on its price.",
+  "@finNoExtras": {
+    "description": "The customer has no extras."
+  },
+  "finOtherCurrencies": "OTHER CURRENCIES — not included in the {currency} total",
+  "@finOtherCurrencies": {
+    "description": "Heading over money in other currencies.",
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "finCurrencyPayments": "{currency} payments",
+  "@finCurrencyPayments": {
+    "description": "Row: payments in another currency.",
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "finCurrencyRefunds": "{currency} refunds",
+  "@finCurrencyRefunds": {
+    "description": "Row: refunds in another currency.",
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "finNoRate": "No exchange rate was recorded with these, so they are kept in their own currency and not added to the {currency} figures above.",
+  "@finNoRate": {
+    "description": "Under money in other currencies.",
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "finQuotations": "QUOTATIONS",
+  "@finQuotations": {
+    "description": "Heading over the quotations."
+  },
+  "finNewQuotation": "New quotation",
+  "@finNewQuotation": {
+    "description": "Button: make a quotation."
+  },
+  "finNoQuotations": "No quotations yet.",
+  "@finNoQuotations": {
+    "description": "There are no quotations."
+  },
+  "finQuoteLine": "{day} · {count, plural, =1{1 design} other{{count} designs}}",
+  "@finQuoteLine": {
+    "description": "A quotation's day and how many designs.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "finDue": "Due {amount}",
+  "@finDue": {
+    "description": "Glance: what is due.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "finCreditOf": "Credit {amount}",
+  "@finCreditOf": {
+    "description": "Glance: the credit.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "finAtRate": "At 1 {from} = {rate} {to}: {amount}",
+  "@finAtRate": {
+    "description": "A payment converted at its rate.",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "rate": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "finIssueReceipt": "Issue receipt",
+  "@finIssueReceipt": {
+    "description": "Button: issue a payment's receipt."
+  },
+  "finDay": "{day} {month} {year}",
+  "@finDay": {
+    "description": "A date: day, short month, year.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "finRefundTo": "Refund to {name}",
+  "@finRefundTo": {
+    "description": "Title of the refund dialog.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "finPaymentFrom": "Payment from {name}",
+  "@finPaymentFrom": {
+    "description": "Title of the payment dialog.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "finRefundNote": "Net paid: {amount}. A refund is money returned; it cannot be more than that.",
+  "@finRefundNote": {
+    "description": "In the refund dialog.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "finNotFinalYet": "The total is not final yet: {reason}",
+  "@finNotFinalYet": {
+    "description": "In the payment dialog.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "finTotalDue": "{label}: {total} · due {due}",
+  "@finTotalDue": {
+    "description": "In the payment dialog.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "due": {
+        "type": "String"
+      }
+    }
+  },
+  "finRefundAmount": "Refund amount",
+  "@finRefundAmount": {
+    "description": "Field."
+  },
+  "finAmount": "Amount",
+  "@finAmount": {
+    "description": "Field."
+  },
+  "finCurrency": "Currency",
+  "@finCurrency": {
+    "description": "Field."
+  },
+  "finRateOptional": "Exchange rate (optional)",
+  "@finRateOptional": {
+    "description": "Field."
+  },
+  "finRateHelp": "With a rate it counts towards the {base} total, at this rate for good. Without one it is kept in {currency} and not added to the {base} total.",
+  "@finRateHelp": {
+    "description": "Help under the exchange rate.",
+    "placeholders": {
+      "base": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "finRefundMethod": "Refund method",
+  "@finRefundMethod": {
+    "description": "Field."
+  },
+  "finPaymentMethod": "Payment method",
+  "@finPaymentMethod": {
+    "description": "Field."
+  },
+  "finDescriptionOptional": "Description (optional)",
+  "@finDescriptionOptional": {
+    "description": "Field: describe another payment method."
+  },
+  "finDescriptionHint": "Company cheque",
+  "@finDescriptionHint": {
+    "description": "Example description of another payment method."
+  },
+  "finDate": "Date",
+  "@finDate": {
+    "description": "Field."
+  },
+  "finReasonNote": "Reason / note",
+  "@finReasonNote": {
+    "description": "Field: a refund's note."
+  },
+  "finNote": "Note",
+  "@finNote": {
+    "description": "Field: a payment's note."
+  },
+  "finIssueAReceipt": "Issue a receipt",
+  "@finIssueAReceipt": {
+    "description": "Tick: issue a receipt with the payment."
+  },
+  "finSaveRefund": "Save refund",
+  "@finSaveRefund": {
+    "description": "Button."
+  },
+  "finSavePayment": "Save payment",
+  "@finSavePayment": {
+    "description": "Button."
+  },
+  "qsDraft": "Draft",
+  "@qsDraft": {
+    "description": "[domain] Quotation status."
+  },
+  "qsIssued": "Issued",
+  "@qsIssued": {
+    "description": "[domain] Quotation status."
+  },
+  "qsAccepted": "Accepted",
+  "@qsAccepted": {
+    "description": "[domain] Quotation status."
+  },
+  "qsRejected": "Rejected",
+  "@qsRejected": {
+    "description": "[domain] Quotation status."
+  },
+  "qsExpired": "Expired",
+  "@qsExpired": {
+    "description": "[domain] Quotation status."
+  },
+  "quoteIncomplete": "Please complete all selected designs before creating the quotation.",
+  "@quoteIncomplete": {
+    "description": "[domain] Quotation check."
+  },
+  "quoteChooseOne": "Choose at least one design.",
+  "@quoteChooseOne": {
+    "description": "[domain] Quotation check."
+  },
+  "quoteNotReady": "{message} Not ready: {names}.",
+  "@quoteNotReady": {
+    "description": "[domain] Quotation check, naming the designs.",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      },
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "quoteExtraCurrency": "The extra charge \"{name}\" is in {currency}, not {base}. Write it in {base} first.",
+  "@quoteExtraCurrency": {
+    "description": "[domain] Quotation check.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      },
+      "base": {
+        "type": "String"
+      }
+    }
+  },
+  "quoteDiscountExceeds": "The discount of {discount} is more than this quotation's subtotal, {subtotal}.",
+  "@quoteDiscountExceeds": {
+    "description": "[domain] Quotation check.",
+    "placeholders": {
+      "discount": {
+        "type": "String"
+      },
+      "subtotal": {
+        "type": "String"
+      }
+    }
+  },
+  "quoteCannotBecome": "A quotation that is {status} cannot become {next}.",
+  "@quoteCannotBecome": {
+    "description": "[domain] Quotation status check.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      },
+      "next": {
+        "type": "String"
+      }
+    }
+  },
+  "discountFor": "Discount for {name}",
+  "@discountFor": {
+    "description": "Title of the discount dialog.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "discountType": "Discount type",
+  "@discountType": {
+    "description": "Label in the discount dialog."
+  },
+  "discountNoneChoice": "None",
+  "@discountNoneChoice": {
+    "description": "Choice: no discount."
+  },
+  "discountReason": "Reason (optional)",
+  "@discountReason": {
+    "description": "Field."
+  },
+  "discountRemove": "Remove discount",
+  "@discountRemove": {
+    "description": "Button."
+  },
+  "quoteNewFor": "New quotation for {name}",
+  "@quoteNewFor": {
+    "description": "Title.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "quoteKeepsPrices": "The quotation keeps every price as it is now. A complete design is priced first; an incomplete one cannot be quoted.",
+  "@quoteKeepsPrices": {
+    "description": "In the new quotation dialog."
+  },
+  "quoteNoDesigns": "This customer has no designs yet.",
+  "@quoteNoDesigns": {
+    "description": "In the new quotation dialog."
+  },
+  "quotePricedWhenQuoted": "Complete — priced when quoted",
+  "@quotePricedWhenQuoted": {
+    "description": "A design not yet priced."
+  },
+  "quoteDiscountLine": "Discount: {discount}",
+  "@quoteDiscountLine": {
+    "description": "In the new quotation dialog.",
+    "placeholders": {
+      "discount": {
+        "type": "String"
+      }
+    }
+  },
+  "quoteNotes": "Notes (optional)",
+  "@quoteNotes": {
+    "description": "Field."
+  },
+  "quoteCreate": "Create quotation",
+  "@quoteCreate": {
+    "description": "Button."
+  },
+  "quoteHeading": "QUOTATION",
+  "@quoteHeading": {
+    "description": "Heading of a quotation."
+  },
+  "quoteFor": "For {name} · made {day}",
+  "@quoteFor": {
+    "description": "Under a quotation's number.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "quoteBy": " by {who}",
+  "@quoteBy": {
+    "description": "Added after a date: who did it.",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "quoteListVersion": "prices of list version {version}",
+  "@quoteListVersion": {
+    "description": "Which price list a quotation used.",
+    "placeholders": {
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+  "quoteDesignChanged": "Design changed after quotation: {names}.",
+  "@quoteDesignChanged": {
+    "description": "Warning on a quotation.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "quotePricesChanged": "The factory prices have changed since.",
+  "@quotePricesChanged": {
+    "description": "Warning on a quotation."
+  },
+  "quoteStaysAsOffered": "This quotation stays as it was offered; make a new one for the current figures.",
+  "@quoteStaysAsOffered": {
+    "description": "Warning on a quotation."
+  },
+  "quoteDesignDiscount": "Design discount ({discount})",
+  "@quoteDesignDiscount": {
+    "description": "A design's own discount on a quotation.",
+    "placeholders": {
+      "discount": {
+        "type": "String"
+      }
+    }
+  },
+  "quoteStatusOn": "{status} — {day}",
+  "@quoteStatusOn": {
+    "description": "A status change and its day.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "quoteIssue": "Issue",
+  "@quoteIssue": {
+    "description": "Button: issue a quotation."
+  },
+  "quoteMarkAccepted": "Mark accepted",
+  "@quoteMarkAccepted": {
+    "description": "Button."
+  },
+  "quoteMarkRejected": "Mark rejected",
+  "@quoteMarkRejected": {
+    "description": "Button."
+  },
+  "quoteMarkExpired": "Mark expired",
+  "@quoteMarkExpired": {
+    "description": "Button."
+  },
+  "rcpHeading": "RECEIPT",
+  "@rcpHeading": {
+    "description": "Heading of a receipt."
+  },
+  "rcpReceivedFrom": "Received from {name}",
+  "@rcpReceivedFrom": {
+    "description": "On a receipt.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rcpAmount": "Amount received",
+  "@rcpAmount": {
+    "description": "On a receipt."
+  },
+  "rcpAtRate": "At 1 {from} = {rate} {to}",
+  "@rcpAtRate": {
+    "description": "On a receipt.",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "rate": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "rcpDate": "Date received",
+  "@rcpDate": {
+    "description": "On a receipt."
+  },
+  "rcpBalance": "Balance after this payment",
+  "@rcpBalance": {
+    "description": "On a receipt."
+  },
+  "rcpNotFinal": "Total not final when issued",
+  "@rcpNotFinal": {
+    "description": "On a receipt."
+  },
+  "rcpDue": "{amount} due",
+  "@rcpDue": {
+    "description": "On a receipt.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rcpCredit": "{amount} credit",
+  "@rcpCredit": {
+    "description": "On a receipt.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "rcpPaidInFull": "Paid in full",
+  "@rcpPaidInFull": {
+    "description": "On a receipt."
+  },
+  "rcpIssued": "Issued {day}",
+  "@rcpIssued": {
+    "description": "On a receipt.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "rcpForPayment": " · for payment {id}",
+  "@rcpForPayment": {
+    "description": "On a receipt.",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "xcMaterial": "Material",
+  "@xcMaterial": {
+    "description": "[domain] Category of an extra charge."
+  },
+  "xcLabour": "Labour",
+  "@xcLabour": {
+    "description": "[domain] Category of an extra charge."
+  },
+  "xcService": "Service",
+  "@xcService": {
+    "description": "[domain] Category of an extra charge."
+  },
+  "xcTransport": "Transport",
+  "@xcTransport": {
+    "description": "[domain] Category of an extra charge."
+  },
+  "xcInstallation": "Installation",
+  "@xcInstallation": {
+    "description": "[domain] Category of an extra charge."
+  },
+  "xcOther": "Other",
+  "@xcOther": {
+    "description": "[domain] Category of an extra charge."
+  },
+  "xuPiece": "piece",
+  "@xuPiece": {
+    "description": "[domain] Unit of an extra charge, one."
+  },
+  "xuPieces": "pieces",
+  "@xuPieces": {
+    "description": "[domain] Unit of an extra charge, more than one."
+  },
+  "xuBottle": "bottle",
+  "@xuBottle": {
+    "description": "[domain] Unit of an extra charge, one."
+  },
+  "xuBottles": "bottles",
+  "@xuBottles": {
+    "description": "[domain] Unit of an extra charge, more than one."
+  },
+  "xuHour": "hour",
+  "@xuHour": {
+    "description": "[domain] Unit of an extra charge, one."
+  },
+  "xuHours": "hours",
+  "@xuHours": {
+    "description": "[domain] Unit of an extra charge, more than one."
+  },
+  "xuMetre": "metre",
+  "@xuMetre": {
+    "description": "[domain] Unit of an extra charge, one."
+  },
+  "xuMetres": "metres",
+  "@xuMetres": {
+    "description": "[domain] Unit of an extra charge, more than one."
+  },
+  "xuSquareMetre": "square metre",
+  "@xuSquareMetre": {
+    "description": "[domain] Unit of an extra charge, one."
+  },
+  "xuSquareMetres": "square metres",
+  "@xuSquareMetres": {
+    "description": "[domain] Unit of an extra charge, more than one."
+  },
+  "xuKg": "kg",
+  "@xuKg": {
+    "description": "[domain] Unit of an extra charge, one."
+  },
+  "xuKgs": "kg",
+  "@xuKgs": {
+    "description": "[domain] Unit of an extra charge, more than one."
+  },
+  "xuSet": "set",
+  "@xuSet": {
+    "description": "[domain] Unit of an extra charge, one."
+  },
+  "xuSets": "sets",
+  "@xuSets": {
+    "description": "[domain] Unit of an extra charge, more than one."
+  },
+  "xuRoll": "roll",
+  "@xuRoll": {
+    "description": "[domain] Unit of an extra charge, one."
+  },
+  "xuRolls": "rolls",
+  "@xuRolls": {
+    "description": "[domain] Unit of an extra charge, more than one."
+  },
+  "xuDay": "day",
+  "@xuDay": {
+    "description": "[domain] Unit of an extra charge, one."
+  },
+  "xuDays": "days",
+  "@xuDays": {
+    "description": "[domain] Unit of an extra charge, more than one."
+  },
+  "xuTrip": "trip",
+  "@xuTrip": {
+    "description": "[domain] Unit of an extra charge, one."
+  },
+  "xuTrips": "trips",
+  "@xuTrips": {
+    "description": "[domain] Unit of an extra charge, more than one."
+  },
+  "xNameNeeded": "Enter what the extra is.",
+  "@xNameNeeded": {
+    "description": "[domain] Extra charge check."
+  },
+  "xQtyEnter": "Enter the quantity.",
+  "@xQtyEnter": {
+    "description": "[domain] Extra charge check."
+  },
+  "xQtyMore": "The quantity must be more than nothing.",
+  "@xQtyMore": {
+    "description": "[domain] Extra charge check."
+  },
+  "xUnitNeeded": "Choose or type the unit.",
+  "@xUnitNeeded": {
+    "description": "[domain] Extra charge check."
+  },
+  "xPriceEnter": "Enter the unit price.",
+  "@xPriceEnter": {
+    "description": "[domain] Extra charge check."
+  },
+  "xPriceNotBelow": "A unit price cannot be below nothing.",
+  "@xPriceNotBelow": {
+    "description": "[domain] Extra charge check."
+  },
+  "xQtyNumber": "Enter the quantity as a number, such as 5 or 2.5.",
+  "@xQtyNumber": {
+    "description": "[domain] Extra charge check."
+  },
+  "xQtyPlaces": "Enter the quantity to three decimal places at most.",
+  "@xQtyPlaces": {
+    "description": "[domain] Extra charge check."
+  },
+  "xPriceNumber": "Enter the unit price as a number, such as 3.25.",
+  "@xPriceNumber": {
+    "description": "[domain] Extra charge check."
+  },
+  "xPricePlaces": "Enter the unit price to the cent — two decimal places at most.",
+  "@xPricePlaces": {
+    "description": "[domain] Extra charge check."
+  },
+  "xAlreadyOne": "{what} is already calculated from the design. Add this only if it is an additional charge.",
+  "@xAlreadyOne": {
+    "description": "[domain] An extra that may charge twice for one thing.",
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "xAlreadyMany": "{what} are already calculated from the design. Add this only if it is an additional charge.",
+  "@xAlreadyMany": {
+    "description": "[domain] An extra that may charge twice for some things.",
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "xAlreadyItem": "{what} ({amount})",
+  "@xAlreadyItem": {
+    "description": "[domain] A group already priced and what it comes to.",
+    "placeholders": {
+      "what": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "xTickAdditional": "Tick \"This is an additional charge\" to add it on top.",
+  "@xTickAdditional": {
+    "description": "Extra dialog check."
+  },
+  "xAddTitle": "Add extra",
+  "@xAddTitle": {
+    "description": "Title of the extra dialog."
+  },
+  "xEditTitle": "Edit extra",
+  "@xEditTitle": {
+    "description": "Title of the extra dialog."
+  },
+  "xName": "Name",
+  "@xName": {
+    "description": "Field."
+  },
+  "xNameHint": "Silicone, labour, transport…",
+  "@xNameHint": {
+    "description": "Example extras."
+  },
+  "xCategory": "Category",
+  "@xCategory": {
+    "description": "Field."
+  },
+  "xQuantity": "Quantity",
+  "@xQuantity": {
+    "description": "Field."
+  },
+  "xUnit": "Unit",
+  "@xUnit": {
+    "description": "Field."
+  },
+  "xOtherUnit": "Other unit…",
+  "@xOtherUnit": {
+    "description": "Choice: type a unit."
+  },
+  "xUnitInWords": "Unit, in words",
+  "@xUnitInWords": {
+    "description": "Field."
+  },
+  "xUnitPrice": "Unit price",
+  "@xUnitPrice": {
+    "description": "Field."
+  },
+  "xNoteOptional": "Note (optional)",
+  "@xNoteOptional": {
+    "description": "Field."
+  },
+  "xTotal": "Total",
+  "@xTotal": {
+    "description": "Row."
+  },
+  "xIsAdditional": "This is an additional charge",
+  "@xIsAdditional": {
+    "description": "Tick."
+  },
+  "xSave": "Save extra",
+  "@xSave": {
+    "description": "Button."
+  },
+  "xRemoveTitle": "Remove extra",
+  "@xRemoveTitle": {
+    "description": "Title."
+  },
+  "xRemoveAsk": "Remove \"{name}\" ({amount}) from {from}?",
+  "@xRemoveAsk": {
+    "description": "Confirmation.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      }
+    }
+  },
+  "xEditOf": "Edit {name}",
+  "@xEditOf": {
+    "description": "Tooltip.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "xRemoveOf": "Remove {name}",
+  "@xRemoveOf": {
+    "description": "Tooltip.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pbAutomatic": "AUTOMATIC DESIGN COSTS",
+  "@pbAutomatic": {
+    "description": "Heading of the breakdown."
+  },
+  "pbCombinedProfile": "Combined profile cost",
+  "@pbCombinedProfile": {
+    "description": "Row."
+  },
+  "pbNotUsed": "Not used",
+  "@pbNotUsed": {
+    "description": "Glass or panel that the design does not have."
+  },
+  "pbDesignCost": "Design cost",
+  "@pbDesignCost": {
+    "description": "Row."
+  },
+  "pbExtras": "EXTRA CHARGES",
+  "@pbExtras": {
+    "description": "Heading."
+  },
+  "pbNoExtras": "No extra charges.",
+  "@pbNoExtras": {
+    "description": "No extras."
+  },
+  "pbExtrasCost": "Extras cost",
+  "@pbExtrasCost": {
+    "description": "Row."
+  },
+  "pbGive": "Give",
+  "@pbGive": {
+    "description": "Button: give a discount."
+  },
+  "pbChange": "Change",
+  "@pbChange": {
+    "description": "Button: change the discount."
+  },
+  "ppPercentOf": "{percent}% of {amount}",
+  "@ppPercentOf": {
+    "description": "[domain] A percentage line: so much per cent of an amount.",
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ppFixed": "fixed",
+  "@ppFixed": {
+    "description": "[domain] A fixed price line."
+  },
+  "ppPrice": "PRICE",
+  "@ppPrice": {
+    "description": "Heading of the price panel."
+  },
+  "ppReadingList": "Reading the price list…",
+  "@ppReadingList": {
+    "description": "While the price list loads."
+  },
+  "ppTotal": "Total",
+  "@ppTotal": {
+    "description": "Row: the design's total."
+  },
+  "ppCorrectGeometry": "Please correct the geometry shown under the drawing to calculate the price.",
+  "@ppCorrectGeometry": {
+    "description": "Points to the geometry check."
+  },
+  "ppPrevious": "Previous calculation: {amount} — not current",
+  "@ppPrevious": {
+    "description": "A stale price.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ppShowBreakdown": "Show the breakdown",
+  "@ppShowBreakdown": {
+    "description": "Button."
+  },
+  "ppHideBreakdown": "Hide the breakdown",
+  "@ppHideBreakdown": {
+    "description": "Button."
+  },
+  "ppExamplePrices": "Example prices — the workshop owner sets the real ones.",
+  "@ppExamplePrices": {
+    "description": "Under a price from the example list."
+  },
+  "ppCarriedOver": "Prices carried over from an older price list.",
+  "@ppCarriedOver": {
+    "description": "Under a price from a migrated list."
+  },
+  "ppInstallation": "Include installation",
+  "@ppInstallation": {
+    "description": "Switch."
+  },
+  "ppBorderLength": "Border length",
+  "@ppBorderLength": {
+    "description": "Measurement."
+  },
+  "ppLineLength": "Internal line length",
+  "@ppLineLength": {
+    "description": "Measurement."
+  },
+  "ppCombinedLength": "Combined profile length",
+  "@ppCombinedLength": {
+    "description": "Measurement."
+  },
+  "ppBorderAndLines": "Border and internal lines",
+  "@ppBorderAndLines": {
+    "description": "Measurement."
+  },
+  "ppOpeningProfile": "Opening profile",
+  "@ppOpeningProfile": {
+    "description": "Measurement."
+  },
+  "ppOtherProfile": "Other profile",
+  "@ppOtherProfile": {
+    "description": "Measurement."
+  },
+  "ppTotalProfile": "Total profile",
+  "@ppTotalProfile": {
+    "description": "Measurement."
+  },
+  "toolSelect": "Select",
+  "@toolSelect": {
+    "description": "Tool."
+  },
+  "toolSelectHint": "Tap a part to pick it. Drag to move it.",
+  "@toolSelectHint": {
+    "description": "Tool hint."
+  },
+  "toolPen": "Freehand",
+  "@toolPen": {
+    "description": "Tool: draw freehand."
+  },
+  "toolPenHint": "Draw as you would on paper. Pause with the pen down to straighten.",
+  "@toolPenHint": {
+    "description": "Tool hint."
+  },
+  "toolLine": "Straight line",
+  "@toolLine": {
+    "description": "Tool."
+  },
+  "toolLineHint": "Two taps, or drag from one end to the other.",
+  "@toolLineHint": {
+    "description": "Tool hint."
+  },
+  "toolRectangle": "Rectangle",
+  "@toolRectangle": {
+    "description": "Tool."
+  },
+  "toolRectangleHint": "Drag a corner to the opposite corner.",
+  "@toolRectangleHint": {
+    "description": "Tool hint."
+  },
+  "toolPolyline": "Polyline",
+  "@toolPolyline": {
+    "description": "Tool: a chain of lines."
+  },
+  "toolPolylineHint": "Tap each corner. Tap the first one again to close.",
+  "@toolPolylineHint": {
+    "description": "Tool hint."
+  },
+  "toolDimension": "Dimension",
+  "@toolDimension": {
+    "description": "Tool."
+  },
+  "toolDimensionHint": "Drag between the two points you are measuring.",
+  "@toolDimensionHint": {
+    "description": "Tool hint."
+  },
+  "toolArrow": "Arrow",
+  "@toolArrow": {
+    "description": "Tool."
+  },
+  "toolArrowHint": "Drag from the tail to the point.",
+  "@toolArrowHint": {
+    "description": "Tool hint."
+  },
+  "toolNote": "Note",
+  "@toolNote": {
+    "description": "Tool."
+  },
+  "toolNoteHint": "Tap where the note goes, then type it.",
+  "@toolNoteHint": {
+    "description": "Tool hint."
+  },
+  "toolEraser": "Eraser",
+  "@toolEraser": {
+    "description": "Tool."
+  },
+  "toolEraserHint": "Tap a stroke to rub it out.",
+  "@toolEraserHint": {
+    "description": "Tool hint."
+  },
+  "toolGoBack": "{tool}\nTap to go back to the drawing and use it.",
+  "@toolGoBack": {
+    "description": "Tooltip on a drawing tool away from the drawing.",
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "viewDraw": "Draw",
+  "@viewDraw": {
+    "description": "View: the drawing."
+  },
+  "viewCad": "CAD drawing",
+  "@viewCad": {
+    "description": "View: the technical drawing."
+  },
+  "viewCadShort": "CAD",
+  "@viewCadShort": {
+    "description": "View, short."
+  },
+  "view3d": "3D model",
+  "@view3d": {
+    "description": "View: the model."
+  },
+  "view3dShort": "3D",
+  "@view3dShort": {
+    "description": "View, short."
+  },
+  "cadFit": "Fit the drawing to the view",
+  "@cadFit": {
+    "description": "Tooltip."
+  },
+  "cadNoteTitle": "Note",
+  "@cadNoteTitle": {
+    "description": "Title of the note dialog."
+  },
+  "cadNoteHint": "Type your note",
+  "@cadNoteHint": {
+    "description": "Hint."
+  },
+  "inHorizontalLine": "Horizontal line",
+  "@inHorizontalLine": {
+    "description": "Tool inside an opening."
+  },
+  "inVerticalLine": "Vertical line",
+  "@inVerticalLine": {
+    "description": "Tool inside an opening."
+  },
+  "inErase": "Erase",
+  "@inErase": {
+    "description": "Tool inside an opening."
+  },
+  "cadInside": "Inside {what} — {size}",
+  "@cadInside": {
+    "description": "Caption of the tools inside an opening.",
+    "placeholders": {
+      "what": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "cadThisOpening": "this opening",
+  "@cadThisOpening": {
+    "description": "Caption: an opening with no mechanism."
+  },
+  "layDimensions": "Dimensions",
+  "@layDimensions": {
+    "description": "Layer."
+  },
+  "layHatching": "Hatching",
+  "@layHatching": {
+    "description": "Layer."
+  },
+  "layOpenings": "Openings",
+  "@layOpenings": {
+    "description": "Layer."
+  },
+  "layCentreLines": "Centre lines",
+  "@layCentreLines": {
+    "description": "Layer."
+  },
+  "layNotes": "Notes",
+  "@layNotes": {
+    "description": "Layer."
+  },
+  "layMyDrawing": "My drawing",
+  "@layMyDrawing": {
+    "description": "Layer."
+  },
+  "layHidden": "Hidden",
+  "@layHidden": {
+    "description": "Layer: hidden detail."
+  },
+  "layGrid": "Grid",
+  "@layGrid": {
+    "description": "Layer."
+  },
+  "layHandles": "Handles",
+  "@layHandles": {
+    "description": "Layer: the grips to drag."
+  },
+  "laySnap": "Snap",
+  "@laySnap": {
+    "description": "Layer: snap to geometry."
+  },
+  "layFit": "Fit",
+  "@layFit": {
+    "description": "Button."
+  },
+  "cadCounts": "{sections} sections · {bars} bars · {openings} openings",
+  "@cadCounts": {
+    "description": "Status bar.",
+    "placeholders": {
+      "sections": {
+        "type": "int"
+      },
+      "bars": {
+        "type": "int"
+      },
+      "openings": {
+        "type": "int"
+      }
+    }
+  },
+  "cadTapSomething": "Tap a line, a bar or a pane",
+  "@cadTapSomething": {
+    "description": "Status bar."
+  },
+  "mdFit": "Fit the model to the view",
+  "@mdFit": {
+    "description": "Tooltip."
+  },
+  "mdDepth": "Depth",
+  "@mdDepth": {
+    "description": "Field."
+  },
+  "mdProfile": "Profile",
+  "@mdProfile": {
+    "description": "Field."
+  },
+  "mdBothDesign": "Both are the design. The drawing changes with them.",
+  "@mdBothDesign": {
+    "description": "Under depth and profile."
+  },
+  "mdOpenHelp": "How far the leaves are swung. A way of looking at the model; it changes nothing.",
+  "@mdOpenHelp": {
+    "description": "Tooltip."
+  },
+  "mdOpen": "Open",
+  "@mdOpen": {
+    "description": "Slider: how open the leaves are."
+  },
+  "mdIso": "Iso",
+  "@mdIso": {
+    "description": "Named view."
+  },
+  "mdFront": "Front",
+  "@mdFront": {
+    "description": "Named view."
+  },
+  "mdBack": "Back",
+  "@mdBack": {
+    "description": "Named view."
+  },
+  "mdLeft": "Left",
+  "@mdLeft": {
+    "description": "Named view."
+  },
+  "mdRight": "Right",
+  "@mdRight": {
+    "description": "Named view."
+  },
+  "mdTop": "Top",
+  "@mdTop": {
+    "description": "Named view."
+  },
+  "mdBottom": "Bottom",
+  "@mdBottom": {
+    "description": "Named view."
+  },
+  "mdViewOf": "{name} view",
+  "@mdViewOf": {
+    "description": "Tooltip of a named view.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mdGround": "Ground plane",
+  "@mdGround": {
+    "description": "Tooltip."
+  },
+  "mdCounts": "{sections} sections · {bars} bars",
+  "@mdCounts": {
+    "description": "Readout.",
+    "placeholders": {
+      "sections": {
+        "type": "int"
+      },
+      "bars": {
+        "type": "int"
+      }
+    }
+  },
+  "mdCamera": "yaw {yaw}°  pitch {pitch}°  ×{zoom}",
+  "@mdCamera": {
+    "description": "Camera readout.",
+    "placeholders": {
+      "yaw": {
+        "type": "int"
+      },
+      "pitch": {
+        "type": "int"
+      },
+      "zoom": {
+        "type": "String"
+      }
+    }
+  },
+  "mdNothing": "Nothing to show yet",
+  "@mdNothing": {
+    "description": "Model with nothing drawn."
+  },
+  "mdNothingHelp": "Draw an outline and read the drawing. The model is built from your lines — there is no stock model to show in the meantime.",
+  "@mdNothingHelp": {
+    "description": "Model with nothing drawn."
+  },
+  "mdPlay": "Open, pause and close",
+  "@mdPlay": {
+    "description": "Tooltip: play the leaves."
+  },
+  "wsSizes": "Sizes",
+  "@wsSizes": {
+    "description": "Tooltip."
+  },
+  "wsMaterial": "Material",
+  "@wsMaterial": {
+    "description": "Tooltip."
+  },
+  "wsUndo": "Undo",
+  "@wsUndo": {
+    "description": "Tooltip."
+  },
+  "wsRedo": "Redo",
+  "@wsRedo": {
+    "description": "Tooltip."
+  },
+  "wsSaved": "Design saved.",
+  "@wsSaved": {
+    "description": "Notice."
+  },
+  "wsHideDrawing": "Hide my drawing",
+  "@wsHideDrawing": {
+    "description": "Tooltip."
+  },
+  "wsShowDrawing": "Show my drawing",
+  "@wsShowDrawing": {
+    "description": "Tooltip."
+  },
+  "wsReadAgain": "Read again",
+  "@wsReadAgain": {
+    "description": "Button: read the drawing again."
+  },
+  "wsParts": "Parts",
+  "@wsParts": {
+    "description": "Button: the list of parts."
+  },
+  "wsDetails": "Details",
+  "@wsDetails": {
+    "description": "Button: the panel of details."
+  },
+  "wsGlassOrPanel": "Glass or panel",
+  "@wsGlassOrPanel": {
+    "description": "Tooltip."
+  },
+  "wsEdit": "Edit",
+  "@wsEdit": {
+    "description": "Button."
+  },
+  "wsLetGo": "Let it go",
+  "@wsLetGo": {
+    "description": "Tooltip: unpick."
+  },
+  "wsChanged": "Your drawing has changed.",
+  "@wsChanged": {
+    "description": "Notice."
+  },
+  "wsChangesNotRead": "Your drawing has changes that have not been read yet.",
+  "@wsChangesNotRead": {
+    "description": "Notice."
+  },
+  "wsReadIt": "Read it",
+  "@wsReadIt": {
+    "description": "Button."
+  },
+  "wsReadMyDrawing": "Read my drawing",
+  "@wsReadMyDrawing": {
+    "description": "Button."
+  },
+  "ccEnterFigure": "Enter a figure.",
+  "@ccEnterFigure": {
+    "description": "[domain] Rate check."
+  },
+  "ccRateNotBelow": "A rate cannot be below nothing.",
+  "@ccRateNotBelow": {
+    "description": "[domain] Rate check."
+  },
+  "ccNameRequired": "Colour name is required.",
+  "@ccNameRequired": {
+    "description": "[domain] Colour check."
+  },
+  "ccChooseMaterial": "Choose at least one material.",
+  "@ccChooseMaterial": {
+    "description": "[domain] Colour check."
+  },
+  "ccNoProfile": "The price list has no {material} profile to sell a colour in.",
+  "@ccNoProfile": {
+    "description": "[domain] Colour check.",
+    "placeholders": {
+      "material": {
+        "type": "String"
+      }
+    }
+  },
+  "ccRateRequired": "{material} colour rate is required for a colour that applies to {material}.",
+  "@ccRateRequired": {
+    "description": "[domain] Colour check.",
+    "placeholders": {
+      "material": {
+        "type": "String"
+      }
+    }
+  },
+  "ccNameTaken": "An active colour is already called {name} for {material}.",
+  "@ccNameTaken": {
+    "description": "[domain] Colour check.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "material": {
+        "type": "String"
+      }
+    }
+  },
+  "ccNotInList": "This colour is not in the price list.",
+  "@ccNotInList": {
+    "description": "[domain] Colour check."
+  },
+  "fcNotPriced": "{material} not priced",
+  "@fcNotPriced": {
+    "description": "A colour's rate on a material, none set.",
+    "placeholders": {
+      "material": {
+        "type": "String"
+      }
+    }
+  },
+  "fcPerMetre": "{material} {amount}/m",
+  "@fcPerMetre": {
+    "description": "A colour's rate a metre on a material.",
+    "placeholders": {
+      "material": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "fcAdded": "Colour added.",
+  "@fcAdded": {
+    "description": "Notice."
+  },
+  "fcSaved": "Colour saved.",
+  "@fcSaved": {
+    "description": "Notice."
+  },
+  "fcRetireAsk": "Retire {name}?",
+  "@fcRetireAsk": {
+    "description": "Confirmation title: stop offering a colour.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fcRetireBody": "It will no longer be offered for new designs. Every design already in it keeps it, is still shown in it and is still priced at its rate. Nothing is deleted, and it can be brought back.",
+  "@fcRetireBody": {
+    "description": "Confirmation."
+  },
+  "fcRetire": "Retire colour",
+  "@fcRetire": {
+    "description": "Button."
+  },
+  "fcRetired": "{name} retired.",
+  "@fcRetired": {
+    "description": "Notice.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fcOfferedAgain": "{name} is offered again.",
+  "@fcOfferedAgain": {
+    "description": "Notice.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fcColours": "COLOURS",
+  "@fcColours": {
+    "description": "Heading."
+  },
+  "fcAdd": "Add colour",
+  "@fcAdd": {
+    "description": "Button."
+  },
+  "fcIntro": "What each colour adds on each material it is sold in, by the metre of profile and as a share of the profile's price. A retired colour is not offered for new designs; designs already in it keep it.",
+  "@fcIntro": {
+    "description": "Under the colours heading."
+  },
+  "fcNone": "No colours yet. Every colour is priced as any other colour.",
+  "@fcNone": {
+    "description": "Empty catalog."
+  },
+  "fcActive": "Active",
+  "@fcActive": {
+    "description": "A colour's status."
+  },
+  "fcRetiredStatus": "Retired",
+  "@fcRetiredStatus": {
+    "description": "A colour's status."
+  },
+  "fcEdit": "Edit {name}",
+  "@fcEdit": {
+    "description": "Tooltip.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fcRetireOf": "Retire {name}",
+  "@fcRetireOf": {
+    "description": "Tooltip.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fcOfferAgain": "Offer {name} again",
+  "@fcOfferAgain": {
+    "description": "Tooltip.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fcName": "Colour name",
+  "@fcName": {
+    "description": "Field."
+  },
+  "fcRenaming": "Renaming keeps it the same colour: every design in it shows the new name.",
+  "@fcRenaming": {
+    "description": "Under the name."
+  },
+  "fcSwatch": "Swatch",
+  "@fcSwatch": {
+    "description": "Label."
+  },
+  "fcCode": "Or its code",
+  "@fcCode": {
+    "description": "Field: the colour's hex code."
+  },
+  "fcStandard": "Standard colour",
+  "@fcStandard": {
+    "description": "Switch."
+  },
+  "fcSoldIn": "Sold in, and what it adds",
+  "@fcSoldIn": {
+    "description": "Label."
+  },
+  "fcAMetre": "A metre",
+  "@fcAMetre": {
+    "description": "Field: the rate a metre."
+  },
+  "fcOnProfile": "On the profile",
+  "@fcOnProfile": {
+    "description": "Field: the share of the profile's price."
+  },
+  "fcSave": "Save colour",
+  "@fcSave": {
+    "description": "Button."
+  },
+  "rfNeeded": "A price is needed here.",
+  "@rfNeeded": {
+    "description": "[domain] Factory price check."
+  },
+  "rfZeroOrMore": "Enter a figure of 0 or more.",
+  "@rfZeroOrMore": {
+    "description": "[domain] Factory price check."
+  },
+  "rfWhole": "Enter a whole number.",
+  "@rfWhole": {
+    "description": "[domain] Factory price check."
+  },
+  "rfGlassSingle": "Glass (single sheet)",
+  "@rfGlassSingle": {
+    "description": "[domain] Price list section."
+  },
+  "rfSealed": "Sealed glass unit",
+  "@rfSealed": {
+    "description": "[domain] Price list section."
+  },
+  "rfPanel": "Panel",
+  "@rfPanel": {
+    "description": "[domain] Price list section."
+  },
+  "rfAnyOtherColour": "Any other colour",
+  "@rfAnyOtherColour": {
+    "description": "[domain] Price list field: a colour not named."
+  },
+  "rfHardware": "Hardware",
+  "@rfHardware": {
+    "description": "[domain] Price list section."
+  },
+  "rfSliding": "Sliding",
+  "@rfSliding": {
+    "description": "[domain] Price list section."
+  },
+  "rfTrack": "Track",
+  "@rfTrack": {
+    "description": "[domain] Price list field: a sliding track."
+  },
+  "rfRoller": "Roller",
+  "@rfRoller": {
+    "description": "[domain] Price list field."
+  },
+  "rfRollersPerPanel": "Rollers on each sliding panel",
+  "@rfRollersPerPanel": {
+    "description": "[domain] Price list field."
+  },
+  "rfInstallation": "Installation",
+  "@rfInstallation": {
+    "description": "[domain] Price list section."
+  },
+  "rfEachDesign": "Each design",
+  "@rfEachDesign": {
+    "description": "[domain] Price list field: a fixed figure a design."
+  },
+  "rfByArea": "By area",
+  "@rfByArea": {
+    "description": "[domain] Price list field: a figure a square metre."
+  },
+  "rfBorderLines": "Border and internal lines",
+  "@rfBorderLines": {
+    "description": "[domain] Price list section."
+  },
+  "rfOpeningProfile": "Opening profile",
+  "@rfOpeningProfile": {
+    "description": "[domain] Price list section."
+  },
+  "rfAnyOtherColourOf": "Any other colour — {material}",
+  "@rfAnyOtherColourOf": {
+    "description": "[domain] Price list section.",
+    "placeholders": {
+      "material": {
+        "type": "String"
+      }
+    }
+  },
+  "rfAMetre": "A metre",
+  "@rfAMetre": {
+    "description": "[domain] Price list field."
+  },
+  "rfOnProfile": "On the profile",
+  "@rfOnProfile": {
+    "description": "[domain] Price list field."
+  },
+  "rfLabourOf": "Labour — {category}",
+  "@rfLabourOf": {
+    "description": "[domain] Price list section.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "rfOnMaterials": "On the materials",
+  "@rfOnMaterials": {
+    "description": "[domain] Price list field."
+  },
+  "rfUnitEach": "each",
+  "@rfUnitEach": {
+    "description": "[domain] Unit after a price field."
+  },
+  "rfUnitFixed": "fixed",
+  "@rfUnitFixed": {
+    "description": "[domain] Unit after a price field."
+  },
+  "rfUnitRollers": "rollers",
+  "@rfUnitRollers": {
+    "description": "[domain] Unit after a price field."
+  },
+  "fpTitle": "Factory prices",
+  "@fpTitle": {
+    "description": "Title."
+  },
+  "fpColoursKept": "{done} Prices kept as version {version}; every design priced before is now to be recalculated.",
+  "@fpColoursKept": {
+    "description": "Notice.",
+    "placeholders": {
+      "done": {
+        "type": "String"
+      },
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+  "fpNeedCorrecting": "{count, plural, =1{1 figure needs correcting before the prices can be kept.} other{{count} figures need correcting before the prices can be kept.}}",
+  "@fpNeedCorrecting": {
+    "description": "Notice.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fpKept": "Prices kept. Every design priced before is now to be recalculated.",
+  "@fpKept": {
+    "description": "Notice."
+  },
+  "fpLock": "Lock",
+  "@fpLock": {
+    "description": "Button."
+  },
+  "fpOnlyOwner": "Only the workshop owner can change prices.",
+  "@fpOnlyOwner": {
+    "description": "Card."
+  },
+  "fpRatesNote": "These are the rates every design is priced by. Staff can read them and price designs by them.",
+  "@fpRatesNote": {
+    "description": "Card."
+  },
+  "fpUnlock": "Unlock as owner",
+  "@fpUnlock": {
+    "description": "Button."
+  },
+  "fpInCurrency": "In {currency}. A figure left empty is not priced: a design using it says so rather than being priced at nothing.",
+  "@fpInCurrency": {
+    "description": "Note.",
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "fpKeep": "Keep prices",
+  "@fpKeep": {
+    "description": "Button."
+  },
+  "fpNotPriced": "not priced",
+  "@fpNotPriced": {
+    "description": "Hint in an empty optional figure."
+  },
+  "pinNotSame": "The two PINs are not the same.",
+  "@pinNotSame": {
+    "description": "PIN check."
+  },
+  "pinAlreadySet": "An owner PIN is already set.",
+  "@pinAlreadySet": {
+    "description": "PIN check."
+  },
+  "pinWrong": "That is not the owner PIN.",
+  "@pinWrong": {
+    "description": "PIN check."
+  },
+  "pinSetTitle": "Set the owner PIN",
+  "@pinSetTitle": {
+    "description": "Title."
+  },
+  "pinSetNote": "No owner PIN is set on this device. The PIN you set now is what signs the owner in from here on — to change the factory prices, give discounts and manage staff.",
+  "@pinSetNote": {
+    "description": "Note."
+  },
+  "pinEnterOwner": "Enter the owner PIN.",
+  "@pinEnterOwner": {
+    "description": "Note."
+  },
+  "pinOwner": "Owner PIN",
+  "@pinOwner": {
+    "description": "Field."
+  },
+  "pinAgain": "The PIN again",
+  "@pinAgain": {
+    "description": "Field."
+  },
+  "pinSet": "Set PIN",
+  "@pinSet": {
+    "description": "Button."
+  },
+  "pinUnlock": "Unlock",
+  "@pinUnlock": {
+    "description": "Button."
+  },
+  "acSignedInAs": "Signed in as {who}",
+  "@acSignedInAs": {
+    "description": "Who is at the device.",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "acSignIn": "Sign in",
+  "@acSignIn": {
+    "description": "Button."
+  },
+  "acNoAccounts": "No accounts yet — working as staff",
+  "@acNoAccounts": {
+    "description": "Who is at the device."
+  },
+  "acNobody": "Nobody signed in",
+  "@acNobody": {
+    "description": "Who is at the device."
+  },
+  "acAsOwner": "Sign in as owner",
+  "@acAsOwner": {
+    "description": "Menu."
+  },
+  "acAsStaff": "Sign in as staff",
+  "@acAsStaff": {
+    "description": "Menu."
+  },
+  "acStaffPermissions": "Staff & permissions",
+  "@acStaffPermissions": {
+    "description": "Menu and title."
+  },
+  "acSignOut": "Sign out",
+  "@acSignOut": {
+    "description": "Menu."
+  },
+  "acChooseWho": "Choose who you are.",
+  "@acChooseWho": {
+    "description": "Sign-in check."
+  },
+  "acWrongPin": "That is not their PIN.",
+  "@acWrongPin": {
+    "description": "Sign-in check."
+  },
+  "acNoStaffYet": "No member of staff has been added yet. The owner adds them under Staff & permissions.",
+  "@acNoStaffYet": {
+    "description": "Sign-in dialog."
+  },
+  "acWho": "Who",
+  "@acWho": {
+    "description": "Field."
+  },
+  "acPin": "PIN",
+  "@acPin": {
+    "description": "Field."
+  },
+  "acAddStaff": "Add staff member",
+  "@acAddStaff": {
+    "description": "Button and title."
+  },
+  "acIntro": "The owner may do everything. Each member of staff may do what is ticked here, and nothing else. With nobody signed in, the device may only look once any member of staff is active.",
+  "@acIntro": {
+    "description": "Staff screen."
+  },
+  "acNoStaff": "No member of staff has been added yet.",
+  "@acNoStaff": {
+    "description": "Staff screen."
+  },
+  "acActive": "Active",
+  "@acActive": {
+    "description": "A member of staff's status."
+  },
+  "acInactive": "Inactive",
+  "@acInactive": {
+    "description": "A member of staff's status."
+  },
+  "acName": "Name",
+  "@acName": {
+    "description": "Field."
+  },
+  "acStartLooking": "They start able to look and nothing more. Tick what else they may do on their card.",
+  "@acStartLooking": {
+    "description": "Add staff dialog."
+  },
+  "discountDesignNotFinal": "The total is not final yet. A fixed discount can be given once it is priced.",
+  "@discountDesignNotFinal": {
+    "description": "[domain] A design's own discount check."
+  },
+  "ctNothingRead": "Nothing has been read from your drawing yet.",
+  "@ctNothingRead": {
+    "description": "Parts list, empty."
+  },
+  "ctBars": "Bars",
+  "@ctBars": {
+    "description": "Parts list group."
+  },
+  "ctSections": "Sections",
+  "@ctSections": {
+    "description": "Parts list group."
+  },
+  "ctHardware": "Hardware",
+  "@ctHardware": {
+    "description": "Parts list group."
+  },
+  "ctDimensions": "Dimensions",
+  "@ctDimensions": {
+    "description": "Parts list group."
+  },
+  "ctNotes": "Notes",
+  "@ctNotes": {
+    "description": "Parts list group."
+  },
+  "ctTyped": "you typed this",
+  "@ctTyped": {
+    "description": "A dimension the user stated."
+  },
+  "ctAsDrawn": "as drawn",
+  "@ctAsDrawn": {
+    "description": "A dimension as drawn."
+  },
+  "ctHolds": "{size} · holds {count}",
+  "@ctHolds": {
+    "description": "A section holding panes.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ctInside": "{length} · inside",
+  "@ctInside": {
+    "description": "A bar inside a section.",
+    "placeholders": {
+      "length": {
+        "type": "String"
+      }
+    }
+  },
+  "ctFromLeft": "{length} from the left",
+  "@ctFromLeft": {
+    "description": "Where a hinge is.",
+    "placeholders": {
+      "length": {
+        "type": "String"
+      }
+    }
+  },
+  "ctUp": "{length} up",
+  "@ctUp": {
+    "description": "Where a hinge is.",
+    "placeholders": {
+      "length": {
+        "type": "String"
+      }
+    }
+  },
+  "ctOnOpening": "{place} · on the opening",
+  "@ctOnOpening": {
+    "description": "Where a handle is.",
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "poProfileOf": "{material} profile",
+  "@poProfileOf": {
+    "description": "Field.",
+    "placeholders": {
+      "material": {
+        "type": "String"
+      }
+    }
+  },
+  "poSomeOwn": "Some parts are set on their own below.",
+  "@poSomeOwn": {
+    "description": "Helper."
+  },
+  "poChooseProfile": "Choose the profile the factory makes it in.",
+  "@poChooseProfile": {
+    "description": "Helper."
+  },
+  "poHideParts": "Hide the parts",
+  "@poHideParts": {
+    "description": "Button."
+  },
+  "poEachPart": "Set each part",
+  "@poEachPart": {
+    "description": "Button."
+  },
+  "poAsDesignOf": "As the design ({category})",
+  "@poAsDesignOf": {
+    "description": "A part following the design's profile.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "poAsDesign": "As the design",
+  "@poAsDesign": {
+    "description": "A part following the design's profile."
+  },
+  "poIncludeGlass": "Include glass in price",
+  "@poIncludeGlass": {
+    "description": "Switch."
+  },
+  "poGlassMeasured": "Glass is not included: its area is measured and not charged.",
+  "@poGlassMeasured": {
+    "description": "Note."
+  },
+  "poGlassOff": "Glass is not included.",
+  "@poGlassOff": {
+    "description": "Note."
+  },
+  "poGlassCharged": "Glass is charged by its measured area.",
+  "@poGlassCharged": {
+    "description": "Note."
+  },
+  "poNoGlass": "There is no measurable glass to price.",
+  "@poNoGlass": {
+    "description": "Note."
+  },
+  "mfTitle": "Measurements",
+  "@mfTitle": {
+    "description": "Title of the sizes form."
+  },
+  "mfIntro": "Enter the real size of each part in centimetres. Nothing is guessed from the sketch; a size that follows from the others is worked out for you.",
+  "@mfIntro": {
+    "description": "Sizes form."
+  },
+  "mfAllGiven": "Every size is given.",
+  "@mfAllGiven": {
+    "description": "Sizes form."
+  },
+  "mfLeft": "{count, plural, =1{1 size still to give.} other{{count} sizes still to give.}}",
+  "@mfLeft": {
+    "description": "Sizes form.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mfFromOthers": "from the others",
+  "@mfFromOthers": {
+    "description": "A size worked out from the rest."
+  },
+  "paCalculate": "Calculate price",
+  "@paCalculate": {
+    "description": "Button."
+  },
+  "paNotAllowed": "You do not have permission to view prices.",
+  "@paNotAllowed": {
+    "description": "Price button, no permission."
+  },
+  "paWorkingOut": "The price is still being worked out.",
+  "@paWorkingOut": {
+    "description": "Price button."
+  },
+  "paCompleteDesign": "Please complete the incomplete part of the design to calculate the price.",
+  "@paCompleteDesign": {
+    "description": "Price button."
+  },
+  "paThisDesign": "this design",
+  "@paThisDesign": {
+    "description": "Where an extra is removed from."
+  },
+  "paDiscountOn": "Discount on {name}",
+  "@paDiscountOn": {
+    "description": "Title.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "paDesignAlone": "Off this design alone: its cost and its extras together.",
+  "@paDesignAlone": {
+    "description": "Caption."
+  },
+  "paDesignPrice": "DESIGN PRICE",
+  "@paDesignPrice": {
+    "description": "Heading."
+  },
+  "paCategory": "Category: {category}",
+  "@paCategory": {
+    "description": "On the price sheet.",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "paCannot": "This design cannot be priced as it is.",
+  "@paCannot": {
+    "description": "Price sheet."
+  },
+  "paMeasurements": "MATERIAL MEASUREMENTS",
+  "@paMeasurements": {
+    "description": "Heading."
+  },
+  "paBreakdown": "COST BREAKDOWN",
+  "@paBreakdown": {
+    "description": "Heading."
+  },
+  "paFinalTotal": "FINAL TOTAL",
+  "@paFinalTotal": {
+    "description": "Heading."
+  },
+  "vmTechnical": "Technical",
+  "@vmTechnical": {
+    "description": "View mode."
+  },
+  "vmTechnicalHint": "A line drawing with the overall sizes.",
+  "@vmTechnicalHint": {
+    "description": "View mode hint."
+  },
+  "vmShaded": "Shaded",
+  "@vmShaded": {
+    "description": "View mode."
+  },
+  "vmShadedHint": "One colour, lit, so the form reads on its own.",
+  "@vmShadedHint": {
+    "description": "View mode hint."
+  },
+  "vmMaterial": "Material",
+  "@vmMaterial": {
+    "description": "View mode."
+  },
+  "vmMaterialHint": "Glass, panel, frame and metal as they are made.",
+  "@vmMaterialHint": {
+    "description": "View mode hint."
+  },
+  "vmRealistic": "Realistic",
+  "@vmRealistic": {
+    "description": "View mode."
+  },
+  "vmRealisticHint": "Materials, light and shadow, as it will look.",
+  "@vmRealisticHint": {
+    "description": "View mode hint."
+  },
+  "vmWireframe": "Wireframe",
+  "@vmWireframe": {
+    "description": "View mode."
+  },
+  "vmWireframeHint": "Every edge, including the ones behind.",
+  "@vmWireframeHint": {
+    "description": "View mode hint."
+  },
+  "dimOverall": "Overall",
+  "@dimOverall": {
+    "description": "[domain] Name of a row of figures on the technical drawing: the overall size."
+  },
+  "dimDaylight": "Daylight",
+  "@dimDaylight": {
+    "description": "[domain] Name of a row of figures: the main divisions' clear openings."
+  },
+  "dimOpening": "Opening",
+  "@dimOpening": {
+    "description": "[domain] Name of a row of figures: each opening's size."
+  },
+  "dimDivision": "Division",
+  "@dimDivision": {
+    "description": "[domain] Name of a row of figures: the divisions inside a part."
+  },
+  "dimSide": "Side",
+  "@dimSide": {
+    "description": "[domain] Name of a row of figures: a side of an angled frame."
+  },
+  "dimOverallWidth": "Overall width",
+  "@dimOverallWidth": {
+    "description": "[domain] A figure being typed over."
+  },
+  "dimOverallHeight": "Overall height",
+  "@dimOverallHeight": {
+    "description": "[domain] A figure being typed over."
+  },
+  "dimKindWidth": "{what} width",
+  "@dimKindWidth": {
+    "description": "[domain] A figure being typed over: the width of a kind of part.",
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "dimKindHeight": "{what} height",
+  "@dimKindHeight": {
+    "description": "[domain] A figure being typed over: the height of a kind of part.",
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "dimSectionWidth": "Section width",
+  "@dimSectionWidth": {
+    "description": "[domain] A figure being typed over."
+  },
+  "dimSectionHeight": "Section height",
+  "@dimSectionHeight": {
+    "description": "[domain] A figure being typed over."
+  },
+  "dimRealSize": "Real size",
+  "@dimRealSize": {
+    "description": "[domain] A drawn dimension being typed over."
+  },
+  "cadGlass": "GLASS",
+  "@cadGlass": {
+    "description": "[domain] Written on a pane of glass on the technical drawing."
+  },
+  "cadLookGlass": "{look} GLASS",
+  "@cadLookGlass": {
+    "description": "[domain] Written on a pane of tinted or frosted glass.",
+    "placeholders": {
+      "look": {
+        "type": "String"
+      }
+    }
+  },
+  "cadIn": "IN",
+  "@cadIn": {
+    "description": "[domain] Written by a leaf that opens inward."
+  },
+  "cadOut": "OUT",
+  "@cadOut": {
+    "description": "[domain] Written by a leaf that opens outward."
+  },
+  "mtTitle": "Material",
+  "@mtTitle": {
+    "description": "Title of the material form."
+  },
+  "mtReadFirst": "Read your drawing first: its parts are what glass or panel goes into.",
+  "@mtReadFirst": {
+    "description": "Material form."
+  },
+  "mtChoose": "Choose glass or panel for any part. Only what fills the part changes — every line stays where you drew it.",
+  "@mtChoose": {
+    "description": "Material form."
+  },
+  "pcSpecial": "{name} (special)",
+  "@pcSpecial": {
+    "description": "A colour the catalog does not name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pcRetired": "Retired: no longer offered for new designs.",
+  "@pcRetired": {
+    "description": "Under the colour."
+  },
+  "pcMaterial": "Material",
+  "@pcMaterial": {
+    "description": "Field."
+  },
+  "pcColour": "Colour",
+  "@pcColour": {
+    "description": "Field."
+  },
+  "wbSave": "Save",
+  "@wbSave": {
+    "description": "Tooltip."
+  },
+  "wbFewerTools": "Show fewer tools",
+  "@wbFewerTools": {
+    "description": "Tooltip."
+  },
+  "wbEveryTool": "Show every tool",
+  "@wbEveryTool": {
+    "description": "Tooltip."
+  },
+  "wbLess": "Less",
+  "@wbLess": {
+    "description": "Button: show fewer controls."
+  },
+  "wbMore": "More",
+  "@wbMore": {
+    "description": "Button: show every control."
+  },
+  "tbPenColour": "Pen colour",
+  "@tbPenColour": {
+    "description": "Tooltip and title."
+  },
+  "tbDarkInk": "On the dark sheet a dark ink is shown light, so it can be seen. The drawing keeps the colour you choose.",
+  "@tbDarkInk": {
+    "description": "Pen colour dialog in the dark appearance."
+  },
+  "vcFit": "Fit to the view",
+  "@vcFit": {
+    "description": "Tooltip."
+  },
+  "vcZoomIn": "Zoom in",
+  "@vcZoomIn": {
+    "description": "Tooltip."
+  },
+  "vcZoomOut": "Zoom out",
+  "@vcZoomOut": {
+    "description": "Tooltip."
+  },
+  "vcReset": "Reset the view",
+  "@vcReset": {
+    "description": "Tooltip."
+  },
+  "msTooWide": "Too wide for the frame.",
+  "@msTooWide": {
+    "description": "[domain] Size check."
+  },
+  "msBarThickness": "A bar has to have some thickness.",
+  "@msBarThickness": {
+    "description": "[domain] Size check."
+  },
+  "msSmallerThanFrame": "Smaller than the frame around it.",
+  "@msSmallerThanFrame": {
+    "description": "[domain] Size check."
+  },
+  "msNotFitInside": "That does not fit the parts inside it.",
+  "@msNotFitInside": {
+    "description": "[domain] Size check."
+  },
+  "msNotFitBeside": "That does not fit beside the parts next to it.",
+  "@msNotFitBeside": {
+    "description": "[domain] Size check."
+  },
+  "msNothing": "Nothing to measure.",
+  "@msNothing": {
+    "description": "[domain] Size check."
+  },
+  "msNotFit": "That does not fit.",
+  "@msNotFit": {
+    "description": "[domain] Size check."
+  },
+  "msNoFrame": "No frame.",
+  "@msNoFrame": {
+    "description": "[domain] Size check."
+  },
+  "mnAluminium": "The aluminium border and lines rate ({rate} a metre): aluminium is now priced as System Aluminium and Bend Shoulder Aluminium, each its own rate, and nothing says which of the two that rate was — so neither has a rate until one is set.",
+  "@mnAluminium": {
+    "description": "[domain] Price list upgrade note.",
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      }
+    }
+  },
+  "mnBarRate": "The {material} bar rate ({bar} a metre): bars are now normal profile, priced at the frame rate ({frame}).",
+  "@mnBarRate": {
+    "description": "[domain] Price list upgrade note.",
+    "placeholders": {
+      "material": {
+        "type": "String"
+      },
+      "bar": {
+        "type": "String"
+      },
+      "frame": {
+        "type": "String"
+      }
+    }
+  },
+  "mnLeaf": "A price per leaf ({each}): a leaf is now priced by its opening profile and its ironmongery.",
+  "@mnLeaf": {
+    "description": "[domain] Price list upgrade note.",
+    "placeholders": {
+      "each": {
+        "type": "String"
+      }
+    }
+  },
+  "mnJoint": "A price per angled joint ({joint}): an angled design is now priced by its own measurements.",
+  "@mnJoint": {
+    "description": "[domain] Price list upgrade note.",
+    "placeholders": {
+      "joint": {
+        "type": "String"
+      }
+    }
+  },
+  "mnSealed": "Sealed glazing units are priced at the glass rates the list already had, which priced every pane before sealed units had a rate of their own.",
+  "@mnSealed": {
+    "description": "[domain] Price list upgrade note."
+  },
+  "mnCatalog": "Colours are now one catalog: a colour sold in more than one material is one colour with a rate on each, at the figures it had.",
+  "@mnCatalog": {
+    "description": "[domain] Price list upgrade note."
+  }
+}

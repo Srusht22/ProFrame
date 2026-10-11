@@ -1,0 +1,1567 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../domain/model/customer.dart';
+import '../../domain/model/design.dart';
+import '../../domain/model/design_completion.dart';
+import '../../domain/model/new_design_setup.dart';
+import '../../domain/pricing/design_price_state.dart';
+import '../../domain/pricing/price_readiness.dart';
+import '../../domain/pricing/pricing_access.dart';
+import '../../domain/pricing/profile_selection.dart';
+import '../../domain/text/names.dart';
+import '../../infrastructure/design_store.dart';
+import '../inspector/price_actions.dart';
+import '../inspector/price_panel.dart';
+import '../inspector/profile_chooser.dart';
+import '../l10n/l10n.dart';
+import '../state/access.dart';
+import '../state/pricing.dart';
+import '../state/workspace.dart';
+import '../theme/app_theme.dart';
+import 'customer_finance.dart';
+import 'customers_screen.dart';
+import 'design_actions.dart';
+import 'design_name_screen.dart';
+import 'designs_screen.dart';
+import 'new_customer_screen.dart';
+
+/// One customer, and the designs that are theirs.
+///
+/// **A customer is a person, not a design.** Opening Adam shows Adam — who
+/// he is and how to reach him — and beneath that the designs that belong to
+/// him, each one his by `customerId`. Nothing is asked and nothing is begun
+/// on the way in: no choice of door or window, no new design, no drawing.
+/// Those come when **New Design** is pressed, and only then.
+class CustomerScreen extends ConsumerStatefulWidget {
+  final String customerId;
+
+  const CustomerScreen({super.key, required this.customerId});
+
+  /// How many of the customer's designs are read at a time.
+  static const pageSize = 40;
+
+  /// The **New Design** action, in the designs' heading or in the empty
+  /// state where the customer has none.
+  static const newDesignButton = ValueKey('customer-new-design');
+
+  /// **Edit** on the customer's information: their name, phone, address
+  /// and notes, in a form of their own.
+  static const editButton = ValueKey('customer-edit');
+
+  /// The menu on the customer's page, and **Delete customer** in it —
+  /// offered only to whoever holds `customers.delete`.
+  static const menuKey = ValueKey('customer-menu');
+  static const deleteKey = ValueKey('customer-delete');
+  static const confirmDeleteKey = ValueKey('customer-confirm-delete');
+  static const cannotDeleteKey = ValueKey('customer-cannot-delete');
+
+  /// What stands in place of the page, or of the designs, for somebody who
+  /// may not see them.
+  static const noAccessKey = ValueKey('customer-no-access');
+  static const noDesignsAccessKey = ValueKey('customer-designs-no-access');
+
+  /// The search across the customer's designs, by what they are called.
+  static const searchField = ValueKey('customer-search');
+
+  /// The chip that shows only designs of [kind] — or, for null, all of
+  /// them.
+  static ValueKey<String> filterKey(DesignKind? kind) =>
+      ValueKey('customer-filter-${kind?.name ?? 'all'}');
+
+  /// **Show all designs**, where a search or a filter finds none.
+  static const clearButton = ValueKey('customer-design-clear');
+
+  /// The row of the design [id] in the customer's designs.
+  static ValueKey<String> designKey(String id) =>
+      ValueKey('customer-design-$id');
+
+  /// The name this customer's page goes by on the navigator, so a design
+  /// begun from it can come back to it.
+  static String routeName(String customerId) => '/customer/$customerId';
+
+  /// The way to the page of the customer [customerId].
+  static Route<void> route(String customerId) => MaterialPageRoute<void>(
+    settings: RouteSettings(name: routeName(customerId)),
+    builder: (_) => CustomerScreen(customerId: customerId),
+  );
+
+  @override
+  ConsumerState<CustomerScreen> createState() => _CustomerScreenState();
+}
+
+class _CustomerScreenState extends ConsumerState<CustomerScreen> {
+  static const pageSize = CustomerScreen.pageSize;
+
+  Customer? _customer;
+
+  /// The designs the search and the filter find, read so far, and how many
+  /// they find in all.
+  final _designs = <DesignSummary>[];
+  int _total = 0;
+
+  /// How many of the customer's designs there are of each category — all
+  /// of them, whatever is being searched for.
+  Map<DesignKind, int> _kinds = const {};
+  int get _all => _kinds.values.fold(0, (sum, n) => sum + n);
+
+  /// What the designs are being searched for, and the category they are
+  /// filtered to — null for all. Both are only a way of looking: they
+  /// choose which designs are shown and change none of them.
+  final _search = TextEditingController();
+  String _query = '';
+  DesignKind? _kind;
+  bool get _narrowed => _query.trim().isNotEmpty || _kind != null;
+  bool _loaded = false;
+  bool _fetching = false;
+  int _asked = 0;
+
+  DesignStore get _store => ref.read(designStoreProvider);
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _searchFor(String query) {
+    _query = query;
+    _load();
+  }
+
+  void _filterTo(DesignKind? kind) {
+    if (kind == _kind) return;
+    _kind = kind;
+    _load();
+  }
+
+  /// Back to every design: the search emptied and the filter on All.
+  void _showAll() {
+    _search.clear();
+    _query = '';
+    _kind = null;
+    _load();
+  }
+
+  Future<void> _load() async {
+    final ask = ++_asked;
+    _fetching = false;
+    Customer? customer;
+    DesignPage page;
+    Map<DesignKind, int> kinds;
+    try {
+      customer = await ref.read(customerStoreProvider).load(widget.customerId);
+      kinds = await _store.kindsOf(widget.customerId);
+      page = await _store.page(
+        customerId: widget.customerId,
+        query: _query,
+        kind: _kind,
+        limit: pageSize,
+      );
+    } on Object {
+      customer = null;
+      kinds = const {};
+      page = const DesignPage([], 0);
+    }
+    if (!mounted || ask != _asked) return;
+    setState(() {
+      _customer = customer;
+      _kinds = kinds;
+      _designs
+        ..clear()
+        ..addAll(page.items);
+      _total = page.total;
+      _loaded = true;
+    });
+  }
+
+  Future<void> _more() async {
+    if (_fetching || _designs.length >= _total) return;
+    _fetching = true;
+    final ask = _asked;
+    DesignPage page;
+    try {
+      page = await _store.page(
+        customerId: widget.customerId,
+        query: _query,
+        kind: _kind,
+        offset: _designs.length,
+        limit: pageSize,
+      );
+    } on Object {
+      page = const DesignPage([], 0);
+    }
+    if (!mounted || ask != _asked) return;
+    setState(() {
+      _designs.addAll(page.items);
+      if (page.items.isEmpty) _total = _designs.length;
+      _fetching = false;
+    });
+  }
+
+  /// A new design for this customer: its name, then what it is — door,
+  /// window, both, sliding — are asked now, on the way to drawing it, and
+  /// not before.
+  void _newDesign(Customer customer) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) =>
+          DesignNameScreen(setup: NewDesignSetup.forCustomer(customer)),
+    ),
+  );
+
+  /// **Delete customer**: asked first, by name; then deleted by the store
+  /// only where nothing of theirs would go with them — otherwise refused,
+  /// and why said. Undo keeps them again, whole.
+  Future<void> _delete(Customer customer) async {
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: Text(dialog.l10n.deleteCustomerTitle(customer.name)),
+        content: Text(dialog.l10n.deleteCustomerBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(false),
+            child: Text(dialog.l10n.fwCancel),
+          ),
+          FilledButton(
+            key: CustomerScreen.confirmDeleteKey,
+            onPressed: () => Navigator.of(dialog).pop(true),
+            child: Text(dialog.l10n.deleteCustomer),
+          ),
+        ],
+      ),
+    );
+    if (sure != true || !mounted) return;
+    final words = context.words;
+    final store = ref.read(customerStoreProvider);
+    final by = await ref.actorNow();
+    final ({bool deleted, String? problem}) outcome;
+    try {
+      outcome = await store.deleteCustomer(customer.id, by: by, words: words);
+    } on AccessDenied catch (e) {
+      if (mounted) _say(e.messageIn(words));
+      return;
+    }
+    if (!mounted) return;
+    if (!outcome.deleted) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          key: CustomerScreen.cannotDeleteKey,
+          title: Text(dialog.l10n.notDeleted),
+          content: Text(outcome.problem ?? ''),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialog).pop(),
+              child: Text(dialog.l10n.fwOk),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    // Held now: Undo comes after this page has gone.
+    final revision = ref.read(customersRevisionProvider.notifier)..changed();
+    final messenger = ScaffoldMessenger.of(context);
+    final l = context.l10n;
+    Navigator.of(context).popUntil((r) => r.isFirst);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(l.customerDeleted(customer.name)),
+        action: SnackBarAction(
+          label: l.undo,
+          onPressed: () async {
+            await store.save(customer, by: by);
+            revision.changed();
+          },
+        ),
+      ),
+    );
+  }
+
+  void _say(String words) =>
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(words)));
+
+  /// The customer's own information — name, phone, address, notes — in
+  /// the form a customer is made with, filled in. Saving changes the
+  /// customer and nothing else, and the page reads them again when it is
+  /// told customers have changed.
+  void _edit(Customer customer) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => NewCustomerScreen(editing: customer),
+    ),
+  );
+
+  Future<void> _editInformation(DesignSummary summary) =>
+      editDesignInformation(context, ref, summary);
+
+  /// The **⋮** on a design's card: open it, edit its information,
+  /// duplicate it, or delete it. A duplicate is another design of this same
+  /// customer, the original untouched (`DesignStore.duplicate`). Deleting is that one design, asked about first by its name
+  /// — see `deleteDesign` — and never the customer, whose page this is and
+  /// who stays with their other designs.
+  Future<void> _moreFor(DesignSummary summary) async {
+    final chosen = await showModalBottomSheet<DesignAction>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: context.palette.surface,
+      builder: (context) => Consumer(
+        builder: (context, ref, _) => DesignActionsSheet(
+          summary: summary,
+          actions: {
+            if (ref.offers(Capability.designsView)) DesignAction.open,
+            if (ref.offers(Capability.designsEdit)) DesignAction.information,
+            if (ref.offers(Capability.designsCreate)) DesignAction.duplicate,
+            if (ref.offers(Capability.designsDelete)) DesignAction.delete,
+          },
+        ),
+      ),
+    );
+    if (chosen == null || !mounted) return;
+    switch (chosen) {
+      case DesignAction.open:
+        await _open(summary);
+      case DesignAction.information:
+        await _editInformation(summary);
+      case DesignAction.delete:
+        await deleteDesign(context, ref, summary);
+      case DesignAction.duplicate:
+        await _duplicate(summary);
+    }
+  }
+
+  Future<void> _duplicate(DesignSummary summary) async {
+    final words = context.words;
+    final copy = await ref
+        .read(designStoreProvider)
+        .duplicate(summary.id, by: await ref.actorNow(), words: words);
+    if (copy == null || !mounted) return;
+    ref.read(designsRevisionProvider.notifier).changed();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.l10n.copyMade(
+            DesignSummary.of(copy).shownNameIn(context.words),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// One of the customer's designs, opened exactly as it was kept — see
+  /// `openKeptDesign`.
+  Future<void> _open(DesignSummary summary) =>
+      openKeptDesign(context, ref, summary);
+
+  @override
+  Widget build(BuildContext context) {
+    ref
+      ..listen(customersRevisionProvider, (_, _) => _load())
+      ..listen(designsRevisionProvider, (_, _) => _load());
+    final p = context.palette;
+    final customer = _customer;
+    // What is offered follows who is at the device; what is refused is
+    // refused by the stores as well (`CustomerStore`, `DesignStore`).
+    final mayView = ref.offers(Capability.customersView);
+    final mayViewDesigns = ref.offers(Capability.designsView);
+    final mayCreate = ref.offers(Capability.designsCreate);
+
+    return Scaffold(
+      backgroundColor: p.shell,
+      appBar: AppBar(
+        backgroundColor: p.band,
+        foregroundColor: AppTheme.accent,
+        title: Text(customer?.name ?? ''),
+        // Until who is at the device is known, nothing that needs a
+        // permission is offered, and this says it is being worked out.
+        bottom: const PermissionsLoading(),
+        // Their money at a glance, beside their name: how they stand and
+        // what is due. The whole of it is under their designs.
+        actions: [
+          if (customer != null && _all > 0)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 12),
+              child: CustomerMoneyGlance(customer: customer),
+            ),
+          if (customer != null && ref.offers(Capability.customersDelete))
+            PopupMenuButton<String>(
+              key: CustomerScreen.menuKey,
+              onSelected: (_) => _delete(customer),
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  key: CustomerScreen.deleteKey,
+                  value: 'delete',
+                  child: Text(context.l10n.deleteCustomer),
+                ),
+              ],
+            ),
+        ],
+      ),
+      // Where the customer has designs, New Design stands at the foot of the
+      // screen whatever is scrolled past — a customer with forty designs can
+      // begin the forty-first without scrolling back to the top. Where they
+      // have none, the empty state carries it instead, in the middle of the
+      // page.
+      floatingActionButton:
+          customer == null || _all == 0 || !mayCreate || !mayView
+          ? null
+          : FloatingActionButton.extended(
+              key: CustomerScreen.newDesignButton,
+              onPressed: () => _newDesign(customer),
+              backgroundColor: p.band,
+              foregroundColor: AppTheme.accent,
+              icon: const Icon(Icons.add),
+              label: Text(context.l10n.newDesign),
+            ),
+      body: !mayView
+          ? Center(
+              child: Text(
+                context.l10n.customersNoAccess,
+                key: CustomerScreen.noAccessKey,
+                style: TextStyle(color: p.muted),
+              ),
+            )
+          : !_loaded
+          ? const SizedBox.shrink()
+          : customer == null
+          ? Center(
+              child: Text(
+                context.l10n.customerGone,
+                style: TextStyle(color: p.muted),
+              ),
+            )
+          : LayoutBuilder(
+              builder: (context, room) {
+                final gutter = room.maxWidth < 600 ? 16.0 : 32.0;
+                final across = room.maxWidth > _contentWidth + gutter * 2
+                    ? (room.maxWidth - _contentWidth) / 2
+                    : gutter;
+                return CustomScrollView(
+                  slivers: [
+                    SliverPadding(
+                      padding: EdgeInsets.fromLTRB(across, 20, across, 0),
+                      sliver: SliverToBoxAdapter(
+                        child: _Person(
+                          customer: customer,
+                          designs: _all,
+                          onEdit: ref.offers(Capability.customersEdit)
+                              ? () => _edit(customer)
+                              : null,
+                        ),
+                      ),
+                    ),
+                    SliverPadding(
+                      padding: EdgeInsets.fromLTRB(across, 28, across, 12),
+                      sliver: SliverToBoxAdapter(
+                        child: _DesignsHeading(
+                          count: _all,
+                          found: _narrowed ? _total : null,
+                        ),
+                      ),
+                    ),
+                    if (_all > 0)
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(across, 0, across, 16),
+                        sliver: SliverToBoxAdapter(
+                          child: _Finder(
+                            search: _search,
+                            onSearch: _searchFor,
+                            kinds: _kinds,
+                            all: _all,
+                            chosen: _kind,
+                            onFilter: _filterTo,
+                          ),
+                        ),
+                      ),
+                    if (!mayViewDesigns)
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(horizontal: across),
+                        sliver: SliverToBoxAdapter(
+                          child: Text(
+                            context.l10n.designsNoAccess,
+                            key: CustomerScreen.noDesignsAccessKey,
+                            style: TextStyle(color: p.muted),
+                          ),
+                        ),
+                      )
+                    else if (_all == 0)
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(horizontal: across),
+                        sliver: SliverToBoxAdapter(
+                          child: _NoDesigns(
+                            name: customer.name,
+                            onNewDesign: mayCreate
+                                ? () => _newDesign(customer)
+                                : null,
+                          ),
+                        ),
+                      )
+                    else if (_total == 0)
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(horizontal: across),
+                        sliver: SliverToBoxAdapter(
+                          child: _NoMatch(
+                            query: _query.trim(),
+                            kind: _kind,
+                            onShowAll: _showAll,
+                          ),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(horizontal: across),
+                        sliver: _Cards(
+                          designs: _designs,
+                          width: room.maxWidth - across * 2,
+                          onOpen: _open,
+                          onEdit: ref.offers(Capability.designsEdit)
+                              ? _editInformation
+                              : null,
+                          onMore: _moreFor,
+                          onNearEnd: () => WidgetsBinding.instance
+                              .addPostFrameCallback((_) => _more()),
+                        ),
+                      ),
+                    // What all of their designs come to, what they have paid
+                    // and what is due — under the cards, so it moves none of
+                    // them.
+                    if (_all > 0 && mayViewDesigns)
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(across, 16, across, 0),
+                        sliver: SliverToBoxAdapter(
+                          child: CustomerFinancialSummary(customer: customer),
+                        ),
+                      ),
+                    // Room under the last card for New Design, so it never
+                    // stands over a card that cannot be scrolled clear of it.
+                    const SliverToBoxAdapter(child: SizedBox(height: 104)),
+                  ],
+                );
+              },
+            ),
+    );
+  }
+}
+
+/// The width the customer's page lays its content out in.
+const _contentWidth = 960.0;
+
+/// Who the customer is: their initials and name, and then their
+/// information — phone, address and notes — each on a line of its own and
+/// each said to be missing where nothing was given.
+class _Person extends StatelessWidget {
+  final Customer customer;
+  final int designs;
+  final VoidCallback? onEdit;
+
+  const _Person({
+    required this.customer,
+    required this.designs,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    Widget line(
+      IconData icon,
+      String label,
+      String value, {
+      bool number = false,
+    }) => Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: p.muted),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: p.muted,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value.isEmpty ? context.l10n.notGiven : value,
+                  // A number reads left to right whatever the language
+                  // around it.
+                  textDirection: number && value.isNotEmpty
+                      ? TextDirection.ltr
+                      : null,
+                  style: TextStyle(
+                    fontSize: 15,
+                    height: 1.35,
+                    color: value.isEmpty ? p.muted : p.ink,
+                    fontStyle: value.isEmpty
+                        ? FontStyle.italic
+                        : FontStyle.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: p.hairline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: p.band,
+                child: Text(
+                  initialsOf(customer.name),
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.accent,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      customer.name,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: p.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      context.l10n.customerSubtitle(designs),
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: p.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Divider(height: 1, color: p.hairline),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  context.l10n.customerInformation,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                    color: p.ink,
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                key: CustomerScreen.editButton,
+                onPressed: onEdit,
+                style: TextButton.styleFrom(
+                  foregroundColor: p.primary,
+                  minimumSize: const Size(48, 44),
+                ),
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: Text(context.l10n.edit),
+              ),
+            ],
+          ),
+          line(
+            Icons.phone_outlined,
+            context.l10n.phone,
+            customer.phone,
+            number: true,
+          ),
+          line(Icons.place_outlined, context.l10n.address, customer.address),
+          line(
+            Icons.sticky_note_2_outlined,
+            context.l10n.notes,
+            customer.notes,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// **Designs**, and how many — and, while a search or a filter is
+/// narrowing them, how many of those are shown.
+class _DesignsHeading extends StatelessWidget {
+  final int count;
+
+  /// How many the search and the filter find, or null when nothing is
+  /// narrowing the list.
+  final int? found;
+
+  const _DesignsHeading({required this.count, this.found});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Row(
+      children: [
+        Text(
+          context.l10n.designsTitle,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: p.ink,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: p.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            found == null ? '$count' : context.l10n.foundOf(found!, count),
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: p.primary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Finding one design among many: a search by what it is called, and a
+/// chip a category — **All**, then Door, Window, Sliding and Door & window
+/// in the order a design is begun as — each with how many there are. A
+/// category the customer has none of is left off, so the chips are only
+/// ever a way to somewhere; the one chosen stays whatever its count.
+///
+/// Both only choose what is shown. Nothing here begins a design, and
+/// nothing here changes one.
+class _Finder extends StatelessWidget {
+  final TextEditingController search;
+  final ValueChanged<String> onSearch;
+  final Map<DesignKind, int> kinds;
+  final int all;
+  final DesignKind? chosen;
+  final ValueChanged<DesignKind?> onFilter;
+
+  const _Finder({
+    required this.search,
+    required this.onSearch,
+    required this.kinds,
+    required this.all,
+    required this.chosen,
+    required this.onFilter,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    Widget chip(DesignKind? kind, String label, int count) {
+      final on = kind == chosen;
+      return Padding(
+        padding: const EdgeInsetsDirectional.only(end: 8),
+        child: ChoiceChip(
+          key: CustomerScreen.filterKey(kind),
+          selected: on,
+          showCheckmark: false,
+          avatar: kind == null
+              ? null
+              : Icon(
+                  kindIcon(kind),
+                  size: 16,
+                  color: on ? AppTheme.accent : p.primary,
+                ),
+          label: Text('$label  $count'),
+          labelStyle: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: on ? AppTheme.accent : p.ink,
+          ),
+          selectedColor: p.band,
+          backgroundColor: p.surface,
+          side: BorderSide(color: on ? p.band : p.hairline),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(999),
+          ),
+          onSelected: (_) => onFilter(kind),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          key: CustomerScreen.searchField,
+          controller: search,
+          onChanged: onSearch,
+          textInputAction: TextInputAction.search,
+          style: TextStyle(fontSize: 15, color: p.ink),
+          decoration: InputDecoration(
+            hintText: context.l10n.searchDesignsHint,
+            hintStyle: TextStyle(color: p.muted),
+            filled: true,
+            fillColor: p.surface,
+            prefixIcon: Icon(Icons.search, color: p.muted),
+            suffixIcon: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: search,
+              builder: (context, value, _) => value.text.isEmpty
+                  ? const SizedBox.shrink()
+                  : IconButton(
+                      tooltip: context.l10n.clearSearch,
+                      icon: Icon(Icons.close, color: p.muted),
+                      onPressed: () {
+                        search.clear();
+                        onSearch('');
+                      },
+                    ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: p.hairline),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: p.primary, width: 1.6),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              chip(null, context.l10n.filterAll, all),
+              for (final kind in _order)
+                if ((kinds[kind] ?? 0) > 0 || kind == chosen)
+                  chip(kind, kind.labelIn(context.words), kinds[kind] ?? 0),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// The categories in the order a design is begun as.
+  static const _order = [
+    DesignKind.door,
+    DesignKind.window,
+    DesignKind.sliding,
+    DesignKind.both,
+    DesignKind.angled,
+    // Last, and only where there is one: a design of a category this
+    // version does not know, listed as that rather than as a window.
+    DesignKind.unsupported,
+  ];
+}
+
+/// A search or a filter that finds none of the customer's designs: say
+/// what was looked for, and offer the way back to all of them — not a new
+/// design, which is a different thing altogether.
+class _NoMatch extends StatelessWidget {
+  final String query;
+  final DesignKind? kind;
+  final VoidCallback onShowAll;
+
+  const _NoMatch({
+    required this.query,
+    required this.kind,
+    required this.onShowAll,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final l = context.l10n;
+    final what = [
+      if (query.isNotEmpty) l.quoted(query),
+      if (kind != null) l.inCategory(kind!.labelIn(context.words)),
+    ].join(' ');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: p.hairline),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.search_off, size: 36, color: p.muted),
+          const SizedBox(height: 10),
+          Text(
+            l.noDesignsMatch(what),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: p.ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            l.noDesignsMatchHint,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13.5, color: p.muted),
+          ),
+          const SizedBox(height: 14),
+          OutlinedButton(
+            key: CustomerScreen.clearButton,
+            onPressed: onShowAll,
+            child: Text(l.showAllDesigns),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A customer with no designs yet, and the way to begin their first.
+class _NoDesigns extends StatelessWidget {
+  final String name;
+  final VoidCallback? onNewDesign;
+
+  const _NoDesigns({required this.name, required this.onNewDesign});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: p.hairline),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.folder_open_outlined, size: 40, color: p.muted),
+          const SizedBox(height: 10),
+          Text(
+            context.l10n.noDesignsYet,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: p.ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            context.l10n.beginFirstDesign(name),
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: p.muted),
+          ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            key: CustomerScreen.newDesignButton,
+            onPressed: onNewDesign,
+            icon: const Icon(Icons.add, size: 20),
+            label: Text(context.l10n.newDesign),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The customer's designs as cards: one above another on a phone, two or
+/// three across where there is room, every card the same height.
+class _Cards extends StatelessWidget {
+  final List<DesignSummary> designs;
+  final double width;
+  final ValueChanged<DesignSummary> onOpen;
+  final ValueChanged<DesignSummary>? onEdit;
+  final ValueChanged<DesignSummary> onMore;
+
+  /// Called as the last few cards read so far are built, so the next page
+  /// is read before the list runs out.
+  final VoidCallback onNearEnd;
+
+  const _Cards({
+    required this.designs,
+    required this.width,
+    required this.onOpen,
+    required this.onEdit,
+    required this.onMore,
+    required this.onNearEnd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    Widget card(int i) {
+      if (i >= designs.length - 8) onNearEnd();
+      final design = designs[i];
+      return CustomerDesignCard(
+        key: CustomerScreen.designKey(design.id),
+        design: design,
+        now: now,
+        onOpen: () => onOpen(design),
+        // Not for a design of a category this version does not know.
+        onEdit: design.kind == DesignKind.unsupported || onEdit == null
+            ? null
+            : () => onEdit!(design),
+        onMore: () => onMore(design),
+      );
+    }
+
+    final columns = (width / 290).floor().clamp(1, 3);
+    if (columns == 1) {
+      return SliverList.separated(
+        itemCount: designs.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 14),
+        itemBuilder: (context, i) => card(i),
+      );
+    }
+    return SliverGrid.builder(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+        mainAxisExtent: CustomerDesignCard.height,
+      ),
+      itemCount: designs.length,
+      itemBuilder: (context, i) => card(i),
+    );
+  }
+}
+
+/// When a design was last edited, as a date and a time: *Today, 09:14*,
+/// *Yesterday, 18:02*, or *1 Mar 2026, 09:14*, seen from [now].
+String lastEdited(DateTime then, DateTime now, [AppLocalizations? said]) {
+  final l = said ?? english;
+  String two(int n) => n.toString().padLeft(2, '0');
+  final time = '${two(then.hour)}:${two(then.minute)}';
+  final day = DateTime(then.year, then.month, then.day);
+  final today = DateTime(now.year, now.month, now.day);
+  final gone = today.difference(day).inDays;
+  if (gone == 0) return l.todayAt(time);
+  if (gone == 1) return l.yesterdayAt(time);
+  return l.dateAt(then.day, shortMonth(l, then.month), then.year, time);
+}
+
+/// One of the customer's designs as a card: its picture — the design itself,
+/// drawn from its own geometry by the same `DesignPicture` the designs list
+/// uses, or the empty sheet saying *Nothing drawn yet* — then its name, its
+/// category, when it was last edited, **Edit information** and **Open**.
+class CustomerDesignCard extends StatelessWidget {
+  final DesignSummary design;
+  final DateTime now;
+  final VoidCallback onOpen;
+
+  /// **Edit information** — the design's name — where it can be edited.
+  final VoidCallback? onEdit;
+
+  /// The **⋮** beside the name: Open, Edit information and Delete.
+  final VoidCallback? onMore;
+
+  /// How tall a card is, in the list and in the grid alike.
+  static const height = 328.0;
+
+  /// How tall its picture is.
+  static const pictureHeight = 94.0;
+
+  const CustomerDesignCard({
+    super.key,
+    required this.design,
+    required this.now,
+    required this.onOpen,
+    this.onEdit,
+    this.onMore,
+  });
+
+  /// The **Open** on the card of the design [id].
+  static ValueKey<String> openKey(String id) => ValueKey('open-design-$id');
+
+  /// The **⋮** on the card of the design [id].
+  static ValueKey<String> moreKey(String id) => ValueKey('card-more-$id');
+
+  /// The **Price** on the card of the design [id].
+  static ValueKey<String> priceKey(String id) => ValueKey('price-design-$id');
+
+  /// What the card of the design [id] says its price is.
+  static ValueKey<String> priceValueKey(String id) =>
+      ValueKey('price-value-$id');
+
+  /// Whether the card of the design [id] says it is complete.
+  static ValueKey<String> statusKey(String id) => ValueKey('price-status-$id');
+
+  /// The words naming the design's material and its colour.
+  static ValueKey<String> materialKey(String id) =>
+      ValueKey('card-material-$id');
+  static ValueKey<String> colourKey(String id) => ValueKey('card-colour-$id');
+
+  /// The **Edit information** on the card of the design [id].
+  static ValueKey<String> editKey(String id) => ValueKey('edit-design-$id');
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Material(
+      color: p.surface,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onOpen,
+        // Pressing and holding is the ⋮, as a thumb expects of a card.
+        onLongPress: onMore,
+        child: Container(
+          height: height,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: p.hairline),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: pictureHeight,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: p.hairline),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: RepaintBoundary(
+                      child: DesignPicture(summary: design),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsetsDirectional.only(start: 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        design.shownNameIn(context.words),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: p.ink,
+                        ),
+                      ),
+                    ),
+                    if (onMore != null)
+                      IconButton(
+                        key: moreKey(design.id),
+                        tooltip: context.l10n.moreOptions,
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 36,
+                          minHeight: 36,
+                        ),
+                        onPressed: onMore,
+                        icon: Icon(Icons.more_vert, size: 20, color: p.muted),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 2),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  children: [
+                    // The category's name as long as the card allows —
+                    // *Angled / Asymmetrical* is the longest — and cut
+                    // short rather than run off it.
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: p.shell,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              kindIcon(design.kind),
+                              size: 14,
+                              color: p.primary,
+                            ),
+                            const SizedBox(width: 5),
+                            Flexible(
+                              child: Text(
+                                design.kind.labelIn(context.words),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: p.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Whether it can be priced: the same answer the
+                    // workspace's price button reads.
+                    Flexible(child: CardPriceStatus(designId: design.id)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              // What it is made of — the material and colour its price
+              // reads — in words, the colour's swatch beside its name.
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: CardProfileLine(designId: design.id),
+              ),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  context.l10n.lastEdited(
+                    lastEdited(design.updatedAt, now, context.l10n),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12.5, color: p.muted),
+                ),
+              ),
+              const SizedBox(height: 4),
+              // Its price, where one is current, and otherwise why not —
+              // and Price, on a row of their own, so the row of buttons
+              // below keeps Edit information whole.
+              Padding(
+                padding: const EdgeInsetsDirectional.only(start: 4),
+                child: Row(
+                  children: [
+                    Expanded(child: CardPriceValue(designId: design.id)),
+                    const SizedBox(width: 8),
+                    CardPriceButton(design: design),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (onEdit case final onEdit?)
+                    Flexible(
+                      child: TextButton.icon(
+                        key: editKey(design.id),
+                        onPressed: onEdit,
+                        style: TextButton.styleFrom(
+                          foregroundColor: p.muted,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.edit_outlined, size: 17),
+                        label: Text(
+                          context.l10n.editInformation,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                  else
+                    const Spacer(),
+                  TextButton.icon(
+                    key: openKey(design.id),
+                    onPressed: onOpen,
+                    style: TextButton.styleFrom(
+                      foregroundColor: p.primary,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    iconAlignment: IconAlignment.end,
+                    icon: const Icon(Icons.arrow_forward, size: 18),
+                    label: Text(context.l10n.open),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Complete or incomplete, on a design's card: [DesignPriceState.label],
+/// the one answer the workspace's price button reads too.
+class CardPriceStatus extends ConsumerWidget {
+  final String designId;
+
+  const CardPriceStatus({super.key, required this.designId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kept = ref.watch(keptDesignPriceProvider(designId)).value;
+    final state = kept?.state;
+    // An unknown category is said by the category itself.
+    if (state == null || state.status == DesignPriceStatus.unsupported) {
+      return const SizedBox.shrink();
+    }
+    final p = context.palette;
+    final complete =
+        state.status != DesignPriceStatus.incomplete &&
+        state.status != DesignPriceStatus.unsupported;
+    final colour = complete ? p.primary : Theme.of(context).colorScheme.error;
+    // Each design its own stage: **Completed** once the user completed it
+    // and it is still that design, a **Draft** while it is ready and not
+    // completed, and otherwise what it still needs.
+    final completed = kept != null && DesignCompletion.isCompleted(kept.design);
+    return Text(
+      complete
+          ? (completed ? context.l10n.stageCompleted : context.l10n.stageDraft)
+          : state.labelIn(context.words),
+      key: CustomerDesignCard.statusKey(designId),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: colour,
+      ),
+    );
+  }
+}
+
+/// What a design's card says it is made of: **Material:** and **Colour:**,
+/// each in words — *Aluminium*, *Black*, or *Not selected* where nobody
+/// has chosen — with the colour's swatch beside its name, never instead of
+/// it. Read from the design as kept, so it is what its price reads.
+class CardProfileLine extends ConsumerWidget {
+  final String designId;
+
+  const CardProfileLine({super.key, required this.designId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final design = ref.watch(keptDesignPriceProvider(designId)).value?.design;
+    final list = ref.watch(priceListProvider).value;
+    final p = context.palette;
+    final profile = design == null
+        ? ProfileSelection.notChosen
+        : ProfileSelection.of(design);
+    final style = TextStyle(fontSize: 12, color: p.muted);
+    final strong = TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      color: profile.isChosen ? p.ink : p.muted,
+    );
+    Widget said(Key key, String label, String value) => Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: context.l10n.labelled(label), style: style),
+          TextSpan(text: value, style: strong),
+        ],
+      ),
+      key: key,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+    // The material takes the width its word needs and the colour the
+    // rest: a colour's name is the longer, and the one the owner chose.
+    // Where even that is too narrow the name is cut, and held whole in its
+    // tooltip; the price sheet and the customer's summary write it whole.
+    final colourName = design == null
+        ? '…'
+        : profile.colourNameIn(context.words, list);
+    return Row(
+      children: [
+        Flexible(
+          child: said(
+            CustomerDesignCard.materialKey(designId),
+            context.l10n.labelMaterial,
+            design == null ? '…' : profile.materialNameIn(context.words),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Tooltip(
+            message: colourName,
+            child: Row(
+              children: [
+                if (profile.colour case final colour?) ...[
+                  colourSwatch(colour),
+                  const SizedBox(width: 5),
+                ],
+                Flexible(
+                  child: said(
+                    CustomerDesignCard.colourKey(designId),
+                    context.l10n.labelColour,
+                    colourName,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// What a design's card says its price is: the price while the one
+/// calculated is current, and otherwise why not — never a previous
+/// calculation as the price.
+class CardPriceValue extends ConsumerWidget {
+  final String designId;
+
+  const CardPriceValue({super.key, required this.designId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(keptDesignPriceProvider(designId)).value?.state;
+    final p = context.palette;
+    final allowed = ref.watch(actorProvider).can(Capability.pricingView);
+    final l = context.l10n;
+    final words = switch (state) {
+      _ when !allowed => l.priceHidden,
+      null => l.priceLoading,
+      _ when state.total != null => l.priceIs(
+        PricePanel.money(state.total!, state.record!.result.currency),
+      ),
+      // Drawn on since it was read: the price kept is of an older reading.
+      _ when state.notRead => l.priceNeedsUpdate,
+      // A colour to choose again: not sold in the material now chosen, or
+      // retired and no longer priced on it.
+      _ when state.needsColour => l.priceChooseColour,
+      // Only the aluminium's profile — System or Bend Shoulder — to say.
+      _
+          when state.needsOnlyProfile &&
+              state.readiness.missing.every(
+                (r) => r.kind == PriceRequirementKind.profileCategory,
+              ) =>
+        l.priceChooseProfile,
+      // Nobody has chosen what it is made of, which its price reads.
+      _ when state.needsOnlyProfile => l.priceChooseMaterial,
+      DesignPriceState(status: DesignPriceStatus.notCalculated) =>
+        l.priceNotCalculated,
+      DesignPriceState(status: DesignPriceStatus.needsRecalculation) =>
+        l.priceRecalculate,
+      _ => l.priceUnavailable,
+    };
+    return Text(
+      words,
+      key: CustomerDesignCard.priceValueKey(designId),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: 12.5,
+        fontWeight: FontWeight.w700,
+        color: allowed && state?.total != null ? p.ink : p.muted,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
+  }
+}
+
+/// **Price** on a design's card, enabled by the same [DesignPriceState] as
+/// the workspace's **Calculate price**. Pressed, it shows the price,
+/// calculating it from the kept design first where it is not current. It
+/// writes nothing to the design.
+class CardPriceButton extends ConsumerWidget {
+  final DesignSummary design;
+
+  const CardPriceButton({super.key, required this.design});
+
+  Future<void> _price(
+    BuildContext context,
+    WidgetRef ref,
+    KeptDesignPrice kept,
+  ) async {
+    final result = kept.state.isCurrent
+        ? kept.state.record!.result
+        : await ref.priceNow(kept.design);
+    if (result == null || !context.mounted) return;
+    await DesignPriceSheet.show(
+      context,
+      design: kept.design,
+      result: result,
+      onChoose: kept.design.isUnsupported
+          ? null
+          : (ref, material, colour, colourId) async {
+              // The design as kept now, its profile chosen, kept again, and
+              // priced afresh: its card, its customer's total and the
+              // workspace all read it from there.
+              final store = ref.read(designStoreProvider);
+              final latest = await store.load(kept.design.id) ?? kept.design;
+              final saved = await store.save(
+                ProfileSelection.choose(
+                  latest,
+                  material: material,
+                  colour: colour,
+                  colourId: colourId,
+                ),
+                by: await ref.actorNow(),
+              );
+              ref.read(designsRevisionProvider.notifier).changed();
+              final priced = await ref.priceNow(saved);
+              return priced == null ? null : (saved, priced);
+            },
+      // An extra or the discount changed on the sheet: the design kept
+      // with that pricing — nothing else of it changed — and priced afresh.
+      onPricing: kept.design.isUnsupported
+          ? null
+          : (ref, changed) async {
+              final saved = await ref
+                  .read(designStoreProvider)
+                  .save(changed, by: await ref.actorNow());
+              ref.read(designsRevisionProvider.notifier).changed();
+              final priced = await ref.priceNow(saved);
+              return priced == null ? null : (saved, priced);
+            },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kept = ref.watch(keptDesignPriceProvider(design.id)).value;
+    return PriceButton(
+      key: CustomerDesignCard.priceKey(design.id),
+      state: kept?.state,
+      label: context.l10n.price,
+      withIcon: false,
+      allowed: ref.watch(actorProvider).can(Capability.pricingView),
+      onPressed: () => _price(context, ref, kept!),
+    );
+  }
+}
