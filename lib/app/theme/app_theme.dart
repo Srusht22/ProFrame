@@ -25,11 +25,17 @@ abstract final class AppTheme {
 
   static const String fontFamily = 'Noto Sans';
 
+  /// Where a letter [fontFamily] has no glyph for — Central Kurdish's,
+  /// which are written in an Arabic-based script — is drawn from. Bundled,
+  /// as every font the application uses is.
+  static const List<String> fontFallback = ['Noto Sans Arabic'];
+
   /// Buttons in Material 3 replace the inherited text style rather than
   /// merging with it, so a button theme that sets a size without a family
   /// loses the family. This is the one place that pairing is written down.
   static const TextStyle buttonLabel = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFallback,
     fontSize: 15,
     fontWeight: FontWeight.w600,
     letterSpacing: 0.1,
@@ -78,6 +84,7 @@ abstract final class AppTheme {
       brightness: p.brightness,
       colorScheme: scheme,
       fontFamily: fontFamily,
+      fontFamilyFallback: fontFallback,
       scaffoldBackgroundColor: p.shell,
       canvasColor: p.surface,
       splashFactory: InkSparkle.splashFactory,
@@ -89,6 +96,7 @@ abstract final class AppTheme {
         centerTitle: false,
         titleTextStyle: TextStyle(
           fontFamily: fontFamily,
+          fontFamilyFallback: fontFallback,
           fontSize: 19,
           fontWeight: FontWeight.w600,
           color: accent,
@@ -168,6 +176,7 @@ abstract final class AppTheme {
         ),
         textStyle: TextStyle(
           fontFamily: fontFamily,
+          fontFamilyFallback: fontFallback,
           fontSize: 12,
           color: dark ? const Color(0xFF0C1613) : Colors.white,
         ),
@@ -175,7 +184,11 @@ abstract final class AppTheme {
       popupMenuTheme: PopupMenuThemeData(
         color: p.raised,
         surfaceTintColor: Colors.transparent,
-        textStyle: TextStyle(fontFamily: fontFamily, color: p.ink),
+        textStyle: TextStyle(
+          fontFamily: fontFamily,
+          fontFamilyFallback: fontFallback,
+          color: p.ink,
+        ),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: p.raised,
@@ -193,6 +206,7 @@ abstract final class AppTheme {
         backgroundColor: dark ? p.raised : const Color(0xFF26302D),
         contentTextStyle: TextStyle(
           fontFamily: fontFamily,
+          fontFamilyFallback: fontFallback,
           color: dark ? p.ink : Colors.white,
         ),
         actionTextColor: dark ? p.primary : accent,

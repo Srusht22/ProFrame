@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import '../state/tools.dart';
 import '../theme/app_theme.dart';
 
@@ -187,7 +188,7 @@ class _SaveIconState extends State<SaveIcon>
   Widget build(BuildContext context) {
     final showingTick = _saved.isAnimating && _saved.value < 0.8;
     return BarIcon(
-      tooltip: 'Save',
+      tooltip: context.l10n.wbSave,
       icon: showingTick ? Icons.check_rounded : Icons.save_outlined,
       onPressed: _save,
     );
@@ -256,10 +257,10 @@ class ViewTabs extends StatelessWidget {
       child: Stack(
         children: [
           // The pill, behind whichever view is chosen.
-          AnimatedPositioned(
+          AnimatedPositionedDirectional(
             duration: change,
             curve: Curves.easeOutBack,
-            left: width * index + 3,
+            start: width * index + 3,
             top: 3,
             width: width - 6,
             height: height - 9,
@@ -271,10 +272,10 @@ class ViewTabs extends StatelessWidget {
             ),
           ),
           // And the bar along its foot.
-          AnimatedPositioned(
+          AnimatedPositionedDirectional(
             duration: change,
             curve: Curves.easeOutBack,
-            left: width * index + (width - underline) / 2,
+            start: width * index + (width - underline) / 2,
             bottom: 0,
             width: underline,
             height: 3,
@@ -289,7 +290,9 @@ class ViewTabs extends StatelessWidget {
             children: [
               for (final view in views)
                 _Tab(
-                  label: fill ? view.shortLabel : view.label,
+                  label: fill
+                      ? view.shortLabelIn(context.l10n)
+                      : view.labelIn(context.l10n),
                   icon: iconOf(view),
                   width: width,
                   chosen: view == selected,
@@ -370,6 +373,7 @@ class _TabState extends State<_Tab> {
                   curve: Curves.easeOutCubic,
                   style: TextStyle(
                     fontFamily: AppTheme.fontFamily,
+                    fontFamilyFallback: AppTheme.fontFallback,
                     fontSize: 13,
                     fontWeight: widget.chosen
                         ? FontWeight.w700
@@ -445,7 +449,7 @@ class MoreButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     return Tooltip(
-      message: shown ? 'Show fewer tools' : 'Show every tool',
+      message: shown ? context.l10n.wbFewerTools : context.l10n.wbEveryTool,
       child: TextButton.icon(
         key: buttonKey,
         onPressed: onPressed,
@@ -462,7 +466,7 @@ class MoreButton extends StatelessWidget {
           ),
         ),
         icon: Icon(shown ? Icons.expand_less : Icons.more_horiz, size: 18),
-        label: Text(shown ? 'Less' : 'More'),
+        label: Text(shown ? context.l10n.wbLess : context.l10n.wbMore),
       ),
     );
   }

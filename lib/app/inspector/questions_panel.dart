@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/question.dart';
+import '../l10n/l10n.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 
@@ -67,8 +68,8 @@ class QuestionsPanel extends ConsumerWidget {
               const SizedBox(width: 8),
               Text(
                 questions.length == 1
-                    ? 'One thing to check'
-                    : '${questions.length} things to check',
+                    ? context.l10n.checkOne
+                    : context.l10n.checkMany(questions.length),
                 style: Theme.of(context)
                     .textTheme
                     .titleMedium
@@ -78,8 +79,7 @@ class QuestionsPanel extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Nothing has been decided for you. Your drawing is unchanged '
-            'until you answer.',
+            context.l10n.checkNothingDecided,
             style: Theme.of(context)
                 .textTheme
                 .bodySmall
@@ -88,7 +88,7 @@ class QuestionsPanel extends ConsumerWidget {
           const SizedBox(height: 12),
           for (final question in questions)
             _QuestionCard(
-              question: question,
+              question: question.inWords(context.words),
               onAnswer: (key) {
                 onHighlight?.call(const {});
                 controller.answer(question.id, key);
@@ -164,11 +164,11 @@ class _QuestionCard extends StatelessWidget {
                   TextButton.icon(
                     onPressed: onShow,
                     icon: const Icon(Icons.visibility_outlined, size: 17),
-                    label: const Text('Show me'),
+                    label: Text(context.l10n.actShowMe),
                   ),
                 TextButton(
                   onPressed: onDismiss,
-                  child: const Text('Not now'),
+                  child: Text(context.l10n.actNotNow),
                 ),
               ],
             ),

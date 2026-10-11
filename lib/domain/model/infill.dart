@@ -1,3 +1,4 @@
+import '../text/words.dart';
 import 'design.dart';
 import 'design_tree.dart';
 import 'elements.dart';
@@ -53,16 +54,24 @@ abstract final class Infill {
 
   /// What to call [part] where the user is choosing between parts: its place
   /// in the drawing's reading order. [whereIs] says which opening it is in.
-  static String nameOf(Design design, SectionElement part) {
+  static String nameOf(
+    Design design,
+    SectionElement part, [
+    Words w = const EnglishWords(),
+  ]) {
     final index = partsOf(design).indexWhere((p) => p.id == part.id);
-    return 'Part ${index + 1}';
+    return w.partNumbered(index + 1);
   }
 
   /// Where [part] is, in the user's own terms: the opening it is, or is
   /// inside, or that it is a fixed part of the design.
-  static String whereIs(Design design, SectionElement part) {
+  static String whereIs(
+    Design design,
+    SectionElement part, [
+    Words w = const EnglishWords(),
+  ]) {
     final opening =
         design.openingOf(part.id) ?? design.openingHolding(part.parentId);
-    return opening == null ? 'Fixed' : design.nameOf(opening);
+    return opening == null ? w.partFixed : design.nameOfIn(w, opening);
   }
 }

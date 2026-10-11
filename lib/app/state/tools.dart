@@ -1,3 +1,5 @@
+import '../l10n/app_localizations.dart';
+
 /// What the pen does next.
 ///
 /// Every one of these makes real geometry. None of them draws a picture of
@@ -18,6 +20,32 @@ enum Tool {
   const Tool(this.label, this.hint);
   final String label;
   final String hint;
+
+  /// [label], in [l].
+  String labelIn(AppLocalizations l) => switch (this) {
+    select => l.toolSelect,
+    pen => l.toolPen,
+    line => l.toolLine,
+    rectangle => l.toolRectangle,
+    polyline => l.toolPolyline,
+    dimension => l.toolDimension,
+    arrow => l.toolArrow,
+    text => l.toolNote,
+    eraser => l.toolEraser,
+  };
+
+  /// [hint], in [l].
+  String hintIn(AppLocalizations l) => switch (this) {
+    select => l.toolSelectHint,
+    pen => l.toolPenHint,
+    line => l.toolLineHint,
+    rectangle => l.toolRectangleHint,
+    polyline => l.toolPolylineHint,
+    dimension => l.toolDimensionHint,
+    arrow => l.toolArrowHint,
+    text => l.toolNoteHint,
+    eraser => l.toolEraserHint,
+  };
 
   /// True when using this tool lays down ink.
   bool get draws => switch (this) {
@@ -49,4 +77,18 @@ enum WorkspaceView {
 
   /// What it is called where a phone leaves room for a word, not two.
   final String shortLabel;
+
+  /// [label], in [l].
+  String labelIn(AppLocalizations l) => switch (this) {
+    draw => l.viewDraw,
+    plan => l.viewCad,
+    model => l.view3d,
+  };
+
+  /// [shortLabel], in [l].
+  String shortLabelIn(AppLocalizations l) => switch (this) {
+    draw => l.viewDraw,
+    plan => l.viewCadShort,
+    model => l.view3dShort,
+  };
 }

@@ -21,6 +21,8 @@
 /// unless that entry is a removal.
 library;
 
+import '../text/words.dart';
+
 enum DiscountKind {
   percent('Percentage'),
   fixed('Fixed amount');
@@ -92,10 +94,13 @@ class CustomerDiscount {
       kind == DiscountKind.fixed && value > subtotalCents;
 
   /// What it says, in words: *10%*, *75.00 USD* — [money] writes an amount.
-  String describe(String Function(int cents) money) => switch (kind) {
+  String describe(
+    String Function(int cents) money, [
+    Words w = const EnglishWords(),
+  ]) => switch (kind) {
     DiscountKind.percent => '${_percentText(value)}%',
     DiscountKind.fixed => money(value),
-    null => 'No discount',
+    null => w.discountNone,
   };
 
   static String _percentText(int hundredths) {
@@ -114,20 +119,18 @@ class CustomerDiscount {
     required int? value,
     required int? subtotalCents,
     required String Function(int cents) money,
+    Words words = const EnglishWords(),
   }) {
-    if (value == null) return 'Enter the discount.';
-    if (value <= 0) return 'A discount must be more than nothing.';
+    final w = words;
+    if (value == null) return w.discountEnter;
+    if (value <= 0) return w.discountMoreThanNothing;
     switch (kind) {
       case DiscountKind.percent:
-        if (value > 10000) return 'A percentage cannot be more than 100%.';
+        if (value > 10000) return w.discountOver100;
       case DiscountKind.fixed:
-        if (subtotalCents == null) {
-          return 'The total is not final yet. A fixed discount can be given '
-              'once every design is priced.';
-        }
+        if (subtotalCents == null) return w.discountNotFinal;
         if (value > subtotalCents) {
-          return 'The discount cannot be more than the subtotal, '
-              '${money(subtotalCents)}.';
+          return w.discountOverSubtotal(money(subtotalCents));
         }
     }
     return null;
@@ -135,22 +138,22 @@ class CustomerDiscount {
 
   /// A percentage as typed — *10*, *12.5* — in hundredths of a per cent, or
   /// why it is not one.
-  static ({int? value, String? problem}) readPercent(String text) {
+  static ({int? value, String? problem}) readPercent(
+    String text, [
+    Words w = const EnglishWords(),
+  ]) {
     final words = text.trim().replaceAll('%', '').trim();
-    if (words.isEmpty) return (value: null, problem: 'Enter the discount.');
+    if (words.isEmpty) return (value: null, problem: w.discountEnter);
     if (words.startsWith('-')) {
-      return (value: null, problem: 'A discount must be more than nothing.');
+      return (value: null, problem: w.discountMoreThanNothing);
     }
     final m = RegExp(r'^(\d+)(?:\.(\d{1,2}))?$').firstMatch(words);
     if (m == null) {
-      return (
-        value: null,
-        problem: 'Enter the percentage as a number, such as 10 or 12.5.',
-      );
+      return (value: null, problem: w.discountPercentNumber);
     }
     final whole = int.parse(m.group(1)!);
     if (whole > 100) {
-      return (value: null, problem: 'A percentage cannot be more than 100%.');
+      return (value: null, problem: w.discountOver100);
     }
     final part = int.parse((m.group(2) ?? '').padRight(2, '0'));
     return (value: whole * 100 + part, problem: null);

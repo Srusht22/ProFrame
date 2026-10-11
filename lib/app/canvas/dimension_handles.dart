@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/dimensions/dimension_chain.dart';
+import '../../domain/dimensions/frame_sides.dart';
 import '../../domain/dimensions/measurements.dart';
 import '../../domain/geometry/polygon.dart';
 import '../../domain/geometry/segment.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
+import '../../domain/text/words.dart';
 import 'cad_layers.dart';
 import 'cad_style.dart';
 import 'dimension_layout.dart';
@@ -144,7 +146,9 @@ abstract final class CadDimensions {
     ViewTransform view,
     CadLayers layers, {
     Size? canvas,
+    Words words = const EnglishWords(),
   }) {
+    final w = words;
     final frame = design.frame;
     if (frame == null || !layers.dimensions) return const [];
 
@@ -157,6 +161,7 @@ abstract final class CadDimensions {
       design,
       view,
       canvas: canvas,
+      words: w,
     ).figures) {
       final run = placed.run;
       final across = placed.chain.axis == DimensionAxis.horizontal;
@@ -168,19 +173,19 @@ abstract final class CadDimensions {
             of: DimensionOf.side,
             elementId: key,
             valueMm: run.valueMm,
-            label: run.sideLabel ?? 'Side',
+            label:
+                FrameSides.of(design)
+                    .where((s) => s.key == key)
+                    .firstOrNull
+                    ?.labelIn(w) ??
+                run.sideLabel ??
+                w.dimSide,
             known: placed.known,
           ),
         );
         continue;
       }
-      final what = switch (run.of) {
-        ChainRunOf.overall => 'Overall',
-        ChainRunOf.daylight => 'Daylight',
-        ChainRunOf.opening => 'Opening',
-        ChainRunOf.division => 'Division',
-        ChainRunOf.side => 'Side',
-      };
+      final what = DimensionLayout.noteIn(w, run);
       handles.add(DimensionHandle(
         rect: placed.rect.inflate(3),
         of: overall
@@ -188,7 +193,9 @@ abstract final class CadDimensions {
             : (across ? DimensionOf.sectionWidth : DimensionOf.sectionHeight),
         elementId: overall ? null : run.sectionId,
         valueMm: run.valueMm,
-        label: '$what ${across ? 'width' : 'height'}',
+        label: overall
+            ? (across ? w.dimOverallWidth : w.dimOverallHeight)
+            : (across ? w.dimKindWidth(what) : w.dimKindHeight(what)),
         known: placed.known,
       ));
     }
@@ -209,7 +216,7 @@ abstract final class CadDimensions {
         of: DimensionOf.sectionWidth,
         elementId: section.id,
         valueMm: section.widthMm,
-        label: 'Section width',
+        label: w.dimSectionWidth,
         known: Measurements.knowsSection(
           design,
           section.id,
@@ -227,7 +234,7 @@ abstract final class CadDimensions {
         of: DimensionOf.sectionHeight,
         elementId: section.id,
         valueMm: section.heightMm,
-        label: 'Section height',
+        label: w.dimSectionHeight,
         known: Measurements.knowsSection(
           design,
           section.id,
@@ -249,7 +256,7 @@ abstract final class CadDimensions {
         of: DimensionOf.drawn,
         elementId: dimension.id,
         valueMm: dimension.valueMm,
-        label: 'Real size',
+        label: w.dimRealSize,
         known: dimension.isStated || Measurements.complete(design),
       ));
     }

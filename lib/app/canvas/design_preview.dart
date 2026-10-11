@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../domain/geometry/polygon.dart';
 import '../../domain/model/design.dart';
+import '../../domain/text/words.dart';
+import '../l10n/l10n.dart';
 import '../theme/app_theme.dart';
 import 'cad_layers.dart';
 import 'cad_painter.dart';
@@ -41,9 +43,13 @@ class DesignPreview extends StatelessWidget {
     }
     return Semantics(
       image: true,
-      label: 'Drawing of ${design.shownName}',
+      label: context.l10n.drawingOf(design.shownNameIn(context.words)),
       child: CustomPaint(
-        painter: DesignPreviewPainter(design, palette: context.palette),
+        painter: DesignPreviewPainter(
+          design,
+          palette: context.palette,
+          words: context.words,
+        ),
         child: const SizedBox.expand(),
       ),
     );
@@ -59,6 +65,8 @@ class DesignPreview extends StatelessWidget {
 /// an empty design.
 class PreviewPlaceholder extends StatelessWidget {
   final IconData icon;
+
+  /// What it says, in English; shown in the language in scope.
   final String label;
 
   const PreviewPlaceholder.nothingDrawn({super.key})
@@ -68,6 +76,9 @@ class PreviewPlaceholder extends StatelessWidget {
   const PreviewPlaceholder.unavailable({super.key})
     : icon = Icons.visibility_off_outlined,
       label = unavailableLabel;
+
+  String _said(AppLocalizations l) =>
+      label == nothingDrawnLabel ? l.nothingDrawnYet : l.previewUnavailable;
 
   static const nothingDrawnLabel = 'Nothing drawn yet';
   static const unavailableLabel = 'Preview unavailable';
@@ -100,7 +111,7 @@ class PreviewPlaceholder extends StatelessWidget {
                     const SizedBox(height: 8),
                   ],
                   Text(
-                    label,
+                    _said(context.l10n),
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -127,7 +138,14 @@ class DesignPreviewPainter extends CustomPainter {
   /// The colours of the appearance in effect.
   final Palette palette;
 
-  const DesignPreviewPainter(this.design, {this.palette = Palette.light});
+  /// The language its words — IN, OUT — are written in.
+  final Words words;
+
+  const DesignPreviewPainter(
+    this.design, {
+    this.palette = Palette.light,
+    this.words = const EnglishWords(),
+  });
 
   /// The drawing's layers for a preview: the design itself, and nothing
   /// that is there to work on it with.
@@ -149,6 +167,7 @@ class DesignPreviewPainter extends CustomPainter {
         view: view,
         layers: layers,
         ink: palette.cad,
+        words: words,
       ).paint(canvas, size);
       return;
     }
@@ -196,5 +215,6 @@ class DesignPreviewPainter extends CustomPainter {
   bool shouldRepaint(DesignPreviewPainter old) =>
       old.design.id != design.id ||
       old.design.updatedAt != design.updatedAt ||
-      old.palette != palette;
+      old.palette != palette ||
+      old.words != words;
 }

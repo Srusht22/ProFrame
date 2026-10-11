@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/recognition/geometry_feedback.dart';
 import '../../domain/recognition/geometry_validation.dart';
+import '../l10n/l10n.dart';
 import '../state/tools.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -123,7 +124,7 @@ class _GeometryCheckState extends ConsumerState<GeometryCheckPanel> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          feedback.title,
+                          feedback.titleIn(context.words),
                           style: text.titleSmall?.copyWith(
                             color: palette.onNotice,
                           ),
@@ -131,9 +132,15 @@ class _GeometryCheckState extends ConsumerState<GeometryCheckPanel> {
                         if (!_open)
                           Text(
                             count == 1
-                                ? feedback.notices.single.message
-                                : '${feedback.notices.first.message}  '
-                                      '+${count - 1} more',
+                                ? feedback.notices.single.messageIn(
+                                    context.words,
+                                  )
+                                : context.l10n.gcMore(
+                                    feedback.notices.first.messageIn(
+                                      context.words,
+                                    ),
+                                    count - 1,
+                                  ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: text.bodySmall?.copyWith(
@@ -144,7 +151,7 @@ class _GeometryCheckState extends ConsumerState<GeometryCheckPanel> {
                     ),
                   ),
                   Text(
-                    _counted(feedback),
+                    _counted(context.l10n, feedback),
                     style: text.labelSmall?.copyWith(
                       color: palette.onNotice.withValues(alpha: 0.8),
                     ),
@@ -152,7 +159,9 @@ class _GeometryCheckState extends ConsumerState<GeometryCheckPanel> {
                   Icon(
                     _open ? Icons.expand_more : Icons.expand_less,
                     color: palette.onNotice,
-                    semanticLabel: _open ? 'Fewer details' : 'More details',
+                    semanticLabel: _open
+                        ? context.l10n.gcFewerDetails
+                        : context.l10n.gcMoreDetails,
                   ),
                 ],
               ),
@@ -162,7 +171,7 @@ class _GeometryCheckState extends ConsumerState<GeometryCheckPanel> {
             Padding(
               padding: const EdgeInsets.fromLTRB(28, 2, 8, 6),
               child: Text(
-                feedback.summary,
+                feedback.summaryIn(context.words),
                 style: text.bodySmall?.copyWith(
                   color: palette.onNotice.withValues(alpha: 0.85),
                 ),
@@ -196,11 +205,9 @@ class _GeometryCheckState extends ConsumerState<GeometryCheckPanel> {
     );
   }
 
-  static String _counted(GeometryFeedback feedback) => [
-    if (feedback.errors > 0)
-      feedback.errors == 1 ? '1 error' : '${feedback.errors} errors',
-    if (feedback.warnings > 0)
-      feedback.warnings == 1 ? '1 warning' : '${feedback.warnings} warnings',
+  static String _counted(AppLocalizations l, GeometryFeedback feedback) => [
+    if (feedback.errors > 0) l.gcErrors(feedback.errors),
+    if (feedback.warnings > 0) l.gcWarnings(feedback.warnings),
   ].join(' · ');
 }
 
@@ -239,13 +246,13 @@ class _NoticeRow extends StatelessWidget {
               children: [
                 Text(
                   notice.severity == GeometryProblemSeverity.error
-                      ? 'Error'
-                      : 'Warning',
+                      ? context.l10n.gcError
+                      : context.l10n.gcWarning,
                   style: Theme.of(context).textTheme.labelSmall
                       ?.copyWith(color: palette.muted),
                 ),
                 Text(
-                  notice.message,
+                  notice.messageIn(context.words),
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
@@ -261,7 +268,9 @@ class _NoticeRow extends StatelessWidget {
                     : Icons.visibility_outlined,
                 size: 17,
               ),
-              label: Text(shown ? 'Hide' : 'Show me'),
+              label: Text(
+                shown ? context.l10n.actHide : context.l10n.actShowMe,
+              ),
             ),
         ],
       ),
@@ -282,6 +291,6 @@ class _SeverityIcon extends StatelessWidget {
     color: error
         ? Theme.of(context).colorScheme.error
         : context.palette.onNotice,
-    semanticLabel: error ? 'Error' : 'Warning',
+    semanticLabel: error ? context.l10n.gcError : context.l10n.gcWarning,
   );
 }

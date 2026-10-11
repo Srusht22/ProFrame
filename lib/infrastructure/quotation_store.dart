@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/pricing/pricing_access.dart';
 import '../domain/pricing/quotation.dart';
+import '../domain/text/words.dart';
 
 /// One page of a customer's quotations, newest first, and how many there
 /// are.
@@ -82,14 +83,20 @@ class QuotationStore {
     QuotationStatus next, {
     required Authority by,
     DateTime? now,
+    Words words = const EnglishWords(),
   }) async {
     by.require(Capability.quotationsEdit);
     final prefs = await SharedPreferences.getInstance();
     final kept = _loadNow(prefs, id);
     if (kept == null) {
-      return (quotation: null, problem: 'That quotation is not kept.');
+      return (quotation: null, problem: words.quotationGone);
     }
-    final changed = kept.become(next, at: now ?? DateTime.now(), by: by.label);
+    final changed = kept.become(
+      next,
+      at: now ?? DateTime.now(),
+      by: by.label,
+      words: words,
+    );
     if (changed.quotation case final q?) {
       await prefs.setString(_key(q.id), jsonEncode(q.toJson()));
     }

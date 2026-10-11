@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../domain/model/materials.dart';
 import '../../domain/pricing/price_list.dart';
 import '../../domain/pricing/profile_selection.dart';
+import '../../domain/text/names.dart';
+import '../l10n/l10n.dart';
 import '../theme/app_theme.dart';
 
 /// The design's profile — its **Material** and its **Colour** — as its
@@ -71,7 +73,9 @@ class ProfileChooser extends StatelessWidget {
         offered.add((
           key: value,
           swatch: colour,
-          name: '${selection.colourName(list)} (special)',
+          name: context.l10n.pcSpecial(
+            selection.colourNameIn(context.words, list),
+          ),
         ));
       } else {
         value = entry.id;
@@ -80,11 +84,11 @@ class ProfileChooser extends StatelessWidget {
         }
       }
     }
-    final problem = pricing?.problem;
+    final problem = pricing?.problemIn(context.words);
     // A retired colour the design is still in: said under the field, where
     // it is read whole, rather than cut off after the name.
     final retired = problem == null && entry != null && !entry.active
-        ? 'Retired: no longer offered for new designs.'
+        ? context.l10n.pcRetired
         : null;
     final change = onChanged;
 
@@ -109,17 +113,20 @@ class ProfileChooser extends StatelessWidget {
           width: 220,
           child: field(
             key: materialKey,
-            label: 'Material',
+            label: context.l10n.pcMaterial,
             child: DropdownButtonFormField<MaterialKind>(
               // A field reads its value once: keyed by it, so a profile
               // chosen anywhere else is shown here at once.
               key: ValueKey(('material', material)),
               initialValue: material,
               isExpanded: true,
-              hint: const Text('Not selected'),
+              hint: Text(context.words.notSelected),
               items: [
                 for (final m in materials)
-                  DropdownMenuItem(value: m, child: Text(m.label)),
+                  DropdownMenuItem(
+                    value: m,
+                    child: Text(m.labelIn(context.words)),
+                  ),
               ],
               // The colour goes with the material, as the catalog colour it
               // is: where the new material is not sold in it, the price
@@ -138,12 +145,12 @@ class ProfileChooser extends StatelessWidget {
           width: 220,
           child: field(
             key: colourKey,
-            label: 'Colour',
+            label: context.l10n.pcColour,
             child: DropdownButtonFormField<String>(
               key: ValueKey(('colour', colourMaterial, value, problem)),
               initialValue: value,
               isExpanded: true,
-              hint: const Text('Not selected'),
+              hint: Text(context.words.notSelected),
               decoration: InputDecoration(
                 errorText: problem,
                 errorMaxLines: 3,

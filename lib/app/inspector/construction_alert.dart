@@ -5,6 +5,7 @@ import '../../domain/model/design.dart';
 import '../../domain/model/infill.dart';
 import '../../domain/model/materials.dart';
 import '../../domain/model/question.dart';
+import '../l10n/l10n.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'alert_layer.dart';
@@ -34,7 +35,7 @@ class ConstructionAlert extends ConsumerWidget {
     return AlertLayer(
       question: question,
       cardFor: (question) => _ConstructionCard(
-        question: question,
+        question: question.inWords(context.words),
         onSay: (construction, finish) =>
             controller.sayConstruction(construction, finish: finish),
         onNotNow: controller.putConstructionAway,
@@ -71,7 +72,7 @@ class _ConstructionCardState extends State<_ConstructionCard> {
     final fill = _fill;
     return _Card(
       icon: Icons.door_front_door_outlined,
-      title: 'Glass or panel',
+      title: context.l10n.glassOrPanelTitle,
       children: [
         AlertStep(
           order: 0,
@@ -79,8 +80,8 @@ class _ConstructionCardState extends State<_ConstructionCard> {
             fill == null
                 ? widget.question.prompt
                 : fill == Fill.panel
-                ? 'What colour is the panel?'
-                : 'What glass is it?',
+                ? context.l10n.whatPanelColour
+                : context.l10n.whatGlass,
             style: theme.textTheme.titleLarge?.copyWith(fontSize: 21),
           ),
         ),
@@ -90,8 +91,7 @@ class _ConstructionCardState extends State<_ConstructionCard> {
           child: Text(
             fill == null
                 ? widget.question.detail!
-                : 'Every part you draw starts as this. Any part can be '
-                      'changed later with Material.',
+                : context.l10n.everyPartStartsAs,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: context.palette.muted,
               height: 1.45,
@@ -100,23 +100,23 @@ class _ConstructionCardState extends State<_ConstructionCard> {
         ),
         const SizedBox(height: 18),
         if (fill == null) ...[
-          for (final (i, choice) in const [
+          for (final (i, choice) in [
             (
               Construction.panel,
-              'Entire design = Panel',
-              'Every part is a solid panel.',
+              context.l10n.wholePanel,
+              context.l10n.wholePanelDetail,
               Icons.rectangle,
             ),
             (
               Construction.glass,
-              'Entire design = Glass',
-              'Every part is glazed.',
+              context.l10n.wholeGlass,
+              context.l10n.wholeGlassDetail,
               Icons.window_outlined,
             ),
             (
               Construction.both,
-              'Both Panel + Glass',
-              'You choose which parts are glass and which are panel.',
+              context.l10n.bothPanelGlass,
+              context.l10n.bothPanelGlassDetail,
               Icons.view_agenda_outlined,
             ),
           ].indexed) ...[
@@ -138,10 +138,10 @@ class _ConstructionCardState extends State<_ConstructionCard> {
           ],
           const SizedBox(height: 8),
           Align(
-            alignment: Alignment.centerRight,
+            alignment: AlignmentDirectional.centerEnd,
             child: TextButton(
               onPressed: widget.onNotNow,
-              child: const Text('Not now'),
+              child: Text(context.l10n.actNotNow),
             ),
           ),
         ] else ...[
@@ -159,7 +159,7 @@ class _ConstructionCardState extends State<_ConstructionCard> {
                   _finish = null;
                 }),
                 icon: const Icon(Icons.arrow_back, size: 18),
-                label: const Text('Back'),
+                label: Text(context.l10n.actBack),
               ),
               const Spacer(),
               FilledButton(
@@ -173,7 +173,7 @@ class _ConstructionCardState extends State<_ConstructionCard> {
                         _finish,
                       ),
                 style: FilledButton.styleFrom(minimumSize: const Size(0, 46)),
-                child: const Text('Continue'),
+                child: Text(context.l10n.actContinue),
               ),
             ],
           ),
@@ -202,55 +202,60 @@ class PartsAlert extends ConsumerWidget {
     final controller = ref.read(workspaceProvider.notifier);
     return AlertLayer(
       question: question,
-      cardFor: (question) => question.id == WorkspaceState.onePartQuestionId
-          ? _Card(
-              icon: Icons.horizontal_rule,
-              title: 'Glass or panel',
-              children: [
-                AlertStep(
-                  order: 0,
-                  child: Text(
-                    question.prompt,
-                    style: Theme.of(context).textTheme.titleLarge
-                        ?.copyWith(fontSize: 21),
+      cardFor: (asked) {
+        final question = asked.inWords(context.words);
+        return question.id == WorkspaceState.onePartQuestionId
+            ? _Card(
+                icon: Icons.horizontal_rule,
+                title: context.l10n.glassOrPanelTitle,
+                children: [
+                  AlertStep(
+                    order: 0,
+                    child: Text(
+                      question.prompt,
+                      style: Theme.of(context).textTheme.titleLarge
+                          ?.copyWith(fontSize: 21),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                AlertStep(
-                  order: 1,
-                  child: Text(
-                    question.detail!,
-                    style: Theme.of(context).textTheme.bodyMedium
-                        ?.copyWith(color: context.palette.muted, height: 1.45),
+                  const SizedBox(height: 8),
+                  AlertStep(
+                    order: 1,
+                    child: Text(
+                      question.detail!,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: context.palette.muted,
+                        height: 1.45,
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 18),
-                AlertStep(
-                  order: 2,
-                  child: _Choice(
-                    key: const ValueKey('draw-divider'),
-                    icon: Icons.show_chart,
-                    label: 'Draw divider',
-                    detail: 'Back to the drawing with a straight line.',
-                    primary: true,
-                    onTap: controller.drawDivider,
+                  const SizedBox(height: 18),
+                  AlertStep(
+                    order: 2,
+                    child: _Choice(
+                      key: const ValueKey('draw-divider'),
+                      icon: Icons.show_chart,
+                      label: context.l10n.drawDivider,
+                      detail: context.l10n.drawDividerDetail,
+                      primary: true,
+                      onTap: controller.drawDivider,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: controller.partsLater,
-                    child: const Text('Later'),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: TextButton(
+                      onPressed: controller.partsLater,
+                      child: Text(context.l10n.actLater),
+                    ),
                   ),
-                ),
-              ],
-            )
-          : _PartsCard(
-              question: question,
-              onDone: controller.assignParts,
-              onLater: controller.partsLater,
-            ),
+                ],
+              )
+            : _PartsCard(
+                question: question,
+                onDone: controller.assignParts,
+                onLater: controller.partsLater,
+              );
+      },
     );
   }
 }
@@ -283,7 +288,7 @@ class _PartsCardState extends ConsumerState<_PartsCard> {
     final theme = Theme.of(context);
     return _Card(
       icon: Icons.view_agenda_outlined,
-      title: 'Glass or panel',
+      title: context.l10n.glassOrPanelTitle,
       children: [
         AlertStep(
           order: 0,
@@ -322,20 +327,21 @@ class _PartsCardState extends ConsumerState<_PartsCard> {
             Expanded(
               child: Text(
                 left == 0
-                    ? 'Every part is chosen.'
-                    : left == 1
-                    ? '1 part still to choose.'
-                    : '$left parts still to choose.',
+                    ? context.l10n.everyPartChosen
+                    : context.l10n.partsLeft(left),
                 style: theme.textTheme.bodySmall,
               ),
             ),
-            TextButton(onPressed: widget.onLater, child: const Text('Later')),
+            TextButton(
+              onPressed: widget.onLater,
+              child: Text(context.l10n.actLater),
+            ),
             const SizedBox(width: 8),
             FilledButton(
               key: const ValueKey('parts-done'),
               onPressed: left == 0 ? () => widget.onDone({..._said}) : null,
               style: FilledButton.styleFrom(minimumSize: const Size(0, 46)),
-              child: const Text('Done'),
+              child: Text(context.l10n.actDone),
             ),
           ],
         ),
@@ -434,6 +440,7 @@ class _Choice extends StatelessWidget {
                     detail,
                     style: TextStyle(
                       fontFamily: AppTheme.fontFamily,
+                      fontFamilyFallback: AppTheme.fontFallback,
                       fontSize: 12.5,
                       height: 1.35,
                       color: fore.withValues(alpha: 0.78),

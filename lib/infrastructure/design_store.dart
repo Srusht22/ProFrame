@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/dimensions/measurements.dart';
 import '../domain/model/design.dart';
 import '../domain/pricing/pricing_access.dart';
+import '../domain/text/words.dart';
 import 'customer_store.dart';
 import 'price_record_store.dart';
 
@@ -53,6 +54,9 @@ class DesignSummary {
   /// What to call it on the screen — its name, or where it has none,
   /// `shownNameOf` says so.
   String get shownName => shownNameOf(name, kind);
+
+  /// [shownName], in [w].
+  String shownNameIn(Words w) => shownNameOfIn(w, name, kind);
 
   /// The overall size, where the drawing has been read into a frame.
   final double? widthMm;
@@ -677,6 +681,7 @@ class DesignStore {
     String id, {
     required Authority by,
     DateTime? now,
+    Words words = const EnglishWords(),
   }) async {
     by.require(Capability.designsCreate);
     final original = await _load(id);
@@ -685,7 +690,7 @@ class DesignStore {
     final at = now ?? DateTime.now();
     final json = original.toJson()
       ..['id'] = 'design-${at.microsecondsSinceEpoch}'
-      ..['name'] = '${original.name} (copy)'
+      ..['name'] = words.copyOf(original.name)
       ..['createdAt'] = at.toIso8601String()
       ..['updatedAt'] = at.toIso8601String();
     return save(Design.fromJson(json), by: by);

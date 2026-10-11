@@ -22,6 +22,9 @@
 /// deletes one.
 library;
 
+import '../text/names.dart';
+import '../text/words.dart';
+
 /// Which way the money went.
 enum PaymentType {
   /// Money received from the customer.
@@ -180,10 +183,18 @@ class PaymentTransaction {
       type == PaymentType.payment ? amountCents : -amountCents;
 
   /// The method in words: *Cash*, *Other — Company cheque*.
-  String get methodLabel =>
+  String get methodLabel => methodLabelIn(const EnglishWords());
+
+  /// [methodLabel], in [w].
+  String methodLabelIn(Words w) =>
       method == PaymentMethod.other && methodDetail.isNotEmpty
-      ? 'Other — $methodDetail'
-      : method.label;
+      ? w.payOtherDetail(methodDetail)
+      : method.labelIn(w);
+
+  /// The note in [w]: the legacy payment's own note is the application's
+  /// words and is said in [w]; any other is the user's, as written.
+  String noteIn(Words w) =>
+      isLegacy && note == legacyNote ? w.payLegacyNote : note;
 
   Map<String, Object?> toJson() => {
     'id': id,
@@ -383,35 +394,32 @@ class PaymentLedger {
   /// one: a figure of more than nothing, to the cent at most, with no sign
   /// — a refund is its own kind of transaction, never a negative amount.
   /// Thousands may be separated by commas.
-  static ({int? cents, String? problem}) readAmount(String text) {
+  static ({int? cents, String? problem}) readAmount(
+    String text, [
+    Words w = const EnglishWords(),
+  ]) {
     final words = text.trim().replaceAll(',', '');
-    if (words.isEmpty) return (cents: null, problem: 'Enter an amount.');
+    if (words.isEmpty) return (cents: null, problem: w.amtEnter);
     if (words.startsWith('-')) {
-      return (cents: null, problem: 'The amount must be more than nothing.');
+      return (cents: null, problem: w.amtMoreThanNothing);
     }
     if (RegExp(r'^\d*\.\d{3,}$').hasMatch(words)) {
-      return (
-        cents: null,
-        problem: 'Enter the amount to the cent — two decimal places at most.',
-      );
+      return (cents: null, problem: w.amtToTheCent);
     }
     final match =
         RegExp(r'^(\d+)(?:\.(\d{1,2}))?$').firstMatch(words) ??
         RegExp(r'^()\.(\d{1,2})$').firstMatch(words);
     if (match == null) {
-      return (
-        cents: null,
-        problem: 'Enter the amount as a number, such as 500.00.',
-      );
+      return (cents: null, problem: w.amtAsNumber);
     }
     final whole = int.tryParse(match.group(1)!.isEmpty ? '0' : match.group(1)!);
     final fraction = (match.group(2) ?? '').padRight(2, '0');
     if (whole == null || whole > 1000000000) {
-      return (cents: null, problem: 'Enter a smaller amount.');
+      return (cents: null, problem: w.amtSmaller);
     }
     final cents = whole * 100 + int.parse(fraction);
     if (cents <= 0) {
-      return (cents: null, problem: 'The amount must be more than nothing.');
+      return (cents: null, problem: w.amtMoreThanNothing);
     }
     return (cents: cents, problem: null);
   }
@@ -439,11 +447,13 @@ class PaymentLedger {
     String? inCurrency,
     Conversion? conversion,
     String Function(int cents, String currency)? moneyIn,
+    Words words = const EnglishWords(),
   }) {
+    final w = words;
     final own = inCurrency ?? currency;
     final problems = <String, String>{};
     if (cents == null || cents <= 0) {
-      problems['amount'] = 'The amount must be more than nothing.';
+      problems['amount'] = w.amtMoreThanNothing;
     } else if (type == PaymentType.refund) {
       final counted = own == currency || conversion != null;
       final net = counted
@@ -454,31 +464,36 @@ class PaymentLedger {
           ? money(net)
           : (moneyIn?.call(net, own) ?? '${net / 100} $own');
       if (net <= 0) {
-        problems['amount'] =
-            'Nothing has been paid${counted ? '' : ' in $own'}, so nothing '
-            'can be refunded.';
+        problems['amount'] = counted
+            ? w.refundNothingPaid
+            : w.refundNothingPaidIn(own);
       } else if (asked > net) {
-        problems['amount'] = 'A refund cannot be more than the net paid, $say.';
+        problems['amount'] = w.refundTooMuch(say);
       }
     }
     if (at.isAfter(now)) {
-      problems['date'] = '${type.label}s cannot be dated in the future.';
+      problems['date'] = type == PaymentType.refund
+          ? w.refundNotFuture
+          : w.paymentNotFuture;
     }
     return problems;
   }
 
   /// What the user typed for an exchange rate, or why it is not one: a
   /// figure of more than nothing, to six decimal places at most.
-  static ({double? rate, String? problem}) readRate(String text) {
+  static ({double? rate, String? problem}) readRate(
+    String text, [
+    Words w = const EnglishWords(),
+  ]) {
     final words = text.trim().replaceAll(',', '');
     if (words.isEmpty) return (rate: null, problem: null);
     if (!RegExp(r'^\d*\.?\d{1,6}$').hasMatch(words) ||
         RegExp(r'^\d+\.$').hasMatch(words)) {
-      return (rate: null, problem: 'Enter the rate as a number, such as 1.10.');
+      return (rate: null, problem: w.rateAsNumber);
     }
     final rate = double.tryParse(words);
     if (rate == null || !rate.isFinite || rate <= 0) {
-      return (rate: null, problem: 'The rate must be more than nothing.');
+      return (rate: null, problem: w.rateMoreThanNothing);
     }
     return (rate: rate, problem: null);
   }

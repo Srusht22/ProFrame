@@ -8,6 +8,8 @@ import '../../domain/pricing/price_readiness.dart';
 import '../../domain/pricing/price_result.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/profile_selection.dart';
+import '../../domain/text/words.dart';
+import '../l10n/l10n.dart';
 import '../state/access.dart';
 import '../state/pricing.dart';
 import '../state/workspace.dart';
@@ -59,7 +61,10 @@ class PricePanel extends ConsumerStatefulWidget {
 
   /// What a line counts and at what: `7.60 m × 7.00`, `2.00 m² × 30.00`,
   /// `3 × 3.00`, `10% of 600.00`.
-  static String quantity(PriceLine line) => switch (line.unit) {
+  static String quantity(
+    PriceLine line, [
+    Words w = const EnglishWords(),
+  ]) => switch (line.unit) {
     PriceUnit.metre =>
       '${Metres(line.quantity).label} × '
           '${line.rate.toStringAsFixed(2)}',
@@ -69,10 +74,11 @@ class PricePanel extends ConsumerStatefulWidget {
     PriceUnit.each =>
       '${line.quantity.round()} × '
           '${line.rate.toStringAsFixed(2)}',
-    PriceUnit.percent =>
-      '${line.quantity}% of '
-          '${line.rate.toStringAsFixed(2)}',
-    PriceUnit.fixed => 'fixed',
+    PriceUnit.percent => w.ppPercentOf(
+      '${line.quantity}',
+      line.rate.toStringAsFixed(2),
+    ),
+    PriceUnit.fixed => w.ppFixed,
   };
 
   @override
@@ -153,11 +159,13 @@ class _PricePanelState extends ConsumerState<PricePanel> {
     final starter = ref.watch(
       priceListProvider.select((l) => l.value?.isStarter ?? false),
     );
-    final migration = ref.watch(
-      priceListProvider.select(
-        (l) => l.value?.migratedFrom == null ? null : l.value!.migrationNotes,
-      ),
-    );
+    final migration = ref
+        .watch(
+          priceListProvider.select(
+            (l) => l.value?.migratedFrom == null ? null : l.value,
+          ),
+        )
+        ?.migrationNotesIn(context.words);
     final choices = ref.watch(
       workspaceProvider.select((s) => s.design.pricing),
     );
@@ -182,7 +190,7 @@ class _PricePanelState extends ConsumerState<PricePanel> {
       key: PricePanel.panelKey,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('PRICE', style: text.labelLarge),
+        Text(context.l10n.ppPrice, style: text.labelLarge),
         const SizedBox(height: 6),
         // What the design is made of, chosen here as in the frame's own
         // panel: the material and colour whose rates its price reads.
@@ -214,7 +222,9 @@ class _PricePanelState extends ConsumerState<PricePanel> {
                       if (context.mounted) {
                         ScaffoldMessenger.of(
                           context,
-                        ).showSnackBar(SnackBar(content: Text(e.toString())));
+                        ).showSnackBar(
+                          SnackBar(content: Text(e.messageIn(context.words))),
+                        );
                       }
                       return;
                     }
@@ -226,7 +236,7 @@ class _PricePanelState extends ConsumerState<PricePanel> {
           const SizedBox(height: 10),
         ],
         if (state == null)
-          Text('Reading the price list…', style: text.bodySmall)
+          Text(context.l10n.ppReadingList, style: text.bodySmall)
         else ...[
           if (live != null && live.isPriced) ...[
             MeasurementRows(live.measurements),
@@ -235,10 +245,13 @@ class _PricePanelState extends ConsumerState<PricePanel> {
           if (result != null)
             Row(
               children: [
-                Expanded(child: Text('Total', style: text.titleMedium)),
+                Expanded(
+                  child: Text(context.l10n.ppTotal, style: text.titleMedium),
+                ),
                 Text(
                   PricePanel.money(result.total!, result.currency),
                   key: PricePanel.totalKey,
+                  textDirection: TextDirection.ltr,
                   style: text.titleMedium?.copyWith(
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
@@ -247,7 +260,7 @@ class _PricePanelState extends ConsumerState<PricePanel> {
             )
           else ...[
             Text(
-              state.note,
+              state.noteIn(context.words),
               key: PricePanel.stateKey,
               style: text.titleMedium,
             ),
@@ -260,9 +273,8 @@ class _PricePanelState extends ConsumerState<PricePanel> {
                   // drawing; here it is pointed to, not said twice.
                   state.readiness.missing.firstOrNull?.kind ==
                           PriceRequirementKind.geometry
-                      ? 'Please correct the geometry shown under the '
-                            'drawing to calculate the price.'
-                      : state.message,
+                      ? context.l10n.ppCorrectGeometry
+                      : state.messageIn(context.words),
                   style: text.bodySmall,
                 ),
               ),
@@ -272,8 +284,7 @@ class _PricePanelState extends ConsumerState<PricePanel> {
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  'Previous calculation: '
-                  '${PricePanel.money(previous, currency)} — not current',
+                  context.l10n.ppPrevious(PricePanel.money(previous, currency)),
                   key: PricePanel.previousKey,
                   style: text.bodySmall?.copyWith(
                     color: p.muted,
@@ -294,11 +305,11 @@ class _PricePanelState extends ConsumerState<PricePanel> {
           if (result != null) ...[
             if (result.discountAmount > 0) ...[
               PriceRow(
-                'Subtotal',
+                context.l10n.finSubtotal,
                 PricePanel.money(result.subtotal, result.currency),
               ),
               PriceRow(
-                'Discount',
+                context.l10n.finDiscount,
                 '− ${PricePanel.money(result.discountAmount, result.currency)}',
               ),
             ],
@@ -309,8 +320,14 @@ class _PricePanelState extends ConsumerState<PricePanel> {
                 _open ? Icons.expand_less : Icons.expand_more,
                 size: 18,
               ),
-              label: Text(_open ? 'Hide the breakdown' : 'Show the breakdown'),
-              style: TextButton.styleFrom(alignment: Alignment.centerLeft),
+              label: Text(
+                _open
+                    ? context.l10n.ppHideBreakdown
+                    : context.l10n.ppShowBreakdown,
+              ),
+              style: TextButton.styleFrom(
+                alignment: AlignmentDirectional.centerStart,
+              ),
             ),
             if (_open) PriceBreakdown(result),
           ],
@@ -318,7 +335,7 @@ class _PricePanelState extends ConsumerState<PricePanel> {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                'Example prices — the workshop owner sets the real ones.',
+                context.l10n.ppExamplePrices,
                 style: text.bodySmall?.copyWith(color: p.muted),
               ),
             ),
@@ -330,7 +347,7 @@ class _PricePanelState extends ConsumerState<PricePanel> {
               padding: const EdgeInsets.only(top: 4),
               child: Text(
                 [
-                  'Prices carried over from an older price list.',
+                  context.l10n.ppCarriedOver,
                   ...migration,
                 ].join(' '),
                 style: text.bodySmall?.copyWith(color: p.muted),
@@ -340,7 +357,10 @@ class _PricePanelState extends ConsumerState<PricePanel> {
         Row(
           children: [
             Expanded(
-              child: Text('Include installation', style: text.bodyMedium),
+              child: Text(
+                context.l10n.ppInstallation,
+                style: text.bodyMedium,
+              ),
             ),
             Switch(
               key: PricePanel.installationKey,
@@ -374,38 +394,39 @@ class MeasurementRows extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = measurements;
+    final l = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // The border and the lines share a rate and are still two
         // measurements: each its own row, then the two together.
         if (m.splitsBorder) ...[
-          PriceRow('Border length', m.borderLength.label, valueKey: borderKey),
+          PriceRow(l.ppBorderLength, m.borderLength.label, valueKey: borderKey),
           PriceRow(
-            'Internal line length',
+            l.ppLineLength,
             m.lineLength.label,
             valueKey: linesKey,
           ),
           PriceRow(
-            'Combined profile length',
+            l.ppCombinedLength,
             m.normalProfile.label,
             valueKey: combinedKey,
           ),
         ] else
           // A price kept before the two were measured apart says only what
           // it measured.
-          PriceRow('Border and internal lines', m.normalProfile.label),
-        PriceRow('Opening profile', m.openingProfile.label),
+          PriceRow(l.ppBorderAndLines, m.normalProfile.label),
+        PriceRow(l.ppOpeningProfile, m.openingProfile.label),
         if (m.otherProfile.value > 0)
-          PriceRow('Other profile', m.otherProfile.label),
+          PriceRow(l.ppOtherProfile, m.otherProfile.label),
         PriceRow(
-          'Total profile',
+          l.ppTotalProfile,
           m.totalProfile.label,
           strong: true,
           valueKey: totalProfileKey,
         ),
-        PriceRow('Panel', m.panelArea.label),
-        PriceRow('Glass', m.glassArea.label),
+        PriceRow(l.fillPanel, m.panelArea.label),
+        PriceRow(l.fillGlass, m.glassArea.label),
       ],
     );
   }
@@ -448,6 +469,9 @@ class PriceRow extends StatelessWidget {
                 value,
                 key: valueKey,
                 style: style,
+                // A figure is read left to right on either screen; words
+                // in the screen's own direction.
+                textDirection: context.directionOf(value),
                 textAlign: TextAlign.end,
               ),
             ),

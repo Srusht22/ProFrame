@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/model/staff.dart';
 import '../domain/pricing/pricing_access.dart';
+import '../domain/text/words.dart';
 import 'owner_access_store.dart';
 
 /// Keeps the workshop's staff and what each may do, on the device.
@@ -39,13 +40,14 @@ class StaffStore {
     String name,
     List<StaffMember> members, {
     String? except,
+    Words w = const EnglishWords(),
   }) {
     final n = name.trim().toLowerCase();
-    if (n.isEmpty) return 'Enter a name.';
+    if (n.isEmpty) return w.staffNameNeeded;
     if (members.any(
       (m) => m.active && m.id != except && m.name.trim().toLowerCase() == n,
     )) {
-      return 'A member of staff is already called that.';
+      return w.staffNameTaken;
     }
     return null;
   }

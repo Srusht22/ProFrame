@@ -1,5 +1,7 @@
 import '../model/elements.dart';
 import '../model/materials.dart';
+import '../text/names.dart';
+import '../text/words.dart';
 import 'price_list.dart';
 import 'profile_category.dart';
 
@@ -51,138 +53,154 @@ class RateField {
   });
 
   /// Why [value] cannot be this figure, or null where it can.
-  String? problemWith(double? value) {
-    if (value == null) return optional ? null : 'A price is needed here.';
-    if (!value.isFinite || value < 0) return 'Enter a figure of 0 or more.';
-    if (whole && value != value.roundToDouble()) return 'Enter a whole number.';
+  String? problemWith(double? value, [Words w = const EnglishWords()]) {
+    if (value == null) return optional ? null : w.rfNeeded;
+    if (!value.isFinite || value < 0) return w.rfZeroOrMore;
+    if (whole && value != value.roundToDouble()) return w.rfWhole;
     return null;
   }
 
   /// Every figure of [list], in the order the editor lists them.
-  static List<RateField> of(PriceList list) => [
-    // Every material's normal profile together, then every opening profile:
-    // the two are read as a pair of columns, not one material at a time.
-    for (final m in list.profiles.keys) ..._normal(m),
-    for (final m in list.profiles.keys) _profile(m).last,
-    for (final m in list.profiles.keys) ..._colours(list, m),
-    ..._looks(
-      'Glass (single sheet)',
-      'glass.single',
-      (l) => l.glassPerM2,
-      (l, map) => l.copyWith(glassPerM2: map),
-      read: (l) => l.customGlassPerM2,
-      write: (l, v) => v == null
-          ? l.copyWith(clearCustomGlass: true)
-          : l.copyWith(customGlassPerM2: v),
-    ),
-    ..._looks(
-      'Sealed glass unit',
-      'glass.sealed',
-      (l) => l.sealedGlassPerM2,
-      (l, map) => l.copyWith(sealedGlassPerM2: map),
-      read: (l) => l.customSealedGlassPerM2,
-      write: (l, v) => v == null
-          ? l.copyWith(clearCustomSealedGlass: true)
-          : l.copyWith(customSealedGlassPerM2: v),
-    ),
-    for (final c in PanelColour.values)
-      RateField(
-        id: 'panel.${c.name}',
-        section: 'Panel',
-        label: c.label,
-        unit: '/ m²',
-        optional: true,
-        read: (l) => l.panelPerM2[c],
-        write: (l, v) => l.copyWith(panelPerM2: _put(l.panelPerM2, c, v)),
-      ),
-    RateField(
-      id: 'panel.custom',
-      section: 'Panel',
-      label: 'Any other colour',
-      unit: '/ m²',
-      optional: true,
-      read: (l) => l.customPanelPerM2,
-      write: (l, v) => v == null
-          ? l.copyWith(clearCustomPanel: true)
-          : l.copyWith(customPanelPerM2: v),
-    ),
-    for (final k in HardwareKind.values)
-      RateField(
-        id: 'hardware.${k.name}',
-        section: 'Hardware',
-        label: k.label,
-        unit: 'each',
-        optional: true,
-        read: (l) => l.hardwareEach[k],
-        write: (l, v) => l.copyWith(hardwareEach: _put(l.hardwareEach, k, v)),
-      ),
-    RateField(
-      id: 'sliding.track',
-      section: 'Sliding',
-      label: 'Track',
-      unit: '/ m',
-      read: (l) => l.trackPerMetre,
-      write: (l, v) => l.copyWith(trackPerMetre: v),
-    ),
-    RateField(
-      id: 'sliding.roller',
-      section: 'Sliding',
-      label: 'Roller',
-      unit: 'each',
-      read: (l) => l.rollerEach,
-      write: (l, v) => l.copyWith(rollerEach: v),
-    ),
-    RateField(
-      id: 'sliding.rollersPerPanel',
-      section: 'Sliding',
-      label: 'Rollers on each sliding panel',
-      unit: 'rollers',
-      whole: true,
-      read: (l) => l.rollersPerSlidingPanel.toDouble(),
-      write: (l, v) => l.copyWith(rollersPerSlidingPanel: v?.round()),
-    ),
-    RateField(
-      id: 'installation.fixed',
-      section: 'Installation',
-      label: 'Each design',
-      unit: 'fixed',
-      read: (l) => l.installation.fixed,
-      write: (l, v) => l.copyWith(
-        installation: InstallationRate(
-          fixed: v ?? 0,
-          perSquareMetre: l.installation.perSquareMetre,
+  ///
+  /// Its sections and labels are in [w]: they are how a figure is shown,
+  /// never how it is kept, which is [id].
+  static List<RateField> of(PriceList list, [Words w = const EnglishWords()]) =>
+      [
+        // Every material's normal profile together, then every opening profile:
+        // the two are read as a pair of columns, not one material at a time.
+        for (final m in list.profiles.keys) ..._normal(m, w),
+        for (final m in list.profiles.keys) _profile(m, w).last,
+        for (final m in list.profiles.keys) ..._colours(list, m, w),
+        ..._looks(
+          w,
+          w.rfGlassSingle,
+          'glass.single',
+          (l) => l.glassPerM2,
+          (l, map) => l.copyWith(glassPerM2: map),
+          read: (l) => l.customGlassPerM2,
+          write: (l, v) => v == null
+              ? l.copyWith(clearCustomGlass: true)
+              : l.copyWith(customGlassPerM2: v),
         ),
-      ),
-    ),
-    RateField(
-      id: 'installation.area',
-      section: 'Installation',
-      label: 'By area',
-      unit: '/ m²',
-      read: (l) => l.installation.perSquareMetre,
-      write: (l, v) => l.copyWith(
-        installation: InstallationRate(
-          fixed: l.installation.fixed,
-          perSquareMetre: v ?? 0,
+        ..._looks(
+          w,
+          w.rfSealed,
+          'glass.sealed',
+          (l) => l.sealedGlassPerM2,
+          (l, map) => l.copyWith(sealedGlassPerM2: map),
+          read: (l) => l.customSealedGlassPerM2,
+          write: (l, v) => v == null
+              ? l.copyWith(clearCustomSealedGlass: true)
+              : l.copyWith(customSealedGlassPerM2: v),
         ),
-      ),
-    ),
-    for (final MapEntry(key: name, value: rate) in list.categories.entries)
-      ..._labour(name, rate.label),
-  ];
+        for (final c in PanelColour.values)
+          RateField(
+            id: 'panel.${c.name}',
+            section: w.rfPanel,
+            label: c.labelIn(w),
+            unit: '/ m²',
+            optional: true,
+            read: (l) => l.panelPerM2[c],
+            write: (l, v) => l.copyWith(panelPerM2: _put(l.panelPerM2, c, v)),
+          ),
+        RateField(
+          id: 'panel.custom',
+          section: w.rfPanel,
+          label: w.rfAnyOtherColour,
+          unit: '/ m²',
+          optional: true,
+          read: (l) => l.customPanelPerM2,
+          write: (l, v) => v == null
+              ? l.copyWith(clearCustomPanel: true)
+              : l.copyWith(customPanelPerM2: v),
+        ),
+        for (final k in HardwareKind.values)
+          RateField(
+            id: 'hardware.${k.name}',
+            section: w.rfHardware,
+            label: k.labelIn(w),
+            unit: w.rfUnitEach,
+            optional: true,
+            read: (l) => l.hardwareEach[k],
+            write: (l, v) =>
+                l.copyWith(hardwareEach: _put(l.hardwareEach, k, v)),
+          ),
+        RateField(
+          id: 'sliding.track',
+          section: w.rfSliding,
+          label: w.rfTrack,
+          unit: '/ m',
+          read: (l) => l.trackPerMetre,
+          write: (l, v) => l.copyWith(trackPerMetre: v),
+        ),
+        RateField(
+          id: 'sliding.roller',
+          section: w.rfSliding,
+          label: w.rfRoller,
+          unit: w.rfUnitEach,
+          read: (l) => l.rollerEach,
+          write: (l, v) => l.copyWith(rollerEach: v),
+        ),
+        RateField(
+          id: 'sliding.rollersPerPanel',
+          section: w.rfSliding,
+          label: w.rfRollersPerPanel,
+          unit: w.rfUnitRollers,
+          whole: true,
+          read: (l) => l.rollersPerSlidingPanel.toDouble(),
+          write: (l, v) => l.copyWith(rollersPerSlidingPanel: v?.round()),
+        ),
+        RateField(
+          id: 'installation.fixed',
+          section: w.rfInstallation,
+          label: w.rfEachDesign,
+          unit: w.rfUnitFixed,
+          read: (l) => l.installation.fixed,
+          write: (l, v) => l.copyWith(
+            installation: InstallationRate(
+              fixed: v ?? 0,
+              perSquareMetre: l.installation.perSquareMetre,
+            ),
+          ),
+        ),
+        RateField(
+          id: 'installation.area',
+          section: w.rfInstallation,
+          label: w.rfByArea,
+          unit: '/ m²',
+          read: (l) => l.installation.perSquareMetre,
+          write: (l, v) => l.copyWith(
+            installation: InstallationRate(
+              fixed: l.installation.fixed,
+              perSquareMetre: v ?? 0,
+            ),
+          ),
+        ),
+        for (final MapEntry(key: name, value: rate) in list.categories.entries)
+          ..._labour(
+            name,
+            rate.label,
+            w,
+            DesignKind.values
+                    .where((k) => k.name == name)
+                    .firstOrNull
+                    ?.labelIn(w) ??
+                rate.label,
+          ),
+      ];
 
   /// A metre of [m]'s border and lines: one figure, or — for a material
   /// sold by profile category — one figure a category, each its own and
   /// optional, a category left empty being one that is not priced.
-  static List<RateField> _normal(MaterialKind m) => [
+  static List<RateField> _normal(MaterialKind m, Words w) => [
     if (!ProfileCategory.divides(m))
-      _profile(m).first
+      _profile(m, w).first
     else
       for (final c in ProfileCategory.of(m))
         RateField(
           id: 'profile.${m.name}.${c.name}',
-          section: 'Border and internal lines',
-          label: c.label,
+          section: w.rfBorderLines,
+          label: c.labelIn(w),
           unit: '/ m',
           optional: true,
           read: (l) => l.profiles[m]?.categories[c],
@@ -205,19 +223,19 @@ class RateField {
         ),
   ];
 
-  static List<RateField> _profile(MaterialKind m) => [
+  static List<RateField> _profile(MaterialKind m, Words w) => [
     RateField(
       id: 'profile.${m.name}.normal',
-      section: 'Border and internal lines',
-      label: m.label,
+      section: w.rfBorderLines,
+      label: m.labelIn(w),
       unit: '/ m',
       read: (l) => l.profiles[m]?.normalPerMetre,
       write: (l, v) => _withProfile(l, m, normal: v),
     ),
     RateField(
       id: 'profile.${m.name}.opening',
-      section: 'Opening profile',
-      label: m.label,
+      section: w.rfOpeningProfile,
+      label: m.labelIn(w),
       unit: '/ m',
       read: (l) => l.profiles[m]?.openingPerMetre,
       write: (l, v) => _withProfile(l, m, opening: v),
@@ -228,13 +246,13 @@ class RateField {
   /// metre, and a share of the profile's price. The catalog's own colours
   /// are edited as colours (`ColourCatalog`), each change a version of the
   /// list, so their rates are not fields here.
-  static List<RateField> _colours(PriceList list, MaterialKind m) {
-    final section = 'Any other colour — ${m.label}';
+  static List<RateField> _colours(PriceList list, MaterialKind m, Words w) {
+    final section = w.rfAnyOtherColourOf(m.labelIn(w));
     return [
       RateField(
         id: 'colour.${m.name}.special.metre',
         section: section,
-        label: 'A metre',
+        label: w.rfAMetre,
         unit: '/ m',
         read: (l) => l.profiles[m]?.special.perMetre,
         write: (l, v) => _withSpecial(l, m, perMetre: v ?? 0),
@@ -242,7 +260,7 @@ class RateField {
       RateField(
         id: 'colour.${m.name}.special.percent',
         section: section,
-        label: 'On the profile',
+        label: w.rfOnProfile,
         unit: '%',
         read: (l) => l.profiles[m]?.special.percent,
         write: (l, v) => _withSpecial(l, m, percent: v ?? 0),
@@ -251,6 +269,7 @@ class RateField {
   }
 
   static List<RateField> _looks(
+    Words w,
     String section,
     String id,
     Map<GlassLook, double> Function(PriceList) map,
@@ -262,7 +281,7 @@ class RateField {
       RateField(
         id: '$id.${look.name}',
         section: section,
-        label: look.label,
+        label: look.labelIn(w),
         unit: '/ m²',
         optional: true,
         read: (l) => map(l)[look],
@@ -271,7 +290,7 @@ class RateField {
     RateField(
       id: '$id.custom',
       section: section,
-      label: 'Any other colour',
+      label: w.rfAnyOtherColour,
       unit: '/ m²',
       optional: true,
       read: read,
@@ -279,7 +298,12 @@ class RateField {
     ),
   ];
 
-  static List<RateField> _labour(String category, String label) {
+  static List<RateField> _labour(
+    String category,
+    String label,
+    Words w,
+    String shown,
+  ) {
     LabourRate of(PriceList l) =>
         l.categories[category]?.labour ?? const LabourRate();
     PriceList put(PriceList l, LabourRate labour) => l.copyWith(
@@ -288,13 +312,13 @@ class RateField {
         category: CategoryRate(l.categories[category]?.label ?? label, labour),
       },
     );
-    final section = 'Labour — $label';
+    final section = w.rfLabourOf(shown);
     return [
       RateField(
         id: 'labour.$category.fixed',
         section: section,
-        label: 'Each design',
-        unit: 'fixed',
+        label: w.rfEachDesign,
+        unit: w.rfUnitFixed,
         read: (l) => of(l).fixed,
         write: (l, v) => put(
           l,
@@ -308,7 +332,7 @@ class RateField {
       RateField(
         id: 'labour.$category.area',
         section: section,
-        label: 'By area',
+        label: w.rfByArea,
         unit: '/ m²',
         read: (l) => of(l).perSquareMetre,
         write: (l, v) => put(
@@ -323,7 +347,7 @@ class RateField {
       RateField(
         id: 'labour.$category.percent',
         section: section,
-        label: 'On the materials',
+        label: w.rfOnMaterials,
         unit: '%',
         read: (l) => of(l).percent,
         write: (l, v) => put(

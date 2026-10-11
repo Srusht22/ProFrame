@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/question.dart';
+import '../l10n/l10n.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'alert_layer.dart';
@@ -33,7 +34,7 @@ class OutlineGapAlert extends ConsumerWidget {
     return AlertLayer(
       question: question,
       cardFor: (question) => _Card(
-        question: question,
+        question: question.inWords(context.words),
         onAnswer: (key) => controller.answer(question.id, key),
       ),
     );
@@ -68,7 +69,7 @@ class _Card extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Design not closed',
+                      context.l10n.designNotClosedTitle,
                       style: theme.textTheme.titleMedium,
                     ),
                   ),
@@ -155,6 +156,7 @@ class _Choice extends StatelessWidget {
                       option.detail!,
                       style: TextStyle(
                         fontFamily: AppTheme.fontFamily,
+                        fontFamilyFallback: AppTheme.fontFallback,
                         fontSize: 12.5,
                         height: 1.35,
                         color: fore.withValues(alpha: 0.78),

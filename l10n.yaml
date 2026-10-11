@@ -1,0 +1,9 @@
+# English is the template and the fallback: a word missing from the Kurdish
+# file is shown in English, never as a key or a blank.
+arb-dir: lib/app/l10n
+template-arb-file: app_en.arb
+output-dir: lib/app/l10n
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false
+untranslated-messages-file: build/untranslated_ckb.json

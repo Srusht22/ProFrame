@@ -4,24 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/model/design.dart';
 import '../../infrastructure/design_store.dart';
 import '../canvas/design_preview.dart';
+import '../l10n/l10n.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
-
-/// The months as a date on a card writes them.
-const monthNames = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
 
 /// The mark of a design's category, wherever one is shown: on a card, on a
 /// filter chip, beside a design's information.
@@ -153,7 +138,7 @@ class DesignActionsSheet extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          summary.shownName,
+                          summary.shownNameIn(context.words),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleMedium,
@@ -170,7 +155,7 @@ class DesignActionsSheet extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '#${summary.number}',
+                    context.l10n.designNumber(summary.number),
                     style: TextStyle(fontSize: 12, color: p.muted),
                   ),
                 ],
@@ -180,8 +165,8 @@ class DesignActionsSheet extends StatelessWidget {
             row(
               DesignAction.open,
               Icons.arrow_forward,
-              'Open',
-              'Carry on with this design.',
+              context.l10n.open,
+              context.l10n.actionOpenLine,
             ),
             // A design of a category this version does not know is kept
             // exactly as it was saved: renaming or copying it here would
@@ -191,21 +176,21 @@ class DesignActionsSheet extends StatelessWidget {
               row(
                 DesignAction.information,
                 Icons.drive_file_rename_outline,
-                'Edit information',
-                'Change the name of this design.',
+                context.l10n.editInformation,
+                context.l10n.actionEditLine,
               ),
               row(
                 DesignAction.duplicate,
                 Icons.copy_all_outlined,
-                'Duplicate',
-                'A copy to change without touching this one.',
+                context.l10n.duplicate,
+                context.l10n.actionDuplicateLine,
               ),
             ],
             row(
               DesignAction.delete,
               Icons.delete_outline,
-              'Delete',
-              'Remove it from this device.',
+              context.l10n.fwDelete,
+              context.l10n.actionDeleteLine,
               colour: danger,
             ),
             const SizedBox(height: 8),

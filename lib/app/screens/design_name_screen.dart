@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/model/new_design_setup.dart';
+import '../l10n/l10n.dart';
 import '../theme/app_theme.dart';
 import 'start_screen.dart';
 
@@ -51,7 +52,7 @@ class _DesignNameScreenState extends State<DesignNameScreen> {
   }
 
   void _continue() {
-    final problem = NewDesignSetup.nameProblem(_name.text);
+    final problem = NewDesignSetup.nameProblem(_name.text, context.words);
     if (problem != null) {
       setState(() => _problem = problem);
       _focus.requestFocus();
@@ -72,7 +73,7 @@ class _DesignNameScreenState extends State<DesignNameScreen> {
     final who = widget.setup.customer?.trim() ?? '';
     final problem = _problem;
     return Scaffold(
-      appBar: AppBar(title: const Text('New Design')),
+      appBar: AppBar(title: Text(context.l10n.newDesign)),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -98,7 +99,7 @@ class _DesignNameScreenState extends State<DesignNameScreen> {
                       const SizedBox(height: 14),
                     ],
                     Text(
-                      'Design name',
+                      context.l10n.designName,
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
@@ -107,7 +108,7 @@ class _DesignNameScreenState extends State<DesignNameScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'What is this design called?',
+                      context.l10n.designNameQuestion,
                       style: TextStyle(fontSize: 14, color: p.muted),
                     ),
                     const SizedBox(height: 26),
@@ -123,8 +124,8 @@ class _DesignNameScreenState extends State<DesignNameScreen> {
                       },
                       onSubmitted: (_) => _continue(),
                       decoration: InputDecoration(
-                        labelText: 'Design name',
-                        hintText: 'e.g. Basement Door',
+                        labelText: context.l10n.designName,
+                        hintText: context.l10n.designNameHint,
                         hintStyle: TextStyle(color: p.muted),
                         prefixIcon: Icon(
                           Icons.drive_file_rename_outline,
@@ -178,15 +179,14 @@ class _DesignNameScreenState extends State<DesignNameScreen> {
                     ],
                     const SizedBox(height: 10),
                     Text(
-                      'The customer is who it is for; this is the name of '
-                      'the design itself.',
+                      context.l10n.designNameNote,
                       style: TextStyle(fontSize: 12.5, color: p.muted),
                     ),
                     const SizedBox(height: 24),
                     FilledButton(
                       key: DesignNameScreen.continueButton,
                       onPressed: _continue,
-                      child: const Text('Continue'),
+                      child: Text(context.l10n.fwContinue),
                     ),
                   ],
                 ),

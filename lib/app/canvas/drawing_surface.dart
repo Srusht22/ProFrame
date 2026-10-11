@@ -10,6 +10,7 @@ import '../../domain/geometry/segment.dart';
 import '../../domain/geometry/vec2.dart';
 import '../../domain/recognition/stroke_fit.dart';
 import '../../domain/sketch/stroke.dart';
+import '../l10n/l10n.dart';
 import '../state/tools.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -175,11 +176,11 @@ class _DrawingSurfaceState extends ConsumerState<DrawingSurface> {
                   ),
                 ),
               ),
-              Positioned(
-                right: 12,
+              PositionedDirectional(
+                end: 12,
                 bottom: 12,
                 child: ViewControls(
-                  fitTooltip: 'Fit the drawing to the view',
+                  fitTooltip: context.l10n.cadFit,
                   onIn: () => setState(
                     () => _view = _transform.zoomed(
                       1.25,
@@ -437,21 +438,21 @@ class _DrawingSurfaceState extends ConsumerState<DrawingSurface> {
       builder: (context) {
         final field = TextEditingController();
         return AlertDialog(
-          title: const Text('Note'),
+          title: Text(context.l10n.cadNoteTitle),
           content: TextField(
             controller: field,
             autofocus: true,
-            decoration: const InputDecoration(hintText: 'Type your note'),
+            decoration: InputDecoration(hintText: context.l10n.cadNoteHint),
             onSubmitted: (value) => Navigator.of(context).pop(value),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(context.l10n.actCancel),
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(field.text),
-              child: const Text('Add'),
+              child: Text(context.l10n.actAdd),
             ),
           ],
         );

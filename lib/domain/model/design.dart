@@ -3,6 +3,8 @@ import '../geometry/segment.dart';
 import '../geometry/vec2.dart';
 import '../pricing/price_result.dart';
 import '../sketch/stroke.dart';
+import '../text/names.dart';
+import '../text/words.dart';
 import 'elements.dart';
 import 'hierarchy.dart';
 import 'materials.dart';
@@ -39,7 +41,15 @@ export 'elements.dart' show Construction, DesignKind, Face, OutlineGap;
 /// label for the absence of a name, shown and never stored: a design begun
 /// without a name is kept with none, rather than with one made up for it.
 String shownNameOf(String name, DesignKind kind) =>
-    name.trim().isEmpty ? 'Untitled ${kind.noun}' : name;
+    _shownNameIn(const EnglishWords(), name, kind);
+
+/// [shownNameOf], in [w]. The name itself is the user's and is never
+/// translated; only the label for there being none is.
+String shownNameOfIn(Words w, String name, DesignKind kind) =>
+    _shownNameIn(w, name, kind);
+
+String _shownNameIn(Words w, String name, DesignKind kind) =>
+    name.trim().isEmpty ? w.untitledDesign(kind.nounIn(w)) : name;
 
 /// Which design this is: its id, whose it is, what it is called and what
 /// it is. Everything the rest of the application needs to know a design by,
@@ -85,6 +95,9 @@ class Design {
 
   /// What to call it on the screen — see [shownNameOf].
   String get shownName => shownNameOf(name, kind);
+
+  /// [shownName], in [w].
+  String shownNameIn(Words w) => _shownNameIn(w, name, kind);
 
   /// The design's **category** — door, window, sliding, or door & window —
   /// chosen once, on *Choose your design*, when the design is begun, and
@@ -411,11 +424,22 @@ class Design {
 
   /// What to call [opening] on screen: its own name, and the mark the user
   /// drew where there is one.
-  String nameOf(OpeningElement opening) {
+  String nameOf(OpeningElement opening) =>
+      nameOfIn(const EnglishWords(), opening);
+
+  /// [nameOf], in [w]: the name in the language, the mark as drawn.
+  String nameOfIn(Words w, OpeningElement opening) {
     final number = numberOf(opening);
-    final name = number > 0 ? 'Opening $number' : 'Opening';
+    final name = number > 0 ? w.openingNumbered(number) : w.openingAlone;
     final glyph = opening.mechanism.glyph ?? opening.markGlyph;
     return glyph == null ? name : '$name  $glyph';
+  }
+
+  /// [opening] as a sentence names it — *Opening 2*, or *the opening* —
+  /// without its mark.
+  String plainNameOfIn(Words w, OpeningElement opening) {
+    final n = numberOf(opening);
+    return n > 0 ? w.openingNumbered(n) : w.openingThe;
   }
 
   /// What [opening] is: the user's own answer, or this design's kind where

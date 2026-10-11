@@ -8,8 +8,11 @@ import '../../domain/model/receipt.dart';
 import '../../domain/pricing/design_price_state.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/quotation.dart';
+import '../../domain/text/names.dart';
 import '../inspector/price_panel.dart';
+import '../l10n/l10n.dart';
 import '../state/access.dart';
+import '../state/language.dart';
 import '../state/pricing.dart';
 import '../theme/app_theme.dart';
 import 'customer_finance.dart' show dayOf, say;
@@ -53,7 +56,7 @@ Future<void> editDiscount(
   final answer = await showDialog<DiscountAnswer>(
     context: context,
     builder: (_) => DiscountDialog(
-      title: 'Discount for ${customer.name}',
+      title: context.l10n.discountFor(customer.name),
       currency: finance.currency,
       subtotalCents: finance.subtotalCents,
       kind: d?.kind,
@@ -81,7 +84,7 @@ Future<void> editDiscount(
   try {
     await ref.applyDiscount(customer.id, entry);
   } on AccessDenied catch (e) {
-    if (context.mounted) say(context, e.toString());
+    if (context.mounted) say(context, e.messageIn(context.words));
   }
 }
 
@@ -136,15 +139,18 @@ class _DiscountDialogState extends State<DiscountDialog> {
 
   String _money(int cents) => PricePanel.money(cents / 100, widget.currency);
 
-  ({int? value, String? problem}) _read() => switch (_kind) {
-    DiscountKind.percent => CustomerDiscount.readPercent(_value.text),
-    DiscountKind.fixed => switch (PaymentLedger.readAmount(_value.text)) {
-      (cents: final c, problem: final p) => (
-        value: c,
-        problem: p == 'Enter an amount.' ? 'Enter the discount.' : p,
-      ),
-    },
-  };
+  ({int? value, String? problem}) _read() {
+    final w = context.words;
+    return switch (_kind) {
+      DiscountKind.percent => CustomerDiscount.readPercent(_value.text, w),
+      DiscountKind.fixed => switch (PaymentLedger.readAmount(_value.text, w)) {
+        (cents: final c, problem: final p) => (
+          value: c,
+          problem: p == w.amtEnter ? w.discountEnter : p,
+        ),
+      },
+    };
+  }
 
   /// What the discount as typed takes off the subtotal, or null.
   int? _off() {
@@ -179,6 +185,7 @@ class _DiscountDialogState extends State<DiscountDialog> {
           value: read.value,
           subtotalCents: widget.subtotalCents,
           money: _money,
+          words: context.words,
         );
     if (problem != null) {
       setState(() => _problem = problem);
@@ -199,6 +206,7 @@ class _DiscountDialogState extends State<DiscountDialog> {
     final text = Theme.of(context).textTheme;
     final subtotal = widget.subtotalCents;
     final off = _none ? 0 : _off();
+    final l = context.l10n;
     return AlertDialog(
       key: DiscountKeys.dialog,
       scrollable: true,
@@ -214,7 +222,7 @@ class _DiscountDialogState extends State<DiscountDialog> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(caption, style: text.bodySmall),
               ),
-            Text('Discount type', style: text.labelMedium),
+            Text(l.discountType, style: text.labelMedium),
             RadioGroup<DiscountKind?>(
               groupValue: _none ? null : _kind,
               onChanged: (k) => setState(() {
@@ -222,25 +230,25 @@ class _DiscountDialogState extends State<DiscountDialog> {
                 _kind = k ?? _kind;
                 _problem = null;
               }),
-              child: const Column(
+              child: Column(
                 children: [
                   RadioListTile<DiscountKind?>(
                     key: DiscountKeys.none,
                     contentPadding: EdgeInsets.zero,
                     value: null,
-                    title: Text('None'),
+                    title: Text(l.discountNoneChoice),
                   ),
                   RadioListTile<DiscountKind?>(
                     key: DiscountKeys.percent,
                     contentPadding: EdgeInsets.zero,
                     value: DiscountKind.percent,
-                    title: Text('Percentage'),
+                    title: Text(l.discountPercent),
                   ),
                   RadioListTile<DiscountKind?>(
                     key: DiscountKeys.fixed,
                     contentPadding: EdgeInsets.zero,
                     value: DiscountKind.fixed,
-                    title: Text('Fixed amount'),
+                    title: Text(l.discountFixed),
                   ),
                 ],
               ),
@@ -254,7 +262,7 @@ class _DiscountDialogState extends State<DiscountDialog> {
                   decimal: true,
                 ),
                 decoration: InputDecoration(
-                  labelText: 'Discount',
+                  labelText: l.finDiscount,
                   suffixText: _kind == DiscountKind.percent
                       ? '%'
                       : widget.currency,
@@ -267,25 +275,25 @@ class _DiscountDialogState extends State<DiscountDialog> {
             TextField(
               key: DiscountKeys.note,
               controller: _note,
-              decoration: const InputDecoration(labelText: 'Reason (optional)'),
+              decoration: InputDecoration(labelText: l.discountReason),
             ),
             const SizedBox(height: 12),
             PriceRow(
-              'Subtotal',
-              subtotal == null ? 'Not final' : _money(subtotal),
+              l.finSubtotal,
+              subtotal == null ? l.finNotFinal : _money(subtotal),
             ),
             PriceRow(
-              'Discount',
+              l.finDiscount,
               _none
-                  ? 'None'
+                  ? l.discountNoneChoice
                   : off == null
                   ? '—'
                   : '−${_money(off)}',
               valueKey: DiscountKeys.previewDiscount,
             ),
             PriceRow(
-              'Final total',
-              subtotal == null ? 'Not final' : _money(subtotal - (off ?? 0)),
+              l.finFinalTotal,
+              subtotal == null ? l.finNotFinal : _money(subtotal - (off ?? 0)),
               strong: true,
               valueKey: DiscountKeys.previewTotal,
             ),
@@ -297,16 +305,16 @@ class _DiscountDialogState extends State<DiscountDialog> {
           TextButton(
             key: DiscountKeys.remove,
             onPressed: _remove,
-            child: const Text('Remove discount'),
+            child: Text(l.discountRemove),
           ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l.actCancel),
         ),
         FilledButton(
           key: DiscountKeys.apply,
           onPressed: _apply,
-          child: const Text('Apply'),
+          child: Text(l.actApply),
         ),
       ],
     );
@@ -390,7 +398,7 @@ class _NewQuotationState extends ConsumerState<NewQuotationDialog> {
       }
       Navigator.of(context).pop(made.quotation!.id);
     } on AccessDenied catch (e) {
-      if (mounted) setState(() => _problem = e.toString());
+      if (mounted) setState(() => _problem = e.messageIn(ref.words));
     } finally {
       if (mounted) setState(() => _making = false);
     }
@@ -406,10 +414,12 @@ class _NewQuotationState extends ConsumerState<NewQuotationDialog> {
     if (pricing != null) {
       _chosen ??= {for (final d in pricing.designs) d.designId};
     }
+    final l = context.l10n;
+    final w = context.words;
     return AlertDialog(
       key: QuotationKeys.dialog,
       scrollable: true,
-      title: Text('New quotation for ${widget.customer.name}'),
+      title: Text(l.quoteNewFor(widget.customer.name)),
       content: SizedBox(
         width: 440,
         child: pricing == null
@@ -418,16 +428,11 @@ class _NewQuotationState extends ConsumerState<NewQuotationDialog> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'The quotation keeps every price as it is now. A '
-                    'complete design is priced first; an incomplete one '
-                    'cannot be quoted.',
-                    style: text.bodySmall,
-                  ),
+                  Text(l.quoteKeepsPrices, style: text.bodySmall),
                   if (pricing.designs.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 12),
-                      child: Text('This customer has no designs yet.'),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(l.quoteNoDesigns),
                     ),
                   for (final d in pricing.designs)
                     CheckboxListTile(
@@ -441,13 +446,13 @@ class _NewQuotationState extends ConsumerState<NewQuotationDialog> {
                             ? _chosen!.add(d.designId)
                             : _chosen!.remove(d.designId);
                       }),
-                      title: Text(d.name),
+                      title: Text(d.nameIn(w)),
                       subtitle: Text(
                         d.state.isCurrent
                             ? PricePanel.money(d.state.total!, pricing.currency)
                             : d.state.canCalculate
-                            ? 'Complete — priced when quoted'
-                            : d.state.label,
+                            ? l.quotePricedWhenQuoted
+                            : d.state.labelIn(w),
                         style: TextStyle(
                           color: d.state.isCurrent || d.state.canCalculate
                               ? null
@@ -457,8 +462,12 @@ class _NewQuotationState extends ConsumerState<NewQuotationDialog> {
                     ),
                   if (widget.customer.discount case final dsc?)
                     Text(
-                      'Discount: '
-                      '${dsc.describe((c) => PricePanel.money(c / 100, pricing.currency))}',
+                      l.quoteDiscountLine(
+                        dsc.describe(
+                          (c) => PricePanel.money(c / 100, pricing.currency),
+                          w,
+                        ),
+                      ),
                       style: text.bodySmall,
                     ),
                   const SizedBox(height: 8),
@@ -467,9 +476,7 @@ class _NewQuotationState extends ConsumerState<NewQuotationDialog> {
                     controller: _notes,
                     maxLines: 3,
                     minLines: 1,
-                    decoration: const InputDecoration(
-                      labelText: 'Notes (optional)',
-                    ),
+                    decoration: InputDecoration(labelText: l.quoteNotes),
                   ),
                   if (_problem case final problem?)
                     Padding(
@@ -486,14 +493,14 @@ class _NewQuotationState extends ConsumerState<NewQuotationDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l.actCancel),
         ),
         FilledButton(
           key: QuotationKeys.create,
           onPressed: pricing == null || _making || (_chosen?.isEmpty ?? true)
               ? null
               : () => _create(pricing),
-          child: const Text('Create quotation'),
+          child: Text(l.quoteCreate),
         ),
       ],
     );
@@ -522,7 +529,7 @@ class QuotationStatusChip extends StatelessWidget {
         border: Border.all(color: colour.withValues(alpha: 0.5)),
       ),
       child: Text(
-        status.label.toUpperCase(),
+        status.labelIn(context.words).toUpperCase(),
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
@@ -581,6 +588,8 @@ class QuotationSheet extends ConsumerWidget {
     final pricesMoved =
         list != null && !list.isStarter && list.version != q.priceListVersion;
     final canEdit = ref.watch(actorProvider).can(Capability.quotationsEdit);
+    final l = context.l10n;
+    final w = context.words;
     return SafeArea(
       child: SingleChildScrollView(
         key: QuotationKeys.sheet,
@@ -588,7 +597,7 @@ class QuotationSheet extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('QUOTATION', style: text.labelMedium),
+            Text(l.quoteHeading, style: text.labelMedium),
             Wrap(
               spacing: 10,
               runSpacing: 6,
@@ -602,9 +611,9 @@ class QuotationSheet extends ConsumerWidget {
               ],
             ),
             Text(
-              'For ${q.customerName} · made ${dayOf(q.createdAt)}'
-              '${q.createdBy.isEmpty ? '' : ' by ${q.createdBy}'} · '
-              'prices of list version ${q.priceListVersion}',
+              '${l.quoteFor(q.customerName, dayOf(q.createdAt, l))}'
+              '${q.createdBy.isEmpty ? '' : l.quoteBy(q.createdBy)} · '
+              '${l.quoteListVersion(q.priceListVersion)}',
               style: text.bodySmall?.copyWith(color: p.muted),
             ),
             if (changed.isNotEmpty || pricesMoved)
@@ -619,39 +628,45 @@ class QuotationSheet extends ConsumerWidget {
                 child: Text(
                   [
                     if (changed.isNotEmpty)
-                      'Design changed after quotation: '
-                          '${changed.map((l) => l.designName).join(', ')}.',
-                    if (pricesMoved) 'The factory prices have changed since.',
-                    'This quotation stays as it was offered; make a new one '
-                        'for the current figures.',
+                      l.quoteDesignChanged(
+                        changed.map((c) => c.designName).join(w.listComma),
+                      ),
+                    if (pricesMoved) l.quotePricesChanged,
+                    l.quoteStaysAsOffered,
                   ].join(' '),
                   style: text.bodySmall?.copyWith(color: p.onNotice),
                 ),
               ),
             const SizedBox(height: 12),
-            for (final l in q.lines)
+            for (final line in q.lines)
               Padding(
-                key: QuotationKeys.line(l.designId),
+                key: QuotationKeys.line(line.designId),
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    PriceRow(l.designName, money(l.totalCents), strong: true),
+                    PriceRow(
+                      line.designName,
+                      money(line.totalCents),
+                      strong: true,
+                    ),
                     Text(
-                      '${l.category} · ${l.material} · ${l.colour}',
+                      '${keptCategoryIn(w, line.category)} · '
+                      '${keptMaterialIn(w, line.material)} · '
+                      '${keptColourIn(w, line.colour)}',
                       style: text.bodySmall?.copyWith(color: p.muted),
                     ),
                     // The design's own extras and discount, as they were
                     // when it was quoted.
-                    for (final e in l.result.extras)
+                    for (final e in line.result.extras)
                       PriceRow(
-                        '   ${e.name} · ${e.sum(money)}',
+                        '   ${e.name} · ${e.sum(money, w)}',
                         money(e.totalCents),
                       ),
-                    if (l.result.discount case final d?)
+                    if (line.result.discount case final d?)
                       PriceRow(
-                        '   Design discount (${d.describe(money)})',
-                        '−${money(l.result.discountCents)}',
+                        '   ${l.quoteDesignDiscount(d.describe(money))}',
+                        '−${money(line.result.discountCents)}',
                       ),
                   ],
                 ),
@@ -659,36 +674,36 @@ class QuotationSheet extends ConsumerWidget {
             if (q.extras.isNotEmpty) ...[
               const Divider(),
               PriceRow(
-                'Designs',
+                l.finDesigns,
                 money(q.designsCents),
                 valueKey: QuotationKeys.designs,
               ),
               for (final e in q.extras)
                 PriceRow(
                   key: QuotationKeys.extra(e.id),
-                  '${e.name} · ${e.sum(money)}',
+                  '${e.name} · ${e.sum(money, w)}',
                   money(e.totalCents),
                 ),
               PriceRow(
-                'Extra charges (whole job)',
+                l.finExtrasWholeJob,
                 money(q.extrasCents),
                 valueKey: QuotationKeys.extras,
               ),
             ],
             const Divider(),
             PriceRow(
-              'Subtotal',
+              l.finSubtotal,
               money(q.subtotalCents),
               valueKey: QuotationKeys.subtotal,
             ),
             if (q.discount case final d?)
               PriceRow(
-                'Discount (${d.describe(money)})',
+                l.finDiscountOf(d.describe(money, w)),
                 '−${money(q.discountCents)}',
                 valueKey: QuotationKeys.discount,
               ),
             PriceRow(
-              'Final total',
+              l.finFinalTotal,
               money(q.totalCents),
               strong: true,
               valueKey: QuotationKeys.total,
@@ -700,8 +715,8 @@ class QuotationSheet extends ConsumerWidget {
             const SizedBox(height: 8),
             for (final h in q.history)
               Text(
-                '${h.status.label} — ${dayOf(h.at)}'
-                '${h.by.isEmpty ? '' : ' by ${h.by}'}',
+                '${l.quoteStatusOn(h.status.labelIn(w), dayOf(h.at, l))}'
+                '${h.by.isEmpty ? '' : l.quoteBy(h.by)}',
                 style: text.bodySmall?.copyWith(color: p.muted),
               ),
             if (canEdit && q.status.next.isNotEmpty) ...[
@@ -720,11 +735,11 @@ class QuotationSheet extends ConsumerWidget {
                         }
                       },
                       child: Text(switch (next) {
-                        QuotationStatus.issued => 'Issue',
-                        QuotationStatus.accepted => 'Mark accepted',
-                        QuotationStatus.rejected => 'Mark rejected',
-                        QuotationStatus.expired => 'Mark expired',
-                        QuotationStatus.draft => 'Draft',
+                        QuotationStatus.issued => l.quoteIssue,
+                        QuotationStatus.accepted => l.quoteMarkAccepted,
+                        QuotationStatus.rejected => l.quoteMarkRejected,
+                        QuotationStatus.expired => l.quoteMarkExpired,
+                        QuotationStatus.draft => l.qsDraft,
                       }),
                     ),
                 ],
@@ -777,6 +792,7 @@ class ReceiptSheet extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final p = context.palette;
     final balance = r.balanceAfterCents;
+    final l = context.l10n;
     return SafeArea(
       child: SingleChildScrollView(
         key: ReceiptKeys.sheet,
@@ -784,37 +800,39 @@ class ReceiptSheet extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('RECEIPT', style: text.labelMedium),
+            Text(l.rcpHeading, style: text.labelMedium),
             Text(r.label, key: ReceiptKeys.number, style: text.headlineSmall),
-            Text('Received from $customerName', style: text.bodyMedium),
+            Text(l.rcpReceivedFrom(customerName), style: text.bodyMedium),
             const SizedBox(height: 12),
             PriceRow(
-              'Amount received',
+              l.rcpAmount,
               PricePanel.money(r.amountCents / 100, r.currency),
               strong: true,
               valueKey: ReceiptKeys.amount,
             ),
             if (r.conversion case final c?)
               PriceRow(
-                'At 1 ${r.currency} = ${c.rate} ${c.to}',
+                l.rcpAtRate(r.currency, '${c.rate}', c.to),
                 PricePanel.money(c.cents / 100, c.to),
               ),
-            PriceRow('Date received', dayOf(r.paidAt)),
-            PriceRow('Payment method', r.methodLabel),
-            if (r.note.isNotEmpty) PriceRow('Note', r.note),
-            PriceRow('Balance after this payment', switch (balance) {
-              null => 'Total not final when issued',
-              > 0 =>
-                '${PricePanel.money(balance / 100, r.balanceCurrency)} due',
-              < 0 =>
-                '${PricePanel.money(-balance / 100, r.balanceCurrency)} credit',
-              _ => 'Paid in full',
+            PriceRow(l.rcpDate, dayOf(r.paidAt, l)),
+            PriceRow(l.finPaymentMethod, r.methodLabelIn(context.words)),
+            if (r.note.isNotEmpty) PriceRow(l.finNote, r.note),
+            PriceRow(l.rcpBalance, switch (balance) {
+              null => l.rcpNotFinal,
+              > 0 => l.rcpDue(
+                PricePanel.money(balance / 100, r.balanceCurrency),
+              ),
+              < 0 => l.rcpCredit(
+                PricePanel.money(-balance / 100, r.balanceCurrency),
+              ),
+              _ => l.rcpPaidInFull,
             }, valueKey: ReceiptKeys.balance),
             const SizedBox(height: 8),
             Text(
-              'Issued ${dayOf(r.issuedAt)}'
-              '${r.issuedBy.isEmpty ? '' : ' by ${r.issuedBy}'} · for payment '
-              '${r.transactionId}',
+              '${l.rcpIssued(dayOf(r.issuedAt, l))}'
+              '${r.issuedBy.isEmpty ? '' : l.quoteBy(r.issuedBy)}'
+              '${l.rcpForPayment(r.transactionId)}',
               style: text.bodySmall?.copyWith(color: p.muted),
             ),
           ],

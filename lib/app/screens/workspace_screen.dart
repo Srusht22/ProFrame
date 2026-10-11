@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/dimensions/measurements.dart';
 import '../../domain/model/elements.dart';
+import '../../domain/text/names.dart';
 import '../canvas/cad_view.dart';
 import '../canvas/drawing_surface.dart';
 import '../inspector/component_tree.dart';
@@ -19,6 +20,7 @@ import '../inspector/price_panel.dart';
 import '../inspector/questions_panel.dart';
 import '../inspector/unsupported_category_note.dart';
 import '../inspector/view_only_note.dart';
+import '../l10n/l10n.dart';
 import '../state/everything_shown.dart';
 import '../state/tools.dart';
 import '../state/workspace.dart';
@@ -190,8 +192,8 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
           child: AnimatedSwitcher(
             duration: BarMotion.of(context, BarMotion.change),
             child: Text(
-              state.design.shownName,
-              key: ValueKey(state.design.shownName),
+              state.design.shownNameIn(context.words),
+              key: ValueKey(state.design.shownNameIn(context.words)),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -207,7 +209,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                 backgroundColor: AppTheme.accent,
                 offset: const Offset(-6, 6),
                 child: BarIcon(
-                  tooltip: 'Sizes',
+                  tooltip: context.l10n.wsSizes,
                   icon: Icons.straighten,
                   onPressed: () => MeasureForm.show(context),
                 ),
@@ -220,7 +222,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
             BarArrival(
               order: 1,
               child: BarIcon(
-                tooltip: 'Material',
+                tooltip: context.l10n.wsMaterial,
                 icon: Icons.format_paint_outlined,
                 onPressed: () => MaterialForm.show(
                   context,
@@ -234,7 +236,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
           BarArrival(
             order: 1,
             child: BarIcon(
-              tooltip: 'Undo',
+              tooltip: context.l10n.wsUndo,
               icon: Icons.undo,
               onPressed: controller.canUndo ? controller.undo : null,
             ),
@@ -243,7 +245,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
             BarArrival(
               order: 2,
               child: BarIcon(
-                tooltip: 'Redo',
+                tooltip: context.l10n.wsRedo,
                 icon: Icons.redo,
                 onPressed: controller.canRedo ? controller.redo : null,
               ),
@@ -267,7 +269,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                 await controller.save();
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Design saved.')),
+                  SnackBar(content: Text(context.l10n.wsSaved)),
                 );
               },
             ),
@@ -276,8 +278,9 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
             BarArrival(
               order: 4,
               child: BarIcon(
-                tooltip:
-                    state.showSketch ? 'Hide my drawing' : 'Show my drawing',
+                tooltip: state.showSketch
+                    ? context.l10n.wsHideDrawing
+                    : context.l10n.wsShowDrawing,
                 icon: state.showSketch ? Icons.gesture : Icons.gesture_outlined,
                 dim: !state.showSketch,
                 onPressed: controller.toggleSketch,
@@ -488,20 +491,20 @@ class _ViewBar extends StatelessWidget {
             more,
             if (canRead)
               IconButton(
-                tooltip: 'Read again',
+                tooltip: context.l10n.wsReadAgain,
                 visualDensity: VisualDensity.compact,
                 onPressed: controller.readDrawing,
                 icon: const Icon(Icons.auto_fix_high_outlined, size: 20),
               ),
             if (everything) ...[
               IconButton(
-                tooltip: 'Parts',
+                tooltip: context.l10n.wsParts,
                 visualDensity: VisualDensity.compact,
                 onPressed: onTree,
                 icon: const Icon(Icons.list_alt_outlined, size: 20),
               ),
               IconButton(
-                tooltip: 'Details',
+                tooltip: context.l10n.wsDetails,
                 visualDensity: VisualDensity.compact,
                 onPressed: onDetails,
                 icon: const Icon(Icons.tune, size: 20),
@@ -527,11 +530,11 @@ class _ViewBar extends StatelessWidget {
             TextButton.icon(
               onPressed: controller.readDrawing,
               icon: const Icon(Icons.auto_fix_high_outlined, size: 18),
-              label: const Text('Read again'),
+              label: Text(context.l10n.wsReadAgain),
             )
           else if (canRead)
             IconButton(
-              tooltip: 'Read again',
+              tooltip: context.l10n.wsReadAgain,
               onPressed: controller.readDrawing,
               icon: const Icon(Icons.auto_fix_high_outlined, size: 20),
             ),
@@ -544,16 +547,16 @@ class _ViewBar extends StatelessWidget {
                 treeOpen ? Icons.list_alt : Icons.list_alt_outlined,
                 size: 18,
               ),
-              label: const Text('Parts'),
+              label: Text(context.l10n.wsParts),
             )
           else ...[
             IconButton(
-              tooltip: 'Parts',
+              tooltip: context.l10n.wsParts,
               onPressed: onTree,
               icon: const Icon(Icons.list_alt_outlined, size: 20),
             ),
             IconButton(
-              tooltip: 'Details',
+              tooltip: context.l10n.wsDetails,
               onPressed: onDetails,
               icon: const Icon(Icons.tune, size: 20),
             ),
@@ -585,8 +588,11 @@ class _PickedBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final selected = state.selected!;
     final name = switch (selected) {
-      final OpeningElement opening => state.design.nameOf(opening),
-      _ => selected.label,
+      final OpeningElement opening => state.design.nameOfIn(
+        context.words,
+        opening,
+      ),
+      _ => elementLabelIn(context.words, selected),
     };
     return Container(
       width: double.infinity,
@@ -606,7 +612,7 @@ class _PickedBar extends StatelessWidget {
           ),
           if (onMaterial != null)
             IconButton(
-              tooltip: 'Glass or panel',
+              tooltip: context.l10n.wsGlassOrPanel,
               visualDensity: VisualDensity.compact,
               onPressed: onMaterial,
               icon: const Icon(Icons.format_paint_outlined, size: 18),
@@ -614,10 +620,10 @@ class _PickedBar extends StatelessWidget {
           TextButton.icon(
             onPressed: onEdit,
             icon: const Icon(Icons.tune, size: 18),
-            label: const Text('Edit'),
+            label: Text(context.l10n.wsEdit),
           ),
           IconButton(
-            tooltip: 'Let it go',
+            tooltip: context.l10n.wsLetGo,
             visualDensity: VisualDensity.compact,
             onPressed: onClear,
             icon: const Icon(Icons.close, size: 18),
@@ -644,8 +650,8 @@ class _ReadBar extends StatelessWidget {
         Expanded(
           child: Text(
             narrow
-                ? 'Your drawing has changed.'
-                : 'Your drawing has changes that have not been read yet.',
+                ? context.l10n.wsChanged
+                : context.l10n.wsChangesNotRead,
             style: Theme.of(context).textTheme.bodyMedium
                 ?.copyWith(color: context.palette.onNotice),
           ),
@@ -653,7 +659,9 @@ class _ReadBar extends StatelessWidget {
         const SizedBox(width: 12),
         FilledButton(
           onPressed: onRead,
-          child: Text(narrow ? 'Read it' : 'Read my drawing'),
+          child: Text(
+            narrow ? context.l10n.wsReadIt : context.l10n.wsReadMyDrawing,
+          ),
         ),
       ],
     ),

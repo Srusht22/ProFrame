@@ -26,6 +26,8 @@
 /// half a cent up, and every sum after is a sum of cents.
 library;
 
+import '../text/names.dart';
+import '../text/words.dart';
 import 'price_result.dart';
 
 /// What an extra is, for sorting it on a breakdown. The calculation is the
@@ -43,6 +45,16 @@ enum ExtraCategory {
 
   static ExtraCategory byName(Object? name) =>
       values.where((c) => c.name == name).firstOrNull ?? other;
+
+  /// [label], in [w].
+  String labelIn(Words w) => switch (this) {
+    material => w.xcMaterial,
+    labour => w.xcLabour,
+    service => w.xcService,
+    transport => w.xcTransport,
+    installation => w.xcInstallation,
+    other => w.xcOther,
+  };
 }
 
 /// The units offered when an extra is written. A unit only says what the
@@ -66,6 +78,21 @@ enum ExtraUnit {
 
   static ExtraUnit? of(String unit) =>
       values.where((u) => u.label == unit.trim().toLowerCase()).firstOrNull;
+
+  /// [label] — one — or [plural], in [w]. The unit is kept by its English
+  /// [label]; only how it is shown changes.
+  String sayIn(Words w, {bool one = true}) => switch (this) {
+    piece => one ? w.xuPiece : w.xuPieces,
+    bottle => one ? w.xuBottle : w.xuBottles,
+    hour => one ? w.xuHour : w.xuHours,
+    metre => one ? w.xuMetre : w.xuMetres,
+    squareMetre => one ? w.xuSquareMetre : w.xuSquareMetres,
+    kg => one ? w.xuKg : w.xuKgs,
+    set => one ? w.xuSet : w.xuSets,
+    roll => one ? w.xuRoll : w.xuRolls,
+    day => one ? w.xuDay : w.xuDays,
+    trip => one ? w.xuTrip : w.xuTrips,
+  };
 }
 
 /// Whose an extra is: one design's, or the customer's whole job.
@@ -136,15 +163,23 @@ class ExtraCharge {
   /// that was typed is written as it was typed.
   String get unitText => unitTextOf(unit, quantityMilli);
 
-  static String unitTextOf(String unit, int quantityMilli) {
+  static String unitTextOf(
+    String unit,
+    int quantityMilli, [
+    Words w = const EnglishWords(),
+  ]) {
     final known = ExtraUnit.of(unit);
     if (known == null) return unit.trim();
-    return quantityMilli == 1000 ? known.label : known.plural;
+    return known.sayIn(w, one: quantityMilli == 1000);
   }
 
   /// How it is worked out, in words: *5 bottles × 3.00 USD*.
-  String sum(String Function(int cents) money) =>
-      '$quantityText $unitText × ${money(unitPriceCents)}';
+  String sum(
+    String Function(int cents) money, [
+    Words w = const EnglishWords(),
+  ]) =>
+      '$quantityText ${unitTextOf(unit, quantityMilli, w)} × '
+      '${money(unitPriceCents)}';
 
   ExtraCharge copyWith({
     String? name,
@@ -178,69 +213,63 @@ class ExtraCharge {
     required int? quantityMilli,
     required String unit,
     required int? unitPriceCents,
+    Words words = const EnglishWords(),
   }) {
-    if (name.trim().isEmpty) return 'Enter what the extra is.';
-    if (quantityMilli == null) return 'Enter the quantity.';
-    if (quantityMilli <= 0) return 'The quantity must be more than nothing.';
-    if (unit.trim().isEmpty) return 'Choose or type the unit.';
-    if (unitPriceCents == null) return 'Enter the unit price.';
-    if (unitPriceCents < 0) return 'A unit price cannot be below nothing.';
+    final w = words;
+    if (name.trim().isEmpty) return w.xNameNeeded;
+    if (quantityMilli == null) return w.xQtyEnter;
+    if (quantityMilli <= 0) return w.xQtyMore;
+    if (unit.trim().isEmpty) return w.xUnitNeeded;
+    if (unitPriceCents == null) return w.xPriceEnter;
+    if (unitPriceCents < 0) return w.xPriceNotBelow;
     return null;
   }
 
   /// A quantity as typed — *5*, *2.5*, *1.125* — in thousandths, or why it
   /// is not one.
-  static ({int? value, String? problem}) readQuantity(String text) {
+  static ({int? value, String? problem}) readQuantity(
+    String text, [
+    Words w = const EnglishWords(),
+  ]) {
     final words = text.trim().replaceAll(',', '');
-    if (words.isEmpty) return (value: null, problem: 'Enter the quantity.');
+    if (words.isEmpty) return (value: null, problem: w.xQtyEnter);
     if (words.startsWith('-')) {
-      return (value: null, problem: 'The quantity must be more than nothing.');
+      return (value: null, problem: w.xQtyMore);
     }
     final m = RegExp(r'^(\d+)(?:\.(\d*))?$').firstMatch(words);
     if (m == null) {
-      return (
-        value: null,
-        problem: 'Enter the quantity as a number, such as 5 or 2.5.',
-      );
+      return (value: null, problem: w.xQtyNumber);
     }
     final part = m.group(2) ?? '';
     if (part.length > 3) {
-      return (
-        value: null,
-        problem: 'Enter the quantity to three decimal places at most.',
-      );
+      return (value: null, problem: w.xQtyPlaces);
     }
     final value =
         int.parse(m.group(1)!) * 1000 + int.parse(part.padRight(3, '0'));
     if (value <= 0) {
-      return (value: null, problem: 'The quantity must be more than nothing.');
+      return (value: null, problem: w.xQtyMore);
     }
     return (value: value, problem: null);
   }
 
   /// A unit price as typed — *3*, *3.25*, *1,200.00* — in whole cents, or
   /// why it is not one. Nothing is a price; below nothing is not.
-  static ({int? value, String? problem}) readPrice(String text) {
+  static ({int? value, String? problem}) readPrice(
+    String text, [
+    Words w = const EnglishWords(),
+  ]) {
     final words = text.trim().replaceAll(',', '');
-    if (words.isEmpty) return (value: null, problem: 'Enter the unit price.');
+    if (words.isEmpty) return (value: null, problem: w.xPriceEnter);
     if (words.startsWith('-')) {
-      return (value: null, problem: 'A unit price cannot be below nothing.');
+      return (value: null, problem: w.xPriceNotBelow);
     }
     final m = RegExp(r'^(\d+)(?:\.(\d*))?$').firstMatch(words);
     if (m == null) {
-      return (
-        value: null,
-        problem: 'Enter the unit price as a number, such as 3.25.',
-      );
+      return (value: null, problem: w.xPriceNumber);
     }
     final part = m.group(2) ?? '';
     if (part.length > 2) {
-      return (
-        value: null,
-        problem:
-            'Enter the unit price to the cent — two decimal places at '
-            'most.',
-      );
+      return (value: null, problem: w.xPricePlaces);
     }
     return (
       value: int.parse(m.group(1)!) * 100 + int.parse(part.padRight(2, '0')),
@@ -354,21 +383,43 @@ class ExtraCharge {
     final words = name.toLowerCase();
     bool says(List<String> any) => any.any(words.contains);
     final groups = <PriceGroup>{
-      if (says(['glass', 'glazing', 'glazed unit'])) PriceGroup.glass,
-      if (says(['panel'])) PriceGroup.panel,
-      if (says(['profile', 'frame', 'mullion', 'transom', 'sash'])) ...[
+      // In English and in Central Kurdish, since an extra is named in
+      // whichever the user writes in.
+      if (says(['glass', 'glazing', 'glazed unit', 'شووشە'])) PriceGroup.glass,
+      if (says(['panel', 'پانێڵ'])) PriceGroup.panel,
+      if (says([
+        'profile',
+        'frame',
+        'mullion',
+        'transom',
+        'sash',
+        'پرۆفایل',
+        'چوارچێوە',
+      ])) ...[
         PriceGroup.normalProfile,
         PriceGroup.openingProfile,
       ],
-      if (says(['track'])) PriceGroup.otherProfile,
-      if (says(['hinge', 'handle', 'lever', 'lock', 'roller', 'pull', 'knob']))
+      if (says(['track', 'ڕێڕەو'])) PriceGroup.otherProfile,
+      if (says([
+        'hinge',
+        'handle',
+        'lever',
+        'lock',
+        'roller',
+        'pull',
+        'knob',
+        'لولاو',
+        'دەسک',
+        'قفڵ',
+        'تەگەرە',
+      ]))
         PriceGroup.hardware,
-      if (says(['colour', 'color'])) PriceGroup.colour,
+      if (says(['colour', 'color', 'ڕەنگ'])) PriceGroup.colour,
       if (category == ExtraCategory.labour ||
-          says(['labour', 'labor', 'making']))
+          says(['labour', 'labor', 'making', 'کرێی کار', 'دروستکردن']))
         PriceGroup.labour,
       if (category == ExtraCategory.installation ||
-          says(['install', 'fitting']))
+          says(['install', 'fitting', 'دامەزراندن']))
         PriceGroup.installation,
     };
     return [
@@ -381,18 +432,18 @@ class ExtraCharge {
   /// would charge for them again: what each is and what it comes to.
   static String alreadyCalculatedMessage(
     List<PriceLine> lines,
-    String Function(int cents) money,
-  ) {
-    final named = {for (final l in lines) l.group.label: 0};
+    String Function(int cents) money, [
+    Words w = const EnglishWords(),
+  ]) {
+    final named = {for (final l in lines) l.group.labelIn(w): 0};
     for (final l in lines) {
-      named[l.group.label] = named[l.group.label]! + l.amountCents;
+      named[l.group.labelIn(w)] = named[l.group.labelIn(w)]! + l.amountCents;
     }
     final said = [
       for (final MapEntry(key: what, value: cents) in named.entries)
-        '$what (${money(cents)})',
-    ].join(', ');
-    return '$said ${named.length == 1 ? 'is' : 'are'} already calculated '
-        'from the design. Add this only if it is an additional charge.';
+        w.xAlreadyItem(what, money(cents)),
+    ].join(w.listComma);
+    return named.length == 1 ? w.xAlreadyOne(said) : w.xAlreadyMany(said);
   }
 }
 

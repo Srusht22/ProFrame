@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/design.dart';
 import '../../domain/model/new_design_setup.dart';
+import '../../domain/text/names.dart';
+import '../l10n/l10n.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'customer_screen.dart';
@@ -69,6 +71,15 @@ class StartScreen extends ConsumerStatefulWidget {
 
   /// What the button that begins the design says.
   static const startLabel = 'Start drawing';
+
+  /// What [kind]'s card says, in the language shown.
+  static String blurbIn(AppLocalizations l, DesignKind kind) => switch (kind) {
+    DesignKind.door => l.blurbDoor,
+    DesignKind.window => l.blurbWindow,
+    DesignKind.sliding => l.blurbSliding,
+    DesignKind.both => l.blurbBoth,
+    _ => l.blurbAngled,
+  };
 
   @override
   ConsumerState<StartScreen> createState() => _StartScreenState();
@@ -154,12 +165,12 @@ class _StartScreenState extends ConsumerState<StartScreen>
   /// the rest.
   Widget _cards({required int columns}) {
     final cards = [
-      for (final (i, (kind, blurb)) in StartScreen.choices.indexed)
+      for (final (i, (kind, _)) in StartScreen.choices.indexed)
         _arriving(
           0.1 + i * 0.07,
           _ChoiceCard(
             kind: kind,
-            blurb: blurb,
+            blurb: StartScreen.blurbIn(context.l10n, kind),
             chosen: _chosen == kind,
             // Each pen starts as its card arrives.
             delay: Duration(milliseconds: 200 + i * 140),
@@ -206,7 +217,7 @@ class _StartScreenState extends ConsumerState<StartScreen>
     final forWhom = widget.setup.customer ?? '';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('New Design')),
+      appBar: AppBar(title: Text(context.l10n.newDesign)),
       body: LayoutBuilder(
         builder: (context, room) {
           final phone = room.maxWidth < 600;
@@ -292,7 +303,7 @@ class _Heading extends StatelessWidget {
         const SizedBox(height: 14),
       ],
       Text(
-        'Choose your design',
+        context.l10n.chooseYourDesign,
         style: TextStyle(
           fontSize: phone ? 26 : 32,
           fontWeight: FontWeight.w700,
@@ -302,7 +313,7 @@ class _Heading extends StatelessWidget {
       ),
       const SizedBox(height: 6),
       Text(
-        'Select the type of product you want to create.',
+        context.l10n.chooseYourDesignLine,
         style: TextStyle(fontSize: 15, color: context.palette.muted),
       ),
     ],
@@ -330,9 +341,7 @@ class _StillMixed extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'This is where the design starts, not a limit on it: any '
-                'opening you mark can still be made a door or a window, and '
-                'fixed areas sit beside them in the same frame.',
+                context.l10n.stillMixed,
                 style: style,
               ),
               const SizedBox(height: 6),
@@ -340,7 +349,7 @@ class _StillMixed extends StatelessWidget {
               // the four standard categories square what a hand drew a
               // little out, and the angled one keeps it.
               Text(
-                StartScreen.straighteningNote,
+                context.l10n.straighteningNote,
                 key: const ValueKey('straightening-note'),
                 style: style,
               ),
@@ -377,12 +386,12 @@ class _StartBar extends StatelessWidget {
       onPressed: chosen == null ? null : onStart,
       icon: const Icon(Icons.arrow_forward, size: 20),
       iconAlignment: IconAlignment.end,
-      label: const Text(StartScreen.startLabel),
+      label: Text(context.l10n.startDrawing),
     );
     final said = Text(
       chosen == null
-          ? 'Choose a type to continue'
-          : '${chosen!.label} selected',
+          ? context.l10n.chooseTypeToContinue
+          : context.l10n.kindSelected(chosen!.labelIn(context.words)),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
@@ -536,7 +545,7 @@ class _ChoiceCardState extends State<_ChoiceCard>
       ),
     );
     final title = Text(
-      widget.kind.label.toUpperCase(),
+      widget.kind.labelIn(context.words).toUpperCase(),
       style: TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.w700,
@@ -558,7 +567,7 @@ class _ChoiceCardState extends State<_ChoiceCard>
           Stack(
             children: [
               SizedBox(height: 140, child: drawing),
-              Positioned(top: 10, right: 10, child: tick),
+              PositionedDirectional(top: 10, end: 10, child: tick),
             ],
           ),
           const SizedBox(height: 16),
@@ -578,7 +587,7 @@ class _ChoiceCardState extends State<_ChoiceCard>
     return Semantics(
       button: true,
       selected: chosen,
-      label: widget.kind.label,
+      label: widget.kind.labelIn(context.words),
       child: MouseRegion(
         onEnter: (_) => _hover(true),
         onExit: (_) => _hover(false),

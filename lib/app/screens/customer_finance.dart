@@ -8,12 +8,13 @@ import '../../domain/pricing/design_price_state.dart';
 import '../../domain/pricing/extra_charge.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/quotation.dart';
+import '../../domain/text/names.dart';
 import '../inspector/extra_charges.dart';
 import '../inspector/price_panel.dart';
+import '../l10n/l10n.dart';
 import '../state/access.dart';
 import '../state/pricing.dart';
 import '../theme/app_theme.dart';
-import 'designs_screen.dart' show monthNames;
 import 'finance_documents.dart';
 
 /// A customer's money, under their design cards: what their designs come
@@ -122,6 +123,8 @@ class _CustomerFinancialSummaryState
     final actor = ref.watch(actorProvider);
     final p = context.palette;
     final text = Theme.of(context).textTheme;
+    final l = context.l10n;
+    final w = context.words;
 
     Widget heading(String words, {Key? key, Widget? trailing}) => Padding(
       key: key,
@@ -154,7 +157,7 @@ class _CustomerFinancialSummaryState
         decoration: decoration,
         padding: const EdgeInsets.all(18),
         child: Text(
-          "You do not have permission to view this customer's finances.",
+          l.finNoAccess,
           key: CustomerFinancialSummary.noAccessKey,
           style: text.bodyMedium?.copyWith(color: p.muted),
         ),
@@ -187,50 +190,51 @@ class _CustomerFinancialSummaryState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          heading('FINANCIAL SUMMARY'),
+          heading(l.finSummary),
           PriceRow(
-            'Designs',
-            '${pricing.designs.length} · ${pricing.priced.length} priced',
+            l.finDesigns,
+            l.finDesignsPriced(pricing.designs.length, pricing.priced.length),
           ),
           if (customer.extras.isNotEmpty) ...[
             PriceRow(
-              'Designs total',
+              l.finDesignsTotal,
               finance.designsCents == null
-                  ? 'Not final'
+                  ? l.finNotFinal
                   : cents(finance.designsCents!),
               valueKey: CustomerFinancialSummary.designsTotalKey,
             ),
             PriceRow(
-              'Extra charges (whole job)',
+              l.finExtrasWholeJob,
               cents(finance.extrasCents),
               valueKey: CustomerFinancialSummary.extrasTotalKey,
             ),
           ],
           if (discount != null || customer.extras.isNotEmpty)
             PriceRow(
-              'Subtotal',
-              finance.subtotal == null ? 'Not final' : money(finance.subtotal!),
+              l.finSubtotal,
+              finance.subtotal == null
+                  ? l.finNotFinal
+                  : money(finance.subtotal!),
               valueKey: CustomerFinancialSummary.subtotalKey,
             ),
           if (discount != null)
             PriceRow(
-              'Discount (${discount.describe(cents)})',
+              l.finDiscountOf(discount.describe(cents, w)),
               finance.discountCents == null
-                  ? 'when the total is final'
+                  ? l.finWhenFinal
                   : '−${cents(finance.discountCents!)}',
               valueKey: CustomerFinancialSummary.discountKey,
             ),
           _BigRow(
             discount == null && customer.extras.isEmpty
-                ? 'Total price'
-                : 'Final total',
-            finance.total == null ? 'Not final' : money(finance.total!),
+                ? l.finTotalPrice
+                : l.finFinalTotal,
+            finance.total == null ? l.finNotFinal : money(finance.total!),
             valueKey: CustomerFinancialSummary.totalKey,
           ),
           if (finance.discountExceedsSubtotal)
             Text(
-              'The discount of ${discount!.describe(cents)} is more than the '
-              'subtotal now, so it takes the whole subtotal and no more.',
+              l.finDiscountExceeds(discount!.describe(cents, w)),
               key: CustomerFinancialSummary.discountExceedsKey,
               style: text.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.error,
@@ -238,51 +242,49 @@ class _CustomerFinancialSummaryState
             ),
           if (finance.total == null) ...[
             Text(
-              'Customer price is not final. ${finance.notFinalReason}',
+              l.finCustomerNotFinal(finance.notFinalReasonIn(w)),
               key: CustomerFinancialSummary.notFinalKey,
               style: text.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.error,
               ),
             ),
             PriceRow(
-              'Priced so far (not the total)',
+              l.finPricedSoFar,
               money(pricing.pricedSoFar),
               valueKey: CustomerFinancialSummary.pricedSoFarKey,
             ),
           ],
           PriceRow(
-            'Total payments',
+            l.finTotalPayments,
             money(finance.grossPayments),
             valueKey: CustomerFinancialSummary.grossPaymentsKey,
           ),
           PriceRow(
-            'Refunds',
+            l.finRefunds,
             money(finance.grossRefunds),
             valueKey: CustomerFinancialSummary.refundsKey,
           ),
           PriceRow(
-            'Net paid',
+            l.finNetPaid,
             money(finance.netPaid),
             valueKey: CustomerFinancialSummary.paidKey,
           ),
           const SizedBox(height: 4),
           PriceRow(
-            'Amount due',
+            l.finAmountDue,
             finance.due == null ? '—' : money(finance.due!),
             strong: true,
             valueKey: CustomerFinancialSummary.dueKey,
           ),
           PriceRow(
-            'Credit',
+            l.finCredit,
             finance.credit == null ? '—' : money(finance.credit!),
             strong: (finance.credit ?? 0) > 0,
             valueKey: CustomerFinancialSummary.creditKey,
           ),
           if ((finance.credit ?? 0) > 0)
             Text(
-              'The customer has paid ${money(finance.credit!)} more than '
-              'their designs now come to. It is theirs: it can be refunded, '
-              'or stand against a later design.',
+              l.finCreditNote(money(finance.credit!)),
               style: text.bodySmall?.copyWith(color: p.muted),
             ),
           if (finance.otherCurrencies.isNotEmpty)
@@ -308,7 +310,7 @@ class _CustomerFinancialSummaryState
                       onPressed: () =>
                           editDiscount(context, ref, customer, finance),
                       icon: const Icon(Icons.percent, size: 18),
-                      label: const Text('Discount'),
+                      label: Text(l.finDiscount),
                     ),
                   FilledButton.tonalIcon(
                     key: CustomerFinancialSummary.addPaymentKey,
@@ -322,7 +324,7 @@ class _CustomerFinancialSummaryState
                           )
                         : null,
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add payment'),
+                    label: Text(l.finAddPayment),
                   ),
                   OutlinedButton.icon(
                     key: CustomerFinancialSummary.refundKey,
@@ -336,7 +338,7 @@ class _CustomerFinancialSummaryState
                           )
                         : null,
                     icon: const Icon(Icons.undo, size: 18),
-                    label: const Text('Refund'),
+                    label: Text(l.finRefund),
                   ),
                 ],
               ),
@@ -351,13 +353,10 @@ class _CustomerFinancialSummaryState
             canRemove: ref.offers(Capability.extrasDelete),
           ),
           if (actor.can(Capability.paymentsView)) ...[
-            heading(
-              'PAYMENT HISTORY',
-              key: CustomerFinancialSummary.historyKey,
-            ),
+            heading(l.finHistory, key: CustomerFinancialSummary.historyKey),
             if (page.total == 0)
               Text(
-                'No payment history yet.',
+                l.finNoHistory,
                 key: CustomerFinancialSummary.emptyHistoryKey,
                 style: text.bodyMedium?.copyWith(color: p.muted),
               ),
@@ -376,16 +375,14 @@ class _CustomerFinancialSummaryState
               ),
             if (page.hasMore)
               Align(
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart,
                 child: TextButton.icon(
                   key: CustomerFinancialSummary.loadMoreKey,
                   onPressed: () => setState(
                     () => _shown += CustomerFinancialSummary.pageSize,
                   ),
                   icon: const Icon(Icons.expand_more, size: 18),
-                  label: Text(
-                    'Load more (${page.total - page.items.length} more)',
-                  ),
+                  label: Text(l.finLoadMore(page.total - page.items.length)),
                 ),
               ),
           ],
@@ -410,9 +407,7 @@ class _CustomerFinancialSummaryState
                 children: [
                   Expanded(
                     child: Text(
-                      _open
-                          ? 'Hide each design and the materials'
-                          : 'Show each design and the materials',
+                      _open ? l.finHideDesigns : l.finShowDesigns,
                       style: text.bodyMedium?.copyWith(color: p.primary),
                     ),
                   ),
@@ -425,34 +420,37 @@ class _CustomerFinancialSummaryState
             ),
           ),
           if (_open) ...[
-            heading('DESIGNS'),
+            heading(l.finDesignsHeading),
             for (final d in pricing.designs) ...[
               PriceRow(
                 key: CustomerFinancialSummary.designKey(d.designId),
-                d.name,
-                d.state.total == null ? d.state.note : money(d.state.total!),
+                d.nameIn(w),
+                d.state.total == null
+                    ? d.state.noteIn(w)
+                    : money(d.state.total!),
               ),
               // What it is and what it is made of: why two designs cost
               // different amounts.
               Padding(
-                padding: const EdgeInsets.only(left: 12, bottom: 4),
+                padding: const EdgeInsetsDirectional.only(start: 12, bottom: 4),
                 child: Text(
-                  'Category: ${d.kind.label} · '
-                  'Material: ${d.profile.materialName} · '
-                  'Colour: ${d.colourName}',
+                  l.finDesignFacts(
+                    d.kind.labelIn(w),
+                    d.profile.materialNameIn(w),
+                    d.colourNameIn(w),
+                  ),
                   key: CustomerFinancialSummary.profileKey(d.designId),
                   style: text.bodySmall?.copyWith(color: p.muted),
                 ),
               ),
             ],
-            heading('CUSTOMER MATERIAL SUMMARY'),
+            heading(l.finMaterialSummary),
             MeasurementRows(pricing.measurements),
             if (pricing.priced.length < pricing.designs.length)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  'Of the ${pricing.priced.length} of '
-                  '${pricing.designs.length} designs with a current price.',
+                  l.finOfPriced(pricing.priced.length, pricing.designs.length),
                   style: text.bodySmall?.copyWith(color: p.muted),
                 ),
               ),
@@ -494,7 +492,7 @@ class _CustomerExtras extends ConsumerWidget {
       currency: pricing.currency,
       scope: ExtraScope.customer,
       by: ref.read(actorProvider).label,
-      where: "${customer.name}'s whole job — no one design's",
+      where: context.l10n.finWholeJobOf(customer.name),
       editing: editing,
       calculated: [
         for (final d in pricing.priced) ...d.state.record!.result.lines,
@@ -508,7 +506,7 @@ class _CustomerExtras extends ConsumerWidget {
         additional: answer.additional,
       );
     } on AccessDenied catch (e) {
-      if (context.mounted) say(context, e.toString());
+      if (context.mounted) say(context, e.messageIn(context.words));
     } on StateError catch (e) {
       if (context.mounted) say(context, e.message);
     }
@@ -522,14 +520,14 @@ class _CustomerExtras extends ConsumerWidget {
     if (!await confirmRemoveExtra(
       context,
       extra,
-      "${customer.name}'s whole job",
+      context.l10n.finWholeJob(customer.name),
     )) {
       return;
     }
     try {
       await ref.removeCustomerExtra(customer.id, extra.id);
     } on AccessDenied catch (e) {
-      if (context.mounted) say(context, e.toString());
+      if (context.mounted) say(context, e.messageIn(context.words));
     }
   }
 
@@ -542,20 +540,19 @@ class _CustomerExtras extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         heading(
-          'EXTRA CHARGES — WHOLE JOB',
+          context.l10n.finExtrasHeading,
           trailing: canAdd
               ? TextButton.icon(
                   key: CustomerFinancialSummary.addExtraKey,
                   onPressed: () => _write(context, ref),
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add extra'),
+                  label: Text(context.l10n.finAddExtra),
                 )
               : null,
         ),
         if (customer.extras.isEmpty)
           Text(
-            "No extra charges for the whole job. A design's own extras are "
-            'on its price.',
+            context.l10n.finNoExtras,
             style: text.bodySmall?.copyWith(color: p.muted),
           ),
         for (final e in customer.extras)
@@ -597,7 +594,7 @@ class _OtherCurrencies extends StatelessWidget {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'OTHER CURRENCIES — not included in the $base total',
+                  context.l10n.finOtherCurrencies(base),
                   style: text.labelSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: error,
@@ -608,20 +605,16 @@ class _OtherCurrencies extends StatelessWidget {
           ),
           for (final c in finance.otherCurrencies) ...[
             PriceRow(
-              '${c.currency} payments',
+              context.l10n.finCurrencyPayments(c.currency),
               PricePanel.money(c.paymentsCents / 100, c.currency),
             ),
             if (c.refundsCents > 0)
               PriceRow(
-                '${c.currency} refunds',
+                context.l10n.finCurrencyRefunds(c.currency),
                 PricePanel.money(c.refundsCents / 100, c.currency),
               ),
           ],
-          Text(
-            'No exchange rate was recorded with these, so they are kept in '
-            'their own currency and not added to the $base figures above.',
-            style: text.bodySmall,
-          ),
+          Text(context.l10n.finNoRate(base), style: text.bodySmall),
         ],
       ),
     );
@@ -655,20 +648,20 @@ class _Quotations extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         heading(
-          'QUOTATIONS',
+          context.l10n.finQuotations,
           key: CustomerFinancialSummary.quotationsKey,
           trailing: canCreate
               ? TextButton.icon(
                   key: CustomerFinancialSummary.newQuotationKey,
                   onPressed: () => newQuotation(context, ref, customer),
                   icon: const Icon(Icons.request_quote_outlined, size: 18),
-                  label: const Text('New quotation'),
+                  label: Text(context.l10n.finNewQuotation),
                 )
               : null,
         ),
         if (page != null && page.total == 0)
           Text(
-            'No quotations yet.',
+            context.l10n.finNoQuotations,
             style: text.bodyMedium?.copyWith(color: p.muted),
           ),
         for (final q in page?.items ?? const <Quotation>[])
@@ -694,13 +687,16 @@ class _Quotations extends ConsumerWidget {
                   QuotationStatusChip(q.status),
                   Text(
                     PricePanel.money(q.totalCents / 100, q.currency),
+                    textDirection: TextDirection.ltr,
                     style: text.bodyMedium?.copyWith(
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                   Text(
-                    '${dayOf(q.createdAt)} · ${q.lines.length} '
-                    '${q.lines.length == 1 ? 'design' : 'designs'}',
+                    context.l10n.finQuoteLine(
+                      dayOf(q.createdAt, context.l10n),
+                      q.lines.length,
+                    ),
                     style: text.bodySmall?.copyWith(color: p.muted),
                   ),
                 ],
@@ -709,11 +705,13 @@ class _Quotations extends ConsumerWidget {
           ),
         if (page != null && page.items.length < page.total)
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: TextButton(
               key: CustomerFinancialSummary.moreQuotationsKey,
               onPressed: onMore,
-              child: Text('Load more (${page.total - page.items.length} more)'),
+              child: Text(
+                context.l10n.finLoadMore(page.total - page.items.length),
+              ),
             ),
           ),
       ],
@@ -747,7 +745,7 @@ class PaymentStatusChip extends StatelessWidget {
         border: Border.all(color: colour.withValues(alpha: 0.5)),
       ),
       child: Text(
-        status.label.toUpperCase(),
+        status.labelIn(context.words).toUpperCase(),
         style: TextStyle(
           fontSize: small ? 11 : 12,
           fontWeight: FontWeight.w700,
@@ -783,11 +781,13 @@ class CustomerMoneyGlance extends ConsumerWidget {
       extras: customer.extras,
     );
     final words = switch (finance.status) {
-      PaymentStatus.outstanding =>
-        'Due ${PricePanel.money(finance.due!, pricing.currency)}',
-      PaymentStatus.credit =>
-        'Credit ${PricePanel.money(finance.credit!, pricing.currency)}',
-      final status => status.label,
+      PaymentStatus.outstanding => context.l10n.finDue(
+        PricePanel.money(finance.due!, pricing.currency),
+      ),
+      PaymentStatus.credit => context.l10n.finCreditOf(
+        PricePanel.money(finance.credit!, pricing.currency),
+      ),
+      final status => status.labelIn(context.words),
     };
     return Container(
       key: glanceKey,
@@ -829,6 +829,7 @@ class _BigRow extends StatelessWidget {
           Text(
             value,
             key: valueKey,
+            textDirection: context.directionOf(value),
             style: text.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
               fontFeatures: const [FontFeature.tabularFigures()],
@@ -887,7 +888,7 @@ class TransactionRow extends StatelessWidget {
               refund ? Icons.call_made : Icons.call_received,
               size: 18,
               color: colour,
-              semanticLabel: t.type.label,
+              semanticLabel: t.type.labelIn(context.words),
             ),
           ),
           const SizedBox(width: 10),
@@ -900,27 +901,32 @@ class TransactionRow extends StatelessWidget {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
-                      t.type.label.toUpperCase(),
+                      t.type.labelIn(context.words).toUpperCase(),
                       style: text.labelSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.6,
                         color: colour,
                       ),
                     ),
-                    Text(dayOf(t.at), style: text.bodyMedium),
+                    Text(dayOf(t.at, context.l10n), style: text.bodyMedium),
                   ],
                 ),
                 Text(
-                  t.methodLabel,
+                  t.methodLabelIn(context.words),
                   style: text.bodySmall?.copyWith(color: p.muted),
                 ),
                 if (converted != null)
                   Text(
-                    'At 1 $own = ${converted.rate} ${converted.to}: '
-                    '${PricePanel.money(converted.cents / 100, converted.to)}',
+                    context.l10n.finAtRate(
+                      own,
+                      '${converted.rate}',
+                      converted.to,
+                      PricePanel.money(converted.cents / 100, converted.to),
+                    ),
                     style: text.bodySmall?.copyWith(color: p.muted),
                   ),
-                if (t.note.isNotEmpty) Text(t.note, style: text.bodySmall),
+                if (t.note.isNotEmpty)
+                  Text(t.noteIn(context.words), style: text.bodySmall),
                 if (receipt case final r? when canSeeReceipt)
                   TextButton.icon(
                     key: CustomerFinancialSummary.receiptKey(t.id),
@@ -941,7 +947,7 @@ class TransactionRow extends StatelessWidget {
                     ),
                     onPressed: onIssue,
                     icon: const Icon(Icons.add_card_outlined, size: 16),
-                    label: const Text('Issue receipt'),
+                    label: Text(context.l10n.finIssueReceipt),
                   ),
               ],
             ),
@@ -949,6 +955,7 @@ class TransactionRow extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             amount,
+            textDirection: TextDirection.ltr,
             style: text.bodyMedium?.copyWith(
               fontWeight: FontWeight.w700,
               fontFeatures: const [FontFeature.tabularFigures()],
@@ -961,9 +968,16 @@ class TransactionRow extends StatelessWidget {
 }
 
 /// [at] as a day: *05 Oct 2026*.
-String dayOf(DateTime at) =>
-    '${at.day.toString().padLeft(2, '0')} ${monthNames[at.month - 1]} '
-    '${at.year}';
+///
+/// In [l]'s language; English where none is given.
+String dayOf(DateTime at, [AppLocalizations? l]) {
+  final said = l ?? english;
+  return said.finDay(
+    at.day.toString().padLeft(2, '0'),
+    shortMonth(said, at.month),
+    '${at.year}',
+  );
+}
 
 /// Asks for a payment or a refund of [customer]'s and records it in their
 /// ledger — only it: no design and no price is touched — then, for a
@@ -992,7 +1006,7 @@ Future<void> recordTransaction(
       await ref.issueReceipt(customer.id, asked.transaction.id);
     }
   } on AccessDenied catch (e) {
-    if (context.mounted) say(context, e.toString());
+    if (context.mounted) say(context, e.messageIn(context.words));
   }
 }
 
@@ -1009,7 +1023,7 @@ Future<void> issueAndShowReceipt(
       await showReceipt(context, receipt, customer.name);
     }
   } on AccessDenied catch (e) {
-    if (context.mounted) say(context, e.toString());
+    if (context.mounted) say(context, e.messageIn(context.words));
   }
 }
 
@@ -1110,9 +1124,10 @@ class _TransactionDialogState extends State<TransactionDialog> {
 
   void _save() {
     final now = widget.clock();
-    final read = PaymentLedger.readAmount(_amount.text);
+    final w = context.words;
+    final read = PaymentLedger.readAmount(_amount.text, w);
     final rate = _foreign
-        ? PaymentLedger.readRate(_rate.text)
+        ? PaymentLedger.readRate(_rate.text, w)
         : (rate: null, problem: null);
     final base = widget.finance.currency;
     final conversion = read.cents != null && rate.rate != null
@@ -1135,6 +1150,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
         inCurrency: _currency,
         conversion: conversion,
         moneyIn: (c, cur) => PricePanel.money(c / 100, cur),
+        words: w,
       ),
       if (read.problem != null) 'amount': read.problem!,
       if (rate.problem != null) 'rate': rate.problem!,
@@ -1172,12 +1188,13 @@ class _TransactionDialogState extends State<TransactionDialog> {
     final p = context.palette;
     final total = finance.total;
     final base = finance.currency;
+    final l = context.l10n;
     return AlertDialog(
       scrollable: true,
       title: Text(
         _refund
-            ? 'Refund to ${widget.customer.name}'
-            : 'Payment from ${widget.customer.name}',
+            ? l.finRefundTo(widget.customer.name)
+            : l.finPaymentFrom(widget.customer.name),
       ),
       content: SizedBox(
         width: 400,
@@ -1187,13 +1204,18 @@ class _TransactionDialogState extends State<TransactionDialog> {
           children: [
             Text(
               _refund
-                  ? 'Net paid: ${_money(finance.netPaidCents)}. A refund is '
-                        'money returned; it cannot be more than that.'
+                  ? l.finRefundNote(_money(finance.netPaidCents))
                   : total == null
-                  ? 'The total is not final yet: ${finance.pricing.notFinalReason}'
-                  : '${finance.discount == null ? 'Total price' : 'Final total'}: '
-                        '${_money(finance.totalCents!)} · '
-                        'due ${_money(finance.dueCents!)}',
+                  ? l.finNotFinalYet(
+                      finance.pricing.notFinalReasonIn(context.words),
+                    )
+                  : l.finTotalDue(
+                      finance.discount == null
+                          ? l.finTotalPrice
+                          : l.finFinalTotal,
+                      _money(finance.totalCents!),
+                      _money(finance.dueCents!),
+                    ),
               style: text.bodySmall?.copyWith(color: p.muted),
             ),
             const SizedBox(height: 12),
@@ -1209,7 +1231,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
                       decimal: true,
                     ),
                     decoration: InputDecoration(
-                      labelText: _refund ? 'Refund amount' : 'Amount',
+                      labelText: _refund ? l.finRefundAmount : l.finAmount,
                       errorText: _problems['amount'],
                       errorMaxLines: 3,
                     ),
@@ -1227,7 +1249,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
                     key: PaymentDialogKeys.currency,
                     initialValue: _currency,
                     isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Currency'),
+                    decoration: InputDecoration(labelText: l.finCurrency),
                     items: [
                       for (final c in Currencies.offeredWith(base))
                         DropdownMenuItem(value: c, child: Text(c)),
@@ -1253,15 +1275,12 @@ class _TransactionDialogState extends State<TransactionDialog> {
                   decimal: true,
                 ),
                 decoration: InputDecoration(
-                  labelText: 'Exchange rate (optional)',
+                  labelText: l.finRateOptional,
                   prefixText: '1 $_currency = ',
                   suffixText: base,
                   errorText: _problems['rate'],
                   errorMaxLines: 3,
-                  helperText:
-                      'With a rate it counts towards the $base total, at '
-                      'this rate for good. Without one it is kept in '
-                      '$_currency and not added to the $base total.',
+                  helperText: l.finRateHelp(base, _currency),
                   helperMaxLines: 4,
                 ),
               ),
@@ -1272,11 +1291,14 @@ class _TransactionDialogState extends State<TransactionDialog> {
               initialValue: _method,
               isExpanded: true,
               decoration: InputDecoration(
-                labelText: _refund ? 'Refund method' : 'Payment method',
+                labelText: _refund ? l.finRefundMethod : l.finPaymentMethod,
               ),
               items: [
                 for (final m in PaymentMethod.offered)
-                  DropdownMenuItem(value: m, child: Text(m.label)),
+                  DropdownMenuItem(
+                    value: m,
+                    child: Text(m.labelIn(context.words)),
+                  ),
               ],
               onChanged: (m) {
                 if (m != null) setState(() => _method = m);
@@ -1287,22 +1309,22 @@ class _TransactionDialogState extends State<TransactionDialog> {
               TextField(
                 key: PaymentDialogKeys.other,
                 controller: _other,
-                decoration: const InputDecoration(
-                  labelText: 'Description (optional)',
-                  hintText: 'Company cheque',
+                decoration: InputDecoration(
+                  labelText: l.finDescriptionOptional,
+                  hintText: l.finDescriptionHint,
                 ),
               ),
             ],
             const SizedBox(height: 12),
-            Text('Date', style: text.labelMedium),
+            Text(l.finDate, style: text.labelMedium),
             const SizedBox(height: 4),
             Align(
-              alignment: Alignment.centerLeft,
+              alignment: AlignmentDirectional.centerStart,
               child: OutlinedButton.icon(
                 key: PaymentDialogKeys.date,
                 onPressed: _pickDay,
                 icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                label: Text(dayOf(_day)),
+                label: Text(dayOf(_day, l)),
               ),
             ),
             if (_problems['date'] case final problem?)
@@ -1320,7 +1342,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
               maxLines: 2,
               minLines: 1,
               decoration: InputDecoration(
-                labelText: _refund ? 'Reason / note' : 'Note',
+                labelText: _refund ? l.finReasonNote : l.finNote,
               ),
             ),
             if (!_refund && widget.canIssueReceipt)
@@ -1330,7 +1352,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
                 controlAffinity: ListTileControlAffinity.leading,
                 value: _issue,
                 onChanged: (v) => setState(() => _issue = v ?? false),
-                title: const Text('Issue a receipt'),
+                title: Text(l.finIssueAReceipt),
               ),
           ],
         ),
@@ -1338,12 +1360,12 @@ class _TransactionDialogState extends State<TransactionDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l.actCancel),
         ),
         FilledButton(
           key: PaymentDialogKeys.save,
           onPressed: _save,
-          child: Text(_refund ? 'Save refund' : 'Save payment'),
+          child: Text(_refund ? l.finSaveRefund : l.finSavePayment),
         ),
       ],
     );

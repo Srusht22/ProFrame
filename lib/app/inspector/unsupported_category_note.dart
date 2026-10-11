@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/l10n.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 
@@ -56,12 +57,12 @@ class UnsupportedCategoryNote extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  context.l10n.unsupportedTitle,
                   style: text.titleSmall?.copyWith(color: palette.onNotice),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  message,
+                  context.l10n.unsupportedMessage,
                   style: text.bodySmall?.copyWith(
                     color: palette.onNotice.withValues(alpha: 0.85),
                   ),

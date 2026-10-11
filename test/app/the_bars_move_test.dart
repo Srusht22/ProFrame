@@ -13,13 +13,19 @@ import 'pause_and_take_it_back_test.dart' as sheet;
 // chosen rather than jumping — so the eye follows the change. Every movement
 // finishes, and a device asking for less motion gets the indicator straight
 // where it belongs.
+//
+// Since Phase 34 each indicator is an `AnimatedPositionedDirectional`,
+// placed from the start of the bar rather than its left, so under Central
+// Kurdish, right to left, it stands under the tool or view chosen and not
+// its mirror image. What is held here is where it is on the screen, which
+// in English is exactly where it was.
 
 /// Where the highlight inside [of] is on the screen.
 Offset highlightIn(WidgetTester tester, Type of) => tester.getTopLeft(
   find
       .descendant(
         of: find.byType(of),
-        matching: find.byType(AnimatedPositioned),
+        matching: find.byType(AnimatedPositionedDirectional),
       )
       .first,
 );
@@ -51,7 +57,7 @@ void main() {
       find
           .descendant(
             of: find.byType(ToolBar),
-            matching: find.byType(AnimatedPositioned),
+            matching: find.byType(AnimatedPositionedDirectional),
           )
           .first,
     );
@@ -101,7 +107,7 @@ void main() {
       find
           .descendant(
             of: find.byType(ToolBar),
-            matching: find.byType(AnimatedPositioned),
+            matching: find.byType(AnimatedPositionedDirectional),
           )
           .first,
     );
@@ -121,7 +127,7 @@ void main() {
     await tester.pumpAndSettle();
     final marks = find.descendant(
       of: find.byType(ToolBar),
-      matching: find.byType(AnimatedPositioned),
+      matching: find.byType(AnimatedPositionedDirectional),
     );
     expect(marks, findsNWidgets(2));
     final icon = tester.getCenter(
@@ -156,7 +162,7 @@ void main() {
       find
           .descendant(
             of: find.byType(ToolBar),
-            matching: find.byType(AnimatedPositioned),
+            matching: find.byType(AnimatedPositionedDirectional),
           )
           .first,
     );
@@ -183,7 +189,7 @@ void main() {
       await tester.pumpAndSettle();
       final marks = find.descendant(
         of: find.byType(ViewTabs),
-        matching: find.byType(AnimatedPositioned),
+        matching: find.byType(AnimatedPositionedDirectional),
       );
       final label = tester.getRect(
         find.descendant(

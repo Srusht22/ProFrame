@@ -5,9 +5,12 @@ import '../../domain/model/materials.dart';
 import '../../domain/pricing/colour_catalog.dart';
 import '../../domain/pricing/price_list.dart';
 import '../../domain/pricing/profile_selection.dart';
+import '../../domain/text/names.dart';
 import '../inspector/colour_picker.dart';
 import '../inspector/price_panel.dart';
 import '../inspector/profile_chooser.dart';
+import '../l10n/arb_words.dart';
+import '../l10n/l10n.dart';
 import '../theme/app_theme.dart';
 
 /// The **Colours** of the factory's price list: every colour of its
@@ -49,15 +52,23 @@ class FactoryColoursSection extends StatelessWidget {
 
   /// What [colour] adds on each material it is sold in, in words:
   /// *uPVC 1.00 USD/m · Aluminium 1.50 USD/m + 5%*.
-  static String ratesOf(FactoryColour colour, String currency) => [
-    for (final m in colour.materials)
-      switch (colour.rateFor(m)) {
-        null => '${m.label} not priced',
-        final r =>
-          '${m.label} ${PricePanel.money(r.perMetre, currency)}/m'
-              '${r.percent > 0 ? ' + ${_figure(r.percent)}%' : ''}',
-      },
-  ].join(' · ');
+  static String ratesOf(
+    FactoryColour colour,
+    String currency, [
+    AppLocalizations? said,
+  ]) {
+    final l = said ?? english;
+    final w = ArbWords(l);
+    return [
+      for (final m in colour.materials)
+        switch (colour.rateFor(m)) {
+          null => l.fcNotPriced(m.labelIn(w)),
+          final r =>
+            '${l.fcPerMetre(m.labelIn(w), PricePanel.money(r.perMetre, currency))}'
+                '${r.percent > 0 ? ' + ${_figure(r.percent)}%' : ''}',
+        },
+    ].join(' · ');
+  }
 
   static String _figure(double v) {
     final s = v.toStringAsFixed(2);
@@ -67,57 +78,51 @@ class FactoryColoursSection extends StatelessWidget {
   Future<void> _add(BuildContext context) async {
     final next = await ColourDialog.show(context, list: list);
     if (next == null) return;
-    await onChanged(next, 'Colour added.');
+    if (!context.mounted) return;
+    await onChanged(next, context.l10n.fcAdded);
   }
 
   Future<void> _edit(BuildContext context, FactoryColour colour) async {
     final next = await ColourDialog.show(context, list: list, editing: colour);
     if (next == null) return;
-    await onChanged(next, 'Colour saved.');
+    if (!context.mounted) return;
+    await onChanged(next, context.l10n.fcSaved);
   }
 
   Future<void> _retire(BuildContext context, FactoryColour colour) async {
     final sure = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Retire ${colour.name}?'),
-        content: const SizedBox(
-          width: 420,
-          child: Text(
-            'It will no longer be offered for new designs. Every design '
-            'already in it keeps it, is still shown in it and is still '
-            'priced at its rate. Nothing is deleted, and it can be brought '
-            'back.',
-          ),
-        ),
+        title: Text(context.l10n.fcRetireAsk(colour.name)),
+        content: SizedBox(width: 420, child: Text(context.l10n.fcRetireBody)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.actCancel),
           ),
           FilledButton(
             key: confirmRetireKey,
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Retire colour'),
+            child: Text(context.l10n.fcRetire),
           ),
         ],
       ),
     );
-    if (!(sure ?? false)) return;
+    if (!(sure ?? false) || !context.mounted) return;
     await onChanged(
       ColourCatalog.retire(list, colour.id),
-      '${colour.name} retired.',
+      context.l10n.fcRetired(colour.name),
     );
   }
 
   Future<void> _restore(BuildContext context, FactoryColour colour) async {
-    final back = ColourCatalog.restore(list, colour.id);
+    final back = ColourCatalog.restore(list, colour.id, context.words);
     if (back.list == null) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(back.problems.values.first)));
       return;
     }
-    await onChanged(back.list!, '${colour.name} is offered again.');
+    await onChanged(back.list!, context.l10n.fcOfferedAgain(colour.name));
   }
 
   @override
@@ -137,7 +142,7 @@ class FactoryColoursSection extends StatelessWidget {
             runSpacing: 4,
             children: [
               Text(
-                'COLOURS',
+                context.l10n.fcColours,
                 style: text.labelMedium?.copyWith(
                   letterSpacing: 0.8,
                   fontWeight: FontWeight.w700,
@@ -149,26 +154,20 @@ class FactoryColoursSection extends StatelessWidget {
                   key: addKey,
                   onPressed: () => _add(context),
                   icon: const Icon(Icons.add),
-                  label: const Text('Add colour'),
+                  label: Text(context.l10n.fcAdd),
                 ),
             ],
           ),
         ),
         Text(
-          'What each colour adds on each material it is sold in, by the '
-          'metre of profile and as a share of the profile\'s price. A '
-          'retired colour is not offered for new designs; designs already '
-          'in it keep it.',
+          context.l10n.fcIntro,
           style: text.bodySmall?.copyWith(color: p.muted),
         ),
         const SizedBox(height: 6),
         if (list.colours.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'No colours yet. Every colour is priced as any other colour.',
-              style: text.bodyMedium,
-            ),
+            child: Text(context.l10n.fcNone, style: text.bodyMedium),
           ),
         for (final c in list.colours)
           Card(
@@ -195,7 +194,9 @@ class FactoryColoursSection extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              c.active ? 'Active' : 'Retired',
+                              c.active
+                                  ? context.l10n.fcActive
+                                  : context.l10n.fcRetiredStatus,
                               key: statusKey(c.id),
                               style: text.labelSmall?.copyWith(
                                 color: c.active ? p.primary : p.muted,
@@ -206,7 +207,7 @@ class FactoryColoursSection extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          ratesOf(c, list.currency),
+                          ratesOf(c, list.currency, context.l10n),
                           key: ratesKey(c.id),
                           style: text.bodySmall?.copyWith(color: p.muted),
                         ),
@@ -216,21 +217,21 @@ class FactoryColoursSection extends StatelessWidget {
                   if (editable) ...[
                     IconButton(
                       key: editKey(c.id),
-                      tooltip: 'Edit ${c.name}',
+                      tooltip: context.l10n.fcEdit(c.name),
                       icon: const Icon(Icons.edit_outlined),
                       onPressed: () => _edit(context, c),
                     ),
                     if (c.active)
                       IconButton(
                         key: retireKey(c.id),
-                        tooltip: 'Retire ${c.name}',
+                        tooltip: context.l10n.fcRetireOf(c.name),
                         icon: const Icon(Icons.archive_outlined),
                         onPressed: () => _retire(context, c),
                       )
                     else
                       IconButton(
                         key: restoreKey(c.id),
-                        tooltip: 'Offer ${c.name} again',
+                        tooltip: context.l10n.fcOfferAgain(c.name),
                         icon: const Icon(Icons.unarchive_outlined),
                         onPressed: () => _restore(context, c),
                       ),
@@ -330,11 +331,12 @@ class _ColourDialogState extends State<ColourDialog> {
   }
 
   void _save() {
+    final w = context.words;
     final problems = <String, String>{};
     final rates = <MaterialKind, ColourSurcharge?>{};
     for (final m in _sold) {
-      final metre = ColourCatalog.readRate(_metre[m]!.text);
-      final percent = ColourCatalog.readRate(_percent[m]!.text);
+      final metre = ColourCatalog.readRate(_metre[m]!.text, w);
+      final percent = ColourCatalog.readRate(_percent[m]!.text, w);
       final typed = metre.problem ?? percent.problem;
       if (typed != null) {
         problems[ColourCatalog.rateField(m)] = typed;
@@ -356,9 +358,9 @@ class _ColourDialogState extends State<ColourDialog> {
     );
     final editing = widget.editing;
     final done = editing == null
-        ? ColourCatalog.add(widget.list, draft)
+        ? ColourCatalog.add(widget.list, draft, w)
         : (() {
-            final r = ColourCatalog.update(widget.list, editing.id, draft);
+            final r = ColourCatalog.update(widget.list, editing.id, draft, w);
             return (list: r.list, problems: r.problems, id: editing.id);
           })();
     final all = {...done.problems, ...problems};
@@ -375,9 +377,10 @@ class _ColourDialogState extends State<ColourDialog> {
     final p = context.palette;
     final error = Theme.of(context).colorScheme.error;
     final editing = widget.editing;
+    final l = context.l10n;
     return AlertDialog(
       scrollable: true,
-      title: Text(editing == null ? 'Add colour' : 'Edit ${editing.name}'),
+      title: Text(editing == null ? l.fcAdd : l.fcEdit(editing.name)),
       content: SizedBox(
         width: 420,
         child: Column(
@@ -390,7 +393,7 @@ class _ColourDialogState extends State<ColourDialog> {
               autofocus: editing == null,
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
-                labelText: 'Colour name',
+                labelText: l.fcName,
                 errorText: _problems[ColourCatalog.nameField],
                 errorMaxLines: 3,
               ),
@@ -399,13 +402,12 @@ class _ColourDialogState extends State<ColourDialog> {
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  'Renaming keeps it the same colour: every design in it '
-                  'shows the new name.',
+                  l.fcRenaming,
                   style: text.bodySmall?.copyWith(color: p.muted),
                 ),
               ),
             const SizedBox(height: 14),
-            Text('Swatch', style: text.labelMedium),
+            Text(l.fcSwatch, style: text.labelMedium),
             const SizedBox(height: 6),
             ColourPicker(
               colour: _swatch,
@@ -428,11 +430,11 @@ class _ColourDialogState extends State<ColourDialog> {
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp('[0-9a-fA-F]')),
                     ],
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       isDense: true,
                       prefixText: '#',
                       counterText: '',
-                      labelText: 'Or its code',
+                      labelText: l.fcCode,
                     ),
                     onChanged: (v) {
                       if (v.length == 6) {
@@ -449,11 +451,11 @@ class _ColourDialogState extends State<ColourDialog> {
               key: ColourDialog.standardKey,
               contentPadding: EdgeInsets.zero,
               value: _standard,
-              title: const Text('Standard colour'),
+              title: Text(l.fcStandard),
               onChanged: (v) => setState(() => _standard = v),
             ),
             const SizedBox(height: 4),
-            Text('Sold in, and what it adds', style: text.labelMedium),
+            Text(l.fcSoldIn, style: text.labelMedium),
             if (_problems[ColourCatalog.materialsField] case final problem?)
               Padding(
                 key: ColourDialog.materialsProblemKey,
@@ -466,7 +468,7 @@ class _ColourDialogState extends State<ColourDialog> {
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
                 value: _sold.contains(m),
-                title: Text(m.label),
+                title: Text(m.labelIn(context.words)),
                 onChanged: (on) => setState(() {
                   if (on ?? false) {
                     _sold.add(m);
@@ -477,7 +479,10 @@ class _ColourDialogState extends State<ColourDialog> {
               ),
               if (_sold.contains(m))
                 Padding(
-                  padding: const EdgeInsets.only(left: 12, bottom: 6),
+                  padding: const EdgeInsetsDirectional.only(
+                    start: 12,
+                    bottom: 6,
+                  ),
                   child: Wrap(
                     spacing: 12,
                     runSpacing: 6,
@@ -492,7 +497,7 @@ class _ColourDialogState extends State<ColourDialog> {
                           ),
                           decoration: InputDecoration(
                             isDense: true,
-                            labelText: 'A metre',
+                            labelText: l.fcAMetre,
                             suffixText: '${widget.list.currency} / m',
                           ),
                         ),
@@ -505,9 +510,9 @@ class _ColourDialogState extends State<ColourDialog> {
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             isDense: true,
-                            labelText: 'On the profile',
+                            labelText: l.fcOnProfile,
                             hintText: '0',
                             suffixText: '%',
                           ),
@@ -526,12 +531,12 @@ class _ColourDialogState extends State<ColourDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l.actCancel),
         ),
         FilledButton(
           key: ColourDialog.saveKey,
           onPressed: _save,
-          child: Text(editing == null ? 'Add colour' : 'Save colour'),
+          child: Text(editing == null ? l.fcAdd : l.fcSave),
         ),
       ],
     );

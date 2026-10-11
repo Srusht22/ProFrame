@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import '../theme/app_theme.dart';
 import 'view_mode.dart';
 
@@ -44,6 +45,7 @@ class ViewModeSwitch extends StatelessWidget {
 
   static TextStyle _labelStyle(bool on) => TextStyle(
     fontFamily: AppTheme.fontFamily,
+    fontFamilyFallback: AppTheme.fontFallback,
     fontSize: 12,
     fontWeight: on ? FontWeight.w700 : FontWeight.w500,
   );
@@ -55,8 +57,11 @@ class ViewModeSwitch extends StatelessWidget {
       // As wide as the label is written chosen, which is the wider.
       double label(ViewMode m) =>
           (TextPainter(
-            text: TextSpan(text: m.label, style: _labelStyle(true)),
-            textDirection: TextDirection.ltr,
+            text: TextSpan(
+              text: m.labelIn(context.l10n),
+              style: _labelStyle(true),
+            ),
+            textDirection: Directionality.of(context),
             textScaler: scaler,
           )..layout()).width.ceilToDouble() +
           1;
@@ -71,7 +76,7 @@ class ViewModeSwitch extends StatelessWidget {
           _rim + _optionPadding + _mark + _gap + label(mode) + _chevron;
       final Widget child;
       if (spread <= room) {
-        child = _spread();
+        child = _spread(context);
       } else if (named <= room) {
         child = _menu(named: true);
       } else {
@@ -92,12 +97,12 @@ class ViewModeSwitch extends StatelessWidget {
     },
   );
 
-  Widget _spread() => Row(
+  Widget _spread(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
       for (final m in modes)
         Tooltip(
-          message: m.hint,
+          message: m.hintIn(context.l10n),
           child: InkWell(
             key: keyOf(m),
             borderRadius: BorderRadius.circular(8),
@@ -142,7 +147,7 @@ class ViewModeSwitch extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      m.label,
+                      m.labelIn(context.l10n),
                       style: _labelStyle(m == mode).copyWith(
                         fontSize: 13,
                         color: m == mode
@@ -151,9 +156,10 @@ class ViewModeSwitch extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      m.hint,
+                      m.hintIn(context.l10n),
                       style: TextStyle(
                         fontFamily: AppTheme.fontFamily,
+                        fontFamilyFallback: AppTheme.fontFallback,
                         fontSize: 11,
                         color: context.palette.muted,
                       ),
@@ -207,7 +213,7 @@ class _Option extends StatelessWidget {
           if (named) ...[
             const SizedBox(width: 5),
             Text(
-              mode.label,
+              mode.labelIn(context.l10n),
               style: ViewModeSwitch._labelStyle(on).copyWith(color: colour),
             ),
           ],

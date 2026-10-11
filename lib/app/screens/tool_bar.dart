@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../inspector/colour_picker.dart';
+import '../l10n/l10n.dart';
 import '../state/everything_shown.dart';
 import '../state/tools.dart';
 import '../state/workspace.dart';
@@ -131,10 +132,10 @@ class ToolBar extends ConsumerWidget {
                       child: Stack(
                         children: [
                           // The pill behind the active tool's icon.
-                          AnimatedPositioned(
+                          AnimatedPositionedDirectional(
                             duration: change,
                             curve: Curves.easeOutBack,
-                            left: across * chosen + (across - pill.width) / 2,
+                            start: across * chosen + (across - pill.width) / 2,
                             top: 8,
                             width: pill.width,
                             height: pill.height,
@@ -155,10 +156,10 @@ class ToolBar extends ConsumerWidget {
                             ),
                           ),
                           // And the bar on the top edge above it.
-                          AnimatedPositioned(
+                          AnimatedPositionedDirectional(
                             duration: change,
                             curve: Curves.easeOutBack,
-                            left: across * chosen + (across - 28) / 2,
+                            start: across * chosen + (across - 28) / 2,
                             top: 0,
                             width: 28,
                             height: 3,
@@ -233,7 +234,7 @@ class ToolBar extends ConsumerWidget {
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Pen colour'),
+        title: Text(context.l10n.tbPenColour),
         content: SizedBox(
           width: 320,
           child: Column(
@@ -250,8 +251,7 @@ class ToolBar extends ConsumerWidget {
               if (context.palette.isDark) ...[
                 const SizedBox(height: 14),
                 Text(
-                  'On the dark sheet a dark ink is shown light, so it can be '
-                  'seen. The drawing keeps the colour you choose.',
+                  context.l10n.tbDarkInk,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -310,8 +310,9 @@ class _ToolButtonState extends State<_ToolButton> {
 
     return Tooltip(
       message: dimmed
-          ? '${widget.tool.label}\nTap to go back to the drawing and use it.'
-          : '${widget.tool.label}\n${widget.tool.hint}',
+          ? context.l10n.toolGoBack(widget.tool.labelIn(context.l10n))
+          : '${widget.tool.labelIn(context.l10n)}\n'
+                '${widget.tool.hintIn(context.l10n)}',
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _hover = true),
@@ -361,6 +362,7 @@ class _ToolButtonState extends State<_ToolButton> {
                   duration: change,
                   style: TextStyle(
                     fontFamily: AppTheme.fontFamily,
+                    fontFamilyFallback: AppTheme.fontFallback,
                     fontSize: 10,
                     height: 1.15,
                     fontWeight: active ? FontWeight.w700 : FontWeight.w600,
@@ -369,7 +371,7 @@ class _ToolButtonState extends State<_ToolButton> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 2),
                     child: Text(
-                      widget.tool.label,
+                      widget.tool.labelIn(context.l10n),
                       textAlign: TextAlign.center,
                       maxLines: 2,
                       overflow: TextOverflow.fade,
@@ -393,7 +395,7 @@ class _PenColour extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: 'Pen colour',
+    message: context.l10n.tbPenColour,
     child: Center(
       child: InkWell(
         onTap: onTap,

@@ -16,6 +16,8 @@ import '../../domain/model/elements.dart';
 import '../../domain/model/materials.dart';
 import '../../domain/model/opening_leaf.dart';
 import '../../domain/model/surface.dart';
+import '../../domain/text/names.dart';
+import '../../domain/text/words.dart';
 import 'cad_layers.dart';
 import 'cad_style.dart';
 import 'dimension_handles.dart';
@@ -64,7 +66,13 @@ class CadPainter extends CustomPainter {
     this.guide,
     this.guideWithin,
     this.ink = Cad.paper,
+    this.words = const EnglishWords(),
   });
+
+  /// The language the drawing's words are written in: what fills a part,
+  /// which way a leaf opens and what a row of figures measures. Every
+  /// figure and line is the same in any.
+  final Words words;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -247,11 +255,14 @@ class CadPainter extends CustomPainter {
       final colour = PanelColour.of(finish);
       final word = finish.material.surface.cad.inGlassTint
           ? (look == null || look == GlassLook.clear
-                ? 'GLASS'
-                : '${look.label.toUpperCase()} GLASS')
+                ? words.cadGlass
+                : words.cadLookGlass(look.labelIn(words).toUpperCase()))
           : [
-              finish.material.label.toUpperCase().replaceFirst('SOLID ', ''),
-              ?colour?.label.toUpperCase(),
+              finish.material
+                  .labelIn(words)
+                  .toUpperCase()
+                  .replaceFirst('SOLID ', ''),
+              ?colour?.labelIn(words).toUpperCase(),
             ].join(' · ');
       // Only where the word fits inside the part it names.
       final wide = Cad.label(
@@ -512,7 +523,9 @@ class CadPainter extends CustomPainter {
 
       // Which way it opens, in words, because a triangle alone does not say.
       final tag = Cad.label(
-        opening.direction == OpeningDirection.outward ? 'OUT' : 'IN',
+        opening.direction == OpeningDirection.outward
+            ? words.cadOut
+            : words.cadIn,
         colour: ink.light,
         size: Cad.smallTextSize,
         weight: FontWeight.w600,
@@ -687,7 +700,12 @@ class CadPainter extends CustomPainter {
   /// Every chain of dimensions, where [DimensionLayout] puts it — the same
   /// answer the figures are tapped by.
   void _chains(Canvas canvas, Size size, DesignTree tree) {
-    final layout = DimensionLayout.of(design, view, canvas: size);
+    final layout = DimensionLayout.of(
+      design,
+      view,
+      canvas: size,
+      words: words,
+    );
     final paint = Cad.stroke(ink.dimension, Cad.annotation);
     for (final placed in layout.figures) {
       // Witness lines, standing off the geometry so they never touch it.
@@ -980,6 +998,7 @@ class CadPainter extends CustomPainter {
       old.selectedId != selectedId ||
       old.layers != layers ||
       old.ink != ink ||
+      old.words != words ||
       old.snapAt != snapAt ||
       old.grips.length != grips.length ||
       !setEquals(old.highlighted, highlighted);

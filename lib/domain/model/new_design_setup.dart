@@ -1,3 +1,4 @@
+import '../text/words.dart';
 import 'customer.dart';
 import 'design.dart';
 
@@ -56,10 +57,8 @@ class NewDesignSetup {
   /// act on, or null where it will do. Only emptiness is wrong — whitespace
   /// either side is trimmed away, and anything else is the user's name for
   /// their design.
-  static String? nameProblem(String typed) => typed.trim().isEmpty
-      ? 'Enter a name for this design, such as the room or the place '
-            'it is for.'
-      : null;
+  static String? nameProblem(String typed, [Words w = const EnglishWords()]) =>
+      typed.trim().isEmpty ? w.nameProblem : null;
 
   /// Whether a name has been given.
   bool get isNamed => (name ?? '').trim().isNotEmpty;

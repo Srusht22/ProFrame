@@ -14,13 +14,8 @@ class Appearance extends Notifier<ThemeMode> {
   /// Where the choice is kept.
   static const key = 'proframe.appearance';
 
-  /// What each choice is called, in the order they are offered.
-  static const labels = {
-    ThemeMode.system: 'Match device',
-    ThemeMode.light: 'Light',
-    ThemeMode.dark: 'Dark',
-  };
-
+  /// Each choice's mark, in the order they are offered. What each is
+  /// called is the language's (`appearanceLabel`).
   static const icons = {
     ThemeMode.system: Icons.brightness_auto_outlined,
     ThemeMode.light: Icons.light_mode_outlined,

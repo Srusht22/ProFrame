@@ -5,6 +5,8 @@ import '../../domain/model/infill.dart';
 import '../../domain/pricing/design_pricing.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/profile_category.dart';
+import '../../domain/text/names.dart';
+import '../l10n/l10n.dart';
 import '../theme/app_theme.dart';
 
 /// A change to a design's pricing choices, made by whoever is at the device
@@ -65,6 +67,8 @@ class _PricingOptionsState extends State<PricingOptions> {
     final hasGlass = Infill.partsOf(design)
         .any((x) => Infill.isGlass(x.finish));
     final glassOn = design.pricing.glassPriced;
+    final l = context.l10n;
+    final w = context.words;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -75,22 +79,20 @@ class _PricingOptionsState extends State<PricingOptions> {
             initialValue: design.pricing.profileCategory,
             isExpanded: true,
             decoration: InputDecoration(
-              labelText: '${material!.label} profile',
+              labelText: l.poProfileOf(material!.labelIn(w)),
               helperText: ownChoices
-                  ? 'Some parts are set on their own below.'
+                  ? l.poSomeOwn
                   : design.pricing.profileCategory == null
-                  ? 'Choose the profile the factory makes it in.'
+                  ? l.poChooseProfile
                   : null,
               isDense: true,
             ),
             items: [
-              const DropdownMenuItem<ProfileCategory?>(
-                child: Text(PricingOptions.notSelected),
-              ),
+              DropdownMenuItem<ProfileCategory?>(child: Text(w.notSelected)),
               for (final c in categories)
                 DropdownMenuItem<ProfileCategory?>(
                   value: c,
-                  child: Text(c.label),
+                  child: Text(c.labelIn(w)),
                 ),
             ],
             onChanged: change == null
@@ -108,7 +110,7 @@ class _PricingOptionsState extends State<PricingOptions> {
                 _each ? Icons.expand_less : Icons.expand_more,
                 size: 18,
               ),
-              label: Text(_each ? 'Hide the parts' : 'Set each part'),
+              label: Text(_each ? l.poHideParts : l.poEachPart),
             ),
           ),
           if (_each)
@@ -119,7 +121,8 @@ class _PricingOptionsState extends State<PricingOptions> {
                   children: [
                     Expanded(
                       child: Text(
-                        '${part.name} · ${part.part.label.toLowerCase()}',
+                        '${part.nameIn(w)} · '
+                        '${part.part.labelIn(w).toLowerCase()}',
                         style: text.bodySmall,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -134,20 +137,20 @@ class _PricingOptionsState extends State<PricingOptions> {
                         style: text.bodySmall,
                         hint: Text(
                           part.category == null
-                              ? PricingOptions.notSelected
-                              : 'As the design (${part.category!.label})',
+                              ? w.notSelected
+                              : l.poAsDesignOf(part.category!.labelIn(w)),
                           style: text.bodySmall?.copyWith(color: p.muted),
                           overflow: TextOverflow.ellipsis,
                         ),
                         items: [
-                          const DropdownMenuItem<ProfileCategory?>(
-                            child: Text('As the design'),
+                          DropdownMenuItem<ProfileCategory?>(
+                            child: Text(l.poAsDesign),
                           ),
                           for (final c in categories)
                             DropdownMenuItem<ProfileCategory?>(
                               value: c,
                               child: Text(
-                                c.label,
+                                c.labelIn(w),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -171,9 +174,7 @@ class _PricingOptionsState extends State<PricingOptions> {
         ],
         Row(
           children: [
-            Expanded(
-              child: Text('Include glass in price', style: text.bodyMedium),
-            ),
+            Expanded(child: Text(l.poIncludeGlass, style: text.bodyMedium)),
             Switch(
               key: PricingOptions.glassKey,
               value: glassOn,
@@ -187,12 +188,10 @@ class _PricingOptionsState extends State<PricingOptions> {
         ),
         Text(
           switch ((glassOn, hasGlass)) {
-            (false, true) =>
-              'Glass is not included: its area is measured and not '
-                  'charged.',
-            (false, false) => 'Glass is not included.',
-            (true, true) => 'Glass is charged by its measured area.',
-            (true, false) => 'There is no measurable glass to price.',
+            (false, true) => l.poGlassMeasured,
+            (false, false) => l.poGlassOff,
+            (true, true) => l.poGlassCharged,
+            (true, false) => l.poNoGlass,
           },
           key: PricingOptions.glassNoteKey,
           style: text.bodySmall?.copyWith(color: p.muted),

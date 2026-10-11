@@ -6,6 +6,7 @@ import '../../domain/pricing/price_list.dart';
 import '../../domain/pricing/price_list_fields.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../infrastructure/owner_access_store.dart';
+import '../l10n/l10n.dart';
 import '../state/access.dart';
 import '../state/pricing.dart';
 import '../theme/app_theme.dart';
@@ -22,7 +23,7 @@ class FactoryPricesButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => IconButton(
     key: buttonKey,
-    tooltip: 'Factory prices',
+    tooltip: context.l10n.fpTitle,
     icon: Icon(Icons.price_change_outlined, color: colour),
     onPressed: () => Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const FactoryPricesScreen()),
@@ -87,7 +88,7 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
     final was = _shown;
     _shown = list;
     _problems.clear();
-    for (final f in RateField.of(list)) {
+    for (final f in RateField.of(list, context.words)) {
       final text = _text[f.id] ??= TextEditingController();
       final typedOver =
           keepEdits &&
@@ -105,18 +106,13 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
       if (!mounted) return true;
       setState(() => _fill(kept, keepEdits: true));
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '$done Prices kept as version ${kept.version}; every design '
-            'priced before is now to be recalculated.',
-          ),
-        ),
+        SnackBar(content: Text(context.l10n.fpColoursKept(done, kept.version))),
       );
       return true;
     } on PricingAccessDenied catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.toString())));
+            .showSnackBar(SnackBar(content: Text(e.messageIn(context.words))));
       }
       return false;
     }
@@ -125,12 +121,12 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
   Future<void> _save(PriceList list) async {
     var next = list;
     final problems = <String, String>{};
-    for (final f in RateField.of(list)) {
+    for (final f in RateField.of(list, context.words)) {
       final words = _text[f.id]?.text.trim() ?? '';
       final value = words.isEmpty ? null : double.tryParse(words);
       final problem = words.isNotEmpty && value == null
-          ? 'Enter a figure.'
-          : f.problemWith(value);
+          ? context.words.ccEnterFigure
+          : f.problemWith(value, context.words);
       if (problem != null) {
         problems[f.id] = problem;
         continue;
@@ -144,13 +140,7 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
     });
     if (problems.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${problems.length} '
-            '${problems.length == 1 ? 'figure needs' : 'figures need'} '
-            'correcting before the prices can be kept.',
-          ),
-        ),
+        SnackBar(content: Text(context.l10n.fpNeedCorrecting(problems.length))),
       );
       return;
     }
@@ -159,18 +149,12 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
       final kept = await ref.savePriceList(next);
       if (!mounted) return;
       _fill(kept);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Prices kept. Every design priced before is now to be '
-            'recalculated.',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(context.l10n.fpKept)));
     } on PricingAccessDenied catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.toString())));
+          .showSnackBar(SnackBar(content: Text(e.messageIn(context.words))));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -199,7 +183,7 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
     return Scaffold(
       backgroundColor: p.shell,
       appBar: AppBar(
-        title: const Text('Factory prices'),
+        title: Text(context.l10n.fpTitle),
         actions: [
           if (role == WorkshopRole.owner)
             TextButton.icon(
@@ -208,7 +192,7 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
               style: TextButton.styleFrom(foregroundColor: p.onBand),
               onPressed: ref.signOut,
               icon: const Icon(Icons.lock_outline),
-              label: const Text('Lock'),
+              label: Text(context.l10n.fpLock),
             ),
           const SizedBox(width: 8),
         ],
@@ -230,14 +214,12 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Only the workshop owner can change prices.',
+                                context.l10n.fpOnlyOwner,
                                 style: text.titleSmall,
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'These are the rates every design is priced '
-                                'by. Staff can read them and price designs '
-                                'by them.',
+                                context.l10n.fpRatesNote,
                                 style: text.bodySmall,
                               ),
                               const SizedBox(height: 10),
@@ -245,7 +227,7 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
                                 key: FactoryPricesScreen.unlockKey,
                                 onPressed: _unlock,
                                 icon: const Icon(Icons.lock_open_outlined),
-                                label: const Text('Unlock as owner'),
+                                label: Text(context.l10n.fpUnlock),
                               ),
                             ],
                           ),
@@ -255,17 +237,14 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
-                          'Example prices — the workshop owner sets the '
-                          'real ones.',
+                          context.l10n.ppExamplePrices,
                           style: text.bodySmall?.copyWith(color: p.muted),
                         ),
                       ),
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
-                        'In ${list.currency}. A figure left empty is not '
-                        'priced: a design using it says so rather than '
-                        'being priced at nothing.',
+                        context.l10n.fpInCurrency(list.currency),
                         style: text.bodySmall?.copyWith(color: p.muted),
                       ),
                     ),
@@ -279,7 +258,7 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
               key: FactoryPricesScreen.saveKey,
               onPressed: _saving ? null : () => _save(list),
               icon: const Icon(Icons.save_outlined),
-              label: const Text('Keep prices'),
+              label: Text(context.l10n.fpKeep),
             )
           : null,
     );
@@ -291,7 +270,7 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
     final out = <Widget>[];
     String? section;
     var colours = false;
-    for (final f in RateField.of(list)) {
+    for (final f in RateField.of(list, context.words)) {
       if (f.section != section) {
         section = f.section;
         // The colour catalog, before what a colour it does not name adds.
@@ -348,7 +327,7 @@ class _FactoryPricesScreenState extends ConsumerState<FactoryPricesScreen> {
                   ],
                   decoration: InputDecoration(
                     isDense: true,
-                    hintText: f.optional ? 'not priced' : null,
+                    hintText: f.optional ? context.l10n.fpNotPriced : null,
                     suffixText: f.unit,
                     errorText: _problems[f.id],
                   ),
@@ -391,8 +370,8 @@ class _OwnerPinDialogState extends State<OwnerPinDialog> {
     final pin = _pin.text.trim();
     if (widget.setting) {
       final problem =
-          OwnerAccessStore.problemWith(pin) ??
-          (pin == _again.text.trim() ? null : 'The two PINs are not the same.');
+          OwnerAccessStore.problemWith(pin, context.words) ??
+          (pin == _again.text.trim() ? null : context.l10n.pinNotSame);
       if (problem != null) {
         setState(() => _problem = problem);
         return;
@@ -400,7 +379,7 @@ class _OwnerPinDialogState extends State<OwnerPinDialog> {
       final set = await widget.store.setPin(pin);
       if (!mounted) return;
       if (!set) {
-        setState(() => _problem = 'An owner PIN is already set.');
+        setState(() => _problem = context.l10n.pinAlreadySet);
         return;
       }
       Navigator.of(context).pop(true);
@@ -409,7 +388,7 @@ class _OwnerPinDialogState extends State<OwnerPinDialog> {
     final right = await widget.store.verify(pin);
     if (!mounted) return;
     if (!right) {
-      setState(() => _problem = 'That is not the owner PIN.');
+      setState(() => _problem = context.l10n.pinWrong);
       return;
     }
     Navigator.of(context).pop(true);
@@ -417,17 +396,15 @@ class _OwnerPinDialogState extends State<OwnerPinDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.setting ? 'Set the owner PIN' : 'Unlock as owner'),
+    title: Text(
+      widget.setting ? context.l10n.pinSetTitle : context.l10n.fpUnlock,
+    ),
     content: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          widget.setting
-              ? 'No owner PIN is set on this device. The PIN you set now is '
-                    'what signs the owner in from here on — to change the '
-                    'factory prices, give discounts and manage staff.'
-              : 'Enter the owner PIN.',
+          widget.setting ? context.l10n.pinSetNote : context.l10n.pinEnterOwner,
         ),
         const SizedBox(height: 12),
         TextField(
@@ -437,7 +414,7 @@ class _OwnerPinDialogState extends State<OwnerPinDialog> {
           autofocus: true,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: const InputDecoration(labelText: 'Owner PIN'),
+          decoration: InputDecoration(labelText: context.l10n.pinOwner),
           onSubmitted: (_) => _ok(),
         ),
         if (widget.setting)
@@ -447,7 +424,7 @@ class _OwnerPinDialogState extends State<OwnerPinDialog> {
             obscureText: true,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: const InputDecoration(labelText: 'The PIN again'),
+            decoration: InputDecoration(labelText: context.l10n.pinAgain),
             onSubmitted: (_) => _ok(),
           ),
         if (_problem case final problem?)
@@ -463,12 +440,14 @@ class _OwnerPinDialogState extends State<OwnerPinDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.of(context).pop(false),
-        child: const Text('Cancel'),
+        child: Text(context.l10n.actCancel),
       ),
       FilledButton(
         key: FactoryPricesScreen.pinOkKey,
         onPressed: _ok,
-        child: Text(widget.setting ? 'Set PIN' : 'Unlock'),
+        child: Text(
+          widget.setting ? context.l10n.pinSet : context.l10n.pinUnlock,
+        ),
       ),
     ],
   );

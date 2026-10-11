@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/customer.dart';
+import '../l10n/l10n.dart';
 import '../state/access.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -102,6 +103,7 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final l = context.l10n;
     Widget label(String text, {bool needed = false}) => Padding(
       padding: const EdgeInsets.only(bottom: 8, top: 18),
       child: Text.rich(
@@ -110,7 +112,7 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
           children: [
             if (!needed)
               TextSpan(
-                text: '  optional',
+                text: l.optionalField,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w400,
@@ -144,7 +146,7 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: Text(_editing ? 'Edit Customer' : 'New Customer')),
+      appBar: AppBar(title: Text(_editing ? l.editCustomer : l.newCustomer)),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -163,7 +165,7 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      _editing ? 'Edit Customer' : 'New Customer',
+                      _editing ? l.editCustomer : l.newCustomer,
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
@@ -172,24 +174,20 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _editing
-                          ? 'Change how to reach them or what to remember. '
-                                'Their designs stay exactly as they are.'
-                          : 'Who are you drawing for? Their designs are kept '
-                                'together under them.',
+                      _editing ? l.editCustomerLine : l.newCustomerLine,
                       style: TextStyle(fontSize: 14, color: p.muted),
                     ),
                     const SizedBox(height: 8),
-                    label('Name', needed: true),
+                    label(l.name, needed: true),
                     TextField(
                       key: NewCustomerScreen.nameField,
                       controller: _name,
                       autofocus: !_editing,
                       textCapitalization: TextCapitalization.words,
                       textInputAction: TextInputAction.next,
-                      decoration: look('e.g. Adam', Icons.person_outline),
+                      decoration: look(l.nameHint, Icons.person_outline),
                     ),
-                    label('Phone number'),
+                    label(l.phoneNumber),
                     TextField(
                       key: NewCustomerScreen.phoneField,
                       controller: _phone,
@@ -200,23 +198,17 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
                           RegExp(r'[0-9+\-().\s]'),
                         ),
                       ],
-                      decoration: look(
-                        'e.g. +964 750 123 4567',
-                        Icons.phone_outlined,
-                      ),
+                      decoration: look(l.phoneHint, Icons.phone_outlined),
                     ),
-                    label('Address'),
+                    label(l.address),
                     TextField(
                       key: NewCustomerScreen.addressField,
                       controller: _address,
                       textCapitalization: TextCapitalization.sentences,
                       textInputAction: TextInputAction.next,
-                      decoration: look(
-                        'e.g. Salim Street 12, Sulaymaniyah',
-                        Icons.place_outlined,
-                      ),
+                      decoration: look(l.addressHint, Icons.place_outlined),
                     ),
-                    label('Notes'),
+                    label(l.notes),
                     TextField(
                       key: NewCustomerScreen.notesField,
                       controller: _notes,
@@ -224,7 +216,7 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
                       maxLines: 6,
                       textCapitalization: TextCapitalization.sentences,
                       decoration: look(
-                        'Anything to remember about them',
+                        l.notesHint,
                         Icons.sticky_note_2_outlined,
                       ),
                     ),
@@ -236,7 +228,7 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
                         minimumSize: const Size(0, 52),
                       ),
                       icon: const Icon(Icons.check),
-                      label: Text(_editing ? 'Save changes' : 'Save customer'),
+                      label: Text(_editing ? l.saveChanges : l.saveCustomer),
                     ),
                   ],
                 ),

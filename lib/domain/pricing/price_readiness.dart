@@ -1,7 +1,8 @@
 import '../dimensions/measurements.dart';
 import '../model/design.dart';
-import '../model/elements.dart';
 import '../recognition/geometry_feedback.dart';
+import '../text/names.dart';
+import '../text/words.dart';
 import 'profile_category.dart';
 import 'profile_selection.dart';
 import 'takeoff.dart';
@@ -49,13 +50,17 @@ class PriceReadiness {
 
   /// What to tell the user: the first thing to complete, naming it, and how
   /// many more there are after it.
-  String get message {
+  String get message => messageIn(const EnglishWords());
+
+  /// [message], in [w].
+  String messageIn(Words w) {
     if (missing.isEmpty) return '';
-    final first = missing.first.message;
+    final first = missing.first.messageIn(w);
     final more = missing.length - 1;
     if (more == 0) return first;
-    return '$first $more more ${more == 1 ? 'thing needs' : 'things need'} '
-        'completing too.';
+    return more == 1
+        ? w.readinessMoreOne(first, more)
+        : w.readinessMoreMany(first, more);
   }
 
   /// A design is immutable, so its answer is worked out once and kept with
@@ -70,8 +75,7 @@ class PriceReadiness {
       return const [
         PriceRequirement(
           PriceRequirementKind.unsupportedCategory,
-          'This design\'s category is not supported by this version of '
-          'ProFrame, so its price is unavailable.',
+          _unsupported,
         ),
       ];
     }
@@ -81,30 +85,19 @@ class PriceReadiness {
     // is asked until the sheet is read, because everything else is asked of
     // the geometry the reading will replace.
     if (design.sketchUnread) {
-      return const [
-        PriceRequirement(
-          PriceRequirementKind.notRead,
-          'The drawing has changes that have not been read. Please Read the '
-          'drawing before calculating the price.',
-        ),
-      ];
+      return const [PriceRequirement(PriceRequirementKind.notRead, _notRead)];
     }
     if (design.frame == null) {
       final drawn = design.sketch.strokes.isNotEmpty;
       return [
-        PriceRequirement(
-          PriceRequirementKind.frame,
-          drawn
-              ? 'Please complete the outer frame to calculate the price.'
-              : 'Please draw the design to calculate the price.',
-        ),
+        PriceRequirement(PriceRequirementKind.frame, drawn ? _frame : _draw),
       ];
     }
-    if (PricingTakeoff.problemWith(design) case final problem?) {
+    if (PricingTakeoff.problemWith(design) != null) {
       return [
         PriceRequirement(
           PriceRequirementKind.geometry,
-          'Please correct the geometry to calculate the price: $problem',
+          (w) => w.reqGeometry(PricingTakeoff.problemWith(design, w)!),
         ),
       ];
     }
@@ -114,8 +107,7 @@ class PriceReadiness {
         if (notice.isError)
           PriceRequirement(
             PriceRequirementKind.geometry,
-            'Please correct the geometry to calculate the price: '
-            '${notice.message}',
+            (w) => w.reqGeometry(notice.messageIn(w)),
             elementId: notice.problem.elementId,
           ),
     ];
@@ -125,16 +117,14 @@ class PriceReadiness {
         missing.add(
           const PriceRequirement(
             PriceRequirementKind.construction,
-            'Please choose what the door is built of — panel, glass or '
-            'both — to calculate the price.',
+            _construction,
           ),
         );
       case Construction.both when !design.partsAsked:
         missing.add(
           const PriceRequirement(
             PriceRequirementKind.panelOrGlass,
-            'Please complete the panel/glass selection to calculate the '
-            'price.',
+            _panelOrGlass,
           ),
         );
       default:
@@ -145,8 +135,7 @@ class PriceReadiness {
       missing.add(
         PriceRequirement(
           PriceRequirementKind.openingKind,
-          'Please say whether ${_plain(design, opening)} is a door or a '
-          'window to calculate the price.',
+          (w) => w.reqOpeningKind(design.plainNameOfIn(w, opening)),
           elementId: opening.id,
         ),
       );
@@ -165,19 +154,26 @@ class PriceReadiness {
         (byGroup[m.group] ??= []).add(m);
       }
       for (final MapEntry(key: named, value: sizes) in byGroup.entries) {
-        // The form's heading for it, without the opening's mark.
-        var group = named;
-        for (final o in design.openings) {
-          group = group.replaceAll(design.nameOf(o), _plain(design, o));
+        String say(Words w) {
+          // The form's heading for it, without the opening's mark.
+          var group = sizes.first.groupIn(w);
+          for (final o in design.openings) {
+            group = group.replaceAll(
+              design.nameOfIn(w, o),
+              design.plainNameOfIn(w, o),
+            );
+          }
+          final which = [for (final m in sizes) m.labelIn(w).toLowerCase()]
+              .reduce(w.joinAnd);
+          return named == 'Frame'
+              ? w.reqFrameSizes(which)
+              : w.reqGroupSizes(group, which);
         }
-        final which = sizes.map((m) => m.label.toLowerCase()).join(' and ');
+
         missing.add(
           PriceRequirement(
             PriceRequirementKind.sizes,
-            group == 'Frame'
-                ? 'Please give the $which to calculate the price.'
-                : 'Please complete the dimensions of $group (its $which) to '
-                      'calculate the price.',
+            say,
             elementId: sizes.first.sectionId,
           ),
         );
@@ -188,11 +184,7 @@ class PriceReadiness {
     // by somebody, never the stock finish a new frame is read in.
     if (!ProfileSelection.of(design).isChosen) {
       missing.add(
-        const PriceRequirement(
-          PriceRequirementKind.profile,
-          'Please choose the material and colour of the profile to '
-          'calculate the price.',
-        ),
+        const PriceRequirement(PriceRequirementKind.profile, _profile),
       );
     }
 
@@ -202,21 +194,25 @@ class PriceReadiness {
     final unallocated = ProfileAllocation.unallocatedIn(design);
     if (unallocated.isNotEmpty) {
       final material = unallocated.first.material;
-      final choices = ProfileCategory.of(material)
-          .map((c) => c.label)
-          .join(' or ');
       final all = ProfileAllocation.partsOf(design)
           .where((p) => p.material == material)
           .length;
+      String say(Words w) {
+        final choices = [
+          for (final c in ProfileCategory.of(material)) c.labelIn(w),
+        ].reduce(w.joinOr);
+        return unallocated.length == all
+            ? w.reqCategoryAll(material.labelIn(w).toLowerCase(), choices)
+            : w.reqCategorySome(
+                choices,
+                unallocated.map((p) => p.nameIn(w)).join(', '),
+              );
+      }
+
       missing.add(
         PriceRequirement(
           PriceRequirementKind.profileCategory,
-          unallocated.length == all
-              ? 'Please choose whether the ${material.label.toLowerCase()} '
-                    'profile is $choices to calculate the price.'
-              : 'Please choose $choices for '
-                    '${unallocated.map((p) => p.name).join(', ')} to '
-                    'calculate the price.',
+          say,
           elementId: unallocated.first.key,
         ),
       );
@@ -224,11 +220,13 @@ class PriceReadiness {
     return missing;
   }
 
-  /// An opening as a sentence names it: *Opening 2*, without its mark.
-  static String _plain(Design design, OpeningElement opening) {
-    final n = design.numberOf(opening);
-    return n > 0 ? 'Opening $n' : 'the opening';
-  }
+  static String _unsupported(Words w) => w.reqUnsupported;
+  static String _notRead(Words w) => w.reqNotRead;
+  static String _frame(Words w) => w.reqFrame;
+  static String _draw(Words w) => w.reqDraw;
+  static String _construction(Words w) => w.reqConstruction;
+  static String _panelOrGlass(Words w) => w.reqPanelOrGlass;
+  static String _profile(Words w) => w.reqProfile;
 }
 
 /// What kind of thing is still to be completed.
@@ -256,10 +254,18 @@ enum PriceRequirementKind {
 /// name it.
 class PriceRequirement {
   final PriceRequirementKind kind;
-  final String message;
+
+  /// What it says, in a language.
+  final String Function(Words w) say;
 
   /// The part it is about, where there is one.
   final String? elementId;
 
-  const PriceRequirement(this.kind, this.message, {this.elementId});
+  const PriceRequirement(this.kind, this.say, {this.elementId});
+
+  /// What it says, in English.
+  String get message => say(const EnglishWords());
+
+  /// What it says, in [w].
+  String messageIn(Words w) => say(w);
 }

@@ -1,3 +1,5 @@
+import '../l10n/app_localizations.dart';
+
 /// How the model is shown: the four ways a professional looks at a design,
 /// and the wireframe under **More**.
 ///
@@ -35,6 +37,24 @@ enum ViewMode {
   const ViewMode(this.label, this.hint);
   final String label;
   final String hint;
+
+  /// [label], in [l].
+  String labelIn(AppLocalizations l) => switch (this) {
+    technical => l.vmTechnical,
+    shaded => l.vmShaded,
+    material => l.vmMaterial,
+    realistic => l.vmRealistic,
+    wireframe => l.vmWireframe,
+  };
+
+  /// [hint], in [l].
+  String hintIn(AppLocalizations l) => switch (this) {
+    technical => l.vmTechnicalHint,
+    shaded => l.vmShadedHint,
+    material => l.vmMaterialHint,
+    realistic => l.vmRealisticHint,
+    wireframe => l.vmWireframeHint,
+  };
 
   /// The four always on the view; [wireframe] joins them under **More**.
   static const shown = [technical, shaded, material, realistic];

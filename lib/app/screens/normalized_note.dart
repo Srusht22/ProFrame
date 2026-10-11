@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/l10n.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 
@@ -145,7 +146,7 @@ class _NormalizedNoteState extends ConsumerState<NormalizedNote>
                   const SizedBox(width: 7),
                   Flexible(
                     child: Text(
-                      NormalizedNote.message,
+                      context.l10n.normalizedMessage,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(

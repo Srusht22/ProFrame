@@ -21,6 +21,8 @@
 /// in for it and nothing that asks [Authority.can] would change.
 library;
 
+import '../text/words.dart';
+
 /// One thing a person may be allowed to do.
 ///
 /// Only what is checked where it is done is here: a capability with no
@@ -67,6 +69,44 @@ enum Capability {
 
   /// What it allows, in words.
   final String label;
+
+  /// [group], in [w].
+  String groupIn(Words w) => switch (group) {
+    'Customers' => w.capGroupCustomers,
+    'Designs' => w.capGroupDesigns,
+    'Pricing' => w.capGroupPricing,
+    'Customer finances' => w.capGroupFinances,
+    'Discounts' => w.capGroupDiscounts,
+    'Quotations' => w.capGroupQuotations,
+    'Payments' => w.capGroupPayments,
+    'Receipts' => w.capGroupReceipts,
+    'Extra charges' => w.capGroupExtras,
+    'Staff' => w.capGroupStaff,
+    _ => group,
+  };
+
+  /// [label], in [w].
+  String labelIn(Words w) => switch (label) {
+    'View' => w.capView,
+    'Add' => w.capAdd,
+    'Edit' => w.capEdit,
+    'Delete' => w.capDelete,
+    'Create' => w.capCreate,
+    'Edit and draw' => w.capEditAndDraw,
+    'View prices' => w.capViewPrices,
+    'Edit factory prices' => w.capEditFactoryPrices,
+    'View summary' => w.capViewSummary,
+    'Apply and change' => w.capApplyAndChange,
+    'Change status' => w.capChangeStatus,
+    'View history' => w.capViewHistory,
+    'Record payments' => w.capRecordPayments,
+    'Record refunds' => w.capRecordRefunds,
+    'Issue' => w.capIssue,
+    'Remove' => w.capRemove,
+    'Add and edit staff' => w.capAddEditStaff,
+    'Change permissions' => w.capChangePermissions,
+    _ => label,
+  };
 
   static Capability? byKey(Object? key) =>
       values.where((c) => c.key == key).firstOrNull;
@@ -180,14 +220,27 @@ class AccessDenied implements Exception {
   AccessDenied(this.by, [this.needed = Capability.pricingEdit]);
 
   @override
-  String toString() => switch (needed) {
-    Capability.pricingEdit =>
-      'Only the owner can change the price list (asked by ${by.label}).',
-    _ =>
-      '${by.label} does not have permission to '
-          '${needed.label.toLowerCase()} (${needed.key}).',
+  String toString() => messageIn(const EnglishWords());
+
+  /// What was refused, in [w].
+  String messageIn(Words w) => switch (needed) {
+    Capability.pricingEdit => w.deniedPriceList(authorityLabelIn(by, w)),
+    _ => w.deniedAction(
+      authorityLabelIn(by, w),
+      needed.labelIn(w).toLowerCase(),
+      needed.key,
+    ),
   };
 }
 
 /// The name the price list's refusal had before there were capabilities.
 typedef PricingAccessDenied = AccessDenied;
+
+/// What [who] is called, in [w]: a role in the language, a member of
+/// staff by their own name.
+String authorityLabelIn(Authority who, Words w) => switch (who) {
+  WorkshopRole.owner => w.roleOwner,
+  WorkshopRole.staff => w.roleStaff,
+  NobodySignedIn() => w.roleNobody,
+  _ => who.label,
+};

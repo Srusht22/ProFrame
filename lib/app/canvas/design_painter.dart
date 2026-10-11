@@ -417,6 +417,7 @@ class DesignPainter extends CustomPainter {
         text: text,
         style: TextStyle(
           fontFamily: AppTheme.fontFamily,
+          fontFamilyFallback: AppTheme.fontFallback,
           fontSize: size,
           height: 1.1,
           fontWeight: emphasis ? FontWeight.w600 : FontWeight.w500,

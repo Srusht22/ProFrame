@@ -1,5 +1,6 @@
 import '../model/customer_discount.dart';
 import '../model/design.dart';
+import '../text/words.dart';
 import 'extra_charge.dart';
 import 'price_list.dart';
 import 'price_result.dart';
@@ -41,6 +42,7 @@ abstract final class DesignPricing {
     Iterable<PriceLine> calculated = const [],
     bool additional = false,
     String Function(int cents)? money,
+    Words words = const EnglishWords(),
   }) {
     final exists = design.pricing.extras.any((e) => e.id == extra.id);
     by.require(exists ? Capability.extrasEdit : Capability.extrasCreate);
@@ -50,8 +52,9 @@ abstract final class DesignPricing {
           quantityMilli: extra.quantityMilli,
           unit: extra.unit,
           unitPriceCents: extra.unitPriceCents,
+          words: words,
         ) ??
-        _overlap(extra, calculated, additional, money);
+        _overlap(extra, calculated, additional, money, words);
     if (problem != null) return (design: null, problem: problem);
     return (
       design: design.copyWith(
@@ -148,6 +151,7 @@ abstract final class DesignPricing {
     required Authority by,
     required String Function(int cents) money,
     DateTime? at,
+    Words words = const EnglishWords(),
   }) {
     by.require(Capability.discountsApply);
     if (kind == null) {
@@ -163,13 +167,15 @@ abstract final class DesignPricing {
       value: value,
       subtotalCents: subtotalCentsOf(design, list),
       money: money,
+      words: words,
     );
     if (problem != null) {
+      // Said of one design, not of a customer's every design.
       return (
         design: null,
-        problem: problem
-            .replaceAll('once every design is priced', 'once it is priced')
-            .replaceAll('every design', 'the design'),
+        problem: problem == words.discountNotFinal
+            ? words.discountDesignNotFinal
+            : problem,
       );
     }
     final discount = switch (kind) {
@@ -197,6 +203,7 @@ abstract final class DesignPricing {
     Iterable<PriceLine> calculated,
     bool additional,
     String Function(int cents)? money,
+    Words w,
   ) {
     if (additional) return null;
     final same = ExtraCharge.alreadyCalculated(
@@ -208,6 +215,7 @@ abstract final class DesignPricing {
     return ExtraCharge.alreadyCalculatedMessage(
       same,
       money ?? (c) => (c / 100).toStringAsFixed(2),
+      w,
     );
   }
 }

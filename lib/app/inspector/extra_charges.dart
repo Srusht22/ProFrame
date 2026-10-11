@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../domain/pricing/extra_charge.dart';
 import '../../domain/pricing/price_result.dart';
+import '../../domain/text/names.dart';
+import '../l10n/l10n.dart';
 import '../theme/app_theme.dart';
 import 'price_panel.dart';
 
@@ -157,21 +159,23 @@ class _ExtraDialogState extends State<ExtraDialog> {
       ExtraCharge.alreadyCalculated(_name.text, _category, widget.calculated);
 
   void _save() {
-    final q = ExtraCharge.readQuantity(_quantity.text);
-    final p = ExtraCharge.readPrice(_price.text);
+    final w = context.words;
+    final q = ExtraCharge.readQuantity(_quantity.text, w);
+    final p = ExtraCharge.readPrice(_price.text, w);
     final problem =
-        (_name.text.trim().isEmpty ? 'Enter what the extra is.' : null) ??
+        (_name.text.trim().isEmpty ? w.xNameNeeded : null) ??
         q.problem ??
-        (_unitText.isEmpty ? 'Choose or type the unit.' : null) ??
+        (_unitText.isEmpty ? w.xUnitNeeded : null) ??
         p.problem ??
         ExtraCharge.problemWith(
           name: _name.text,
           quantityMilli: q.value,
           unit: _unitText,
           unitPriceCents: p.value,
+          words: w,
         ) ??
         (_overlap.isNotEmpty && !_additional
-            ? 'Tick "This is an additional charge" to add it on top.'
+            ? context.l10n.xTickAdditional
             : null);
     if (problem != null) {
       setState(() => _problem = problem);
@@ -204,10 +208,12 @@ class _ExtraDialogState extends State<ExtraDialog> {
     final p = ExtraCharge.readPrice(_price.text).value;
     final overlap = _overlap;
     void changed(_) => setState(() => _problem = null);
+    final l = context.l10n;
+    final w = context.words;
     return AlertDialog(
       key: ExtraKeys.dialog,
       scrollable: true,
-      title: Text(widget.editing == null ? 'Add extra' : 'Edit extra'),
+      title: Text(widget.editing == null ? l.xAddTitle : l.xEditTitle),
       content: SizedBox(
         width: 420,
         child: Column(
@@ -221,9 +227,9 @@ class _ExtraDialogState extends State<ExtraDialog> {
               controller: _name,
               autofocus: true,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                hintText: 'Silicone, labour, transport…',
+              decoration: InputDecoration(
+                labelText: l.xName,
+                hintText: l.xNameHint,
               ),
               onChanged: changed,
             ),
@@ -231,10 +237,10 @@ class _ExtraDialogState extends State<ExtraDialog> {
             DropdownButtonFormField<ExtraCategory>(
               key: ExtraKeys.category,
               initialValue: _category,
-              decoration: const InputDecoration(labelText: 'Category'),
+              decoration: InputDecoration(labelText: l.xCategory),
               items: [
                 for (final c in ExtraCategory.values)
-                  DropdownMenuItem(value: c, child: Text(c.label)),
+                  DropdownMenuItem(value: c, child: Text(c.labelIn(w))),
               ],
               onChanged: (c) => setState(() {
                 _category = c ?? _category;
@@ -252,7 +258,7 @@ class _ExtraDialogState extends State<ExtraDialog> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(labelText: 'Quantity'),
+                    decoration: InputDecoration(labelText: l.xQuantity),
                     onChanged: changed,
                   ),
                 ),
@@ -262,13 +268,16 @@ class _ExtraDialogState extends State<ExtraDialog> {
                     key: ExtraKeys.unit,
                     initialValue: _unit,
                     isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Unit'),
+                    decoration: InputDecoration(labelText: l.xUnit),
                     items: [
                       for (final u in ExtraUnit.values)
-                        DropdownMenuItem(value: u.label, child: Text(u.label)),
-                      const DropdownMenuItem(
+                        DropdownMenuItem(
+                          value: u.label,
+                          child: Text(u.sayIn(w)),
+                        ),
+                      DropdownMenuItem(
                         value: _other,
-                        child: Text('Other unit…'),
+                        child: Text(l.xOtherUnit),
                       ),
                     ],
                     onChanged: (u) => setState(() {
@@ -284,7 +293,7 @@ class _ExtraDialogState extends State<ExtraDialog> {
               TextField(
                 key: ExtraKeys.customUnit,
                 controller: _customUnit,
-                decoration: const InputDecoration(labelText: 'Unit, in words'),
+                decoration: InputDecoration(labelText: l.xUnitInWords),
                 onChanged: changed,
               ),
             ],
@@ -296,7 +305,7 @@ class _ExtraDialogState extends State<ExtraDialog> {
                 decimal: true,
               ),
               decoration: InputDecoration(
-                labelText: 'Unit price',
+                labelText: l.xUnitPrice,
                 suffixText: widget.editing?.currency ?? widget.currency,
               ),
               onChanged: changed,
@@ -305,15 +314,15 @@ class _ExtraDialogState extends State<ExtraDialog> {
             TextField(
               key: ExtraKeys.note,
               controller: _note,
-              decoration: const InputDecoration(labelText: 'Note (optional)'),
+              decoration: InputDecoration(labelText: l.xNoteOptional),
             ),
             const SizedBox(height: 12),
             PriceRow(
               q != null && p != null && _unitText.isNotEmpty
                   ? '${ExtraCharge.quantityTextOf(q)} '
-                        '${ExtraCharge.unitTextOf(_unitText, q)} × '
+                        '${ExtraCharge.unitTextOf(_unitText, q, w)} × '
                         '${_money(p)}'
-                  : 'Total',
+                  : l.xTotal,
               q != null && p != null ? _money(ExtraCharge.totalOf(q, p)) : '—',
               strong: true,
               valueKey: ExtraKeys.total,
@@ -321,7 +330,7 @@ class _ExtraDialogState extends State<ExtraDialog> {
             if (overlap.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                ExtraCharge.alreadyCalculatedMessage(overlap, _money),
+                ExtraCharge.alreadyCalculatedMessage(overlap, _money, w),
                 key: ExtraKeys.overlap,
                 style: text.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.error,
@@ -336,7 +345,7 @@ class _ExtraDialogState extends State<ExtraDialog> {
                   _additional = v ?? false;
                   _problem = null;
                 }),
-                title: const Text('This is an additional charge'),
+                title: Text(l.xIsAdditional),
               ),
             ],
             if (_problem case final problem?)
@@ -356,12 +365,12 @@ class _ExtraDialogState extends State<ExtraDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l.actCancel),
         ),
         FilledButton(
           key: ExtraKeys.save,
           onPressed: _save,
-          child: Text(widget.editing == null ? 'Add extra' : 'Save extra'),
+          child: Text(widget.editing == null ? l.xAddTitle : l.xSave),
         ),
       ],
     );
@@ -377,21 +386,23 @@ Future<bool> confirmRemoveExtra(
     await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Remove extra'),
+        title: Text(context.l10n.xRemoveTitle),
         content: Text(
-          'Remove "${extra.name}" '
-          '(${PricePanel.money(extra.totalCents / 100, extra.currency)}) '
-          'from $from?',
+          context.l10n.xRemoveAsk(
+            extra.name,
+            PricePanel.money(extra.totalCents / 100, extra.currency),
+            from,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.actCancel),
           ),
           FilledButton(
             key: ExtraKeys.confirmRemove,
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Remove'),
+            child: Text(context.l10n.actRemove),
           ),
         ],
       ),
@@ -426,7 +437,8 @@ class ExtraRow extends StatelessWidget {
                   style: text.bodySmall?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 Text(
-                  '${extra.category.label} · ${extra.sum(money)}'
+                  '${extra.category.labelIn(context.words)} · '
+                  '${extra.sum((c) => context.figure(money(c)), context.words)}'
                   '${extra.note.isEmpty ? '' : ' · ${extra.note}'}',
                   style: text.bodySmall?.copyWith(color: p.muted),
                 ),
@@ -443,7 +455,7 @@ class ExtraRow extends StatelessWidget {
           if (onEdit != null)
             IconButton(
               key: ExtraKeys.edit(extra.id),
-              tooltip: 'Edit ${extra.name}',
+              tooltip: context.l10n.xEditOf(extra.name),
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.edit_outlined, size: 18),
               onPressed: onEdit,
@@ -451,7 +463,7 @@ class ExtraRow extends StatelessWidget {
           if (onRemove != null)
             IconButton(
               key: ExtraKeys.remove(extra.id),
-              tooltip: 'Remove ${extra.name}',
+              tooltip: context.l10n.xRemoveOf(extra.name),
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.delete_outline, size: 18),
               onPressed: onRemove,
@@ -511,10 +523,12 @@ class PriceBreakdown extends StatelessWidget {
     );
     bool has(PriceGroup g) => result.lines.any((l) => l.group == g);
     final discount = result.discount;
+    final l = context.l10n;
+    final w = context.words;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        heading('AUTOMATIC DESIGN COSTS'),
+        heading(l.pbAutomatic),
         for (final group in PriceGroup.values)
           if (has(group) && group == PriceGroup.normalProfile) ...[
             // The border and the lines, each its own line at the rate
@@ -522,13 +536,14 @@ class PriceBreakdown extends StatelessWidget {
             // by one — and then what they come to together.
             const SizedBox(height: 4),
             Text(
-              group.label,
+              group.labelIn(w),
               style: text.bodySmall?.copyWith(fontWeight: FontWeight.w600),
             ),
             for (final line in result.lines)
               if (line.group == group)
                 PriceRow(
-                  '   ${line.label} · ${PricePanel.quantity(line)}',
+                  '   ${line.labelIn(w)} · '
+                  '${context.figure(PricePanel.quantity(line, w))}',
                   PricePanel.money(line.amount, currency),
                   valueKey: line.part == null
                       ? null
@@ -537,7 +552,7 @@ class PriceBreakdown extends StatelessWidget {
                         ),
                 ),
             PriceRow(
-              'Combined profile cost',
+              l.pbCombinedProfile,
               PricePanel.money(result.sumOf(group), currency),
               strong: true,
               valueKey: ExtraKeys.combinedProfile,
@@ -545,7 +560,7 @@ class PriceBreakdown extends StatelessWidget {
           ] else if (has(group)) ...[
             const SizedBox(height: 4),
             PriceRow(
-              group.label,
+              group.labelIn(w),
               PricePanel.money(result.sumOf(group), currency),
               strong: true,
               valueKey: switch (group) {
@@ -557,33 +572,36 @@ class PriceBreakdown extends StatelessWidget {
             for (final line in result.lines)
               if (line.group == group)
                 PriceRow(
-                  '   ${line.label} · ${PricePanel.quantity(line)}',
+                  '   ${line.labelIn(w)} · '
+                  '${context.figure(PricePanel.quantity(line, w))}',
                   PricePanel.money(line.amount, currency),
                 ),
           ] else if (group == PriceGroup.glass)
             // Glass is only what the design has, and only charged where
             // the user included it: where nothing is charged, it says why.
-            PriceRow(group.label, switch (result.glassState) {
-              GlassState.notUsed => 'Not used',
-              final state => '${state.words} — ${money(0)}',
+            PriceRow(group.labelIn(w), switch (result.glassState) {
+              GlassState.notUsed => l.pbNotUsed,
+              final state =>
+                '${state.wordsIn(w)} — ${context.figure(money(0))}',
             }, valueKey: ExtraKeys.glass)
           else if (group == PriceGroup.panel)
             // A panel is only what the design has: where it has none, it
             // is said, and nothing is charged.
-            PriceRow('Panel', 'Not used', valueKey: ExtraKeys.panel),
+            PriceRow(
+              PriceGroup.panel.labelIn(w),
+              l.pbNotUsed,
+              valueKey: ExtraKeys.panel,
+            ),
         const SizedBox(height: 4),
         PriceRow(
-          'Design cost',
+          l.pbDesignCost,
           money(result.designCostCents),
           strong: true,
           valueKey: ExtraKeys.designCost,
         ),
-        heading('EXTRA CHARGES'),
+        heading(l.pbExtras),
         if (result.extras.isEmpty)
-          Text(
-            'No extra charges.',
-            style: text.bodySmall?.copyWith(color: p.muted),
-          ),
+          Text(l.pbNoExtras, style: text.bodySmall?.copyWith(color: p.muted)),
         for (final e in result.extras)
           ExtraRow(
             e,
@@ -597,18 +615,18 @@ class PriceBreakdown extends StatelessWidget {
               key: ExtraKeys.add,
               onPressed: onAddExtra,
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add extra'),
+              label: Text(l.finAddExtra),
             ),
           ),
         PriceRow(
-          'Extras cost',
+          l.pbExtrasCost,
           money(result.extrasCents),
           strong: true,
           valueKey: ExtraKeys.extrasCost,
         ),
         const Divider(height: 20),
         PriceRow(
-          'Subtotal',
+          l.finSubtotal,
           money(result.subtotalCents),
           valueKey: ExtraKeys.subtotal,
         ),
@@ -617,9 +635,11 @@ class PriceBreakdown extends StatelessWidget {
             Expanded(
               child: PriceRow(
                 discount == null
-                    ? 'Discount'
-                    : 'Discount (${discount.describe(money)})',
-                discount == null ? 'None' : '−${money(result.discountCents)}',
+                    ? l.finDiscount
+                    : l.finDiscountOf(discount.describe(money)),
+                discount == null
+                    ? l.discountNoneChoice
+                    : '−${money(result.discountCents)}',
                 valueKey: ExtraKeys.discountAmount,
               ),
             ),
@@ -627,7 +647,7 @@ class PriceBreakdown extends StatelessWidget {
               TextButton(
                 key: ExtraKeys.discount,
                 onPressed: onDiscount,
-                child: Text(discount == null ? 'Give' : 'Change'),
+                child: Text(discount == null ? l.pbGive : l.pbChange),
               ),
           ],
         ),

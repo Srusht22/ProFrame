@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/question.dart';
+import '../l10n/l10n.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'alert_layer.dart';
@@ -39,7 +40,7 @@ class OpeningKindAlert extends ConsumerWidget {
     return AlertLayer(
       question: pending.firstOrNull,
       cardFor: (question) => _Card(
-        question: question,
+        question: question.inWords(context.words),
         remaining: pending.length,
         onAnswer: (key) => controller.answer(question.id, key),
         onDismiss: () => controller.dismissQuestion(question.id),
@@ -81,7 +82,7 @@ class _Card extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Opening type',
+                    context.l10n.openingTypeTitle,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
@@ -90,7 +91,7 @@ class _Card extends StatelessWidget {
                 // coming back.
                 if (remaining > 1)
                   Text(
-                    '1 of $remaining',
+                    context.l10n.oneOfMany(remaining),
                     style: Theme.of(context).textTheme.bodySmall
                         ?.copyWith(color: context.palette.muted),
                   ),
@@ -149,13 +150,13 @@ class _Card extends StatelessWidget {
             AlertStep(
               order: 3,
               child: Align(
-                alignment: Alignment.centerRight,
+                alignment: AlignmentDirectional.centerEnd,
                 // Waving it away is not an answer: the leaf keeps no kind
                 // of its own and the opening is untouched. The same
                 // control on the opening's own panel says it later.
                 child: TextButton(
                   onPressed: onDismiss,
-                  child: const Text('Not now'),
+                  child: Text(context.l10n.actNotNow),
                 ),
               ),
             ),

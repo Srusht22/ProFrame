@@ -10,6 +10,13 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # English and Central Kurdish (Sorani). The words are in
+  # lib/app/l10n/app_<locale>.arb and `flutter gen-l10n` (l10n.yaml) turns
+  # them into lib/app/l10n/app_localizations*.dart, which are kept in git.
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+
   # State management. One approach across the whole app: compile-safe,
   # testable without a widget tree, and with no platform channels of its own.
   flutter_riverpod: ^3.0.2
@@ -27,6 +34,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true
 
   # Bundled rather than downloaded at run time: the app must work with no
   # internet, and text the user typed must never fall back to a font the

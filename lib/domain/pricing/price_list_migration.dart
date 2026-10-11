@@ -1,3 +1,5 @@
+import '../text/words.dart';
+
 /// A price list kept in an older schema, brought to the current one.
 ///
 /// ```
@@ -40,11 +42,10 @@ abstract final class PriceListMigration {
 
   /// [json] in the current schema, the schema it came from, and what it
   /// held that the current schema has no place for.
-  static ({Map<String, Object?> json, int from, List<String> notes}) toCurrent(
-    Map<String, Object?> json,
-  ) {
+  static ({Map<String, Object?> json, int from, List<MigrationNote> notes})
+  toCurrent(Map<String, Object?> json) {
     final from = schemaOf(json);
-    final notes = <String>[];
+    final notes = <MigrationNote>[];
     var now = Map<String, Object?>.of(json);
     if (from <= 1) now = _v1ToV2(now, notes);
     if (from <= 2) now = _v2ToV3(now, notes);
@@ -66,7 +67,7 @@ abstract final class PriceListMigration {
   /// as they are.
   static Map<String, Object?> _v4ToV5(
     Map<String, Object?> json,
-    List<String> notes,
+    List<MigrationNote> notes,
   ) {
     final out = Map<String, Object?>.of(json);
     if (json['profiles'] case final Map<String, Object?> raw) {
@@ -76,12 +77,7 @@ abstract final class PriceListMigration {
         final old = kept.remove('normalPerMetre');
         profiles['aluminium'] = kept;
         if (old is num) {
-          notes.add(
-            'The aluminium border and lines rate ($old a metre): aluminium '
-            'is now priced as System Aluminium and Bend Shoulder Aluminium, '
-            'each its own rate, and nothing says which of the two that rate '
-            'was — so neither has a rate until one is set.',
-          );
+          notes.add((w) => w.mnAluminium('$old'));
         }
       }
       out['profiles'] = profiles;
@@ -107,7 +103,7 @@ abstract final class PriceListMigration {
   ///   is carried as it is.
   static Map<String, Object?> _v1ToV2(
     Map<String, Object?> json,
-    List<String> notes,
+    List<MigrationNote> notes,
   ) {
     final out = Map<String, Object?>.of(json)
       ..remove('leafEach')
@@ -119,10 +115,7 @@ abstract final class PriceListMigration {
         final frame = p['framePerMetre'];
         final bar = p['barPerMetre'];
         if (bar is num && frame is num && bar != frame) {
-          notes.add(
-            'The $material bar rate ($bar a metre): bars are now normal '
-            'profile, priced at the frame rate ($frame).',
-          );
+          notes.add((w) => w.mnBarRate(material, '$bar', '$frame'));
         }
         profiles[material] = {
           'normalPerMetre': frame,
@@ -149,16 +142,10 @@ abstract final class PriceListMigration {
         for (final MapEntry(:key, :value) in leaves.entries)
           if (value is num && value > 0) '$key $value',
       ].join(', ');
-      notes.add(
-        'A price per leaf ($each): a leaf is now priced by its opening '
-        'profile and its ironmongery.',
-      );
+      notes.add((w) => w.mnLeaf(each));
     }
     if (json['angledJointEach'] case final num joint when joint > 0) {
-      notes.add(
-        'A price per angled joint ($joint): an angled design is now priced '
-        'by its own measurements.',
-      );
+      notes.add((w) => w.mnJoint('$joint'));
     }
     return out;
   }
@@ -172,7 +159,7 @@ abstract final class PriceListMigration {
   /// what it was.
   static Map<String, Object?> _v2ToV3(
     Map<String, Object?> json,
-    List<String> notes,
+    List<MigrationNote> notes,
   ) {
     final out = Map<String, Object?>.of(json);
     if (!out.containsKey('sealedGlassPerM2')) {
@@ -180,11 +167,7 @@ abstract final class PriceListMigration {
       if (json['customGlassPerM2'] != null) {
         out['customSealedGlassPerM2'] = json['customGlassPerM2'];
       }
-      notes.add(
-        'Sealed glazing units are priced at the glass rates the list '
-        'already had, which priced every pane before sealed units had a '
-        'rate of their own.',
-      );
+      notes.add((w) => w.mnSealed);
     }
     return out;
   }
@@ -203,7 +186,7 @@ abstract final class PriceListMigration {
   /// what a colour the list does not name adds stays each material's own.
   static Map<String, Object?> _v3ToV4(
     Map<String, Object?> json,
-    List<String> notes,
+    List<MigrationNote> notes,
   ) {
     final out = Map<String, Object?>.of(json);
     final profiles = <String, Object?>{};
@@ -252,10 +235,7 @@ abstract final class PriceListMigration {
       out['colours'] = catalog;
     }
     if (catalog.isNotEmpty) {
-      notes.add(
-        'Colours are now one catalog: a colour sold in more than one '
-        'material is one colour with a rate on each, at the figures it had.',
-      );
+      notes.add((w) => w.mnCatalog);
     }
     return out;
   }
@@ -276,3 +256,8 @@ abstract final class PriceListMigration {
     return id;
   }
 }
+
+/// One thing an upgrade of the price list could not carry over as it was,
+/// said in whichever language is shown: it is worked out each time a list
+/// is read, and never kept.
+typedef MigrationNote = String Function(Words w);

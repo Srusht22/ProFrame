@@ -9,6 +9,8 @@ import '../model/design.dart';
 import '../model/elements.dart';
 import '../sections/section_builder.dart';
 import '../sketch/stroke.dart';
+import '../text/names.dart';
+import '../text/words.dart';
 import 'frame_sides.dart';
 import 'units.dart';
 
@@ -18,6 +20,9 @@ enum MeasureAxis {
   down;
 
   String get label => this == across ? 'Width' : 'Height';
+
+  /// [label], in [w].
+  String labelIn(Words w) => this == across ? w.axisWidth : w.axisHeight;
 }
 
 /// One size in the design the user is asked for, or one that follows from
@@ -54,6 +59,18 @@ class Measure {
   /// False when it is worked out from the other sizes.
   final bool asked;
 
+  /// [group] and [label] said in a language, where they are more than the
+  /// English they are kept as. The English stays what the form groups by,
+  /// so a size is in the same group whichever language shows it.
+  final String Function(Words w)? sayGroup;
+  final String Function(Words w)? sayLabel;
+
+  /// [group], in [w].
+  String groupIn(Words w) => sayGroup?.call(w) ?? group;
+
+  /// [label], in [w].
+  String labelIn(Words w) => sayLabel?.call(w) ?? label;
+
   const Measure({
     required this.key,
     required this.group,
@@ -63,6 +80,8 @@ class Measure {
     this.barId,
     this.barOnFarSide = true,
     this.asked = true,
+    this.sayGroup,
+    this.sayLabel,
   });
 
   bool get follows => !asked;
@@ -135,11 +154,35 @@ abstract final class Measurements {
   static List<Measure> of(Design design) {
     if (design.frame == null) return const [];
     final measures = <Measure>[
-      const Measure(key: profileKey, group: 'Frame', label: 'Frame border'),
+      const Measure(
+        key: profileKey,
+        group: 'Frame',
+        label: 'Frame border',
+        sayGroup: _frame,
+        sayLabel: _frameBorder,
+      ),
       if (design.dividers.isNotEmpty)
-        const Measure(key: barsKey, group: 'Frame', label: 'Bar thickness'),
-      const Measure(key: widthKey, group: 'Frame', label: 'Overall width'),
-      const Measure(key: heightKey, group: 'Frame', label: 'Overall height'),
+        const Measure(
+          key: barsKey,
+          group: 'Frame',
+          label: 'Bar thickness',
+          sayGroup: _frame,
+          sayLabel: _barThickness,
+        ),
+      const Measure(
+        key: widthKey,
+        group: 'Frame',
+        label: 'Overall width',
+        sayGroup: _frame,
+        sayLabel: _overallWidth,
+      ),
+      const Measure(
+        key: heightKey,
+        group: 'Frame',
+        label: 'Overall height',
+        sayGroup: _frame,
+        sayLabel: _overallHeight,
+      ),
       // A frame that is not a rectangle: each side with a size of its own.
       for (final side in FrameSides.of(design))
         Measure(
@@ -148,36 +191,59 @@ abstract final class Measurements {
           label: side.label,
           axis: side.axis,
           asked: FrameSides.askedOf(design).contains(side.edge),
+          sayGroup: _frame,
+          sayLabel: side.labelIn,
         ),
     ];
     final claimed = <String>{};
     var fixed = 0;
 
-    void add(SectionElement section, String group) {
+    void add(
+      SectionElement section,
+      String group,
+      String Function(Words w) sayGroup,
+    ) {
       for (final axis in MeasureAxis.values) {
-        measures.add(_sizeOf(design, section, axis, group, claimed));
+        measures.add(
+          _sizeOf(design, section, axis, group, claimed, sayGroup),
+        );
       }
     }
 
-    void panes(SectionElement parent, String around) {
+    void panes(
+      SectionElement parent,
+      String around,
+      String Function(Words w) sayAround,
+    ) {
       var n = 0;
       for (final pane in design.childSectionsOf(parent.id)) {
-        n++;
-        add(pane, '$around — ${pane.finish.material.label} $n');
-        panes(pane, '$around — ${pane.finish.material.label} $n');
+        final number = ++n;
+        final material = pane.finish.material;
+        String say(Words w) =>
+            w.measPane(sayAround(w), material.labelIn(w), number);
+        add(pane, say(const EnglishWords()), say);
+        panes(pane, say(const EnglishWords()), say);
       }
     }
 
     for (final section in design.topLevelSections) {
       final opening = design.openingOf(section.id);
-      final group = opening != null
-          ? design.nameOf(opening)
-          : 'Fixed light ${++fixed}';
-      add(section, group);
-      panes(section, group);
+      final number = opening != null ? 0 : ++fixed;
+      String say(Words w) => opening != null
+          ? design.nameOfIn(w, opening)
+          : w.measFixedLight(number);
+      final group = say(const EnglishWords());
+      add(section, group, say);
+      panes(section, group, say);
     }
     return measures;
   }
+
+  static String _frame(Words w) => w.elFrame;
+  static String _frameBorder(Words w) => w.measFrameBorder;
+  static String _barThickness(Words w) => w.measBarThickness;
+  static String _overallWidth(Words w) => w.measOverallWidth;
+  static String _overallHeight(Words w) => w.measOverallHeight;
 
   static Measure _sizeOf(
     Design design,
@@ -185,6 +251,7 @@ abstract final class Measurements {
     MeasureAxis axis,
     String group,
     Set<String> claimed,
+    String Function(Words w) sayGroup,
   ) {
     final across = axis == MeasureAxis.across;
     final far = DesignEdits.dividerAlong(
@@ -211,6 +278,8 @@ abstract final class Measurements {
         axis: axis,
         barId: bar.id,
         barOnFarSide: farSide,
+        sayGroup: sayGroup,
+        sayLabel: axis.labelIn,
       );
     }
     return Measure(
@@ -220,6 +289,8 @@ abstract final class Measurements {
       sectionId: section.id,
       axis: axis,
       asked: false,
+      sayGroup: sayGroup,
+      sayLabel: axis.labelIn,
     );
   }
 
@@ -386,7 +457,13 @@ abstract final class Measurements {
   /// stretches the whole sheet along that axis; then each light in reading
   /// order, each moving the one bar it was given. A light never moves a bar
   /// an earlier light was given, so no answer undoes another.
-  static MeasureOutcome apply(Design design, Map<String, double> values) {
+  ///
+  /// What could not be made true is said in [w].
+  static MeasureOutcome apply(
+    Design design,
+    Map<String, double> values, [
+    Words w = const EnglishWords(),
+  ]) {
     var d = design;
     final problems = <String, String>{};
     final said = <String>{...?design.measured};
@@ -394,7 +471,7 @@ abstract final class Measurements {
     final profile = values[profileKey];
     if (profile != null && d.frame != null) {
       if (profile <= 0 || profile * 2 >= math.min(d.widthMm, d.heightMm)) {
-        problems[profileKey] = 'Too wide for the frame.';
+        problems[profileKey] = w.msTooWide;
       } else {
         d = SectionBuilder.rebuild(
           d.withElement(d.frame!.copyWith(profileMm: profile)),
@@ -406,7 +483,7 @@ abstract final class Measurements {
     final bars = values[barsKey];
     if (bars != null) {
       if (bars <= 0) {
-        problems[barsKey] = 'A bar has to have some thickness.';
+        problems[barsKey] = w.msBarThickness;
       } else {
         d = SectionBuilder.rebuild(
           d.copyWith(
@@ -430,7 +507,7 @@ abstract final class Measurements {
       final start = axis == MeasureAxis.across ? box.left : box.top;
       final end = axis == MeasureAxis.across ? box.right : box.bottom;
       if (value <= (frame.profileMm * 2)) {
-        problems[key] = 'Smaller than the frame around it.';
+        problems[key] = w.msSmallerThanFrame;
         continue;
       }
       if (FrameSides.isRectangle(box)) {
@@ -440,7 +517,7 @@ abstract final class Measurements {
         // side standing on it keeps its own size.
         final moved = FrameSides.overall(d, axis, value);
         if (moved == null) {
-          problems[key] = 'That does not fit the parts inside it.';
+          problems[key] = w.msNotFitInside;
           continue;
         }
         d = moved;
@@ -459,7 +536,7 @@ abstract final class Measurements {
           ? null
           : FrameSides.sized(d, side, value);
       if (moved == null) {
-        problems[first.key] = 'That does not fit the parts inside it.';
+        problems[first.key] = w.msNotFitInside;
         continue;
       }
       d = moved;
@@ -476,9 +553,7 @@ abstract final class Measurements {
       if (measure == null) continue;
       final result = _moveBarFor(d, measure, value);
       if (result == null) {
-        problems[measure.key] =
-            'That does not fit beside the parts next '
-            'to it.';
+        problems[measure.key] = w.msNotFitBeside;
         continue;
       }
       d = result;
@@ -596,17 +671,18 @@ abstract final class Measurements {
     Design design,
     String sectionId,
     MeasureAxis axis,
-    double value,
-  ) {
+    double value, [
+    Words w = const EnglishWords(),
+  ]) {
     final all = of(design);
     final measure = all
         .where((m) => m.sectionId == sectionId && m.axis == axis)
         .firstOrNull;
     final section = design.sectionById(sectionId);
     if (measure == null || section == null || value <= 0) {
-      return MeasureOutcome(design, {sectionId: 'Nothing to measure.'});
+      return MeasureOutcome(design, {sectionId: w.msNothing});
     }
-    if (measure.asked) return apply(design, {measure.key: value});
+    if (measure.asked) return apply(design, {measure.key: value}, w);
 
     final across = axis == MeasureAxis.across;
     for (final (edge, farSide) in [
@@ -630,20 +706,20 @@ abstract final class Measurements {
         bar.widthMm,
       );
       return moved == null
-          ? MeasureOutcome(design, {measure.key: 'That does not fit.'})
+          ? MeasureOutcome(design, {measure.key: w.msNotFit})
           : MeasureOutcome(moved, const {});
     }
 
     // No bar either side at its own level: a pane that fills its opening
     // is the opening, and the size is the opening's.
     final parent = design.sectionHolding(section.parentId);
-    if (parent != null) return setSize(design, parent, axis, value);
+    if (parent != null) return setSize(design, parent, axis, value, w);
 
     // Otherwise it runs to the frame on both sides, and the frame's far
     // side is what moves.
     final frame = design.frame;
     if (frame == null) {
-      return MeasureOutcome(design, {measure.key: 'No frame.'});
+      return MeasureOutcome(design, {measure.key: w.msNoFrame});
     }
     final moved = _resize(
       design,
@@ -655,7 +731,7 @@ abstract final class Measurements {
       frame.profileMm,
     );
     return moved == null
-        ? MeasureOutcome(design, {measure.key: 'That does not fit.'})
+        ? MeasureOutcome(design, {measure.key: w.msNotFit})
         : MeasureOutcome(moved, const {});
   }
 

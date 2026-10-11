@@ -6,7 +6,9 @@ import '../../domain/model/staff.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../infrastructure/owner_access_store.dart';
 import '../../infrastructure/staff_store.dart';
+import '../l10n/l10n.dart';
 import '../state/access.dart';
+import '../state/language.dart';
 import '../theme/app_theme.dart';
 import 'factory_prices_screen.dart' show OwnerPinDialog;
 
@@ -32,9 +34,11 @@ class AccountButton extends ConsumerWidget {
     final manages =
         actor.can(Capability.usersManage) ||
         actor.can(Capability.permissionsManage);
+    final l = context.l10n;
+    final who = authorityLabelIn(actor, context.words);
     return PopupMenuButton<String>(
       key: buttonKey,
-      tooltip: signedIn ? 'Signed in as ${actor.label}' : 'Sign in',
+      tooltip: signedIn ? l.acSignedInAs(who) : l.acSignIn,
       onSelected: (choice) async {
         switch (choice) {
           case 'owner':
@@ -58,36 +62,28 @@ class AccountButton extends ConsumerWidget {
           enabled: false,
           child: Text(
             signedIn
-                ? 'Signed in as ${actor.label}'
+                ? l.acSignedInAs(who)
                 // With no staff accounts the device works as staff; once
                 // there are accounts, nobody signed in can only look.
                 : actor == WorkshopRole.staff
-                ? 'No accounts yet — working as staff'
-                : 'Nobody signed in',
+                ? l.acNoAccounts
+                : l.acNobody,
           ),
         ),
         const PopupMenuDivider(),
-        const PopupMenuItem(
-          key: ownerKey,
-          value: 'owner',
-          child: Text('Sign in as owner'),
-        ),
-        const PopupMenuItem(
-          key: staffKey,
-          value: 'staff',
-          child: Text('Sign in as staff'),
-        ),
+        PopupMenuItem(key: ownerKey, value: 'owner', child: Text(l.acAsOwner)),
+        PopupMenuItem(key: staffKey, value: 'staff', child: Text(l.acAsStaff)),
         if (manages)
-          const PopupMenuItem(
+          PopupMenuItem(
             key: manageKey,
             value: 'manage',
-            child: Text('Staff & permissions'),
+            child: Text(l.acStaffPermissions),
           ),
         if (signedIn)
-          const PopupMenuItem(
+          PopupMenuItem(
             key: signOutKey,
             value: 'out',
-            child: Text('Sign out'),
+            child: Text(l.acSignOut),
           ),
       ],
       // An icon, as its neighbours on the header are: who it is is in its
@@ -142,7 +138,7 @@ class _StaffSignInState extends ConsumerState<StaffSignInDialog> {
 
   Future<void> _ok() async {
     if (_id == null) {
-      setState(() => _problem = 'Choose who you are.');
+      setState(() => _problem = context.l10n.acChooseWho);
       return;
     }
     final member = await ref
@@ -150,7 +146,7 @@ class _StaffSignInState extends ConsumerState<StaffSignInDialog> {
         .signIn(_id!, _pin.text.trim());
     if (!mounted) return;
     if (member == null) {
-      setState(() => _problem = 'That is not their PIN.');
+      setState(() => _problem = context.l10n.acWrongPin);
       return;
     }
     ref.signInAs(member);
@@ -165,14 +161,11 @@ class _StaffSignInState extends ConsumerState<StaffSignInDialog> {
         if (m.active) m,
     ];
     return AlertDialog(
-      title: const Text('Sign in as staff'),
+      title: Text(context.l10n.acAsStaff),
       content: SizedBox(
         width: 360,
         child: members.isEmpty
-            ? const Text(
-                'No member of staff has been added yet. The owner adds them '
-                'under Staff & permissions.',
-              )
+            ? Text(context.l10n.acNoStaffYet)
             : Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -181,7 +174,7 @@ class _StaffSignInState extends ConsumerState<StaffSignInDialog> {
                     key: StaffSignInDialog.memberKey,
                     initialValue: _id,
                     isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Who'),
+                    decoration: InputDecoration(labelText: context.l10n.acWho),
                     items: [
                       for (final m in members)
                         DropdownMenuItem(value: m.id, child: Text(m.name)),
@@ -197,7 +190,7 @@ class _StaffSignInState extends ConsumerState<StaffSignInDialog> {
                     obscureText: true,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(labelText: 'PIN'),
+                    decoration: InputDecoration(labelText: context.l10n.acPin),
                     onSubmitted: (_) => _ok(),
                   ),
                   if (_problem case final problem?)
@@ -216,13 +209,13 @@ class _StaffSignInState extends ConsumerState<StaffSignInDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(context.l10n.actCancel),
         ),
         if (members.isNotEmpty)
           FilledButton(
             key: StaffSignInDialog.okKey,
             onPressed: _ok,
-            child: const Text('Sign in'),
+            child: Text(context.l10n.acSignIn),
           ),
       ],
     );
@@ -260,7 +253,7 @@ class StaffScreen extends ConsumerWidget {
         await change(await ref.actorNow());
         ref.staffChanged();
       } on AccessDenied catch (e) {
-        if (context.mounted) _say(context, e.toString());
+        if (context.mounted) _say(context, e.messageIn(context.words));
       } on ArgumentError catch (e) {
         if (context.mounted) _say(context, '${e.message}');
       }
@@ -268,7 +261,7 @@ class StaffScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: p.shell,
-      appBar: AppBar(title: const Text('Staff & permissions')),
+      appBar: AppBar(title: Text(context.l10n.acStaffPermissions)),
       floatingActionButton: actor.can(Capability.usersManage)
           ? FloatingActionButton.extended(
               key: addKey,
@@ -277,7 +270,7 @@ class StaffScreen extends ConsumerWidget {
                 builder: (_) => const AddStaffDialog(),
               ),
               icon: const Icon(Icons.person_add_alt),
-              label: const Text('Add staff member'),
+              label: Text(context.l10n.acAddStaff),
             )
           : null,
       body: members == null
@@ -288,17 +281,11 @@ class StaffScreen extends ConsumerWidget {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                   children: [
-                    Text(
-                      'The owner may do everything. Each member of staff may '
-                      'do what is ticked here, and nothing else. With nobody '
-                      'signed in, the device may only look once any member '
-                      'of staff is active.',
-                      style: text.bodySmall,
-                    ),
+                    Text(context.l10n.acIntro, style: text.bodySmall),
                     if (members.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 24),
-                        child: Text('No member of staff has been added yet.'),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 24),
+                        child: Text(context.l10n.acNoStaff),
                       ),
                     for (final m in members)
                       Card(
@@ -317,7 +304,11 @@ class StaffScreen extends ConsumerWidget {
                                       style: text.titleMedium,
                                     ),
                                   ),
-                                  Text(m.active ? 'Active' : 'Inactive'),
+                                  Text(
+                                    m.active
+                                        ? context.l10n.acActive
+                                        : context.l10n.acInactive,
+                                  ),
                                   Switch(
                                     key: activeKey(m.id),
                                     value: m.active,
@@ -339,7 +330,9 @@ class StaffScreen extends ConsumerWidget {
                                 Padding(
                                   padding: const EdgeInsets.only(top: 6),
                                   child: Text(
-                                    g.key.toUpperCase(),
+                                    g.value.first
+                                        .groupIn(context.words)
+                                        .toUpperCase(),
                                     style: text.labelSmall?.copyWith(
                                       color: p.muted,
                                       letterSpacing: 0.6,
@@ -352,7 +345,7 @@ class StaffScreen extends ConsumerWidget {
                                     for (final c in g.value)
                                       FilterChip(
                                         key: capabilityKey(m.id, c),
-                                        label: Text(c.label),
+                                        label: Text(c.labelIn(context.words)),
                                         selected: m.capabilities.contains(c),
                                         onSelected:
                                             actor.can(
@@ -427,9 +420,9 @@ class _AddStaffState extends ConsumerState<AddStaffDialog> {
     final members = await ref.read(staffStoreProvider).all();
     final pin = _pin.text.trim();
     final problem =
-        StaffStore.nameProblem(_name.text, members) ??
-        OwnerAccessStore.problemWith(pin) ??
-        (pin == _again.text.trim() ? null : 'The two PINs are not the same.');
+        StaffStore.nameProblem(_name.text, members, w: ref.words) ??
+        OwnerAccessStore.problemWith(pin, ref.words) ??
+        (pin == _again.text.trim() ? null : ref.l10n.pinNotSame);
     if (problem != null) {
       setState(() => _problem = problem);
       return;
@@ -446,13 +439,13 @@ class _AddStaffState extends ConsumerState<AddStaffDialog> {
       ref.staffChanged();
       if (mounted) Navigator.of(context).pop();
     } on AccessDenied catch (e) {
-      setState(() => _problem = e.toString());
+      setState(() => _problem = e.messageIn(ref.words));
     }
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Add staff member'),
+    title: Text(context.l10n.acAddStaff),
     content: SizedBox(
       width: 360,
       child: Column(
@@ -463,7 +456,7 @@ class _AddStaffState extends ConsumerState<AddStaffDialog> {
             key: AddStaffDialog.nameKey,
             controller: _name,
             autofocus: true,
-            decoration: const InputDecoration(labelText: 'Name'),
+            decoration: InputDecoration(labelText: context.l10n.acName),
           ),
           TextField(
             key: AddStaffDialog.pinKey,
@@ -471,7 +464,7 @@ class _AddStaffState extends ConsumerState<AddStaffDialog> {
             obscureText: true,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: const InputDecoration(labelText: 'PIN'),
+            decoration: InputDecoration(labelText: context.l10n.acPin),
           ),
           TextField(
             key: AddStaffDialog.againKey,
@@ -479,13 +472,12 @@ class _AddStaffState extends ConsumerState<AddStaffDialog> {
             obscureText: true,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: const InputDecoration(labelText: 'The PIN again'),
+            decoration: InputDecoration(labelText: context.l10n.pinAgain),
             onSubmitted: (_) => _ok(),
           ),
           const SizedBox(height: 8),
           Text(
-            'They start able to look and nothing more. Tick what else they '
-            'may do on their card.',
+            context.l10n.acStartLooking,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           if (_problem case final problem?)
@@ -502,12 +494,12 @@ class _AddStaffState extends ConsumerState<AddStaffDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
+        child: Text(context.l10n.actCancel),
       ),
       FilledButton(
         key: AddStaffDialog.okKey,
         onPressed: _ok,
-        child: const Text('Add'),
+        child: Text(context.l10n.actAdd),
       ),
     ],
   );

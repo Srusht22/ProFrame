@@ -1,5 +1,7 @@
 import '../model/elements.dart';
 import '../model/materials.dart';
+import '../text/names.dart';
+import '../text/words.dart';
 import 'default_factory_pricing.dart';
 import 'price_list_migration.dart';
 import 'profile_category.dart';
@@ -90,7 +92,15 @@ class PriceList {
 
   /// What an older list held that the current schema has no place for, said
   /// in words, where it was migrated. Nothing is invented in its stead.
-  final List<String> migrationNotes;
+  List<String> get migrationNotes => migrationNotesIn(const EnglishWords());
+
+  /// [migrationNotes], in [w].
+  List<String> migrationNotesIn(Words w) => [
+    for (final say in migrationSays) say(w),
+  ];
+
+  /// How each of [migrationNotes] is said.
+  final List<MigrationNote> migrationSays;
 
   /// The schema this version writes. 1 was the first engine's — a metre of
   /// frame, of sash and of bar, a leaf by its kind, an angled joint; 2 the
@@ -120,7 +130,7 @@ class PriceList {
     this.sealedGlassPerM2 = const {},
     this.customSealedGlassPerM2,
     this.migratedFrom,
-    this.migrationNotes = const [],
+    this.migrationSays = const [],
   });
 
   /// The example list the application starts with, until the owner keeps
@@ -147,7 +157,7 @@ class PriceList {
     Map<String, CategoryRate>? categories,
     InstallationRate? installation,
     int? migratedFrom,
-    List<String>? migrationNotes,
+    List<MigrationNote>? migrationSays,
     bool clearCustomGlass = false,
     bool clearCustomSealedGlass = false,
     bool clearCustomPanel = false,
@@ -177,7 +187,7 @@ class PriceList {
     categories: categories ?? this.categories,
     installation: installation ?? this.installation,
     migratedFrom: migratedFrom ?? this.migratedFrom,
-    migrationNotes: migrationNotes ?? this.migrationNotes,
+    migrationSays: migrationSays ?? this.migrationSays,
   );
 
   Map<String, Object?> toJson() => {
@@ -225,7 +235,7 @@ class PriceList {
     if (read == null || migration.from == schemaVersion) return read;
     return read.copyWith(
       migratedFrom: migration.from,
-      migrationNotes: migration.notes,
+      migrationSays: migration.notes,
     );
   }
 
@@ -615,19 +625,27 @@ class ColourPricing {
   /// colour* for one it does not name.
   String get name => entry?.name ?? ColourGrade.special.label;
 
+  /// [name], in [w]: the catalog's own name is the factory's and stays as
+  /// they wrote it.
+  String nameIn(Words w) => entry?.name ?? ColourGrade.special.labelIn(w);
+
   ColourGrade get grade => entry?.grade ?? ColourGrade.special;
 
   /// Why it cannot be priced, in words — null where it can.
-  String? get problem => switch (state) {
+  String? get problem => problemIn(const EnglishWords());
+
+  /// [problem], in [w].
+  String? problemIn(Words w) => switch (state) {
     ColourPricingState.named || ColourPricingState.other => null,
-    ColourPricingState.notForMaterial =>
-      'Please select a colour available for ${material.label}.',
-    ColourPricingState.notConfigured =>
-      'Colour pricing is not configured for ${material.label}.',
-    ColourPricingState.retiredUnpriced || ColourPricingState.unknown =>
-      'Colour pricing unavailable — please select an active colour.',
-    ColourPricingState.noProfile =>
-      'The price list has no price for ${material.label} profile.',
+    ColourPricingState.notForMaterial => w.colourNotForMaterial(
+      material.labelIn(w),
+    ),
+    ColourPricingState.notConfigured => w.colourNotConfigured(
+      material.labelIn(w),
+    ),
+    ColourPricingState.retiredUnpriced ||
+    ColourPricingState.unknown => w.colourUnavailable,
+    ColourPricingState.noProfile => w.colourNoProfile(material.labelIn(w)),
   };
 }
 

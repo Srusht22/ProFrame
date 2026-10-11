@@ -592,6 +592,13 @@ was clean — and there was nothing to find in the code, because the fault was
 not in the code. The test names the folder and says to delete it, so the next
 person loses a minute instead of a morning.
 
+Since Phase 34 the application is localised again (see *English and Central
+Kurdish*), so translation files are expected — in `lib/app/l10n/` only, and
+every one of them tracked by git. That is the lesson kept: the fault was
+never that such files existed, but that untracked ones outlived the code
+that read them. The test now refuses one anywhere else, and one git does
+not track.
+
 Sections come from planar subdivision of the user's own lines: the lines are
 cut at their crossings, joined into a graph, and the faces of that graph are
 the sections. Nothing is laid out to a template, which is what makes the rule
@@ -7486,11 +7493,120 @@ Border*; a card's status reads *Draft* where it read *Complete*;
 `flexible_factory_pricing_test` now finds `customers.delete`; and
 `customers_are_never_deleted_test` allows the one guarded removal.
 
+### English and Central Kurdish
+
+The user's words: *English is the default; add Central Kurdish (Sorani),
+chosen in Settings, right to left; do not change identifiers, stored values
+or anybody's data; do not invent technical terms — write what is uncertain
+down for me to review.*
+
+```
+lib/app/l10n/app_en.arb ── flutter gen-l10n ──► AppLocalizations ──► context.l10n
+lib/app/l10n/app_ckb.arb ─┘                                          (screens)
+        │ entries described "[domain] …"
+        └─ tool/generate_domain_words.dart ──► Words (lib/domain/text/words.dart)
+                                              EnglishWords ── the domain's tests
+                                              ArbWords ────── context.words / ref.words
+```
+
+- **Every word is written once in English and once in Sorani**, in the two
+  ARB files, under one key. Screens read `context.l10n` (`l10n.dart`, which
+  falls back to English where no localizations are in scope). Nothing
+  branches on the language and no Kurdish is in Dart code.
+- **The domain stays pure Dart.** It says what it says to the user —
+  readiness, issues, checks, questions, the names of openings and parts —
+  through `Words`, generated from the ARB entries whose description starts
+  `[domain]`. A message is a function given `Words`, defaulting to
+  `EnglishWords`; one made and cached ahead of time carries a closure
+  (`say`) and answers `messageIn(w)`. Each enum keeps its English `label`,
+  which the domain's tests read, and `lib/domain/text/names.dart` says it
+  in any language (`labelIn`). A screen never reads `label` or `message`
+  itself. Adding a domain word: add the ARB entries, then
+  `dart run tool/generate_domain_words.dart` and `flutter gen-l10n`.
+- **Records are language-free.** Nothing stored changed shape, name or
+  value. A price line keeps its English label and, beside it, a `LineName`
+  — which kind of line and the enum names it was made from — so a kept
+  price or quotation reads in whichever language is shown. Older records
+  read as they did; a quotation's English category, material and colour
+  are shown through `keptCategoryIn` and its kin. Customers' and designs'
+  names, notes and the factory's colour names are the user's and are never
+  translated.
+- **The choice is the device's** (`languageProvider`,
+  `proframe.language`), read before the first frame in `main` so the app
+  opens in it, English until chosen, and a code this version does not know
+  is English. `MaterialApp` is given the locale outright, so the device's
+  own language never decides. **Settings** (`SettingsScreen`, the gear on
+  the customers' header) offers *English* and *کوردی (سۆرانی)*, each named
+  in itself and set in its own direction, beside the appearance.
+- **Flutter has no Central Kurdish**, so
+  `lib/app/l10n/kurdish_framework.dart` gives it Material, Widgets and
+  Cupertino localizations: the widgets right to left, and the words the
+  app's screens show — back, close, OK, the date picker, copy and paste —
+  from the same ARB (`fw…`), so all the Kurdish is in one file for review.
+- **Right to left by directionality, never by mirroring the design.** Paddings,
+  alignments and overlays are directional (`EdgeInsetsDirectional`,
+  `AlignmentDirectional`, `PositionedDirectional`); the moving indicators
+  under the views and the tools are `AnimatedPositionedDirectional`, which
+  under `left:` sat under the wrong tab in Kurdish. The drawing, the
+  technical drawing and the solid are painted in the design's own
+  coordinates and are **not** mirrored — a door hinged on its left is
+  hinged on its left in either language. Only their words change:
+  `CadPainter` and `DimensionLayout` are handed `Words` (GLASS, IN/OUT,
+  the rows' names), and the painter and the pointer are handed the same,
+  because a name's width is part of where the figures go. `ArbWords` of one
+  language are equal, so the painter does not repaint for a fresh one.
+- **Figures are figures.** Digits stay Latin and units (`cm`, `m`, `m²`),
+  currency codes and the marks `< > ^ v` are the same in both; a price,
+  a size and a total read the same figure in either language. **And a
+  figure is one left-to-right run inside a right-to-left line**: left to
+  itself the bidirectional algorithm wrote `m 7.000` and `USD 140.00`, and
+  split `7.000 m × 20.00` round the words beside it. A figure placeholder
+  in a Kurdish message carries a left-to-right mark (U+200E) either side
+  (`markFigures` in the apply tool puts them back, and a test requires
+  them); a figure a widget joins into a line goes through
+  `context.figure` or `context.figures`; and `PriceRow` and the totals
+  set a value with no right-to-left letter in it left to right
+  (`directionOf`). English is untouched by all of it. The isolates
+  U+2066 and U+2069 were tried first: the analyzer rightly refuses bidi
+  controls in source, and the generated Dart carries the ARB's characters
+  literally.
+- **Glyphs.** Noto Sans Arabic, bundled since the launch, is the fallback
+  family of every text style (`AppTheme.fontFallback`, and the technical
+  drawing's lettering).
+- **The wording is not verified.** Every Sorani message is in
+  `docs/localization/central_kurdish_translation_review.md` with its
+  English, where it is used, a confidence and why — the trade terms (Bend
+  Shoulder, sealed unit, sliding, lever, transom, mullion, pleated screen)
+  low. A reviewer writes corrections in its last column and
+  `dart run tool/apply_approved_translations.dart` puts them into the ARB,
+  refusing a key that does not exist or a wording that loses a
+  placeholder. `docs/localization/hardcoded_text_audit.md` classifies
+  every literal still in the code.
+
+`test/app/the_words_are_one_set_test.dart` holds the two files one set —
+same keys and placeholders, no empty or key-named message, the generated
+files current, the domain's English the screen's English, a glyph for
+every Kurdish letter. `test/app/the_app_in_central_kurdish_test.dart`
+holds it on the real app: English and left to right by default; Kurdish
+at once from Settings, right to left, kept and reopened; an unknown code
+English; the device's storage byte for byte the same after switching but
+for the choice; a price the same figure in both; no key ever shown; nothing
+overflowing in Kurdish at a phone, a tablet and a laptop through the
+customers, Settings, a customer's page and Draw, CAD and 3D; the technical
+drawing's lines the same pixels in both; and a design's name never
+translated. `test/app/the_translation_review_test.dart` holds the review
+file current with the ARB and the apply tool's reading of it.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the
   reason it is the size it is. Most are relative rather than absolute: a
   three-pixel wobble is twenty-three millimetres on a three-metre sheet.
+- Every word the user reads is in `lib/app/l10n/app_en.arb` and
+  `app_ckb.arb` under one key, never in Dart; a word the domain says is a
+  `[domain]` entry, then `dart run tool/generate_domain_words.dart` and
+  `flutter gen-l10n`. A new Kurdish message is added to the review file at
+  `docs/localization/central_kurdish_translation_review.md` too.
 - `flutter analyze` must be clean. The analysis options are strict on
   purpose, and imports are sorted.
 - `flutter test` must be green before anything is pushed.

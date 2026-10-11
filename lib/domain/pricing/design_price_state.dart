@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../model/customer_discount.dart';
 import '../model/design.dart';
 import '../model/payment.dart';
+import '../text/words.dart';
 import 'extra_charge.dart';
 import 'measurement.dart';
 import 'price_list.dart';
@@ -197,7 +198,14 @@ class DesignPriceState {
   final PriceRecord? record;
 
   /// Why it cannot be calculated, where it cannot.
-  final String reason;
+  /// Why there is no price, in a language — empty where there is one.
+  final String Function(Words w) sayReason;
+
+  /// Why there is no price, in English — empty where there is one.
+  String get reason => sayReason(const EnglishWords());
+
+  /// [reason], in [w].
+  String reasonIn(Words w) => sayReason(w);
 
   /// Where the profile's colour stops the price and is for the user to
   /// choose again — a colour not sold in the material now chosen, or a
@@ -209,9 +217,11 @@ class DesignPriceState {
     this.status,
     this.readiness, {
     this.record,
-    this.reason = '',
+    this.sayReason = _nothing,
     this.needsColour = false,
   });
+
+  static String _nothing(Words w) => '';
 
   static DesignPriceState of(
     Design design,
@@ -225,7 +235,7 @@ class DesignPriceState {
         DesignPriceStatus.unsupported,
         readiness,
         record: record,
-        reason: 'Unsupported category. Price unavailable.',
+        sayReason: (w) => w.reasonUnsupported,
       );
     }
     if (!readiness.isPriceCalculable) {
@@ -233,7 +243,7 @@ class DesignPriceState {
         DesignPriceStatus.incomplete,
         readiness,
         record: record,
-        reason: readiness.message,
+        sayReason: readiness.messageIn,
       );
     }
     // The profile's colour, by material and colour together. One the user
@@ -247,7 +257,7 @@ class DesignPriceState {
             : DesignPriceStatus.unavailable,
         readiness,
         record: record,
-        reason: colour.problem!,
+        sayReason: (w) => colour.problemIn(w)!,
         needsColour: colour.needsSelection,
       );
     }
@@ -257,9 +267,9 @@ class DesignPriceState {
         DesignPriceStatus.unavailable,
         readiness,
         record: record,
-        reason: result.issues.isEmpty
-            ? 'The price list cannot price this design.'
-            : result.issues.first.message,
+        sayReason: (w) => result.issues.isEmpty
+            ? w.reasonListCannot
+            : result.issues.first.messageIn(w),
       );
     }
     if (record == null) {
@@ -309,38 +319,44 @@ class DesignPriceState {
                 r.kind == PriceRequirementKind.profileCategory,
           );
 
-  String get label => switch (status) {
-    _ when notRead => 'Drawing not read',
-    DesignPriceStatus.current => 'Complete',
-    DesignPriceStatus.notCalculated => 'Complete',
-    DesignPriceStatus.needsRecalculation => 'Complete',
-    DesignPriceStatus.incomplete => 'Incomplete',
-    DesignPriceStatus.unsupported => 'Unsupported category',
-    DesignPriceStatus.unavailable => 'Complete',
+  String get label => labelIn(const EnglishWords());
+
+  /// [label], in [w].
+  String labelIn(Words w) => switch (status) {
+    _ when notRead => w.stateNotRead,
+    DesignPriceStatus.current => w.stateComplete,
+    DesignPriceStatus.notCalculated => w.stateComplete,
+    DesignPriceStatus.needsRecalculation => w.stateComplete,
+    DesignPriceStatus.incomplete => w.stateIncomplete,
+    DesignPriceStatus.unsupported => w.kindUnsupported,
+    DesignPriceStatus.unavailable => w.stateComplete,
   };
 
   /// What the price line says where there is no current price.
-  String get note => switch (status) {
-    _ when notRead => 'Price unavailable until drawing is read',
+  String get note => noteIn(const EnglishWords());
+
+  /// [note], in [w].
+  String noteIn(Words w) => switch (status) {
+    _ when notRead => w.noteNotRead,
     DesignPriceStatus.current => '',
-    DesignPriceStatus.notCalculated => 'Not calculated yet',
-    DesignPriceStatus.needsRecalculation => 'Price needs recalculation',
-    DesignPriceStatus.incomplete =>
-      'Price unavailable until design is completed',
-    DesignPriceStatus.unsupported => 'Price unavailable',
-    DesignPriceStatus.unavailable => 'Price unavailable',
+    DesignPriceStatus.notCalculated => w.noteNotCalculated,
+    DesignPriceStatus.needsRecalculation => w.noteRecalculate,
+    DesignPriceStatus.incomplete => w.noteIncomplete,
+    DesignPriceStatus.unsupported => w.noteUnavailable,
+    DesignPriceStatus.unavailable => w.noteUnavailable,
   };
 
   /// What to tell the user who reaches for the price and cannot have it:
   /// the exact thing to complete, where it is known.
-  String get message => switch (status) {
+  String get message => messageIn(const EnglishWords());
+
+  /// [message], in [w].
+  String messageIn(Words w) => switch (status) {
     DesignPriceStatus.incomplete ||
     DesignPriceStatus.unsupported ||
-    DesignPriceStatus.unavailable => reason,
-    DesignPriceStatus.needsRecalculation =>
-      'The design or the prices changed since this price was calculated. '
-          'Calculate it again.',
-    DesignPriceStatus.notCalculated => 'Calculate the price.',
+    DesignPriceStatus.unavailable => reasonIn(w),
+    DesignPriceStatus.needsRecalculation => w.msgRecalculate,
+    DesignPriceStatus.notCalculated => w.msgCalculate,
     DesignPriceStatus.current => '',
   };
 }
@@ -364,6 +380,12 @@ class CustomerDesignPrice {
   /// the design changed after it was quoted.
   final String designKey;
 
+  /// [name] and [colourName] in another language: a design with no name of
+  /// its own is called by its category, and a colour by the palette's name,
+  /// both of which are words; a name the user gave is theirs either way.
+  final String Function(Words w)? sayName;
+  final String Function(Words w)? sayColour;
+
   const CustomerDesignPrice({
     required this.designId,
     required this.name,
@@ -372,7 +394,12 @@ class CustomerDesignPrice {
     this.profile = ProfileSelection.notChosen,
     this.colourName = 'Not selected',
     this.designKey = '',
+    this.sayName,
+    this.sayColour,
   });
+
+  String nameIn(Words w) => sayName?.call(w) ?? name;
+  String colourNameIn(Words w) => sayColour?.call(w) ?? colourName;
 }
 
 /// Whether a customer's total can be quoted.
@@ -417,6 +444,8 @@ class CustomerPricing {
         profile: ProfileSelection.of(d),
         colourName: ProfileSelection.of(d).colourName(list),
         designKey: PriceInputs.ofDesign(d),
+        sayName: d.shownNameIn,
+        sayColour: (w) => ProfileSelection.of(d).colourNameIn(w, list),
       ),
   ], list.currency);
 
@@ -480,18 +509,19 @@ class CustomerPricing {
   );
 
   /// Why the total is not final, in words.
-  String get notFinalReason {
-    String designs_(int n) => n == 1 ? '1 design' : '$n designs';
+  String get notFinalReason => notFinalReasonIn(const EnglishWords());
+
+  /// [notFinalReason], in [w].
+  String notFinalReasonIn(Words w) {
     final parts = [
       if (incomplete > 0)
-        '${designs_(incomplete)} ${incomplete == 1 ? 'is' : 'are'} '
-            'incomplete',
-      if (cannotBePriced > 0) '${designs_(cannotBePriced)} cannot be priced',
+        incomplete == 1 ? w.whyIncompleteOne : w.whyIncompleteMany(incomplete),
+      if (cannotBePriced > 0)
+        cannotBePriced == 1 ? w.whyCannotOne : w.whyCannotMany(cannotBePriced),
       if (toCalculate > 0)
-        '${designs_(toCalculate)} ${toCalculate == 1 ? 'needs' : 'need'} '
-            '${toCalculate == 1 ? 'its price' : 'their prices'} calculated',
+        toCalculate == 1 ? w.whyCalculateOne : w.whyCalculateMany(toCalculate),
     ];
-    return parts.isEmpty ? '' : '${parts.join(', ')}.';
+    return parts.isEmpty ? '' : '${parts.join(w.listComma)}${w.sentenceStop}';
   }
 }
 
@@ -516,6 +546,15 @@ enum PaymentStatus {
 
   const PaymentStatus(this.label);
   final String label;
+
+  /// [label], in [w].
+  String labelIn(Words w) => switch (this) {
+    nothingToPay => w.payNothingToPay,
+    pricingIncomplete => w.payPricingIncomplete,
+    outstanding => w.payOutstanding,
+    paidInFull => w.payPaidInFull,
+    credit => w.payCredit,
+  };
 }
 
 /// A customer's money: what their designs come to, less any discount, what
@@ -620,14 +659,19 @@ class CustomerFinance {
   double? get subtotal => subtotalCents == null ? null : subtotalCents! / 100;
 
   /// Why the total is not final, in words, or empty where it is.
-  String get notFinalReason {
+  String get notFinalReason => notFinalReasonIn(const EnglishWords());
+
+  /// [notFinalReason], in [w].
+  String notFinalReasonIn(Words w) {
     final other = extrasInOtherCurrency;
+    final designs = pricing.notFinalReasonIn(w);
+    final currencies = {for (final e in other) e.currency}.join(', ');
     return [
-      if (pricing.notFinalReason.isNotEmpty) pricing.notFinalReason,
+      if (designs.isNotEmpty) designs,
       if (other.isNotEmpty)
-        '${other.length == 1 ? 'An extra charge is' : '${other.length} extra charges are'} '
-            'in ${{for (final e in other) e.currency}.join(', ')}, not '
-            '$currency.',
+        other.length == 1
+            ? w.whyExtraOne(currencies, currency)
+            : w.whyExtraMany(other.length, currencies, currency),
     ].join(' ');
   }
 

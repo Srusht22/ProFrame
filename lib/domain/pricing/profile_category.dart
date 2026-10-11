@@ -1,5 +1,7 @@
 import '../model/design.dart';
 import '../model/materials.dart';
+import '../text/names.dart';
+import '../text/words.dart';
 
 /// A kind of profile within one material, each sold at a rate of its own.
 ///
@@ -64,6 +66,9 @@ class AllocatedPart {
   /// bar's.
   final String key;
   final String name;
+
+  /// [name], said in a language.
+  final String Function(Words w)? sayName;
   final ProfilePart part;
   final MaterialKind material;
 
@@ -76,7 +81,11 @@ class AllocatedPart {
     required this.part,
     required this.material,
     required this.category,
+    this.sayName,
   });
+
+  /// [name], in [w].
+  String nameIn(Words w) => sayName?.call(w) ?? name;
 
   /// Whether it needs a category and has none.
   bool get unallocated => ProfileCategory.divides(material) && category == null;
@@ -96,22 +105,28 @@ abstract final class ProfileAllocation {
   static List<AllocatedPart> partsOf(Design design) {
     final frame = design.frame;
     if (frame == null) return const [];
-    var bar = 0;
+    String lineName(Words w, int n, String? parentId) => parentId != null
+        ? w.lineInside(n, _openingName(w, design, parentId))
+        : w.lineNumbered(n);
     return [
       for (final member in design.frameMembers)
         AllocatedPart(
           key: member.id,
           name: member.placement,
+          sayName: (w) => placementIn(w, member.placement),
           part: ProfilePart.border,
           material: frame.finish.material,
           category: _fits(of(design, member.id), frame.finish.material),
         ),
-      for (final d in design.dividers)
+      for (final (i, d) in design.dividers.indexed)
         AllocatedPart(
           key: d.id,
-          name: d.isInternal
-              ? 'Line ${++bar} (inside ${_openingName(design, d.parentId)})'
-              : 'Line ${++bar}',
+          name: lineName(
+            const EnglishWords(),
+            i + 1,
+            d.isInternal ? d.parentId : null,
+          ),
+          sayName: (w) => lineName(w, i + 1, d.isInternal ? d.parentId : null),
           part: ProfilePart.lines,
           material: d.finish.material,
           category: _fits(of(design, d.id), d.finish.material),
@@ -134,10 +149,9 @@ abstract final class ProfileAllocation {
   static ProfileCategory? _fits(ProfileCategory? c, MaterialKind material) =>
       c != null && c.material == material ? c : null;
 
-  static String _openingName(Design design, String? parentId) {
+  static String _openingName(Words w, Design design, String? parentId) {
     final opening = design.openingHolding(parentId);
-    if (opening == null) return 'a part';
-    final n = design.numberOf(opening);
-    return n > 0 ? 'Opening $n' : 'the opening';
+    if (opening == null) return w.partA;
+    return design.plainNameOfIn(w, opening);
   }
 }

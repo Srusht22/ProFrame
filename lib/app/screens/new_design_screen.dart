@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/model/new_design_setup.dart';
+import '../l10n/l10n.dart';
 import '../theme/app_theme.dart';
 import 'design_name_screen.dart';
 
@@ -50,7 +51,7 @@ class _NewDesignScreenState extends State<NewDesignScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('New Design')),
+    appBar: AppBar(title: Text(context.l10n.newDesign)),
     body: SafeArea(
       child: Center(
         child: SingleChildScrollView(
@@ -69,7 +70,7 @@ class _NewDesignScreenState extends State<NewDesignScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'New Design',
+                    context.l10n.newDesign,
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
@@ -78,7 +79,7 @@ class _NewDesignScreenState extends State<NewDesignScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Who is this design for?',
+                    context.l10n.whoIsThisFor,
                     style: TextStyle(
                       fontSize: 14,
                       color: context.palette.muted,
@@ -88,7 +89,7 @@ class _NewDesignScreenState extends State<NewDesignScreen> {
                   Padding(
                     padding: EdgeInsets.only(bottom: 8),
                     child: Text(
-                      'Person / Customer',
+                      context.l10n.personCustomer,
                       style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
@@ -104,7 +105,7 @@ class _NewDesignScreenState extends State<NewDesignScreen> {
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _continue(),
                     decoration: InputDecoration(
-                      hintText: 'e.g. Ahmed',
+                      hintText: context.l10n.personHint,
                       hintStyle: TextStyle(color: context.palette.muted),
                       prefixIcon: Icon(
                         Icons.person_outline,
@@ -132,7 +133,7 @@ class _NewDesignScreenState extends State<NewDesignScreen> {
                   const SizedBox(height: 28),
                   FilledButton(
                     onPressed: _who.isEmpty ? null : _continue,
-                    child: const Text('Continue'),
+                    child: Text(context.l10n.fwContinue),
                   ),
                 ],
               ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/pricing/pricing_access.dart';
+import '../l10n/l10n.dart';
 import '../state/access.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -47,7 +48,7 @@ class ViewOnlyNote extends ConsumerWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              message,
+              context.l10n.viewOnlyMessage,
               style: text.bodySmall?.copyWith(color: palette.onNotice),
             ),
           ),

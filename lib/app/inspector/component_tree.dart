@@ -7,6 +7,9 @@ import '../../domain/hardware/opening_hardware.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/design_tree.dart';
 import '../../domain/model/elements.dart';
+import '../../domain/text/names.dart';
+import '../../domain/text/words.dart';
+import '../l10n/l10n.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 
@@ -28,12 +31,14 @@ class ComponentTree extends ConsumerWidget {
     final state = ref.watchWork();
     final controller = ref.read(workspaceProvider.notifier);
     final design = state.design;
+    final l = context.l10n;
+    final w = context.words;
 
     if (design.frame == null) {
       return Padding(
         padding: const EdgeInsets.all(18),
         child: Text(
-          'Nothing has been read from your drawing yet.',
+          l.ctNothingRead,
           style: Theme.of(context).textTheme.bodySmall,
         ),
       );
@@ -66,7 +71,7 @@ class ComponentTree extends ConsumerWidget {
             selected: state.selectedId == member.id,
             onTap: () => controller.select(member.id),
           ),
-        if (tree.barIds.isNotEmpty) const _GroupLabel('Bars'),
+        if (tree.barIds.isNotEmpty) _GroupLabel(l.ctBars),
         for (final divider in [
           for (final id in tree.barIds) ?design.dividerById(id),
         ])
@@ -81,10 +86,10 @@ class ComponentTree extends ConsumerWidget {
             selected: state.selectedId == divider.id,
             onTap: () => controller.select(divider.id),
           ),
-        if (tree.sections.isNotEmpty) const _GroupLabel('Sections'),
+        if (tree.sections.isNotEmpty) _GroupLabel(l.ctSections),
         for (final branch in tree.sections)
-          ..._sectionRows(design, state, controller, branch, 1),
-        if (placedByHand.isNotEmpty) const _GroupLabel('Hardware'),
+          ..._sectionRows(l, w, design, state, controller, branch, 1),
+        if (placedByHand.isNotEmpty) _GroupLabel(l.ctHardware),
         for (final piece in placedByHand)
           _Row(
             element: piece,
@@ -96,17 +101,17 @@ class ComponentTree extends ConsumerWidget {
             selected: state.selectedId == piece.id,
             onTap: () => controller.select(piece.id),
           ),
-        if (design.dimensions.isNotEmpty) const _GroupLabel('Dimensions'),
+        if (design.dimensions.isNotEmpty) _GroupLabel(l.ctDimensions),
         for (final dimension in design.dimensions)
           _Row(
             element: dimension,
-            detail: dimension.isStated ? 'you typed this' : 'as drawn',
+            detail: dimension.isStated ? l.ctTyped : l.ctAsDrawn,
             icon: Icons.straighten,
             indent: 1,
             selected: state.selectedId == dimension.id,
             onTap: () => controller.select(dimension.id),
           ),
-        if (design.texts.isNotEmpty) const _GroupLabel('Notes'),
+        if (design.texts.isNotEmpty) _GroupLabel(l.ctNotes),
         for (final note in design.texts)
           _Row(
             element: note,
@@ -128,6 +133,8 @@ class ComponentTree extends ConsumerWidget {
 /// may be a branch in turn. This is the shape of the drawing, so it is the
 /// shape of the list.
 List<Widget> _sectionRows(
+  AppLocalizations l,
+  Words w,
   Design design,
   WorkspaceState state,
   WorkspaceController controller,
@@ -148,10 +155,9 @@ List<Widget> _sectionRows(
     _Row(
       element: section,
       detail: holds
-          ? '${Measurements.sizeOf(design, section)} · '
-              'holds ${branch.panes.length}'
+          ? l.ctHolds(Measurements.sizeOf(design, section), branch.panes.length)
           : '${Measurements.sizeOf(design, section)} · '
-              '${section.finish.material.label}',
+              '${section.finish.material.labelIn(w)}',
       icon: holds
           ? Icons.account_tree_outlined
           : section.finish.material.isGlazing
@@ -164,8 +170,8 @@ List<Widget> _sectionRows(
     if (opening != null)
       _Row(
         element: opening,
-        title: design.nameOf(opening),
-        detail: opening.mechanism.description,
+        title: design.nameOfIn(w, opening),
+        detail: opening.mechanism.descriptionIn(w),
         icon: Icons.door_front_door_outlined,
         indent: indent + 1,
         selected: state.selectedId == opening.id,
@@ -175,7 +181,7 @@ List<Widget> _sectionRows(
       if (design.sectionHolding(piece.parentId) == section.id)
         _Row(
           element: piece,
-          detail: _placeOn(design, piece, section, opening),
+          detail: _placeOn(l, design, piece, section, opening),
           icon: piece.kind == HardwareKind.hinge
               ? Icons.blur_linear
               : Icons.radio_button_checked,
@@ -186,7 +192,7 @@ List<Widget> _sectionRows(
     for (final bar in bars)
       _Row(
         element: bar,
-        detail: '${_length(design, bar.lengthMm)} · inside',
+        detail: l.ctInside(_length(design, bar.lengthMm)),
         icon: bar.isVertical
             ? Icons.vertical_align_center
             : Icons.horizontal_rule,
@@ -195,7 +201,7 @@ List<Widget> _sectionRows(
         onTap: () => controller.select(bar.id),
       ),
     for (final pane in branch.panes)
-      ..._sectionRows(design, state, controller, pane, indent + 1),
+      ..._sectionRows(l, w, design, state, controller, pane, indent + 1),
   ];
 }
 
@@ -245,7 +251,7 @@ class _Row extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title ?? element.label,
+                      title ?? elementLabelIn(context.words, element),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -255,7 +261,7 @@ class _Row extends StatelessWidget {
                     ),
                     if (detail.isNotEmpty)
                       Text(
-                        detail,
+                        context.figures(detail),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall,
@@ -291,6 +297,7 @@ class _GroupLabel extends StatelessWidget {
 /// Measuring *up* there gave both hinges of a bottom hung sash as "0 cm up",
 /// which is true and says nothing about either of them.
 String _placeOn(
+  AppLocalizations l,
   Design design,
   HardwareElement piece,
   SectionElement section,
@@ -299,9 +306,9 @@ String _placeOn(
   final edge = opening?.mechanism.hingeEdge ?? opening?.mechanism.slideEdge;
   final alongARail = edge == OpeningEdge.top || edge == OpeningEdge.bottom;
   final figure = alongARail
-      ? '${_length(design, piece.at.x - section.outline.left)} from the left'
-      : '${_length(design, section.outline.bottom - piece.at.y)} up';
-  return piece.kind == HardwareKind.hinge ? figure : '$figure · on the opening';
+      ? l.ctFromLeft(_length(design, piece.at.x - section.outline.left))
+      : l.ctUp(_length(design, section.outline.bottom - piece.at.y));
+  return piece.kind == HardwareKind.hinge ? figure : l.ctOnOpening(figure);
 }
 
 /// A length read off the design: written once every size is given, and

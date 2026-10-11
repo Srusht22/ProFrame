@@ -13,6 +13,7 @@ import '../sections/planar_graph.dart';
 import '../sections/section_bands.dart';
 import '../sections/section_builder.dart';
 import '../sketch/stroke.dart';
+import '../text/words.dart';
 import 'geometry_normalizer.dart';
 import 'geometry_validation.dart';
 import 'opening_symbol.dart';
@@ -554,11 +555,10 @@ abstract final class SketchInterpreter {
       // the one case with nothing to work from, and it is the only one that
       // is asked about.
       if (section == null) {
-        questions.add(DesignQuestion(
+        questions.add(DesignQuestion.said((w) => DesignQuestion(
           id: 'symbol-${symbol.strokeId}',
-          prompt: 'Which section does this ${symbol.glyph} belong to?',
-          detail: 'The mark is outside the design, so there is no section it '
-              'could be in. Say which one you meant.',
+          prompt: w.qSymbolPrompt(symbol.glyph),
+          detail: w.qSymbolDetail,
           aboutIds: [
             symbol.strokeId,
             for (final s in read.topLevelSections) s.id,
@@ -567,16 +567,16 @@ abstract final class SketchInterpreter {
             for (final option in read.topLevelSections)
               QuestionOption(
                 key: option.id,
-                label: _describe(option, read),
-                detail: 'Open this one, ${symbol.meaning}.',
+                label: _describe(w, option, read),
+                detail: w.qSymbolOpen(symbol.direction.meaningIn(w)),
               ),
-            const QuestionOption(
+            QuestionOption(
               key: 'not-a-symbol',
-              label: 'It is not an opening mark',
-              detail: 'Build it as lines, exactly where it was drawn.',
+              label: w.qNotASymbol,
+              detail: w.qNotASymbolDetail,
             ),
           ],
-        ));
+        )));
         continue;
       }
 
@@ -1013,23 +1013,26 @@ abstract final class SketchInterpreter {
   }
 
   /// A section named the way somebody would point at it.
-  static String _describe(SectionElement section, Design design) {
+  static String _describe(Words w, SectionElement section, Design design) {
     final frame = design.frame;
-    final where = StringBuffer();
+    String? vertical;
+    String? horizontal;
     if (frame != null) {
       final middleY = (frame.outline.top + frame.outline.bottom) / 2;
       final middleX = (frame.outline.left + frame.outline.right) / 2;
       final centre = section.outline.centroid;
       if (SectionBands.rows(design) > 1) {
-        where.write(centre.y < middleY ? 'upper ' : 'lower ');
+        vertical = centre.y < middleY ? w.whereUpper : w.whereLower;
       }
       if (SectionBands.columns(design) > 1) {
-        where.write(centre.x < middleX ? 'left' : 'right');
+        horizontal = centre.x < middleX ? w.whereLeft : w.whereRight;
       }
     }
-    final place = where.toString().trim();
+    final place = vertical != null && horizontal != null
+        ? w.whereBoth(vertical, horizontal)
+        : vertical ?? horizontal ?? '';
     final size = '${section.widthMm.round()} × ${section.heightMm.round()} mm';
-    return place.isEmpty ? size : 'The $place section — $size';
+    return place.isEmpty ? size : w.sectionDescribed(place, size);
   }
 
   /// A stroke made with a tool that draws structure. Notes, arrows and
@@ -1070,47 +1073,43 @@ abstract final class SketchInterpreter {
       ),
       questions: [
         if (gap != null)
-          DesignQuestion(
+          DesignQuestion.said((w) => DesignQuestion(
             id: outlineGapQuestion,
-            prompt: 'Your design is not closed — ${gap.side} is open.',
-            detail: 'Do you want it this way, or are you going to change '
-                'it? Nothing has been added or taken away.',
+            prompt: w.qGapPrompt(gap.sideIn(w)),
+            detail: w.qGapDetail,
             options: [
               QuestionOption(
                 key: 'leave-open',
-                label: 'Keep it open',
-                detail: 'Build it as drawn, with no frame across '
-                    '${gap.side}${gap.isFoot ? ' — a door runs down to the '
-                        'floor' : ''}.',
+                label: w.qKeepOpen,
+                detail: gap.isFoot
+                    ? w.qKeepOpenFootDetail(gap.sideIn(w))
+                    : w.qKeepOpenDetail(gap.sideIn(w)),
               ),
               QuestionOption(
                 key: 'close-it',
-                label: 'Close it',
-                detail: 'Put the frame across ${gap.side}, straight between '
-                    'the two ends you drew.',
+                label: w.qCloseIt,
+                detail: w.qCloseItDetail(gap.sideIn(w)),
               ),
-              const QuestionOption(
+              QuestionOption(
                 key: 'change-it',
-                label: 'I will change it',
-                detail: 'Go back to the drawing and draw it as you want it.',
+                label: w.qChangeIt,
+                detail: w.qChangeItDetail,
               ),
             ],
-          )
+          ))
         else
-          const DesignQuestion(
+          DesignQuestion.said((w) => DesignQuestion(
             id: 'frame-not-closed',
-            prompt: 'The outline does not close. What would you like to do?',
-            detail: 'Your lines do not join up into a shape, so there is no '
-                'outer frame yet. Nothing has been changed or added.',
+            prompt: w.qNotClosedPrompt,
+            detail: w.qNotClosedDetail,
             options: [
               QuestionOption(
                 key: 'draw-more',
-                label: 'Let me draw the rest',
-                detail:
-                    'Go back to the drawing and close the outline yourself.',
+                label: w.qDrawRest,
+                detail: w.qDrawRestDetail,
               ),
             ],
-          ),
+          )),
       ],
       unusedStrokeIds: [for (final s in structural) s.id],
     );
@@ -1436,6 +1435,15 @@ class _Gap {
 
   /// Whether it is the foot of the shape — where a door meets the floor.
   bool get isFoot => side == 'the bottom';
+
+  /// [side], in [w].
+  String sideIn(Words w) => switch (side) {
+    'the bottom' => w.gapBottom,
+    'the top' => w.gapTop,
+    'the left side' => w.gapLeft,
+    'the right side' => w.gapRight,
+    _ => w.gapOne,
+  };
 }
 
 class _Placed {

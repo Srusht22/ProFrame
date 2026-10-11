@@ -5,6 +5,8 @@ import '../../domain/model/design.dart';
 import '../../domain/model/design_completion.dart';
 import '../../domain/model/new_design_setup.dart';
 import '../../domain/pricing/pricing_access.dart';
+import '../../domain/text/names.dart';
+import '../l10n/l10n.dart';
 import '../state/access.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -91,12 +93,12 @@ class _CompleteBarState extends ConsumerState<CompleteBar> {
           context: context,
           builder: (dialog) => AlertDialog(
             key: CompletedDialog.failedKey,
-            title: const Text('Not completed'),
+            title: Text(context.l10n.notCompleted),
             content: Text(outcome.message ?? ''),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialog).pop(),
-                child: const Text('OK'),
+                child: Text(context.l10n.fwOk),
               ),
             ],
           ),
@@ -175,10 +177,10 @@ class _CompleteBarState extends ConsumerState<CompleteBar> {
             Expanded(
               child: Text(
                 completed
-                    ? 'Completed and saved'
+                    ? context.l10n.completedAndSaved
                     : widget.narrow
-                    ? 'Draft'
-                    : 'Draft — press Complete! when the design is finished',
+                    ? context.l10n.stageDraft
+                    : context.l10n.draftHint,
                 key: CompleteBar.stateKey,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -204,7 +206,7 @@ class _CompleteBarState extends ConsumerState<CompleteBar> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.check_circle_outline, size: 18),
-              label: const Text(CompleteBar.label),
+              label: Text(context.l10n.completeButton),
             ),
           ],
         ),
@@ -224,7 +226,7 @@ class NotCompleteDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AlertDialog(
     key: dialogKey,
-    title: const Text('Not complete yet'),
+    title: Text(context.l10n.notCompleteYet),
     content: SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -235,7 +237,7 @@ class NotCompleteDialog extends StatelessWidget {
           for (final m in outcome.missing)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text('• $m'),
+              child: Text(context.l10n.bulleted(m)),
             ),
         ],
       ),
@@ -243,7 +245,7 @@ class NotCompleteDialog extends StatelessWidget {
     actions: [
       TextButton(
         onPressed: () => Navigator.of(context).pop(),
-        child: const Text('OK'),
+        child: Text(context.l10n.fwOk),
       ),
     ],
   );
@@ -293,13 +295,13 @@ class _CompletedDialogState extends ConsumerState<CompletedDialog> {
     return AlertDialog(
       key: CompletedDialog.dialogKey,
       icon: Icon(Icons.check_circle, color: p.primary, size: 36),
-      title: const Text(CompletedDialog.success, textAlign: TextAlign.center),
+      title: Text(context.l10n.completedSuccess, textAlign: TextAlign.center),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            d.shownName,
+            d.shownNameIn(context.words),
             key: CompletedDialog.nameKey,
             textAlign: TextAlign.center,
             style: text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -307,10 +309,10 @@ class _CompletedDialogState extends ConsumerState<CompletedDialog> {
           const SizedBox(height: 4),
           Text(
             [
-              d.kind.label,
-              if (customer != null && customer.isNotEmpty) 'for $customer',
-              '${d.openings.length} '
-                  '${d.openings.length == 1 ? 'opening' : 'openings'}',
+              d.kind.labelIn(context.words),
+              if (customer != null && customer.isNotEmpty)
+                context.l10n.forCustomer(customer),
+              context.l10n.openingsCount(d.openings.length),
             ].join(' · '),
             textAlign: TextAlign.center,
             style: text.bodyMedium?.copyWith(color: p.muted),
@@ -332,17 +334,17 @@ class _CompletedDialogState extends ConsumerState<CompletedDialog> {
             foregroundColor: AppTheme.accent,
           ),
           icon: const Icon(Icons.add),
-          label: const Text('New Design'),
+          label: Text(context.l10n.newDesign),
         ),
         TextButton(
           key: CompletedDialog.viewKey,
           onPressed: () => _choose(AfterCompletion.view),
-          child: const Text('View Completed Design'),
+          child: Text(context.l10n.viewCompletedDesign),
         ),
         TextButton(
           key: CompletedDialog.backKey,
           onPressed: () => _choose(AfterCompletion.backToCustomer),
-          child: const Text('Back to Customer'),
+          child: Text(context.l10n.backToCustomer),
         ),
       ],
     );

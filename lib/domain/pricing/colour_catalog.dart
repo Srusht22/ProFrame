@@ -1,4 +1,6 @@
 import '../model/materials.dart';
+import '../text/names.dart';
+import '../text/words.dart';
 import 'price_list.dart';
 import 'price_list_migration.dart';
 import 'profile_selection.dart';
@@ -57,15 +59,18 @@ abstract final class ColourCatalog {
 
   /// [text] typed as a rate: a figure of 0 or more, or why it is not one.
   /// Empty is no figure — which is a problem only where a rate is needed.
-  static ({double? value, String? problem}) readRate(String text) {
+  static ({double? value, String? problem}) readRate(
+    String text, [
+    Words w = const EnglishWords(),
+  ]) {
     final words = text.trim();
     if (words.isEmpty) return (value: null, problem: null);
     final value = double.tryParse(words);
     if (value == null || !value.isFinite) {
-      return (value: null, problem: 'Enter a figure.');
+      return (value: null, problem: w.ccEnterFigure);
     }
     if (value < 0) {
-      return (value: null, problem: 'A rate cannot be below nothing.');
+      return (value: null, problem: w.ccRateNotBelow);
     }
     return (value: value, problem: null);
   }
@@ -87,10 +92,12 @@ abstract final class ColourCatalog {
     ColourDraft draft, {
     String? editing,
     bool active = true,
+    Words words = const EnglishWords(),
   }) {
+    final w = words;
     final problems = <String, String>{};
     final name = draft.name.trim();
-    if (name.isEmpty) problems[nameField] = 'Colour name is required.';
+    if (name.isEmpty) problems[nameField] = w.ccNameRequired;
 
     final sold = profileMaterialsOf(list);
     final materials = [
@@ -98,24 +105,21 @@ abstract final class ColourCatalog {
         if (draft.rates.containsKey(m)) m,
     ];
     if (materials.isEmpty) {
-      problems[materialsField] = 'Choose at least one material.';
+      problems[materialsField] = w.ccChooseMaterial;
     } else if (materials.where((m) => !sold.contains(m)).firstOrNull
         case final m?) {
-      problems[materialsField] =
-          'The price list has no ${m.label} profile to sell a colour in.';
+      problems[materialsField] = w.ccNoProfile(m.labelIn(w));
     }
 
     for (final m in materials) {
       final rate = draft.rates[m];
       if (rate == null) {
-        problems[rateField(m)] =
-            '${m.label} colour rate is required for a colour that applies '
-            'to ${m.label}.';
+        problems[rateField(m)] = w.ccRateRequired(m.labelIn(w));
       } else if (!rate.perMetre.isFinite ||
           !rate.percent.isFinite ||
           rate.perMetre < 0 ||
           rate.percent < 0) {
-        problems[rateField(m)] = 'A rate cannot be below nothing.';
+        problems[rateField(m)] = w.ccRateNotBelow;
       }
     }
 
@@ -126,9 +130,7 @@ abstract final class ColourCatalog {
         if (other.name.trim().toLowerCase() != same) continue;
         final shared = materials.where(other.appliesTo).firstOrNull;
         if (shared != null) {
-          problems[nameField] =
-              'An active colour is already called ${other.name} for '
-              '${shared.label}.';
+          problems[nameField] = w.ccNameTaken(other.name, shared.labelIn(w));
           break;
         }
       }
@@ -140,9 +142,10 @@ abstract final class ColourCatalog {
   /// an id of its own that no colour — active or retired — has had.
   static ({PriceList? list, Map<String, String> problems, String? id}) add(
     PriceList list,
-    ColourDraft draft,
-  ) {
-    final problems = problemsWith(list, draft);
+    ColourDraft draft, [
+    Words w = const EnglishWords(),
+  ]) {
+    final problems = problemsWith(list, draft, words: w);
     if (problems.isNotEmpty) return (list: null, problems: problems, id: null);
     final id = PriceListMigration.idFor(draft.name.trim(), {
       for (final c in list.colours) c.id,
@@ -170,16 +173,20 @@ abstract final class ColourCatalog {
   static ({PriceList? list, Map<String, String> problems}) update(
     PriceList list,
     String id,
-    ColourDraft draft,
-  ) {
+    ColourDraft draft, [
+    Words w = const EnglishWords(),
+  ]) {
     final was = list.colourById(id);
     if (was == null) {
-      return (
-        list: null,
-        problems: const {nameField: 'This colour is not in the price list.'},
-      );
+      return (list: null, problems: {nameField: w.ccNotInList});
     }
-    final problems = problemsWith(list, draft, editing: id, active: was.active);
+    final problems = problemsWith(
+      list,
+      draft,
+      editing: id,
+      active: was.active,
+      words: w,
+    );
     if (problems.isNotEmpty) return (list: null, problems: problems);
     final now = was.copyWith(
       name: draft.name.trim(),
@@ -203,17 +210,20 @@ abstract final class ColourCatalog {
   /// active colour has taken its name on a material it is sold in since.
   static ({PriceList? list, Map<String, String> problems}) restore(
     PriceList list,
-    String id,
-  ) {
+    String id, [
+    Words w = const EnglishWords(),
+  ]) {
     final was = list.colourById(id);
     if (was == null) {
-      return (
-        list: null,
-        problems: const {nameField: 'This colour is not in the price list.'},
-      );
+      return (list: null, problems: {nameField: w.ccNotInList});
     }
     if (was.active) return (list: list, problems: const {});
-    final problems = problemsWith(list, ColourDraft.of(was), editing: id);
+    final problems = problemsWith(
+      list,
+      ColourDraft.of(was),
+      editing: id,
+      words: w,
+    );
     if (problems.isNotEmpty) return (list: null, problems: problems);
     return (
       list: _replace(list, was.copyWith(active: true)),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/pricing/pricing_access.dart';
 import '../../infrastructure/customer_store.dart';
+import '../l10n/l10n.dart';
 import '../state/access.dart';
 import '../state/pricing.dart';
 import '../state/workspace.dart';
@@ -12,6 +13,7 @@ import 'customer_screen.dart';
 import 'factory_prices_screen.dart';
 import 'new_customer_screen.dart';
 import 'new_design_screen.dart';
+import 'settings_screen.dart';
 import 'staff_screen.dart';
 
 /// The two letters a customer is known by at a glance: the first letter of
@@ -23,11 +25,8 @@ String initialsOf(String name) {
 }
 
 /// How many designs, said as a person says it.
-String designsCount(int n) => switch (n) {
-  0 => 'No designs yet',
-  1 => '1 design',
-  _ => '$n designs',
-};
+String designsCount(BuildContext context, int n) =>
+    context.l10n.designsCount(n);
 
 /// Where the app opens: every person the workshop draws for, a search
 /// across them by name or phone, **New Customer** and **New Design**.
@@ -202,7 +201,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                         child: Padding(
                           padding: const EdgeInsets.only(top: 28),
                           child: Text(
-                            'You do not have permission to view customers.',
+                            context.l10n.customersNoAccess,
                             key: CustomersScreen.noAccessKey,
                             style: Theme.of(context).textTheme.bodyLarge,
                           ),
@@ -224,8 +223,8 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                           padding: const EdgeInsets.only(top: 28, bottom: 14),
                           child: _SectionTitle(
                             title: _query.trim().isEmpty
-                                ? 'All Customers'
-                                : 'Results',
+                                ? context.l10n.customersAll
+                                : context.l10n.customersResults,
                             count: _total,
                           ),
                         ),
@@ -326,9 +325,9 @@ class _Header extends StatelessWidget {
       icon: const Icon(Icons.person_add_alt_1_outlined, size: 22),
       // One line, made smaller rather than broken, where two buttons share
       // a narrow phone's width.
-      label: const FittedBox(
+      label: FittedBox(
         fit: BoxFit.scaleDown,
-        child: Text('New Customer', maxLines: 1),
+        child: Text(context.l10n.newCustomer, maxLines: 1),
       ),
     );
     final newDesign = OutlinedButton.icon(
@@ -342,9 +341,9 @@ class _Header extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       icon: const Icon(Icons.add, size: 22),
-      label: const FittedBox(
+      label: FittedBox(
         fit: BoxFit.scaleDown,
-        child: Text('New Design', maxLines: 1),
+        child: Text(context.l10n.newDesign, maxLines: 1),
       ),
     );
     final canGoBack = Navigator.of(context).canPop();
@@ -357,7 +356,7 @@ class _Header extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(right: 4),
                 child: IconButton(
-                  tooltip: 'Back',
+                  tooltip: context.l10n.fwBack,
                   visualDensity: VisualDensity.compact,
                   onPressed: () => Navigator.of(context).maybePop(),
                   icon: const Icon(Icons.arrow_back, color: AppTheme.accent),
@@ -365,7 +364,7 @@ class _Header extends StatelessWidget {
               ),
             Expanded(
               child: Text(
-                'PROFRAME',
+                context.l10n.brandWordmark,
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
@@ -378,12 +377,13 @@ class _Header extends StatelessWidget {
               const AccountButton(colour: AppTheme.accent),
               const FactoryPricesButton(colour: AppTheme.accent),
               const AppearanceButton(colour: AppTheme.accent),
+              const SettingsButton(colour: AppTheme.accent),
             ],
           ],
         ),
         if (!phone) const SizedBox(height: 6),
         Text(
-          'Customers',
+          context.l10n.customersTitle,
           style: TextStyle(
             fontSize: phone ? 30 : 36,
             fontWeight: FontWeight.w700,
@@ -394,8 +394,8 @@ class _Header extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           count == 0
-              ? 'Everyone you draw for is kept here.'
-              : '$count ${count == 1 ? 'customer' : 'customers'}',
+              ? context.l10n.customersEmptyLine
+              : context.l10n.customersCount(count),
           style: TextStyle(
             fontSize: 14,
             color: AppTheme.accent.withValues(alpha: 0.7),
@@ -410,7 +410,7 @@ class _Header extends StatelessWidget {
       textInputAction: TextInputAction.search,
       style: TextStyle(fontSize: 15, color: context.palette.ink),
       decoration: InputDecoration(
-        hintText: 'Search by name or phone...',
+        hintText: context.l10n.customersSearchHint,
         hintStyle: TextStyle(color: context.palette.muted),
         filled: true,
         fillColor: context.palette.surface,
@@ -420,7 +420,7 @@ class _Header extends StatelessWidget {
           builder: (context, value, _) => value.text.isEmpty
               ? const SizedBox.shrink()
               : IconButton(
-                  tooltip: 'Clear search',
+                  tooltip: context.l10n.clearSearch,
                   icon: Icon(Icons.close, color: context.palette.muted),
                   onPressed: () {
                     search.clear();
@@ -486,6 +486,10 @@ class _Header extends StatelessWidget {
                           const Padding(
                             padding: EdgeInsets.only(bottom: 6),
                             child: AppearanceButton(colour: AppTheme.accent),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 6),
+                            child: SettingsButton(colour: AppTheme.accent),
                           ),
                           const SizedBox(width: 8),
                           newDesign,
@@ -704,7 +708,7 @@ class _CustomerCardState extends State<CustomerCard> {
                             const SizedBox(width: 5),
                             Flexible(
                               child: Text(
-                                phone.isEmpty ? 'No phone number' : phone,
+                                phone.isEmpty ? context.l10n.noPhoneNumber : phone,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 // A number reads left to right whatever the
@@ -731,7 +735,7 @@ class _CustomerCardState extends State<CustomerCard> {
                             ),
                             const SizedBox(width: 5),
                             Text(
-                              designsCount(widget.designs),
+                              designsCount(context, widget.designs),
                               style: TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w600,
@@ -769,7 +773,7 @@ class _NobodyYet extends StatelessWidget {
           Icon(Icons.people_outline, size: 48, color: context.palette.muted),
           const SizedBox(height: 14),
           Text(
-            'No customers yet',
+            context.l10n.customersNoneYet,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -778,7 +782,7 @@ class _NobodyYet extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Add the people you draw for, and keep their designs together.',
+            context.l10n.customersNoneYetLine,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: context.palette.muted),
           ),
@@ -786,7 +790,7 @@ class _NobodyYet extends StatelessWidget {
           FilledButton.icon(
             onPressed: onNewCustomer,
             icon: const Icon(Icons.person_add_alt_1_outlined),
-            label: const Text('New Customer'),
+            label: Text(context.l10n.newCustomer),
           ),
         ],
       ),
@@ -804,7 +808,7 @@ class _NoMatch extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 32),
     child: Center(
       child: Text(
-        'No customer matches "$query".',
+        context.l10n.customersNoMatch(query),
         style: TextStyle(fontSize: 15, color: context.palette.muted),
       ),
     ),

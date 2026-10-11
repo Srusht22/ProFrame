@@ -9,10 +9,12 @@ import '../../domain/pricing/design_price_state.dart';
 import '../../domain/pricing/price_readiness.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/profile_selection.dart';
+import '../../domain/text/names.dart';
 import '../../infrastructure/design_store.dart';
 import '../inspector/price_actions.dart';
 import '../inspector/price_panel.dart';
 import '../inspector/profile_chooser.dart';
+import '../l10n/l10n.dart';
 import '../state/access.dart';
 import '../state/pricing.dart';
 import '../state/workspace.dart';
@@ -220,33 +222,30 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
     final sure = await showDialog<bool>(
       context: context,
       builder: (dialog) => AlertDialog(
-        title: Text('Delete ${customer.name}?'),
-        content: const Text(
-          'Only a customer with nothing of theirs kept can be deleted: no '
-          'designs, payments, receipts, discounts, quotations or extra '
-          'charges. Their record is then removed, and nothing else.',
-        ),
+        title: Text(dialog.l10n.deleteCustomerTitle(customer.name)),
+        content: Text(dialog.l10n.deleteCustomerBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialog).pop(false),
-            child: const Text('Cancel'),
+            child: Text(dialog.l10n.fwCancel),
           ),
           FilledButton(
             key: CustomerScreen.confirmDeleteKey,
             onPressed: () => Navigator.of(dialog).pop(true),
-            child: const Text('Delete customer'),
+            child: Text(dialog.l10n.deleteCustomer),
           ),
         ],
       ),
     );
     if (sure != true || !mounted) return;
+    final words = context.words;
     final store = ref.read(customerStoreProvider);
     final by = await ref.actorNow();
     final ({bool deleted, String? problem}) outcome;
     try {
-      outcome = await store.deleteCustomer(customer.id, by: by);
+      outcome = await store.deleteCustomer(customer.id, by: by, words: words);
     } on AccessDenied catch (e) {
-      if (mounted) _say(e.toString());
+      if (mounted) _say(e.messageIn(words));
       return;
     }
     if (!mounted) return;
@@ -255,12 +254,12 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
         context: context,
         builder: (dialog) => AlertDialog(
           key: CustomerScreen.cannotDeleteKey,
-          title: const Text('Not deleted'),
+          title: Text(dialog.l10n.notDeleted),
           content: Text(outcome.problem ?? ''),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialog).pop(),
-              child: const Text('OK'),
+              child: Text(dialog.l10n.fwOk),
             ),
           ],
         ),
@@ -270,12 +269,13 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
     // Held now: Undo comes after this page has gone.
     final revision = ref.read(customersRevisionProvider.notifier)..changed();
     final messenger = ScaffoldMessenger.of(context);
+    final l = context.l10n;
     Navigator.of(context).popUntil((r) => r.isFirst);
     messenger.showSnackBar(
       SnackBar(
-        content: Text('${customer.name} deleted.'),
+        content: Text(l.customerDeleted(customer.name)),
         action: SnackBarAction(
-          label: 'Undo',
+          label: l.undo,
           onPressed: () async {
             await store.save(customer, by: by);
             revision.changed();
@@ -339,13 +339,20 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
   }
 
   Future<void> _duplicate(DesignSummary summary) async {
+    final words = context.words;
     final copy = await ref
         .read(designStoreProvider)
-        .duplicate(summary.id, by: await ref.actorNow());
+        .duplicate(summary.id, by: await ref.actorNow(), words: words);
     if (copy == null || !mounted) return;
     ref.read(designsRevisionProvider.notifier).changed();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Copy made: ${DesignSummary.of(copy).shownName}')),
+      SnackBar(
+        content: Text(
+          context.l10n.copyMade(
+            DesignSummary.of(copy).shownNameIn(context.words),
+          ),
+        ),
+      ),
     );
   }
 
@@ -388,11 +395,11 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
             PopupMenuButton<String>(
               key: CustomerScreen.menuKey,
               onSelected: (_) => _delete(customer),
-              itemBuilder: (_) => const [
+              itemBuilder: (_) => [
                 PopupMenuItem(
                   key: CustomerScreen.deleteKey,
                   value: 'delete',
-                  child: Text('Delete customer'),
+                  child: Text(context.l10n.deleteCustomer),
                 ),
               ],
             ),
@@ -412,12 +419,12 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
               backgroundColor: p.band,
               foregroundColor: AppTheme.accent,
               icon: const Icon(Icons.add),
-              label: const Text('New Design'),
+              label: Text(context.l10n.newDesign),
             ),
       body: !mayView
           ? Center(
               child: Text(
-                'You do not have permission to view customers.',
+                context.l10n.customersNoAccess,
                 key: CustomerScreen.noAccessKey,
                 style: TextStyle(color: p.muted),
               ),
@@ -427,7 +434,7 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
           : customer == null
           ? Center(
               child: Text(
-                'This customer is no longer kept.',
+                context.l10n.customerGone,
                 style: TextStyle(color: p.muted),
               ),
             )
@@ -479,7 +486,7 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
                         padding: EdgeInsets.symmetric(horizontal: across),
                         sliver: SliverToBoxAdapter(
                           child: Text(
-                            'You do not have permission to view designs.',
+                            context.l10n.designsNoAccess,
                             key: CustomerScreen.noDesignsAccessKey,
                             style: TextStyle(color: p.muted),
                           ),
@@ -590,7 +597,7 @@ class _Person extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  value.isEmpty ? 'Not given' : value,
+                  value.isEmpty ? context.l10n.notGiven : value,
                   // A number reads left to right whatever the language
                   // around it.
                   textDirection: number && value.isNotEmpty
@@ -651,7 +658,7 @@ class _Person extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Customer · ${designsCount(designs).toLowerCase()}',
+                      context.l10n.customerSubtitle(designs),
                       style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w600,
@@ -670,7 +677,7 @@ class _Person extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Customer information',
+                  context.l10n.customerInformation,
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -687,13 +694,22 @@ class _Person extends StatelessWidget {
                   minimumSize: const Size(48, 44),
                 ),
                 icon: const Icon(Icons.edit_outlined, size: 18),
-                label: const Text('Edit'),
+                label: Text(context.l10n.edit),
               ),
             ],
           ),
-          line(Icons.phone_outlined, 'Phone', customer.phone, number: true),
-          line(Icons.place_outlined, 'Address', customer.address),
-          line(Icons.sticky_note_2_outlined, 'Notes', customer.notes),
+          line(
+            Icons.phone_outlined,
+            context.l10n.phone,
+            customer.phone,
+            number: true,
+          ),
+          line(Icons.place_outlined, context.l10n.address, customer.address),
+          line(
+            Icons.sticky_note_2_outlined,
+            context.l10n.notes,
+            customer.notes,
+          ),
         ],
       ),
     );
@@ -717,7 +733,7 @@ class _DesignsHeading extends StatelessWidget {
     return Row(
       children: [
         Text(
-          'Designs',
+          context.l10n.designsTitle,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -732,7 +748,7 @@ class _DesignsHeading extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
-            found == null ? '$count' : '$found of $count',
+            found == null ? '$count' : context.l10n.foundOf(found!, count),
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
@@ -815,7 +831,7 @@ class _Finder extends StatelessWidget {
           textInputAction: TextInputAction.search,
           style: TextStyle(fontSize: 15, color: p.ink),
           decoration: InputDecoration(
-            hintText: 'Search designs by name...',
+            hintText: context.l10n.searchDesignsHint,
             hintStyle: TextStyle(color: p.muted),
             filled: true,
             fillColor: p.surface,
@@ -825,7 +841,7 @@ class _Finder extends StatelessWidget {
               builder: (context, value, _) => value.text.isEmpty
                   ? const SizedBox.shrink()
                   : IconButton(
-                      tooltip: 'Clear search',
+                      tooltip: context.l10n.clearSearch,
                       icon: Icon(Icons.close, color: p.muted),
                       onPressed: () {
                         search.clear();
@@ -849,10 +865,10 @@ class _Finder extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              chip(null, 'All', all),
+              chip(null, context.l10n.filterAll, all),
               for (final kind in _order)
                 if ((kinds[kind] ?? 0) > 0 || kind == chosen)
-                  chip(kind, kind.label, kinds[kind] ?? 0),
+                  chip(kind, kind.labelIn(context.words), kinds[kind] ?? 0),
             ],
           ),
         ),
@@ -890,9 +906,10 @@ class _NoMatch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final l = context.l10n;
     final what = [
-      if (query.isNotEmpty) '“$query”',
-      if (kind != null) 'in ${kind!.label}',
+      if (query.isNotEmpty) l.quoted(query),
+      if (kind != null) l.inCategory(kind!.labelIn(context.words)),
     ].join(' ');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
@@ -906,7 +923,7 @@ class _NoMatch extends StatelessWidget {
           Icon(Icons.search_off, size: 36, color: p.muted),
           const SizedBox(height: 10),
           Text(
-            'No designs match $what',
+            l.noDesignsMatch(what),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
@@ -916,7 +933,7 @@ class _NoMatch extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Search by the design\'s name, or choose another category.',
+            l.noDesignsMatchHint,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13.5, color: p.muted),
           ),
@@ -924,7 +941,7 @@ class _NoMatch extends StatelessWidget {
           OutlinedButton(
             key: CustomerScreen.clearButton,
             onPressed: onShowAll,
-            child: const Text('Show all designs'),
+            child: Text(l.showAllDesigns),
           ),
         ],
       ),
@@ -954,7 +971,7 @@ class _NoDesigns extends StatelessWidget {
           Icon(Icons.folder_open_outlined, size: 40, color: p.muted),
           const SizedBox(height: 10),
           Text(
-            'No designs yet',
+            context.l10n.noDesignsYet,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -963,7 +980,7 @@ class _NoDesigns extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            "Begin $name's first door, window or sliding set.",
+            context.l10n.beginFirstDesign(name),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: p.muted),
           ),
@@ -972,7 +989,7 @@ class _NoDesigns extends StatelessWidget {
             key: CustomerScreen.newDesignButton,
             onPressed: onNewDesign,
             icon: const Icon(Icons.add, size: 20),
-            label: const Text('New Design'),
+            label: Text(context.l10n.newDesign),
           ),
         ],
       ),
@@ -1044,15 +1061,16 @@ class _Cards extends StatelessWidget {
 
 /// When a design was last edited, as a date and a time: *Today, 09:14*,
 /// *Yesterday, 18:02*, or *1 Mar 2026, 09:14*, seen from [now].
-String lastEdited(DateTime then, DateTime now) {
+String lastEdited(DateTime then, DateTime now, [AppLocalizations? said]) {
+  final l = said ?? english;
   String two(int n) => n.toString().padLeft(2, '0');
   final time = '${two(then.hour)}:${two(then.minute)}';
   final day = DateTime(then.year, then.month, then.day);
   final today = DateTime(now.year, now.month, now.day);
   final gone = today.difference(day).inDays;
-  if (gone == 0) return 'Today, $time';
-  if (gone == 1) return 'Yesterday, $time';
-  return '${then.day} ${monthNames[then.month - 1]} ${then.year}, $time';
+  if (gone == 0) return l.todayAt(time);
+  if (gone == 1) return l.yesterdayAt(time);
+  return l.dateAt(then.day, shortMonth(l, then.month), then.year, time);
 }
 
 /// One of the customer's designs as a card: its picture — the design itself,
@@ -1152,7 +1170,7 @@ class CustomerDesignCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        design.shownName,
+                        design.shownNameIn(context.words),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -1165,7 +1183,7 @@ class CustomerDesignCard extends StatelessWidget {
                     if (onMore != null)
                       IconButton(
                         key: moreKey(design.id),
-                        tooltip: 'More options',
+                        tooltip: context.l10n.moreOptions,
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(
@@ -1207,7 +1225,7 @@ class CustomerDesignCard extends StatelessWidget {
                             const SizedBox(width: 5),
                             Flexible(
                               child: Text(
-                                design.kind.label,
+                                design.kind.labelIn(context.words),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -1239,7 +1257,9 @@ class CustomerDesignCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Text(
-                  'Last edited: ${lastEdited(design.updatedAt, now)}',
+                  context.l10n.lastEdited(
+                    lastEdited(design.updatedAt, now, context.l10n),
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 12.5, color: p.muted),
@@ -1273,8 +1293,8 @@ class CustomerDesignCard extends StatelessWidget {
                           visualDensity: VisualDensity.compact,
                         ),
                         icon: const Icon(Icons.edit_outlined, size: 17),
-                        label: const Text(
-                          'Edit information',
+                        label: Text(
+                          context.l10n.editInformation,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1291,7 +1311,7 @@ class CustomerDesignCard extends StatelessWidget {
                     ),
                     iconAlignment: IconAlignment.end,
                     icon: const Icon(Icons.arrow_forward, size: 18),
-                    label: const Text('Open'),
+                    label: Text(context.l10n.open),
                   ),
                 ],
               ),
@@ -1328,7 +1348,9 @@ class CardPriceStatus extends ConsumerWidget {
     // completed, and otherwise what it still needs.
     final completed = kept != null && DesignCompletion.isCompleted(kept.design);
     return Text(
-      complete ? (completed ? 'Completed' : 'Draft') : state.label,
+      complete
+          ? (completed ? context.l10n.stageCompleted : context.l10n.stageDraft)
+          : state.labelIn(context.words),
       key: CustomerDesignCard.statusKey(designId),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
@@ -1367,7 +1389,7 @@ class CardProfileLine extends ConsumerWidget {
     Widget said(Key key, String label, String value) => Text.rich(
       TextSpan(
         children: [
-          TextSpan(text: '$label: ', style: style),
+          TextSpan(text: context.l10n.labelled(label), style: style),
           TextSpan(text: value, style: strong),
         ],
       ),
@@ -1379,14 +1401,16 @@ class CardProfileLine extends ConsumerWidget {
     // rest: a colour's name is the longer, and the one the owner chose.
     // Where even that is too narrow the name is cut, and held whole in its
     // tooltip; the price sheet and the customer's summary write it whole.
-    final colourName = design == null ? '…' : profile.colourName(list);
+    final colourName = design == null
+        ? '…'
+        : profile.colourNameIn(context.words, list);
     return Row(
       children: [
         Flexible(
           child: said(
             CustomerDesignCard.materialKey(designId),
-            'Material',
-            design == null ? '…' : profile.materialName,
+            context.l10n.labelMaterial,
+            design == null ? '…' : profile.materialNameIn(context.words),
           ),
         ),
         const SizedBox(width: 8),
@@ -1402,7 +1426,7 @@ class CardProfileLine extends ConsumerWidget {
                 Flexible(
                   child: said(
                     CustomerDesignCard.colourKey(designId),
-                    'Colour',
+                    context.l10n.labelColour,
                     colourName,
                   ),
                 ),
@@ -1428,30 +1452,32 @@ class CardPriceValue extends ConsumerWidget {
     final state = ref.watch(keptDesignPriceProvider(designId)).value?.state;
     final p = context.palette;
     final allowed = ref.watch(actorProvider).can(Capability.pricingView);
+    final l = context.l10n;
     final words = switch (state) {
-      _ when !allowed => 'Price: hidden',
-      null => 'Price: …',
-      _ when state.total != null =>
-        'Price: ${PricePanel.money(state.total!, state.record!.result.currency)}',
+      _ when !allowed => l.priceHidden,
+      null => l.priceLoading,
+      _ when state.total != null => l.priceIs(
+        PricePanel.money(state.total!, state.record!.result.currency),
+      ),
       // Drawn on since it was read: the price kept is of an older reading.
-      _ when state.notRead => 'Price: needs update',
+      _ when state.notRead => l.priceNeedsUpdate,
       // A colour to choose again: not sold in the material now chosen, or
       // retired and no longer priced on it.
-      _ when state.needsColour => 'Price: choose colour',
+      _ when state.needsColour => l.priceChooseColour,
       // Only the aluminium's profile — System or Bend Shoulder — to say.
       _
           when state.needsOnlyProfile &&
               state.readiness.missing.every(
                 (r) => r.kind == PriceRequirementKind.profileCategory,
               ) =>
-        'Price: choose profile',
+        l.priceChooseProfile,
       // Nobody has chosen what it is made of, which its price reads.
-      _ when state.needsOnlyProfile => 'Price: choose material',
+      _ when state.needsOnlyProfile => l.priceChooseMaterial,
       DesignPriceState(status: DesignPriceStatus.notCalculated) =>
-        'Price: not calculated',
+        l.priceNotCalculated,
       DesignPriceState(status: DesignPriceStatus.needsRecalculation) =>
-        'Price: recalculate',
-      _ => 'Price: unavailable',
+        l.priceRecalculate,
+      _ => l.priceUnavailable,
     };
     return Text(
       words,
@@ -1532,7 +1558,7 @@ class CardPriceButton extends ConsumerWidget {
     return PriceButton(
       key: CustomerDesignCard.priceKey(design.id),
       state: kept?.state,
-      label: 'Price',
+      label: context.l10n.price,
       withIcon: false,
       allowed: ref.watch(actorProvider).can(Capability.pricingView),
       onPressed: () => _price(context, ref, kept!),

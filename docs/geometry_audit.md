@@ -1671,3 +1671,100 @@ extends those pieces; the engine's own arithmetic is untouched.
   because it would delete financial records.
 - There is no catalog of extras, no exchange-rate feed, and no print or PDF.
 - A PIN is a lock on a device, not authentication.
+
+## 39. English and Central Kurdish (Sorani), right to left (Phase 34)
+
+**Audited first** (`docs/localization/phase_34_audit.md`).
+- Every word the user read was a literal in Dart: about 1,800 candidates
+  across `lib/app` and the domain's messages. There was no localization
+  layer and no Settings screen. The architecture test refused any
+  translation file under `lib/`, because of the one left behind before.
+- The domain made its own English messages — readiness, issues, checks,
+  questions, the names of openings — and some of them were kept in records:
+  a price line's label, a quotation line's category, material and colour.
+- Positions written with `left:` and `right:` would not follow a
+  right-to-left screen. Flutter has no Central Kurdish localizations at
+  all, so without some the app would have no Material words in Kurdish and
+  would run left to right.
+
+**Built.**
+- `flutter gen-l10n` from `lib/app/l10n/app_en.arb` and `app_ckb.arb`:
+  1,219 messages each, the generated files tracked. English is the
+  default and the fallback.
+- `Words`, generated from the `[domain]` entries by
+  `tool/generate_domain_words.dart`, so the domain stays pure Dart and
+  says everything through one interface. `EnglishWords` is what its tests
+  read; `ArbWords` adapts the ARB.
+- `labelIn` for every enum the screens show (`names.dart`). `LineName`
+  beside each price line's English label, so kept prices read in either
+  language. `keptCategoryIn` and its kin for quotation lines kept in
+  English.
+- `KurdishFramework`: Material, Widgets and Cupertino delegates for `ckb`,
+  right to left, with the framework's words from the same ARB.
+- **Settings** with the two languages named in themselves. The choice is
+  kept as `proframe.language`, read before the first frame, and set on
+  `MaterialApp` outright.
+- Directional layout throughout: paddings, alignments, overlays, and the
+  moving indicators (`AnimatedPositionedDirectional`). The drawing, the
+  technical drawing and the solid are not mirrored; their words are passed
+  in (`CadPainter.words`, `DimensionLayout.of(words:)`).
+- Figures are kept left to right inside right-to-left lines. In Kurdish
+  messages, figure placeholders are marked with U+200E. On screen,
+  `context.figure`, `context.figures` and `directionOf` do the same, and
+  `PriceRow` sets a pure figure left to right.
+- `docs/localization/central_kurdish_translation_review.md`: every
+  message, with its context, a confidence and why, and a column for the
+  approved wording. `tool/apply_approved_translations.dart` writes the
+  approved wording into the ARB, and refuses a wrong key or a lost
+  placeholder.
+- `docs/localization/hardcoded_text_audit.md` classifies every literal
+  still in the code.
+
+**Found by looking at it in the browser, and fixed.**
+- At 390 × 844 in Kurdish, the price sheet wrote `m 7.000` and
+  `USD 140.00`, and split `7.000 m × 20.00` around the words beside it.
+  This is the bidirectional algorithm reordering a figure inside a
+  right-to-left line. Figures are now one left-to-right run.
+- The radio rows in Settings sat on a coloured box, so their ink was
+  hidden; the first widget test caught it. Each section is now a
+  `Material`.
+- Each language's name pushed itself to the far side of its row. It is
+  now aligned at the start, as the screen reads.
+- A design card's category tag, the small preview's IN, and Perspective |
+  Orthographic were still English. They are now in the chosen language.
+- U+2066/U+2069 isolates were tried first. The analyzer rightly refuses
+  bidi controls in source, and the generated Dart carries the ARB's
+  characters literally, so U+200E is used instead.
+
+**Tests.**
+- `the_words_are_one_set_test.dart` (15): keys, placeholders, no empty
+  or key-named message, generated files current, the domain's English the
+  screen's, a glyph for every Kurdish letter, and figures marked.
+- `the_app_in_central_kurdish_test.dart` (14): English and LTR by
+  default; Kurdish at once, RTL, kept, reopened; an unknown code English;
+  storage unchanged by switching but for the choice; the same price figure
+  in both; no key ever shown; no overflow in Kurdish at 390, 820 and 1440
+  wide through the customers, Settings, a customer's page and Draw, CAD
+  and 3D; CAD's lines the same pixels in both; a design's name never
+  translated.
+- `the_translation_review_test.dart` (5).
+- Two older tests moved, each saying why:
+  - the architecture test now allows translation files in `lib/app/l10n/`
+    only, and requires every one of them to be tracked by git;
+  - `the_bars_move_test` finds the indicators as
+    `AnimatedPositionedDirectional`.
+
+**Not done.**
+- **No Sorani has been checked by a native speaker.** 140 messages are
+  low confidence: the trade terms, the framework's month and weekday names
+  and their initials. 512 are medium.
+- *Bend Shoulder Aluminium* is left in English inside its Sorani name
+  until the factory says what it calls it.
+- Digits stay Latin in both languages. Eastern Arabic digits were not
+  asked for, and would make figures differ between the two languages.
+- Flutter words the app's screens never show (some screen-reader hints)
+  fall back to English in Kurdish.
+- Guard messages the screens pre-empt (store-level `ArgumentError`s) stay
+  English.
+- A name the user typed in English, shown in a right-to-left title, takes
+  its ellipsis on the left.

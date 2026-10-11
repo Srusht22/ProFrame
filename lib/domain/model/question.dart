@@ -1,3 +1,5 @@
+import '../text/words.dart';
+
 /// Something the application could not read off the drawing with confidence.
 ///
 /// The rule is that the application never decides these quietly. When a
@@ -19,13 +21,35 @@ class DesignQuestion {
 
   final List<QuestionOption> options;
 
+  /// The whole question said in a language, where it was made that way.
+  final DesignQuestion Function(Words w)? say;
+
   const DesignQuestion({
     required this.id,
     required this.prompt,
     required this.options,
     this.detail,
     this.aboutIds = const [],
+    this.say,
   });
+
+  /// A question made from what it says: its English is what it holds, and
+  /// [inWords] says it in any other language.
+  factory DesignQuestion.said(DesignQuestion Function(Words w) say) {
+    final english = say(const EnglishWords());
+    return DesignQuestion(
+      id: english.id,
+      prompt: english.prompt,
+      options: english.options,
+      detail: english.detail,
+      aboutIds: english.aboutIds,
+      say: say,
+    );
+  }
+
+  /// The question in [w] — the same question, the same options by the same
+  /// keys, in that language.
+  DesignQuestion inWords(Words w) => say?.call(w) ?? this;
 }
 
 /// One answer the user can give.

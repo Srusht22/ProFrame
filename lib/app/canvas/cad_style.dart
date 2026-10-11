@@ -173,6 +173,7 @@ abstract final class Cad {
       text: text,
       style: TextStyle(
         fontFamily: 'Noto Sans',
+        fontFamilyFallback: const ['Noto Sans Arabic'],
         fontSize: size,
         height: 1.1,
         fontWeight: weight,
@@ -206,6 +207,7 @@ abstract final class Cad {
         text: text,
         style: TextStyle(
           fontFamily: 'Noto Sans',
+          fontFamilyFallback: const ['Noto Sans Arabic'],
           fontSize: size,
           height: 1.1,
           fontWeight: weight,

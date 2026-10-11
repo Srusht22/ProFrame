@@ -6,6 +6,7 @@ import '../../domain/dimensions/dimension_chain.dart';
 import '../../domain/dimensions/measurements.dart';
 import '../../domain/geometry/vec2.dart';
 import '../../domain/model/design.dart';
+import '../../domain/text/words.dart';
 import 'cad_style.dart';
 import 'view_transform.dart';
 
@@ -111,6 +112,15 @@ class DimensionLayout {
 
   static const empty = DimensionLayout([], []);
 
+  /// The name of the row [run] is on, in [w]: what it measures.
+  static String noteIn(Words w, ChainRun run) => switch (run.of) {
+    ChainRunOf.overall => w.dimOverall,
+    ChainRunOf.daylight => w.dimDaylight,
+    ChainRunOf.opening => w.dimOpening,
+    ChainRunOf.division => w.dimDivision,
+    ChainRunOf.side => w.dimSide,
+  };
+
   /// How many places of a centimetre every figure on the drawing is written
   /// to: one, the millimetre — what a workshop cuts to — whatever the design,
   /// so the drawing's figures are one format and stay it as it is edited.
@@ -149,7 +159,15 @@ class DimensionLayout {
 
   /// [canvas], where given, is the sheet the drawing is on: a row that
   /// would put a figure or its name off it is not written at this zoom.
-  static DimensionLayout of(Design design, ViewTransform view, {Size? canvas}) {
+  ///
+  /// The rows are named in [words]; the painter and the pointer must be
+  /// handed the same, since a name's width is part of where things go.
+  static DimensionLayout of(
+    Design design,
+    ViewTransform view, {
+    Size? canvas,
+    Words words = const EnglishWords(),
+  }) {
     final frame = design.frame;
     if (frame == null) return empty;
     final outline = frame.outline;
@@ -355,7 +373,8 @@ class DimensionLayout {
       // The row's name at its end, where no other row's lines run: after
       // the foot's rows, below the left's, before the head's and above the
       // right's — and on past anything already written there.
-      final label = nameText(chain.runs.first.note);
+      final name = noteIn(words, chain.runs.first);
+      final label = nameText(name);
       final w = label.width, h = label.height;
       final (double along, int way) = switch (side) {
         DimensionSide.bottom => (math.max(right, last) + nameGap + w / 2, 1),
@@ -375,7 +394,7 @@ class DimensionLayout {
       figures.addAll(rowFigures);
       names.add(
         PlacedName(
-          chain.runs.first.note.toUpperCase(),
+          name.toUpperCase(),
           point(placed, line),
           turned: !across,
           size: Size(w, h),

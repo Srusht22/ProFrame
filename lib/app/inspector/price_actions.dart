@@ -10,8 +10,11 @@ import '../../domain/pricing/extra_charge.dart';
 import '../../domain/pricing/price_result.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/profile_selection.dart';
+import '../../domain/text/names.dart';
+import '../l10n/l10n.dart';
 import '../screens/finance_documents.dart' show DiscountAnswer, DiscountDialog;
 import '../state/access.dart';
+import '../state/language.dart';
 import '../state/pricing.dart';
 import '../theme/app_theme.dart';
 import 'extra_charges.dart';
@@ -32,7 +35,8 @@ class PriceButton extends StatelessWidget {
   /// Where the price stands; null while it is still being read.
   final DesignPriceState? state;
   final VoidCallback onPressed;
-  final String label;
+  /// What it says; *Calculate price* in the language shown where not given.
+  final String? label;
 
   /// An icon alone, for a bar with no room for words.
   final bool compact;
@@ -53,7 +57,7 @@ class PriceButton extends StatelessWidget {
     super.key,
     required this.state,
     required this.onPressed,
-    this.label = 'Calculate price',
+    this.label,
     this.compact = false,
     this.withIcon = true,
     this.colour,
@@ -79,14 +83,13 @@ class PriceButton extends StatelessWidget {
     DesignPriceState? state, {
     bool allowed = true,
   }) {
+    final l = context.l10n;
+    final said = state?.messageIn(context.words) ?? '';
     final message = !allowed
-        ? notAllowed
+        ? l.paNotAllowed
         : state == null
-        ? 'The price is still being worked out.'
-        : (state.message.isEmpty
-              ? 'Please complete the incomplete part of the design to '
-                    'calculate the price.'
-              : state.message);
+        ? l.paWorkingOut
+        : (said.isEmpty ? l.paCompleteDesign : said);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message, key: messageKey)));
@@ -97,9 +100,10 @@ class PriceButton extends StatelessWidget {
     final p = context.palette;
     final ink = colour ?? p.primary;
     final shown = enabled ? ink : ink.withValues(alpha: 0.38);
+    final label = this.label ?? context.l10n.paCalculate;
     final tip = enabled
         ? label
-        : '$label — ${allowed ? state?.message ?? '' : notAllowed}';
+        : '$label — ${allowed ? state?.messageIn(context.words) ?? '' : context.l10n.paNotAllowed}';
     final style = OutlinedButton.styleFrom(
       foregroundColor: ink,
       disabledForegroundColor: shown,
@@ -265,7 +269,7 @@ class _DesignPriceSheetState extends ConsumerState<DesignPriceSheet> {
     try {
       made = change(by);
     } on AccessDenied catch (e) {
-      if (mounted) _say(e.toString());
+      if (mounted) _say(e.messageIn(context.words));
       return;
     }
     if (made.design == null) {
@@ -296,7 +300,7 @@ class _DesignPriceSheetState extends ConsumerState<DesignPriceSheet> {
       currency: _result.currency,
       scope: ExtraScope.design,
       by: ref.read(actorProvider).label,
-      where: _design.shownName,
+      where: _design.shownNameIn(context.words),
       editing: editing,
       calculated: _result.lines,
     );
@@ -309,12 +313,19 @@ class _DesignPriceSheetState extends ConsumerState<DesignPriceSheet> {
         calculated: _result.lines,
         additional: answer.additional,
         money: _money,
+        words: ref.words,
       ),
     );
   }
 
   Future<void> _remove(ExtraCharge extra) async {
-    if (!await confirmRemoveExtra(context, extra, 'this design')) return;
+    if (!await confirmRemoveExtra(
+      context,
+      extra,
+      context.l10n.paThisDesign,
+    )) {
+      return;
+    }
     await _pricing(
       (by) => (
         design: DesignPricing.removeExtra(_design, extra.id, by: by),
@@ -330,8 +341,8 @@ class _DesignPriceSheetState extends ConsumerState<DesignPriceSheet> {
     final answer = await showDialog<DiscountAnswer>(
       context: context,
       builder: (_) => DiscountDialog(
-        title: 'Discount on ${_design.shownName}',
-        caption: 'Off this design alone: its cost and its extras together.',
+        title: context.l10n.paDiscountOn(_design.shownNameIn(context.words)),
+        caption: context.l10n.paDesignAlone,
         currency: _result.currency,
         subtotalCents: DesignPricing.subtotalCentsOf(_design, list),
         kind: d == null
@@ -355,6 +366,7 @@ class _DesignPriceSheetState extends ConsumerState<DesignPriceSheet> {
         list: list,
         by: by,
         money: _money,
+        words: ref.words,
       ),
     );
   }
@@ -392,11 +404,11 @@ class _DesignPriceSheetState extends ConsumerState<DesignPriceSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('DESIGN PRICE', style: text.labelMedium),
-            Text(design.shownName, style: text.titleLarge),
+            Text(context.l10n.paDesignPrice, style: text.labelMedium),
+            Text(design.shownNameIn(context.words), style: text.titleLarge),
             const SizedBox(height: 4),
             Text(
-              'Category: ${design.kind.label}',
+              context.l10n.paCategory(design.kind.labelIn(context.words)),
               key: DesignPriceSheet.categoryKey,
               style: text.bodyMedium,
             ),
@@ -432,18 +444,18 @@ class _DesignPriceSheetState extends ConsumerState<DesignPriceSheet> {
                 child: LinearProgressIndicator(),
               ),
             if (!result.isPriced) ...[
-              heading('PRICE'),
+              heading(context.l10n.ppPrice),
               Text(
                 result.issues.isEmpty
-                    ? 'This design cannot be priced as it is.'
-                    : result.issues.first.message,
+                    ? context.l10n.paCannot
+                    : result.issues.first.messageIn(context.words),
                 key: DesignPriceSheet.unavailableKey,
                 style: text.bodyMedium,
               ),
             ] else ...[
-              heading('MATERIAL MEASUREMENTS'),
+              heading(context.l10n.paMeasurements),
               MeasurementRows(result.measurements),
-              heading('COST BREAKDOWN'),
+              heading(context.l10n.paBreakdown),
               PriceBreakdown(
                 result,
                 onAddExtra: may(Capability.extrasCreate)
@@ -463,11 +475,15 @@ class _DesignPriceSheetState extends ConsumerState<DesignPriceSheet> {
               Row(
                 children: [
                   Expanded(
-                    child: Text('FINAL TOTAL', style: text.titleMedium),
+                    child: Text(
+                      context.l10n.paFinalTotal,
+                      style: text.titleMedium,
+                    ),
                   ),
                   Text(
                     PricePanel.money(result.total!, currency),
                     key: DesignPriceSheet.totalKey,
+                    textDirection: TextDirection.ltr,
                     style: text.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       fontFeatures: const [FontFeature.tabularFigures()],

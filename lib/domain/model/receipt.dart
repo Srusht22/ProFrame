@@ -1,3 +1,5 @@
+import '../text/names.dart';
+import '../text/words.dart';
 import 'payment.dart';
 
 /// A receipt: the workshop's written word that it received one payment.
@@ -78,10 +80,13 @@ class Receipt {
 
   String get label => numbered(number);
 
-  String get methodLabel =>
+  String get methodLabel => methodLabelIn(const EnglishWords());
+
+  /// [methodLabel], in [w].
+  String methodLabelIn(Words w) =>
       method == PaymentMethod.other && methodDetail.isNotEmpty
-      ? 'Other — $methodDetail'
-      : method.label;
+      ? w.payOtherDetail(methodDetail)
+      : method.labelIn(w);
 
   /// The receipt for [payment], numbered [number], issued at [now] by [by],
   /// with the balance as it then stood. [currency] is the customer's —

@@ -9,6 +9,7 @@ import '../domain/model/receipt.dart';
 import '../domain/pricing/extra_charge.dart';
 import '../domain/pricing/price_result.dart';
 import '../domain/pricing/pricing_access.dart';
+import '../domain/text/words.dart';
 import 'design_store.dart';
 import 'quotation_store.dart';
 
@@ -571,12 +572,14 @@ class CustomerStore {
   Future<({bool deleted, String? problem})> deleteCustomer(
     String id, {
     required Authority by,
+    Words words = const EnglishWords(),
   }) async {
+    final w = words;
     by.require(Capability.customersDelete);
     final prefs = await SharedPreferences.getInstance();
     final customer = _loadNow(prefs, id);
     if (customer == null) {
-      return (deleted: false, problem: 'This customer is no longer kept.');
+      return (deleted: false, problem: w.storeCustomerGone);
     }
     final designs =
         (await DesignStore(customers: this).countsByCustomer())[id] ?? 0;
@@ -586,27 +589,23 @@ class CustomerStore {
       final String text when text != '[]' => 1,
       _ => 0,
     };
-    String some(int n, String one, String many) => '$n ${n == 1 ? one : many}';
+    String some(int n, String one, String Function(int) many) =>
+        n == 1 ? one : many(n);
     final has = [
-      if (designs > 0) some(designs, 'design', 'designs'),
+      if (designs > 0) some(designs, w.hasDesignOne, w.hasDesignMany),
       if (customer.payments.isNotEmpty)
-        some(customer.payments.length, 'payment', 'payments'),
+        some(customer.payments.length, w.hasPaymentOne, w.hasPaymentMany),
       if (customer.receipts.isNotEmpty)
-        some(customer.receipts.length, 'receipt', 'receipts'),
-      if (customer.discounts.isNotEmpty) 'a discount',
-      if (quotations > 0) 'quotations',
+        some(customer.receipts.length, w.hasReceiptOne, w.hasReceiptMany),
+      if (customer.discounts.isNotEmpty) w.hasDiscount,
+      if (quotations > 0) w.hasQuotations,
       if (customer.extras.isNotEmpty)
-        some(customer.extras.length, 'extra charge', 'extra charges'),
+        some(customer.extras.length, w.hasExtraOne, w.hasExtraMany),
     ];
     if (has.isNotEmpty) {
       return (
         deleted: false,
-        problem:
-            '${customer.name} cannot be deleted: they have '
-            '${has.join(', ')}. A customer is deleted only when nothing of '
-            'theirs would go with them — delete each design on its own; '
-            'payments, receipts, discounts and quotations are the '
-            "workshop's records and are kept.",
+        problem: w.cannotDeleteCustomer(customer.name, has.join(w.listComma)),
       );
     }
     // The record and its line of the index, with nothing awaited between

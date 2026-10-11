@@ -3,6 +3,8 @@ import '../geometry/segment.dart';
 import '../geometry/tolerances.dart';
 import '../model/design.dart';
 import '../model/elements.dart';
+import '../text/names.dart';
+import '../text/words.dart';
 import 'geometry_validation.dart';
 
 /// One problem the validator found, said in words the user can act on.
@@ -14,8 +16,14 @@ import 'geometry_validation.dart';
 class GeometryNotice {
   final GeometryProblem problem;
 
-  /// What is wrong, naming the part it is wrong with.
-  final String message;
+  /// What is wrong, naming the part it is wrong with, in a language.
+  final String Function(Words w) say;
+
+  /// What is wrong, in English.
+  String get message => say(const EnglishWords());
+
+  /// What is wrong, in [w].
+  String messageIn(Words w) => say(w);
 
   /// The parts to light up on the drawing when the user asks to be shown —
   /// for a moment, never stored in the design. Empty where there is nothing
@@ -24,7 +32,7 @@ class GeometryNotice {
 
   const GeometryNotice({
     required this.problem,
-    required this.message,
+    required this.say,
     required this.showIds,
   });
 
@@ -64,15 +72,17 @@ class GeometryFeedback {
   int get warnings => notices.length - errors;
 
   /// The heading: an error needs attention; a warning may need review.
-  String get title =>
-      hasErrors ? 'Geometry needs attention' : 'Geometry may need review';
+  String get title => titleIn(const EnglishWords());
+
+  /// [title], in [w].
+  String titleIn(Words w) => hasErrors ? w.gfTitleAttention : w.gfTitleReview;
 
   /// What the heading means, in a sentence.
-  String get summary => hasErrors
-      ? 'Part of this design cannot be built as it is drawn. Nothing has '
-            'been changed for you — put it right on your drawing.'
-      : 'This design can be built, but something in it may not be what you '
-            'meant. Nothing has been changed for you.';
+  String get summary => summaryIn(const EnglishWords());
+
+  /// [summary], in [w].
+  String summaryIn(Words w) =>
+      hasErrors ? w.gfSummaryError : w.gfSummaryWarning;
 
   // A design is immutable, so its check is worked out once and kept with
   // the object itself; an edit is a new design and is checked afresh.
@@ -98,78 +108,77 @@ class GeometryFeedback {
 
   static GeometryNotice _noticeOf(Design design, GeometryProblem problem) {
     final element = design.elementById(problem.elementId);
-    final name = _nameOf(design, element);
     var show = element == null ? <String>{} : {problem.elementId};
-    final String message;
+    String name(Words w) => _capital(_nameOf(w, design, element));
+    final String Function(Words w) say;
 
     switch (problem.kind) {
       case GeometryProblemKind.coordinate:
         // A point that is not a number cannot be drawn to be shown.
         show = {};
-        message =
-            '${_capital(name)} has a point that is not a number, so it '
-            'cannot be placed.';
+        say = (w) => w.gfNotANumber(name(w));
       case GeometryProblemKind.boundary:
-        message = element is FrameElement
-            ? 'The frame\'s outline does not enclose a shape.'
-            : '${_capital(name)} encloses no area.';
+        say = element is FrameElement
+            ? (w) => w.gfFrameEnclosesNothing
+            : (w) => w.gfEnclosesNothing(name(w));
       case GeometryProblemKind.selfIntersection:
         if (element is FrameElement) {
           final crossing = _crossingSides(design);
           if (crossing != null) {
             final (a, b) = crossing;
             show = {a.id, b.id};
-            final first = a.placement.toLowerCase();
-            final second = b.placement.toLowerCase();
-            message = first == second
-                ? 'Two sides of the frame cross each other.'
-                : 'The $first of the frame crosses the $second.';
+            say = a.placement == b.placement
+                ? (w) => w.gfSidesCross
+                : (w) => w.gfSideCrosses(
+                    placementIn(w, a.placement).toLowerCase(),
+                    placementIn(w, b.placement).toLowerCase(),
+                  );
           } else {
-            message = 'The frame\'s outline touches itself.';
+            say = (w) => w.gfFrameTouchesItself;
           }
         } else {
-          message = '${_capital(name)} crosses itself.';
+          say = (w) => w.gfCrossesItself(name(w));
         }
       case GeometryProblemKind.disconnected:
-        message = element is DividerElement
-            ? '${_capital(name)} is not connected to the frame or to '
-                  'another bar.'
-            : '${_capital(name)} lies outside the frame.';
+        say = element is DividerElement
+            ? (w) => w.gfNotConnected(name(w))
+            : (w) => w.gfOutsideFrame(name(w));
       case GeometryProblemKind.child:
-        final within = switch (element) {
+        String within(Words w) => switch (element) {
           DividerElement(:final parentId) ||
           SectionElement(:final parentId) ||
-          HardwareElement(:final parentId) => _parentName(design, parentId),
-          _ => 'the part it belongs to',
+          HardwareElement(:final parentId) => _parentName(w, design, parentId),
+          _ => w.gfPartItBelongsTo,
         };
-        message = switch (element) {
-          HardwareElement() => '${_capital(name)} is not on its leaf.',
-          SectionElement() => '${_capital(name)} lies outside $within.',
-          _ => '${_capital(name)} reaches outside $within.',
+        say = switch (element) {
+          HardwareElement() => (w) => w.gfNotOnLeaf(name(w)),
+          SectionElement() => (w) => w.gfLiesOutside(name(w), within(w)),
+          _ => (w) => w.gfReachesOutside(name(w), within(w)),
         };
       case GeometryProblemKind.opening:
         final region = element is OpeningElement
             ? design.sectionById(element.sectionId)
             : null;
-        message = region == null
-            ? '${_capital(name)} has lost the region it opens.'
-            : 'The mark of ${_lower(name)} is outside the region it opens.';
+        say = region == null
+            ? (w) => w.gfLostRegion(name(w))
+            : (w) => w.gfMarkOutside(_lower(_nameOf(w, design, element)));
       case GeometryProblemKind.dimension:
-        message = switch (element) {
+        say = switch (element) {
           DimensionElement(:final measuredMm)
               when measuredMm <= Tol.samePointMm =>
-            'A dimension measures nothing: its two ends are at the same '
-                'point.',
-          DimensionElement(:final statedMm?) when statedMm <= 0 =>
-            'A dimension gives ${Units.label(statedMm)}, which is not a size.',
+            (w) => w.gfDimensionNothing,
+          DimensionElement(:final statedMm?) when statedMm <= 0 => (
+            w,
+          ) => w.gfDimensionNotSize(Units.label(statedMm)),
           DimensionElement(:final statedMm?, :final measuredMm) =>
-            'The dimension you gave as ${Units.label(statedMm)} no longer '
-                'matches the drawing, which measures '
-                '${Units.label(measuredMm)}.',
-          _ => 'A dimension does not match the drawing.',
+            (w) => w.gfDimensionDisagrees(
+              Units.label(statedMm),
+              Units.label(measuredMm),
+            ),
+          _ => (w) => w.gfDimensionMismatch,
         };
     }
-    return GeometryNotice(problem: problem, message: message, showIds: show);
+    return GeometryNotice(problem: problem, say: say, showIds: show);
   }
 
   /// The two sides of the frame that cross each other, where two do.
@@ -192,63 +201,64 @@ class GeometryFeedback {
   }
 
   /// What to call [element] in a sentence: never its id, never its class.
-  static String _nameOf(Design design, DesignElement? element) =>
+  static String _nameOf(Words w, Design design, DesignElement? element) =>
       switch (element) {
-        null => 'part of the design',
-        FrameElement() => 'the frame',
-        FrameMemberElement(:final placement) =>
-          'the ${placement.toLowerCase()} of the frame',
-        DividerElement(:final parentId?) =>
-          'a line inside ${_parentName(design, parentId)}',
+        null => w.gfPartOfDesign,
+        FrameElement() => w.gfFrame,
+        FrameMemberElement(:final placement) => w.gfMemberOfFrame(
+          placementIn(w, placement).toLowerCase(),
+        ),
+        DividerElement(:final parentId?) => w.gfLineInside(
+          _parentName(w, design, parentId),
+        ),
         // Its direction is not to be had from a point that is not a number.
         DividerElement(:final a, :final b)
             when !(a.x.isFinite &&
                 a.y.isFinite &&
                 b.x.isFinite &&
                 b.y.isFinite) =>
-          'a bar',
-        DividerElement(:final isVertical) when isVertical => 'a mullion',
-        DividerElement(:final isHorizontal) when isHorizontal => 'a transom',
-        DividerElement() => 'a sloped bar',
-        SectionElement(:final parentId?) =>
-          'a pane of ${_parentName(design, parentId)}',
+          w.gfBar,
+        DividerElement(:final isVertical) when isVertical => w.gfMullion,
+        DividerElement(:final isHorizontal) when isHorizontal => w.gfTransom,
+        DividerElement() => w.gfSlopedBar,
+        SectionElement(:final parentId?) => w.gfPaneOf(
+          _parentName(w, design, parentId),
+        ),
         SectionElement(:final id) => switch (design.openings
             .where((o) => o.sectionId == id)
             .firstOrNull) {
-          final opening? => 'the region of ${_openingName(design, opening)}',
-          null => 'a fixed light',
+          final opening? => w.gfRegionOf(design.plainNameOfIn(w, opening)),
+          null => w.gfFixedLight,
         },
-        OpeningElement() => _openingName(design, element),
+        OpeningElement() => design.plainNameOfIn(w, element),
         HardwareElement(:final kind, :final parentId) => switch (design
             .openingHolding(parentId)) {
-          final opening? =>
-            'a ${kind.label.toLowerCase()} of '
-                '${_openingName(design, opening)}',
-          null => 'a ${kind.label.toLowerCase()}',
+          final opening? => w.gfPieceOf(
+            kind.labelIn(w).toLowerCase(),
+            design.plainNameOfIn(w, opening),
+          ),
+          null => w.gfPiece(kind.labelIn(w).toLowerCase()),
         },
         DimensionElement(:final statedMm?) when statedMm > 0 =>
-          'the dimension you gave as ${Units.label(statedMm)}',
-        DimensionElement() => 'a dimension',
-        TextElement() => 'a note',
-        ArrowElement() => 'an arrow',
+          w.gfDimensionGiven(Units.label(statedMm)),
+        DimensionElement() => w.gfDimension,
+        TextElement() => w.gfNote,
+        ArrowElement() => w.gfArrow,
       };
 
   /// What a child is inside: the opening it is the opening's, or the light.
-  static String _parentName(Design design, String? parentId) =>
+  static String _parentName(Words w, Design design, String? parentId) =>
       switch (design.openingHolding(parentId)) {
-        final opening? => _openingName(design, opening),
-        null => 'the light it belongs to',
+        final opening? => design.plainNameOfIn(w, opening),
+        null => w.gfLightItBelongsTo,
       };
-
-  /// *Opening 2* — its place across the drawing, without the mark.
-  static String _openingName(Design design, OpeningElement opening) {
-    final number = design.numberOf(opening);
-    return number > 0 ? 'Opening $number' : 'the opening';
-  }
 
   static String _capital(String s) =>
       s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
-  static String _lower(String s) =>
-      s.startsWith('Opening') ? s : s[0].toLowerCase() + s.substring(1);
+  /// [s] as it reads after *The mark of*: its first letter small, unless
+  /// it is a name — *Opening 2*, in any language — which keeps its own.
+  static String _lower(String s) => s.isEmpty || RegExp(r'\d$').hasMatch(s)
+      ? s
+      : s[0].toLowerCase() + s.substring(1);
 }

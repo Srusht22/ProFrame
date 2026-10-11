@@ -26,11 +26,13 @@ import '../../domain/sections/section_builder.dart';
 import '../../domain/sketch/stroke.dart';
 import '../../domain/solid/camera.dart';
 import '../../domain/solid/mesh.dart';
+import '../../domain/text/names.dart';
 import '../../infrastructure/customer_store.dart';
 import '../../infrastructure/design_store.dart';
 import '../canvas/cad_layers.dart';
 import '../viewer/view_mode.dart';
 import 'access.dart';
+import 'language.dart';
 import 'tools.dart';
 
 /// Everything on screen at once.
@@ -83,14 +85,10 @@ class WorkspaceState {
       if (opening.kind == null &&
           design.kind.leafDefault == null &&
           !settledQuestions.contains(openingKindQuestion(opening.id)))
-        DesignQuestion(
+        DesignQuestion.said((w) => DesignQuestion(
           id: openingKindQuestion(opening.id),
-          prompt: 'What is ${design.nameOf(opening)}?',
-          detail:
-              'A mark says this section opens. It does not say '
-              'whether it is a door or a window, and the two are not '
-              'made the same. This is about this one opening; every '
-              'other section is untouched.',
+          prompt: w.qKindPrompt(design.nameOfIn(w, opening)),
+          detail: w.qKindDetail,
           aboutIds: [opening.id, opening.sectionId],
           // A leaf is one or the other. `both` is what the assembly
           // can be and never what a single leaf is, so it is not among
@@ -99,13 +97,13 @@ class WorkspaceState {
             for (final kind in DesignKind.leafKinds)
               QuestionOption(
                 key: kind.name,
-                label: kind.label,
+                label: kind.labelIn(w),
                 detail: kind == DesignKind.door
-                    ? 'A leaf you walk through.'
-                    : 'A leaf you open from indoors.',
+                    ? w.qKindDoorDetail
+                    : w.qKindWindowDetail,
               ),
           ],
-        ),
+        )),
   ];
 
   /// The outstanding "what is this opening" questions, in drawing order.
@@ -159,22 +157,20 @@ class WorkspaceState {
   DesignQuestion? get constructionQuestion {
     if (design.construction != Construction.pending) return null;
     if (settledQuestions.contains(constructionQuestionId)) return null;
-    final whole = design.kind == DesignKind.door ? 'this door' : 'this design';
-    return DesignQuestion(
+    final door = design.kind == DesignKind.door;
+    return DesignQuestion.said((w) => DesignQuestion(
       id: constructionQuestionId,
-      prompt: 'How should $whole be constructed?',
-      detail:
-          'You decide what fills the parts you draw. Nothing is divided '
-          'or moved for you, and every part can be changed later.',
+      prompt: door ? w.qConstructionDoor : w.qConstructionDesign,
+      detail: w.qConstructionDetail,
       options: [
         for (final c in const [
           Construction.panel,
           Construction.glass,
           Construction.both,
         ])
-          QuestionOption(key: c.name, label: c.label),
+          QuestionOption(key: c.name, label: c.labelIn(w)),
       ],
-    );
+    ));
   }
 
   /// Which parts are glass and which are panel, in a design said to be
@@ -198,19 +194,13 @@ class WorkspaceState {
     if (parts.isEmpty) return null;
     final id = parts.length < 2 ? onePartQuestionId : partsQuestionId;
     if (settledQuestions.contains(id)) return null;
-    return DesignQuestion(
+    return DesignQuestion.said((w) => DesignQuestion(
       id: id,
-      prompt: parts.length < 2
-          ? 'Your design has no internal division yet'
-          : 'Which parts should be glass and which should be panel?',
-      detail: parts.length < 2
-          ? 'Draw a divider first to create separate panel and glass '
-                'parts. Nothing is divided for you.'
-          : 'Choose for each part you drew. The lines stay exactly where '
-                'you drew them.',
+      prompt: parts.length < 2 ? w.qOnePart : w.qParts,
+      detail: parts.length < 2 ? w.qOnePartDetail : w.qPartsDetail,
       aboutIds: [for (final part in parts) part.id],
       options: const [],
-    );
+    ));
   }
 
   static const constructionQuestionId = 'construction';
@@ -1350,7 +1340,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   /// separate figures: giving one never changes the other.
   Map<String, String> measure(Map<String, double> values) {
     if (values.isEmpty) return const {};
-    final outcome = Measurements.apply(state.design, values);
+    final outcome = Measurements.apply(state.design, values, ref.words);
     _remember();
     state = state.copyWith(design: outcome.design);
     return outcome.problems;
@@ -1362,6 +1352,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       sectionId,
       axis,
       valueMm,
+      ref.words,
     );
     if (identical(outcome.design, state.design)) return;
     _remember();
@@ -1712,12 +1703,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     _completing = true;
     try {
       if (state.design.isUnsupported) {
-        return const Completion(
+        return Completion(
           CompletionResult.failed,
-          message:
-              'This design was made by a newer ProFrame or with a category '
-              'this version does not recognise, so it cannot be completed '
-              'here.',
+          message: ref.l10n.completeUnsupported,
         );
       }
       if (state.needsReading) readDrawing();
@@ -1726,17 +1714,15 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       if (!ready.isPriceCalculable) {
         return Completion(
           CompletionResult.incomplete,
-          message:
-              'This design is not complete yet. Please finish the required '
-              'parts before completing it.',
-          missing: [for (final r in ready.missing) r.message],
+          message: ref.l10n.completeIncomplete,
+          missing: [for (final r in ready.missing) r.messageIn(ref.words)],
         );
       }
       final by = await ref.actorNow();
       if (!by.can(Capability.designsEdit)) {
-        return const Completion(
+        return Completion(
           CompletionResult.failed,
-          message: 'You do not have permission to complete designs.',
+          message: ref.l10n.completeNoPermission,
         );
       }
       final done = DesignCompletion.complete(before);
@@ -1751,9 +1737,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         }
         return Completion(
           CompletionResult.failed,
-          message:
-              'The design could not be saved, so it was not completed. '
-              'Your work is still here — try again. ($e)',
+          message: ref.l10n.completeSaveFailed('$e'),
         );
       }
       return Completion(CompletionResult.completed, design: state.design);

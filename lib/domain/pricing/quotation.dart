@@ -1,4 +1,6 @@
 import '../model/customer_discount.dart';
+import '../text/names.dart';
+import '../text/words.dart';
 import 'design_price_state.dart';
 import 'extra_charge.dart';
 import 'price_result.dart';
@@ -233,18 +235,20 @@ class Quotation {
     CustomerDiscount? discount,
     List<ExtraCharge> extras = const [],
     String notes = '',
+    Words words = const EnglishWords(),
   }) {
+    final w = words;
     if (chosen.isEmpty) {
-      return (quotation: null, problem: 'Choose at least one design.');
+      return (quotation: null, problem: w.quoteChooseOne);
     }
     final notReady = [
       for (final d in chosen)
-        if (!d.state.isCurrent) d.name,
+        if (!d.state.isCurrent) d.nameIn(w),
     ];
     if (notReady.isNotEmpty) {
       return (
         quotation: null,
-        problem: '$incompleteMessage Not ready: ${notReady.join(', ')}.',
+        problem: w.quoteNotReady(w.quoteIncomplete, notReady.join(w.listComma)),
       );
     }
     final lines = [
@@ -264,10 +268,11 @@ class Quotation {
     if (other.isNotEmpty) {
       return (
         quotation: null,
-        problem:
-            'The extra charge "${other.first.name}" is in '
-            '${other.first.currency}, not $currency. Write it in $currency '
-            'first.',
+        problem: w.quoteExtraCurrency(
+          other.first.name,
+          other.first.currency,
+          currency,
+        ),
       );
     }
     final designs = lines.fold(0, (s, l) => s + l.totalCents);
@@ -276,9 +281,10 @@ class Quotation {
     if (discount != null && discount.exceeds(subtotal)) {
       return (
         quotation: null,
-        problem:
-            'The discount of ${discount.describe(money)} is more than this '
-            "quotation's subtotal, ${money(subtotal)}.",
+        problem: w.quoteDiscountExceeds(
+          discount.describe(money, w),
+          money(subtotal),
+        ),
       );
     }
     final off = discount?.offCents(subtotal, currency) ?? 0;
@@ -318,13 +324,15 @@ class Quotation {
     QuotationStatus next, {
     required DateTime at,
     required String by,
+    Words words = const EnglishWords(),
   }) {
     if (!status.next.contains(next)) {
       return (
         quotation: null,
-        problem:
-            'A quotation that is ${status.label.toLowerCase()} cannot become '
-            '${next.label.toLowerCase()}.',
+        problem: words.quoteCannotBecome(
+          status.labelIn(words).toLowerCase(),
+          next.labelIn(words).toLowerCase(),
+        ),
       );
     }
     return (

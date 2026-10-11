@@ -1,5 +1,7 @@
 import '../model/design.dart';
 import '../model/materials.dart';
+import '../text/names.dart';
+import '../text/words.dart';
 import 'price_list.dart';
 
 /// What a design is made of, as its price reads it: the material and the
@@ -75,6 +77,9 @@ class ProfileSelection {
   /// What the material is called: *uPVC*, *Aluminium* — or *Not selected*.
   String get materialName => material?.label ?? 'Not selected';
 
+  /// [materialName], in [w].
+  String materialNameIn(Words w) => material?.labelIn(w) ?? w.notSelected;
+
   /// What the colour is called, in words: the name the catalog gives it —
   /// retired or not, so a colour the factory no longer offers is still
   /// named, never *Unknown* — or else the name the colour picker gives it,
@@ -89,6 +94,20 @@ class ProfileSelection {
       if (value == c) return name;
     }
     return 'Custom';
+  }
+
+  /// [colourName], in [w]. A catalog colour's name is the factory's own,
+  /// and stays as they wrote it.
+  String colourNameIn(Words w, [PriceList? list]) {
+    final c = colour;
+    if (c == null) return w.notSelected;
+    if (list != null) {
+      if (catalogColourIn(list) case final entry?) return entry.name;
+    }
+    for (final (value, name) in finishPalette) {
+      if (value == c) return paletteNameIn(w, name);
+    }
+    return w.custom;
   }
 
   /// [design] with its profile chosen as [material] in [colour] — the

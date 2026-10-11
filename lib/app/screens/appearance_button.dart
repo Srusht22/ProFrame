@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/l10n.dart';
 import '../state/appearance.dart';
 
 /// Light, dark or the device's own: one button, the icon showing which.
@@ -14,20 +15,20 @@ class AppearanceButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(appearanceProvider);
     return PopupMenuButton<ThemeMode>(
-      tooltip: 'Appearance',
+      tooltip: context.l10n.settingsAppearance,
       initialValue: mode,
       position: PopupMenuPosition.under,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onSelected: ref.read(appearanceProvider.notifier).choose,
       itemBuilder: (context) => [
-        for (final option in Appearance.labels.keys)
+        for (final option in Appearance.icons.keys)
           PopupMenuItem(
             value: option,
             child: Row(
               children: [
                 Icon(Appearance.icons[option], size: 20),
                 const SizedBox(width: 12),
-                Expanded(child: Text(Appearance.labels[option]!)),
+                Expanded(child: Text(appearanceLabel(context.l10n, option))),
                 if (option == mode) ...[
                   const SizedBox(width: 12),
                   Icon(
@@ -45,3 +46,10 @@ class AppearanceButton extends ConsumerWidget {
     );
   }
 }
+
+/// What [mode] is called, in the language [l] is in.
+String appearanceLabel(AppLocalizations l, ThemeMode mode) => switch (mode) {
+  ThemeMode.system => l.appearanceSystem,
+  ThemeMode.light => l.appearanceLight,
+  ThemeMode.dark => l.appearanceDark,
+};

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/pricing/pricing_access.dart';
+import '../../domain/text/names.dart';
 import '../../infrastructure/design_store.dart';
+import '../l10n/l10n.dart';
 import '../state/access.dart';
 import '../state/pricing.dart';
 import '../state/workspace.dart';
@@ -37,11 +39,9 @@ Future<void> openKeptDesign(
   try {
     if (!(await ref.actorNow()).can(Capability.designsView)) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('You do not have permission to view designs.'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.designsNoAccess)));
       }
       return;
     }
@@ -49,7 +49,11 @@ Future<void> openKeptDesign(
     if (!context.mounted) return;
     if (design == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${summary.shownName} could not be opened.')),
+        SnackBar(
+          content: Text(
+            context.l10n.couldNotOpen(summary.shownNameIn(context.words)),
+          ),
+        ),
       );
       ref.read(designsRevisionProvider.notifier).changed();
       return;
@@ -120,13 +124,14 @@ Future<bool> deleteDesign(
   ref.read(designsRevisionProvider.notifier).changed();
   if (!context.mounted) return true;
   final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
+  final l = context.l10n;
   messenger.showSnackBar(
     SnackBar(
-      content: Text('${summary.shownName} deleted'),
+      content: Text(l.designDeleted(summary.shownNameIn(context.words))),
       action: design == null
           ? null
           : SnackBarAction(
-              label: 'Undo',
+              label: l.undo,
               onPressed: () async {
                 await store.save(design, by: await ref.actorNow());
                 if (price != null) {
@@ -164,7 +169,9 @@ class DeleteDesignDialog extends StatelessWidget {
       // pushing the buttons off the screen.
       scrollable: true,
       icon: Icon(Icons.delete_outline, color: danger),
-      title: Text('Delete ${summary.shownName}?'),
+      title: Text(
+        context.l10n.deleteDesignTitle(summary.shownNameIn(context.words)),
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -179,7 +186,7 @@ class DeleteDesignDialog extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  summary.shownName,
+                  summary.shownNameIn(context.words),
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -189,7 +196,7 @@ class DeleteDesignDialog extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   [
-                    summary.kind.label,
+                    summary.kind.labelIn(context.words),
                     if (who.isNotEmpty) who,
                     '#${summary.number}',
                   ].join(' · '),
@@ -201,15 +208,12 @@ class DeleteDesignDialog extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             who.isEmpty
-                ? 'This design will be removed from this device. No other '
-                      'design is touched.'
-                : 'This design will be removed from this device. $who, '
-                      'their phone, address and notes, and their other '
-                      'designs stay exactly as they are.',
+                ? context.l10n.deleteDesignAlone
+                : context.l10n.deleteDesignOf(who),
           ),
           const SizedBox(height: 8),
           Text(
-            'You can undo it straight afterwards.',
+            context.l10n.undoAfterwards,
             style: TextStyle(fontSize: 13, color: p.muted),
           ),
         ],
@@ -218,7 +222,7 @@ class DeleteDesignDialog extends StatelessWidget {
         TextButton(
           key: cancelKey,
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
+          child: Text(context.l10n.fwCancel),
         ),
         FilledButton(
           key: confirmKey,
@@ -227,7 +231,7 @@ class DeleteDesignDialog extends StatelessWidget {
             foregroundColor: Theme.of(context).colorScheme.onError,
           ),
           onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Delete design'),
+          child: Text(context.l10n.deleteDesign),
         ),
       ],
     );

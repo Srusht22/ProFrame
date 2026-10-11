@@ -4,6 +4,8 @@ import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import '../../domain/model/infill.dart';
 import '../../domain/model/materials.dart';
+import '../../domain/text/names.dart';
+import '../l10n/l10n.dart';
 import '../theme/app_theme.dart';
 import 'colour_picker.dart';
 
@@ -14,6 +16,10 @@ enum Fill {
 
   const Fill(this.label);
   final String label;
+
+  /// [label], in [l].
+  String labelIn(AppLocalizations l) =>
+      this == glass ? l.fillGlass : l.fillPanel;
 
   /// Which of the two [finish] is, or null for anything else — a louvre, a
   /// mesh — or nothing said.
@@ -64,10 +70,12 @@ class _LookChoicesState extends State<LookChoices> {
     final isThisFill = Fill.of(finish) == widget.fill;
     final named = switch (widget.fill) {
       Fill.glass => [
-        for (final look in GlassLook.values) (look.label, look.finish),
+        for (final look in GlassLook.values)
+          (look.label, look.finish, look.labelIn(context.words)),
       ],
       Fill.panel => [
-        for (final colour in PanelColour.values) (colour.label, colour.finish),
+        for (final colour in PanelColour.values)
+          (colour.label, colour.finish, colour.labelIn(context.words)),
       ],
     };
     final isNamed = isThisFill && named.any((option) => option.$2 == finish);
@@ -97,11 +105,11 @@ class _LookChoicesState extends State<LookChoices> {
           spacing: 6,
           runSpacing: 6,
           children: [
-            for (final (label, option) in named)
+            for (final (label, option, shown) in named)
               LookSwatch(
                 key: ValueKey('look-${widget.fill.name}-$label'),
                 finish: option,
-                label: label,
+                label: shown,
                 selected: !custom && finish == option,
                 onTap: () {
                   setState(() => _custom = false);
@@ -111,7 +119,7 @@ class _LookChoicesState extends State<LookChoices> {
             LookSwatch(
               key: ValueKey('look-${widget.fill.name}-Custom'),
               finish: customOf(customColour),
-              label: 'Custom',
+              label: context.l10n.custom,
               selected: custom,
               onTap: () => setState(() => _custom = true),
             ),
@@ -301,12 +309,12 @@ class _PartChoiceState extends State<PartChoice> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      Infill.nameOf(widget.design, widget.part),
+                      Infill.nameOf(widget.design, widget.part, context.words),
                       style: theme.textTheme.titleSmall,
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      Infill.whereIs(widget.design, widget.part),
+                      Infill.whereIs(widget.design, widget.part, context.words),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: p.muted,
                       ),
@@ -323,7 +331,7 @@ class _PartChoiceState extends State<PartChoice> {
               for (final option in Fill.values)
                 ButtonSegment(
                   value: option,
-                  label: Text(option.label),
+                  label: Text(option.labelIn(context.l10n)),
                   icon: Icon(
                     option == Fill.glass
                         ? Icons.window_outlined
@@ -346,9 +354,11 @@ class _PartChoiceState extends State<PartChoice> {
             Text(
               _waiting != null
                   ? (fill == Fill.panel
-                        ? 'Choose the panel colour'
-                        : 'Choose the glass')
-                  : (fill == Fill.panel ? 'Panel colour' : 'Glass'),
+                        ? context.l10n.chooseThePanelColour
+                        : context.l10n.chooseTheGlass)
+                  : (fill == Fill.panel
+                        ? context.l10n.panelColour
+                        : context.l10n.fillGlass),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: _waiting != null ? p.primary : p.muted,
                 fontWeight: FontWeight.w600,

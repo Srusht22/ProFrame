@@ -4,6 +4,8 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../domain/text/words.dart';
+
 /// The workshop owner's PIN, kept on the device — what lets the person at
 /// the device change the factory's prices.
 ///
@@ -30,9 +32,9 @@ class OwnerAccessStore {
   }
 
   /// Why [pin] cannot be an owner PIN, or null where it can.
-  static String? problemWith(String pin) {
+  static String? problemWith(String pin, [Words w = const EnglishWords()]) {
     if (pin.length < shortest || !RegExp(r'^\d+$').hasMatch(pin)) {
-      return 'Use at least $shortest digits.';
+      return w.pinTooShort(shortest);
     }
     return null;
   }

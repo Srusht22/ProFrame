@@ -1,5 +1,8 @@
 import '../model/design.dart';
 import '../model/materials.dart';
+import '../text/line_name.dart';
+import '../text/names.dart';
+import '../text/words.dart';
 import 'extra_charge.dart';
 import 'measurement.dart';
 import 'price_list.dart';
@@ -60,27 +63,30 @@ class PricingEngine {
   PriceResult price(Design design, PriceList list, {PricingChoices? choices}) {
     final said = choices ?? design.pricing;
     final category = categoryOf(design);
-    PriceResult unavailable(PriceStatus status, String why) =>
-        PriceResult.unavailable(
-          status,
-          why,
-          currency: list.currency,
-          category: category,
-          priceListVersion: list.version,
-        );
+    PriceResult unavailable(
+      PriceStatus status,
+      String Function(Words w) why,
+    ) => PriceResult.unavailable(
+      status,
+      why(const EnglishWords()),
+      currency: list.currency,
+      category: category,
+      priceListVersion: list.version,
+      say: why,
+    );
 
     final strategy = design.isUnsupported ? null : strategies[category];
     if (strategy == null) {
       return unavailable(
         PriceStatus.unsupportedCategory,
-        'This version of ProFrame cannot price a design of this category.',
+        (w) => w.engineUnsupported,
       );
     }
     final rate = list.categories[category];
     if (rate == null) {
       return unavailable(
         PriceStatus.notConfigured,
-        'The price list has no prices for ${design.kind.label} designs.',
+        (w) => w.engineNoCategory(design.kind.labelIn(w)),
       );
     }
     // Nothing is priced that is not complete: the one answer every screen
@@ -97,7 +103,7 @@ class PricingEngine {
           PriceRequirementKind.sizes => PriceStatus.needsSizes,
           _ => PriceStatus.incomplete,
         },
-        readiness.message,
+        readiness.messageIn,
       );
     }
 
@@ -107,7 +113,10 @@ class PricingEngine {
     // colour is charged, below, with everything else the list lacks.
     final chosen = ProfileSelection.of(design);
     if (chosen.colourIn(list) case final colour? when colour.needsSelection) {
-      return unavailable(PriceStatus.incomplete, colour.problem!);
+      return unavailable(
+        PriceStatus.incomplete,
+        (w) => colour.problemIn(w)!,
+      );
     }
 
     final takeoff = PricingTakeoff.of(design);
@@ -123,35 +132,42 @@ class PricingEngine {
     final made = sheet.lines.fold<double>(0, (sum, l) => sum + l.amount);
     final labour = rate.labour;
     sheet
-      ..add(PriceGroup.labour, 'Making', 1, PriceUnit.fixed, labour.fixed)
-      ..add(
+      ..addNamed(
         PriceGroup.labour,
-        'Making, by area',
+        const LineName('making'),
+        1,
+        PriceUnit.fixed,
+        labour.fixed,
+      )
+      ..addNamed(
+        PriceGroup.labour,
+        const LineName('makingArea'),
         takeoff.area.value,
         PriceUnit.squareMetre,
         labour.perSquareMetre,
       )
       ..addPercent(
         PriceGroup.labour,
-        'Making, on materials',
+        const LineName('makingMaterials').english,
         labour.percent,
         made,
+        name: const LineName('makingMaterials'),
       );
 
     // Installation, only where the user asked for it.
     if (said.installation) {
       final fit = list.installation;
       sheet
-        ..add(
+        ..addNamed(
           PriceGroup.installation,
-          'Installation',
+          const LineName('installation'),
           1,
           PriceUnit.fixed,
           fit.fixed,
         )
-        ..add(
+        ..addNamed(
           PriceGroup.installation,
-          'Installation, by area',
+          const LineName('installationArea'),
           takeoff.area.value,
           PriceUnit.squareMetre,
           fit.perSquareMetre,
@@ -164,8 +180,7 @@ class PricingEngine {
     // price until it is written in the list's currency.
     for (final e in said.extras.notIn(list.currency)) {
       sheet.unavailable(
-        'The extra charge "${e.name}" is in ${e.currency}, and this design '
-        'is priced in ${list.currency}. Write it in ${list.currency}.',
+        (w) => w.engineExtraCurrency(e.name, e.currency, list.currency),
       );
     }
 
@@ -237,6 +252,7 @@ class PriceSheet {
     String? partId,
     ProfilePart? part,
     ProfileCategory? category,
+    LineName? name,
   }) {
     if (!quantity.isFinite || !rate.isFinite || quantity <= 0 || rate <= 0) {
       return;
@@ -245,6 +261,7 @@ class PriceSheet {
       PriceLine(
         group: group,
         label: label,
+        name: name,
         quantity: quantity,
         unit: unit,
         rate: rate,
@@ -257,12 +274,33 @@ class PriceSheet {
     );
   }
 
+  /// [add], for a line said by [name] — its label the English of it.
+  void addNamed(
+    PriceGroup group,
+    LineName name,
+    double quantity,
+    PriceUnit unit,
+    double rate, {
+    ProfilePart? part,
+    ProfileCategory? category,
+  }) => add(
+    group,
+    name.english,
+    quantity,
+    unit,
+    rate,
+    part: part,
+    category: category,
+    name: name,
+  );
+
   void addPercent(
     PriceGroup group,
     String label,
     double percent,
     double of, {
     String? partId,
+    LineName? name,
   }) {
     if (!percent.isFinite || !of.isFinite || percent <= 0 || of <= 0) return;
     lines.add(
@@ -274,25 +312,21 @@ class PriceSheet {
         rate: of,
         amount: of * percent / 100,
         partId: partId,
+        name: name,
       ),
     );
   }
 
   /// Something that stops the design being priced, said as it is.
-  void unavailable(String message) {
-    if (issues.every((i) => i.message != message)) {
-      issues.add(PriceIssue(message));
-    }
+  void unavailable(String Function(Words w) say) {
+    final issue = PriceIssue.said(say);
+    if (issues.every((i) => i.message != issue.message)) issues.add(issue);
   }
 
   /// Something the price list has no price for: the design cannot be
   /// priced until it has.
-  void missing(String what) {
-    final message = 'The price list has no price for $what.';
-    if (issues.every((i) => i.message != message)) {
-      issues.add(PriceIssue(message));
-    }
-  }
+  void missing(String Function(Words w) what) =>
+      unavailable((w) => w.engineMissing(what(w)));
 
   /// What [group]'s lines come to: their cents, summed.
   double sumOf(PriceGroup group) =>
@@ -354,7 +388,7 @@ class FramedPricing extends CategoryPricing {
       final material = run.finish.material;
       final profile = list.profiles[material];
       if (profile == null) {
-        sheet.missing('${material.label} profile');
+        sheet.missing((w) => w.missProfile(material.labelIn(w)));
         continue;
       }
       final isOpening = run.use == ProfileUse.opening;
@@ -372,9 +406,12 @@ class FramedPricing extends CategoryPricing {
           // Never charged at a category nobody chose.
           if (category == null) {
             sheet.unavailable(
-              'Please choose whether the ${material.label.toLowerCase()} '
-              'profile is ${ProfileCategory.of(material).map((c) => c.label).join(' or ')} '
-              'to calculate the price.',
+              (w) => w.reqCategoryAll(
+                material.labelIn(w).toLowerCase(),
+                [
+                  for (final c in ProfileCategory.of(material)) c.labelIn(w),
+                ].reduce(w.joinOr),
+              ),
             );
             continue;
           }
@@ -382,9 +419,9 @@ class FramedPricing extends CategoryPricing {
         final perMetre = profile.normalRateFor(category);
         if (perMetre == null) {
           sheet.missing(
-            category == null
-                ? '${material.label} border and lines'
-                : '${category.label} border and lines',
+            (w) => w.missBorderLines(
+              category == null ? material.labelIn(w) : category.labelIn(w),
+            ),
           );
           continue;
         }
@@ -413,9 +450,12 @@ class FramedPricing extends CategoryPricing {
       });
     for (final key in keys) {
       final (m, category, part) = key;
-      sheet.add(
+      sheet.addNamed(
         PriceGroup.normalProfile,
-        '${category?.label ?? m.label} — ${part.label}',
+        LineName('profile', [
+          category == null ? 'mat:${m.name}' : 'cat:${category.name}',
+          part.name,
+        ]),
         normal[key]!.value,
         PriceUnit.metre,
         list.profiles[m]!.normalRateFor(category)!,
@@ -424,9 +464,9 @@ class FramedPricing extends CategoryPricing {
       );
     }
     for (final MapEntry(key: m, value: metres) in opening.entries) {
-      sheet.add(
+      sheet.addNamed(
         PriceGroup.openingProfile,
-        'Opening profile — ${m.label}',
+        LineName('opening', [m.name]),
         metres.value,
         PriceUnit.metre,
         list.profiles[m]!.openingPerMetre,
@@ -442,12 +482,16 @@ class FramedPricing extends CategoryPricing {
           : null;
       final rate = list.colourFor(m, colour, id: id);
       if (!rate.isPriced) {
-        sheet.unavailable(rate.problem!);
+        sheet.unavailable((w) => rate.problemIn(w)!);
         continue;
       }
-      final what = '${rate.name} ${m.label} (${rate.grade.label.toLowerCase()})';
+      final what = LineName('colour', [
+        rate.entry?.name ?? '',
+        m.name,
+        rate.grade.name,
+      ]);
       sheet
-        ..add(
+        ..addNamed(
           PriceGroup.colour,
           what,
           used.metres.value,
@@ -456,14 +500,15 @@ class FramedPricing extends CategoryPricing {
         )
         ..addPercent(
           PriceGroup.colour,
-          what,
+          what.english,
           rate.surcharge.percent,
           used.cost,
+          name: what,
         );
     }
-    sheet.add(
+    sheet.addNamed(
       PriceGroup.otherProfile,
-      'Sliding track',
+      const LineName('track'),
       track.value,
       PriceUnit.metre,
       list.trackPerMetre,
@@ -473,16 +518,18 @@ class FramedPricing extends CategoryPricing {
     // solid builds as a sealed unit — two sheets and a cavity — is priced
     // at the sealed unit's own rate for its look, and a single sheet at the
     // glass rate: one is never priced as the other.
-    final glass = <String, ({SquareMetres area, double? rate})>{};
-    final panel = <String, ({SquareMetres area, double? rate})>{};
+    final glass = <LineName, ({SquareMetres area, double? rate})>{};
+    final panel = <LineName, ({SquareMetres area, double? rate})>{};
     for (final region in takeoff.regions) {
       // Glass is charged only where the user included it: the area is
       // still measured, and said, but not charged.
       if (region.isGlass && !sheet.glassPriced) continue;
       if (region.isGlass) {
         final look = GlassLook.of(region.finish);
-        final kind = '${look?.label ?? 'Custom'} glass';
-        final name = region.sealed ? 'Sealed unit — $kind' : kind;
+        final name = LineName('glass', [
+          look?.name ?? 'custom',
+          if (region.sealed) 'sealed',
+        ]);
         final rate = switch ((region.sealed, look)) {
           (true, null) => list.customSealedGlassPerM2,
           (true, final look?) => list.sealedGlassPerM2[look],
@@ -493,14 +540,16 @@ class FramedPricing extends CategoryPricing {
         glass[name] = (area: was + region.area, rate: rate);
       } else if (region.isPanel) {
         final colour = PanelColour.of(region.finish);
-        final name = '${colour?.label ?? 'Custom'} panel';
+        final name = LineName('panel', [colour?.name ?? 'custom']);
         final rate = colour == null
             ? list.customPanelPerM2
             : list.panelPerM2[colour];
         final was = panel[name]?.area ?? SquareMetres.zero;
         panel[name] = (area: was + region.area, rate: rate);
       } else {
-        sheet.missing('${region.finish.material.label.toLowerCase()} infill');
+        sheet.missing(
+          (w) => w.missInfill(region.finish.material.labelIn(w).toLowerCase()),
+        );
       }
     }
     for (final (group, by) in [
@@ -510,10 +559,10 @@ class FramedPricing extends CategoryPricing {
       for (final MapEntry(key: name, value: v) in by.entries) {
         final rate = v.rate;
         if (rate == null) {
-          sheet.missing(name.toLowerCase());
+          sheet.missing((w) => name.sayIn(w)!.toLowerCase());
           continue;
         }
-        sheet.add(group, name, v.area.value, PriceUnit.squareMetre, rate);
+        sheet.addNamed(group, name, v.area.value, PriceUnit.squareMetre, rate);
       }
     }
 
@@ -522,12 +571,12 @@ class FramedPricing extends CategoryPricing {
         in takeoff.hardwareCounts.entries) {
       final each = list.hardwareEach[kind];
       if (each == null) {
-        sheet.missing('a ${kind.label.toLowerCase()}');
+        sheet.missing((w) => w.missPiece(kind.labelIn(w).toLowerCase()));
         continue;
       }
-      sheet.add(
+      sheet.addNamed(
         PriceGroup.hardware,
-        count == 1 ? kind.label : '${kind.label}s',
+        LineName('pieces', [kind.name, if (count == 1) 'one']),
         count.toDouble(),
         PriceUnit.each,
         each,
@@ -549,9 +598,9 @@ class SlidingPricing extends FramedPricing {
     // number of rollers (`rollersPerSlidingPanel`); a fixed panel stands in
     // its track on none.
     final sliders = takeoff.openings.where((o) => o.slides).length;
-    sheet.add(
+    sheet.addNamed(
       PriceGroup.hardware,
-      'Rollers',
+      const LineName('rollers'),
       (sliders * list.rollersPerSlidingPanel).toDouble(),
       PriceUnit.each,
       list.rollerEach,

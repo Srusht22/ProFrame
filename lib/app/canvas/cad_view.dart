@@ -15,6 +15,8 @@ import '../../domain/geometry/tolerances.dart';
 import '../../domain/geometry/vec2.dart';
 import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
+import '../../domain/text/names.dart';
+import '../l10n/l10n.dart';
 import '../state/everything_shown.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -174,6 +176,7 @@ class _CadViewState extends ConsumerState<CadView> {
                 view,
                 layers,
                 canvas: size,
+                words: context.words,
               );
 
               // The opening the user is working inside, if they have picked
@@ -269,6 +272,7 @@ class _CadViewState extends ConsumerState<CadView> {
                                 guideWithin:
                                     _inside == InsideTool.select ? null : within,
                                 ink: context.palette.cad,
+                                words: context.words,
                               ),
                             ),
                           ),
@@ -293,7 +297,7 @@ class _CadViewState extends ConsumerState<CadView> {
                           Padding(
                             padding: const EdgeInsets.all(12),
                             child: ViewControls(
-                              fitTooltip: 'Fit the drawing to the view',
+                              fitTooltip: context.l10n.cadFit,
                               onIn: () => setState(
                                 () => _view = _transform.zoomed(
                                   1.25,
@@ -742,21 +746,21 @@ class _CadViewState extends ConsumerState<CadView> {
       builder: (context) {
         final field = TextEditingController();
         return AlertDialog(
-          title: const Text('Note'),
+          title: Text(context.l10n.cadNoteTitle),
           content: TextField(
             controller: field,
             autofocus: true,
-            decoration: const InputDecoration(hintText: 'Type your note'),
+            decoration: InputDecoration(hintText: context.l10n.cadNoteHint),
             onSubmitted: (value) => Navigator.of(context).pop(value),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(context.l10n.actCancel),
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(field.text),
-              child: const Text('Add'),
+              child: Text(context.l10n.actAdd),
             ),
           ],
         );
@@ -891,6 +895,19 @@ enum InsideTool {
   final IconData icon;
   final InsideGesture gesture;
 
+  /// [label], in [l].
+  String labelIn(AppLocalizations l) => switch (this) {
+    select => l.toolSelect,
+    horizontalLine => l.inHorizontalLine,
+    verticalLine => l.inVerticalLine,
+    straightLine => l.toolLine,
+    rectangle => l.toolRectangle,
+    polyline => l.toolPolyline,
+    dimension => l.toolDimension,
+    arrow => l.toolArrow,
+    note => l.toolNote,
+  };
+
   /// True when what this tool makes is part of the opening: a bar, and the
   /// panes it divides the opening into. A figure, an arrow and a note
   /// describe the design rather than build it, so they have no parent —
@@ -974,13 +991,18 @@ class _InsideBar extends StatelessWidget {
                   const SizedBox(width: 7),
                   Flexible(
                     child: Text(
-                      'Inside '
-                      '${mechanism?.mechanism.label.toLowerCase() ?? 'this opening'}'
-                      ' — ${Measurements.sizeOf(design, opening)}',
+                      context.l10n.cadInside(
+                        mechanism?.mechanism
+                                .labelIn(context.words)
+                                .toLowerCase() ??
+                            context.l10n.cadThisOpening,
+                        Measurements.sizeOf(design, opening),
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontFamily: AppTheme.fontFamily,
+                        fontFamilyFallback: AppTheme.fontFallback,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
                         color: context.palette.ink,
@@ -993,14 +1015,14 @@ class _InsideBar extends StatelessWidget {
             ),
             for (final option in InsideTool.values)
               _InsideButton(
-                label: option.label,
+                label: option.labelIn(context.l10n),
                 icon: option.icon,
                 on: tool == option,
                 onTap: () => onTool(option),
               ),
             const SizedBox(width: 2),
             _InsideButton(
-              label: 'Erase',
+              label: context.l10n.inErase,
               icon: Icons.backspace_outlined,
               on: false,
               enabled: erasable,
@@ -1052,6 +1074,7 @@ class _InsideButton extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontFamily: AppTheme.fontFamily,
+                  fontFamilyFallback: AppTheme.fontFallback,
                   fontSize: 12,
                   fontWeight: on ? FontWeight.w700 : FontWeight.w500,
                   color: colour,
@@ -1151,6 +1174,7 @@ class _FigureEditorState extends State<_FigureEditor> {
                 widget.figure.label,
                 style: TextStyle(
                   fontFamily: AppTheme.fontFamily,
+                  fontFamilyFallback: AppTheme.fontFallback,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.6,
@@ -1169,6 +1193,7 @@ class _FigureEditorState extends State<_FigureEditor> {
                 ],
                 style: const TextStyle(
                   fontFamily: AppTheme.fontFamily,
+                  fontFamilyFallback: AppTheme.fontFallback,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1188,7 +1213,7 @@ class _FigureEditorState extends State<_FigureEditor> {
                   Expanded(
                     child: TextButton(
                       onPressed: widget.onCancel,
-                      child: const Text('Cancel', maxLines: 1),
+                      child: Text(context.l10n.actCancel, maxLines: 1),
                     ),
                   ),
                   const SizedBox(width: 6),
@@ -1198,7 +1223,7 @@ class _FigureEditorState extends State<_FigureEditor> {
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                       ),
-                      child: const Text('Apply', maxLines: 1),
+                      child: Text(context.l10n.actApply, maxLines: 1),
                     ),
                   ),
                 ],
@@ -1232,28 +1257,28 @@ class _LayerBar extends StatelessWidget {
           child: Row(
             children: [
               _Chip(
-                label: 'Dimensions',
+                label: context.l10n.layDimensions,
                 icon: Icons.straighten,
                 on: layers.dimensions,
                 onTap: () =>
                     onChanged(layers.copyWith(dimensions: !layers.dimensions)),
               ),
               _Chip(
-                label: 'Hatching',
+                label: context.l10n.layHatching,
                 icon: Icons.texture,
                 on: layers.hatching,
                 onTap: () =>
                     onChanged(layers.copyWith(hatching: !layers.hatching)),
               ),
               _Chip(
-                label: 'Openings',
+                label: context.l10n.layOpenings,
                 icon: Icons.door_sliding_outlined,
                 on: layers.openings,
                 onTap: () =>
                     onChanged(layers.copyWith(openings: !layers.openings)),
               ),
               _Chip(
-                label: 'Centre lines',
+                label: context.l10n.layCentreLines,
                 icon: Icons.more_vert,
                 on: layers.centreLines,
                 onTap: () => onChanged(
@@ -1261,7 +1286,7 @@ class _LayerBar extends StatelessWidget {
                 ),
               ),
               _Chip(
-                label: 'Notes',
+                label: context.l10n.layNotes,
                 icon: Icons.short_text,
                 on: layers.annotations,
                 onTap: () => onChanged(
@@ -1269,7 +1294,7 @@ class _LayerBar extends StatelessWidget {
                 ),
               ),
               _Chip(
-                label: 'My drawing',
+                label: context.l10n.layMyDrawing,
                 icon: Icons.gesture,
                 on: layers.sketch,
                 onTap: () => onChanged(layers.copyWith(sketch: !layers.sketch)),
@@ -1277,7 +1302,7 @@ class _LayerBar extends StatelessWidget {
               // What is round the back — a door's hinges — dashed. Off by
               // default, because the drawing is of the face you are at.
               _Chip(
-                label: 'Hidden',
+                label: context.l10n.layHidden,
                 icon: Icons.visibility_off_outlined,
                 on: layers.hiddenDetail,
                 onTap: () => onChanged(
@@ -1285,7 +1310,7 @@ class _LayerBar extends StatelessWidget {
                 ),
               ),
               _Chip(
-                label: 'Grid',
+                label: context.l10n.layGrid,
                 icon: Icons.grid_4x4,
                 on: layers.grid,
                 onTap: () => onChanged(layers.copyWith(grid: !layers.grid)),
@@ -1296,13 +1321,13 @@ class _LayerBar extends StatelessWidget {
                 child: VerticalDivider(width: 12),
               ),
               _Chip(
-                label: 'Handles',
+                label: context.l10n.layHandles,
                 icon: Icons.open_with,
                 on: layers.grips,
                 onTap: () => onChanged(layers.copyWith(grips: !layers.grips)),
               ),
               _Chip(
-                label: 'Snap',
+                label: context.l10n.laySnap,
                 icon: Icons.control_point,
                 on: layers.snap,
                 onTap: () => onChanged(layers.copyWith(snap: !layers.snap)),
@@ -1311,7 +1336,7 @@ class _LayerBar extends StatelessWidget {
               TextButton.icon(
                 onPressed: onFit,
                 icon: const Icon(Icons.fit_screen_outlined, size: 17),
-                label: const Text('Fit'),
+                label: Text(context.l10n.layFit),
               ),
             ],
           ),
@@ -1404,6 +1429,7 @@ class _StatusBar extends StatelessWidget {
         // the theme's font and the text renders blank on the web.
         style: TextStyle(
           fontFamily: AppTheme.fontFamily,
+          fontFamilyFallback: AppTheme.fontFallback,
           fontSize: 12,
           color: context.palette.muted,
           fontFeatures: [FontFeature.tabularFigures()],
@@ -1440,14 +1466,20 @@ class _StatusBar extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 18),
-                      Text('1 : $rounded', maxLines: 1, softWrap: false),
+                      Text(
+                        context.figure('1 : $rounded'),
+                        maxLines: 1,
+                        softWrap: false,
+                      ),
                       if (roomy) ...[
                         const SizedBox(width: 18),
                         Flexible(
                           child: Text(
-                            '${design.sections.length} sections · '
-                            '${design.dividers.length} bars · '
-                            '${design.openings.length} openings',
+                            context.l10n.cadCounts(
+                              design.sections.length,
+                              design.dividers.length,
+                              design.openings.length,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -1459,13 +1491,16 @@ class _StatusBar extends StatelessWidget {
                 const SizedBox(width: 16),
                 Flexible(
                   child: Text(
-                    selected?.label ??
-                        (roomy ? 'Tap a line, a bar or a pane' : ''),
+                    (selected == null
+                            ? null
+                            : elementLabelIn(context.words, selected)) ??
+                        (roomy ? context.l10n.cadTapSomething : ''),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
+                    textAlign: TextAlign.end,
                     style: TextStyle(
                       fontFamily: AppTheme.fontFamily,
+                      fontFamilyFallback: AppTheme.fontFallback,
                       fontSize: 12,
                       fontWeight: selected == null
                           ? FontWeight.w500

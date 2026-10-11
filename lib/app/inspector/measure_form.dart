@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/dimensions/measurements.dart';
 import '../../domain/dimensions/units.dart';
 import '../../domain/model/design.dart';
+import '../l10n/l10n.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 
@@ -160,14 +161,14 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Measurements',
+                  context.l10n.mfTitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
               ),
               IconButton(
-                tooltip: 'Close',
+                tooltip: context.l10n.actClose,
                 icon: const Icon(Icons.close),
                 onPressed: () => Navigator.of(context).pop(),
               ),
@@ -181,16 +182,14 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
             padding: const EdgeInsets.fromLTRB(22, 12, 22, 16),
             children: [
               Text(
-                'Enter the real size of each part in centimetres. Nothing '
-                'is guessed from the sketch; a size that follows from the '
-                'others is worked out for you.',
+                context.l10n.mfIntro,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               for (final entry in groups.entries) ...[
                 Padding(
                   padding: const EdgeInsets.only(top: 14, bottom: 6),
                   child: Text(
-                    entry.key,
+                    entry.value.first.groupIn(context.words),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
@@ -198,14 +197,14 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
                   if (m.asked)
                     _SizeField(
                       key: ValueKey('measure-${m.key}'),
-                      label: m.label,
+                      label: m.labelIn(context.words),
                       controller: _fields[m.key]!,
                       first: m.key == _first,
                       problem: _problems[m.key],
                     )
                   else
                     _Follows(
-                      label: m.label,
+                      label: m.labelIn(context.words),
                       value: _followed(preview, previewAll, m),
                     ),
               ],
@@ -219,19 +218,19 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
             children: [
               Expanded(
                 child: Text(
-                  _outstanding(preview, previewAll),
+                  _outstanding(context.l10n, preview, previewAll),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Not now'),
+                child: Text(context.l10n.actNotNow),
               ),
               const SizedBox(width: 8),
               FilledButton(
                 onPressed: typed.isEmpty ? null : () => _apply(design, all),
                 style: FilledButton.styleFrom(minimumSize: const Size(0, 46)),
-                child: const Text('Apply'),
+                child: Text(context.l10n.actApply),
               ),
             ],
           ),
@@ -279,12 +278,16 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
     return Units.label(now.currentMm(preview));
   }
 
-  String _outstanding(Design preview, List<Measure> previewAll) {
+  String _outstanding(
+    AppLocalizations l,
+    Design preview,
+    List<Measure> previewAll,
+  ) {
     final left = previewAll
         .where((m) => m.asked && !Measurements.knows(preview, m, previewAll))
         .length;
-    if (left == 0) return 'Every size is given.';
-    return left == 1 ? '1 size still to give.' : '$left sizes still to give.';
+    if (left == 0) return l.mfAllGiven;
+    return l.mfLeft(left);
   }
 }
 
@@ -369,12 +372,12 @@ class _Follows extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  value,
+                  context.figures(value),
                   style: Theme.of(context).textTheme.bodyMedium
                       ?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 Text(
-                  'from the others',
+                  context.l10n.mfFromOthers,
                   style: Theme.of(context).textTheme.bodySmall
                       ?.copyWith(fontSize: 11),
                 ),

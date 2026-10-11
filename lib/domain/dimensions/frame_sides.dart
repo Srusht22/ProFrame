@@ -8,6 +8,8 @@ import '../model/design.dart';
 import '../model/elements.dart';
 import '../sections/section_builder.dart';
 import '../sketch/stroke.dart';
+import '../text/names.dart';
+import '../text/words.dart';
 import 'measurements.dart' show MeasureAxis;
 
 /// One side of a frame that is not a rectangle, with a size of its own.
@@ -38,13 +40,29 @@ class FrameSide {
   /// What it is called: *Right jamb height*, *Head width*.
   final String label;
 
+  /// The frame member it is (`FrameMemberElement.placement`), and its
+  /// number where two sides share a name — what [labelIn] is said from.
+  final String placement;
+  final int? number;
+
   const FrameSide({
     required this.edge,
     required this.axis,
     required this.anchor,
     required this.free,
     required this.label,
+    this.placement = '',
+    this.number,
   });
+
+  /// [label], in [w].
+  String labelIn(Words w) {
+    final side = placementIn(w, placement);
+    final said = axis == MeasureAxis.down
+        ? w.sideHeight(side)
+        : w.sideWidth(side);
+    return number == null ? said : '$said $number';
+  }
 
   /// The key its size is kept under in [Design.measured].
   String get key => FrameSides.keyOf(edge);
@@ -136,6 +154,7 @@ abstract final class FrameSides {
           anchor: anchor,
           free: anchor == i ? j : i,
           label: '${member.placement} ${upright ? 'height' : 'width'}',
+          placement: member.placement,
         ),
       );
     }
@@ -157,6 +176,8 @@ abstract final class FrameSides {
             anchor: s.anchor,
             free: s.free,
             label: '${s.label} ${seen[s.label] = (seen[s.label] ?? 0) + 1}',
+            placement: s.placement,
+            number: seen[s.label],
           ),
     ];
   }

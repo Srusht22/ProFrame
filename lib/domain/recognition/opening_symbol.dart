@@ -5,6 +5,7 @@ import '../geometry/tolerances.dart';
 import '../geometry/vec2.dart';
 import '../model/elements.dart';
 import '../sketch/stroke.dart';
+import '../text/words.dart';
 import 'stroke_fit.dart';
 
 /// Which way the symbol points.
@@ -29,6 +30,14 @@ enum SymbolDirection {
       'hinged at the top, opening at the bottom');
 
   const SymbolDirection(this.glyph, this.mechanism, this.meaning);
+
+  /// [meaning], in [w].
+  String meaningIn(Words w) => switch (this) {
+    pointsLeft => w.meanPointsLeft,
+    pointsRight => w.meanPointsRight,
+    pointsUp => w.meanPointsUp,
+    pointsDown => w.meanPointsDown,
+  };
 
   final String glyph;
   final OpeningMechanism mechanism;

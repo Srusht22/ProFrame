@@ -10,6 +10,7 @@ import '../model/materials.dart';
 import '../solid/depth_layout.dart';
 import '../solid/mesh.dart';
 import '../solid/mesh_builder.dart';
+import '../text/words.dart';
 import 'measurement.dart';
 
 /// What a design is made of, measured the way the factory measures it.
@@ -112,16 +113,16 @@ class PricingTakeoff {
   ///
   /// A frame of nothing, or a coordinate that is not a number, has no size
   /// to measure; that is said rather than measured as zero or as NaN.
-  static String? problemWith(Design design) {
+  static String? problemWith(Design design, [Words w = const EnglishWords()]) {
     final frame = design.frame;
-    if (frame == null) return 'Nothing has been drawn yet.';
+    if (frame == null) return w.takeoffNothing;
     final outline = frame.outline;
     final finite = outline.corners.every((c) => c.x.isFinite && c.y.isFinite);
     if (!finite || outline.corners.length < 3) {
-      return 'The outline cannot be measured.';
+      return w.takeoffOutline;
     }
     if (!(outline.width > 0) || !(outline.height > 0) || !(outline.area > 0)) {
-      return 'The design has no width or no height.';
+      return w.takeoffNoSize;
     }
     return null;
   }

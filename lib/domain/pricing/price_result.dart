@@ -6,6 +6,8 @@
 /// has changed, without being worked out again.
 library;
 
+import '../text/line_name.dart';
+import '../text/words.dart';
 import 'extra_charge.dart';
 import 'measurement.dart';
 import 'price_list.dart';
@@ -112,6 +114,14 @@ class PriceLine {
   /// one it was charged as.
   final ProfileCategory? category;
 
+  /// What the line is, kept so it can be said in any language — see
+  /// [LineName]. Null for a line kept before it, or one a strategy made
+  /// with a label alone, which is then shown as [label].
+  final LineName? name;
+
+  /// What the line is called, in [w].
+  String labelIn(Words w) => name?.sayIn(w) ?? label;
+
   PriceLine({
     required this.group,
     required this.label,
@@ -122,6 +132,7 @@ class PriceLine {
     this.partId,
     this.part,
     this.category,
+    this.name,
   }) : amountCents = Money.cents(amount);
 
   Map<String, Object?> toJson() => {
@@ -134,6 +145,7 @@ class PriceLine {
     if (partId != null) 'partId': partId,
     if (part != null) 'part': part!.name,
     if (category != null) 'category': category!.name,
+    if (name != null) 'name': name!.toJson(),
   };
 
   static PriceLine fromJson(Map<String, Object?> map) => PriceLine(
@@ -146,6 +158,7 @@ class PriceLine {
     partId: map['partId'] as String?,
     part: ProfilePart.byName(map['part']),
     category: ProfileCategory.byName(map['category']),
+    name: LineName.fromJson(map['name']),
   );
 
   @override
@@ -160,7 +173,18 @@ class PriceIssue {
   /// True when it stops the price being given at all.
   final bool blocking;
 
-  const PriceIssue(this.message, {this.blocking = true});
+  /// [message] in a language, where it was made by this version: an issue
+  /// read back from a record is said as it was kept.
+  final String Function(Words w)? say;
+
+  const PriceIssue(this.message, {this.blocking = true, this.say});
+
+  /// An issue made from what it says.
+  PriceIssue.said(String Function(Words w) this.say, {this.blocking = true})
+    : message = say(const EnglishWords());
+
+  /// [message], in [w].
+  String messageIn(Words w) => say?.call(w) ?? message;
 
   Map<String, Object?> toJson() => {
     'message': message,
@@ -299,12 +323,13 @@ class PriceResult {
     required String category,
     int priceListVersion = 0,
     List<PriceIssue> more = const [],
+    String Function(Words w)? say,
   }) => PriceResult(
     status: status,
     currency: currency,
     category: category,
     priceListVersion: priceListVersion,
-    issues: [PriceIssue(why), ...more],
+    issues: [PriceIssue(why, say: say), ...more],
   );
 
   bool get isPriced => status == PriceStatus.priced;

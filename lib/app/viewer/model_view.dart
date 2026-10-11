@@ -11,7 +11,9 @@ import '../../domain/solid/camera.dart';
 import '../../domain/solid/mesh.dart';
 import '../../domain/solid/mesh_builder.dart';
 import '../../domain/solid/studio.dart';
+import '../../domain/text/names.dart';
 import '../canvas/view_controls.dart';
+import '../l10n/l10n.dart';
 import '../state/everything_shown.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -388,11 +390,11 @@ class _ModelViewState extends ConsumerState<ModelView> {
                           ],
                         ),
                       ),
-                      Positioned(
-                        right: 12,
+                      PositionedDirectional(
+                        end: 12,
                         bottom: 12,
                         child: ViewControls(
-                          fitTooltip: 'Fit the model to the view',
+                          fitTooltip: context.l10n.mdFit,
                           onIn: () => controller.zoomCamera(1.25),
                           onOut: () => controller.zoomCamera(0.8),
                           onFit: () => controller.frame(
@@ -412,8 +414,8 @@ class _ModelViewState extends ConsumerState<ModelView> {
                         ),
                       ),
                       if (everything)
-                        Positioned(
-                          left: 14,
+                        PositionedDirectional(
+                          start: 14,
                           bottom: 12,
                           child: _Readout(state: state),
                         ),
@@ -469,13 +471,13 @@ class _SolidBar extends StatelessWidget {
           children: [
             if (everything) ...[
             _SolidNumber(
-              label: 'Depth',
+              label: context.l10n.mdDepth,
               valueMm: design.depthMm,
               onSet: controller.setDepth,
             ),
             if (design.frame case final frame?)
               _SolidNumber(
-                label: 'Profile',
+                label: context.l10n.mdProfile,
                 valueMm: frame.profileMm,
                 known: Measurements.knowsKey(
                   design,
@@ -486,7 +488,7 @@ class _SolidBar extends StatelessWidget {
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 260),
               child: Text(
-                'Both are the design. The drawing changes with them.',
+                context.l10n.mdBothDesign,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall,
@@ -495,15 +497,15 @@ class _SolidBar extends StatelessWidget {
             ],
             if (design.openings.isNotEmpty)
               Tooltip(
-                message: 'How far the leaves are swung. A way of looking at '
-                    'the model; it changes nothing.',
+                message: context.l10n.mdOpenHelp,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Open',
+                      context.l10n.mdOpen,
                       style: TextStyle(
                         fontFamily: AppTheme.fontFamily,
+                        fontFamilyFallback: AppTheme.fontFallback,
                         fontSize: 12.5,
                         color: context.palette.muted,
                       ),
@@ -591,6 +593,7 @@ class _SolidNumberState extends State<_SolidNumber> {
             widget.label,
             style: TextStyle(
               fontFamily: AppTheme.fontFamily,
+              fontFamilyFallback: AppTheme.fontFallback,
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
               color: context.palette.muted,
@@ -609,6 +612,7 @@ class _SolidNumberState extends State<_SolidNumber> {
               onSubmitted: (_) => _commit(),
               style: const TextStyle(
                 fontFamily: AppTheme.fontFamily,
+                fontFamilyFallback: AppTheme.fontFallback,
                 fontSize: 13.5,
               ),
               decoration: const InputDecoration(
@@ -638,14 +642,14 @@ class _ViewToolbar extends StatelessWidget {
     required this.onLook,
   });
 
-  static const _views = <(String, Camera, IconData)>[
-    ('Iso', Camera.isometric, Icons.view_in_ar_outlined),
-    ('Front', Camera.front, Icons.crop_square),
-    ('Back', Camera.back, Icons.flip_to_back),
-    ('Left', Camera.left, Icons.chevron_left),
-    ('Right', Camera.right, Icons.chevron_right),
-    ('Top', Camera.top, Icons.vertical_align_top),
-    ('Bottom', Camera.bottom, Icons.vertical_align_bottom),
+  static List<(String, Camera, IconData)> _views(AppLocalizations l) => [
+    (l.mdIso, Camera.isometric, Icons.view_in_ar_outlined),
+    (l.mdFront, Camera.front, Icons.crop_square),
+    (l.mdBack, Camera.back, Icons.flip_to_back),
+    (l.mdLeft, Camera.left, Icons.chevron_left),
+    (l.mdRight, Camera.right, Icons.chevron_right),
+    (l.mdTop, Camera.top, Icons.vertical_align_top),
+    (l.mdBottom, Camera.bottom, Icons.vertical_align_bottom),
   ];
 
   bool _isAt(Camera view) =>
@@ -663,17 +667,17 @@ class _ViewToolbar extends StatelessWidget {
               // Icons alone for the views: seven labels will not fit beside
               // the projection and the styles on a tablet, and a scrolling
               // toolbar hides the very controls it holds.
-              for (final (label, view, icon) in _views)
+              for (final (label, view, icon) in _views(context.l10n))
                 _Chip(
                   icon: icon,
                   on: _isAt(view),
-                  tooltip: '$label view',
+                  tooltip: context.l10n.mdViewOf(label),
                   onTap: () => onLook(view),
                 ),
               const SizedBox(width: 6),
               const SizedBox(height: 22, child: VerticalDivider(width: 12)),
               _Chip(
-                label: camera.projection.label,
+                label: camera.projection.labelIn(context.words),
                 icon: camera.projection == Projection.perspective
                     ? Icons.filter_center_focus
                     : Icons.grid_goldenratio,
@@ -687,7 +691,7 @@ class _ViewToolbar extends StatelessWidget {
               const SizedBox(width: 6),
               const SizedBox(height: 22, child: VerticalDivider(width: 12)),
               _Chip(
-                tooltip: 'Ground plane',
+                tooltip: context.l10n.mdGround,
                 icon: Icons.horizontal_rule,
                 on: groundPlane,
                 onTap: () => controller.setGroundPlane(!groundPlane),
@@ -743,6 +747,7 @@ class _Chip extends StatelessWidget {
                     label!,
                     style: TextStyle(
                       fontFamily: AppTheme.fontFamily,
+                      fontFamilyFallback: AppTheme.fontFallback,
                       fontSize: 12.5,
                       fontWeight: on ? FontWeight.w600 : FontWeight.w500,
                       color: on ? context.palette.primary : context.palette.muted,
@@ -806,9 +811,10 @@ class _ProjectionSwitch extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      p.label,
+                      p.labelIn(context.words),
                       style: TextStyle(
                         fontFamily: AppTheme.fontFamily,
+                        fontFamilyFallback: AppTheme.fontFallback,
                         fontSize: 12,
                         fontWeight: p == projection
                             ? FontWeight.w700
@@ -838,6 +844,7 @@ class _Readout extends StatelessWidget {
     return DefaultTextStyle(
       style: TextStyle(
         fontFamily: AppTheme.fontFamily,
+        fontFamilyFallback: AppTheme.fontFallback,
         fontSize: 11.5,
         color: context.palette.muted,
       ),
@@ -851,16 +858,28 @@ class _Readout extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('${_given(design, design.widthMm, MeasureAxis.across)} × '
+            Text(
+              context.figures(
+                '${_given(design, design.widthMm, MeasureAxis.across)} × '
                 '${_given(design, design.heightMm, MeasureAxis.down)} × '
-                '${Units.label(design.depthMm)}'),
+                '${Units.label(design.depthMm)}',
+              ),
+            ),
             const SizedBox(height: 2),
-            Text('${design.sections.length} sections · '
-                '${design.dividers.length} bars'),
+            Text(
+              context.l10n.mdCounts(
+                design.sections.length,
+                design.dividers.length,
+              ),
+            ),
             const SizedBox(height: 2),
-            Text('yaw ${camera.yawDegrees.round()}°  '
-                'pitch ${camera.pitchDegrees.round()}°  '
-                '×${camera.zoom.toStringAsFixed(2)}'),
+            Text(
+              context.l10n.mdCamera(
+                camera.yawDegrees.round(),
+                camera.pitchDegrees.round(),
+                camera.zoom.toStringAsFixed(2),
+              ),
+            ),
           ],
         ),
       ),
@@ -882,14 +901,12 @@ class _NothingYet extends StatelessWidget {
                   size: 44, color: context.palette.muted),
               const SizedBox(height: 14),
               Text(
-                'Nothing to show yet',
+                context.l10n.mdNothing,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 6),
               Text(
-                'Draw an outline and read the drawing. The model is built '
-                'from your lines — there is no stock model to show in the '
-                'meantime.',
+                context.l10n.mdNothingHelp,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -943,7 +960,7 @@ class _PlayOpeningState extends State<_PlayOpening>
 
   @override
   Widget build(BuildContext context) => IconButton(
-        tooltip: 'Open, pause and close',
+        tooltip: context.l10n.mdPlay,
         visualDensity: VisualDensity.compact,
         onPressed: _clock.isAnimating
             ? null

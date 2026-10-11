@@ -16,6 +16,7 @@ import '../../infrastructure/price_list_store.dart';
 import '../../infrastructure/price_record_store.dart';
 import '../../infrastructure/quotation_store.dart';
 import 'access.dart';
+import 'language.dart';
 import 'workspace.dart';
 
 /// Where the price list is kept.
@@ -355,6 +356,7 @@ extension PriceCalculator on WidgetRef {
         discount: customer.discount,
         extras: customer.extras,
         notes: notes,
+        words: words,
       ),
       by: by,
     );
@@ -370,7 +372,7 @@ extension PriceCalculator on WidgetRef {
     QuotationStatus next,
   ) async {
     final changed = await read(quotationStoreProvider)
-        .setStatus(id, next, by: await actorNow());
+        .setStatus(id, next, by: await actorNow(), words: words);
     read(quotationsRevisionProvider.notifier).changed();
     return changed;
   }

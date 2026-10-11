@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import '../theme/app_theme.dart';
 
 /// Closer, further, the whole thing, and — where a view has one — the view
@@ -24,7 +25,8 @@ class ViewControls extends StatelessWidget {
   final VoidCallback? onReset;
 
   /// What the fit button says it does.
-  final String fitTooltip;
+  /// What **Fit** says it does; *Fit to the view* where not given.
+  final String? fitTooltip;
 
   const ViewControls({
     super.key,
@@ -32,7 +34,7 @@ class ViewControls extends StatelessWidget {
     required this.onOut,
     required this.onFit,
     this.onReset,
-    this.fitTooltip = 'Fit to the view',
+    this.fitTooltip,
   });
 
   static const fitKey = ValueKey('view-fit');
@@ -61,14 +63,19 @@ class ViewControls extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            button(inKey, Icons.add, 'Zoom in', onIn),
-            button(outKey, Icons.remove, 'Zoom out', onOut),
-            button(fitKey, Icons.fit_screen_outlined, fitTooltip, onFit),
+            button(inKey, Icons.add, context.l10n.vcZoomIn, onIn),
+            button(outKey, Icons.remove, context.l10n.vcZoomOut, onOut),
+            button(
+              fitKey,
+              Icons.fit_screen_outlined,
+              fitTooltip ?? context.l10n.vcFit,
+              onFit,
+            ),
             if (onReset case final reset?)
               button(
                 resetKey,
                 Icons.restart_alt_rounded,
-                'Reset the view',
+                context.l10n.vcReset,
                 reset,
               ),
           ],

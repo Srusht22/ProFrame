@@ -13,6 +13,8 @@ import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import '../../domain/model/materials.dart';
 import '../../domain/sections/section_bands.dart';
+import '../../domain/text/names.dart';
+import '../l10n/l10n.dart';
 import '../screens/design_information_screen.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -47,14 +49,17 @@ class InspectorPanel extends ConsumerWidget {
         children: [
           _Heading(
             switch (selected) {
-              null => 'Design',
+              null => context.l10n.inDesign,
               // An opening is named by the design, which is the only thing
               // that knows whether it is the first of three or the only one.
-              final OpeningElement opening => state.design.nameOf(opening),
-              _ => selected.label,
+              final OpeningElement opening => state.design.nameOfIn(
+                context.words,
+                opening,
+              ),
+              _ => elementLabelIn(context.words, selected),
             },
             subtitle: selected == null
-                ? 'Tap any part of the drawing to change it.'
+                ? context.l10n.inTapAnyPart
                 : null,
           ),
           const SizedBox(height: 14),
@@ -79,7 +84,7 @@ class InspectorPanel extends ConsumerWidget {
       switch (element) {
         FrameElement() => [
             _NumberField(
-              label: 'Width',
+              label: context.l10n.inWidth,
               valueMm: element.widthMm,
               known: Measurements.knowsOverall(
                 state.design,
@@ -88,13 +93,13 @@ class InspectorPanel extends ConsumerWidget {
               onSet: (v) => controller.resizeFrame(widthMm: v),
             ),
             _NumberField(
-              label: 'Height',
+              label: context.l10n.inHeight,
               valueMm: element.heightMm,
               known: Measurements.knowsOverall(state.design, MeasureAxis.down),
               onSet: (v) => controller.resizeFrame(heightMm: v),
             ),
             _NumberField(
-              label: 'Frame profile',
+              label: context.l10n.inFrameProfile,
               valueMm: element.profileMm,
               known: Measurements.knowsKey(
                 state.design,
@@ -103,7 +108,7 @@ class InspectorPanel extends ConsumerWidget {
               onSet: controller.setProfile,
             ),
             _NumberField(
-              label: 'Depth',
+              label: context.l10n.inDepth,
               valueMm: state.design.depthMm,
               onSet: controller.setDepth,
             ),
@@ -122,23 +127,22 @@ class InspectorPanel extends ConsumerWidget {
                     .firstOrNull
                 case final side?)
               _NumberField(
-                label: side.label,
+                label: side.labelIn(context.words),
                 valueMm: side.lengthOn(state.design.frame!.outline),
                 known: Measurements.knowsMeasure(state.design, side.key),
-                help: 'Moves this side\'s free end. The other sides keep '
-                    'their sizes, and the slope between them follows.',
+                help: context.l10n.inSideHelp,
                 onSet: (v) => controller.measure({side.key: v}),
               )
             else
               _Readout(
-                'Length',
+                context.l10n.inLength,
                 Measurements.figure(
                   element.lengthMm,
                   known: Measurements.complete(state.design),
                 ),
               ),
             _Readout(
-              'Angle',
+              context.l10n.inAngle,
               '${element.run.headingDegrees.toStringAsFixed(1)}°',
             ),
             // A slope's rise and run: what it climbs and how far across,
@@ -146,14 +150,14 @@ class InspectorPanel extends ConsumerWidget {
             if (!element.run.isHorizontalish &&
                 !element.run.isVerticalish) ...[
               _Readout(
-                'Rise',
+                context.l10n.inRise,
                 Measurements.figure(
                   (element.run.b.y - element.run.a.y).abs(),
                   known: Measurements.complete(state.design),
                 ),
               ),
               _Readout(
-                'Run',
+                context.l10n.inRun,
                 Measurements.figure(
                   (element.run.b.x - element.run.a.x).abs(),
                   known: Measurements.complete(state.design),
@@ -162,33 +166,31 @@ class InspectorPanel extends ConsumerWidget {
             ],
             if (Measurements.complete(state.design)) ...[
               _Readout(
-                'From',
+                context.l10n.inFrom,
                 '${Units.format(element.run.a.x)}, '
                     '${Units.label(element.run.a.y)}',
               ),
               _Readout(
-                'To',
+                context.l10n.inTo,
                 '${Units.format(element.run.b.x)}, '
                     '${Units.label(element.run.b.y)}',
               ),
             ],
             const SizedBox(height: 6),
             Text(
-              'Drag its handle to move this side of the frame square to '
-              'itself. The other sides stay where they are.',
+              context.l10n.inDragSide,
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
             if (state.design.frame case final frame?) ...[
               _NumberField(
-                label: 'Frame profile',
+                label: context.l10n.inFrameProfile,
                 valueMm: frame.profileMm,
                 known: Measurements.knowsKey(
                   state.design,
                   Measurements.profileKey,
                 ),
-                help: 'One figure for the whole frame, as it is cut from one '
-                    'section of material.',
+                help: context.l10n.inProfileHelp,
                 onSet: controller.setProfile,
               ),
               _FinishFields(
@@ -203,20 +205,20 @@ class InspectorPanel extends ConsumerWidget {
             // are about its middle, so changing the length does not shift it
             // along and changing the angle does not shift it sideways.
             _NumberField(
-              label: 'Length',
+              label: context.l10n.inLength,
               valueMm: element.lengthMm,
               known: Measurements.complete(state.design),
               onSet: (v) => controller.setDividerLength(element.id, v),
             ),
             _NumberField(
-              label: 'Angle',
+              label: context.l10n.inAngle,
               valueMm: element.segment.headingDegrees,
               unit: '°',
               isLength: false,
               onSet: (v) => controller.setDividerAngle(element.id, v),
             ),
             _NumberField(
-              label: 'Bar width',
+              label: context.l10n.inBarWidth,
               valueMm: element.widthMm,
               known: Measurements.knowsKey(
                 state.design,
@@ -244,13 +246,13 @@ class InspectorPanel extends ConsumerWidget {
             _BelongsTo(divider: element, state: state, controller: controller),
             const SizedBox(height: 14),
             _DeleteButton(
-              label: 'Delete this bar',
+              label: context.l10n.inDeleteBar,
               onPressed: controller.deleteSelected,
             ),
           ],
         SectionElement() => [
             _NumberField(
-              label: 'Width',
+              label: context.l10n.inWidth,
               valueMm: element.widthMm,
               known: Measurements.knowsSection(
                 state.design,
@@ -260,7 +262,7 @@ class InspectorPanel extends ConsumerWidget {
               onSet: (v) => controller.setSectionWidth(element.id, v),
             ),
             _NumberField(
-              label: 'Height',
+              label: context.l10n.inHeight,
               valueMm: element.heightMm,
               known: Measurements.knowsSection(
                 state.design,
@@ -297,12 +299,12 @@ class InspectorPanel extends ConsumerWidget {
               )
             else ...[
               _Readout(
-                'Position',
+                context.l10n.inPosition,
                 '${Units.format(element.at.x)}, '
                     '${Units.label(element.at.y)}',
               ),
               _NumberField(
-                label: 'Angle',
+                label: context.l10n.inAngle,
                 valueMm: element.rotation,
                 unit: '°',
                 isLength: false,
@@ -320,40 +322,40 @@ class InspectorPanel extends ConsumerWidget {
                 null) ...[
               const SizedBox(height: 14),
               _DeleteButton(
-                label: 'Remove this ${element.kind.label.toLowerCase()}',
+                label: context.l10n.inRemovePiece(
+                  element.kind.labelIn(context.words).toLowerCase(),
+                ),
                 onPressed: controller.deleteSelected,
               ),
             ],
           ],
         DimensionElement() => [
-            _Readout('As drawn', Units.label(element.measuredMm)),
+            _Readout(context.l10n.inAsDrawn, Units.label(element.measuredMm)),
             _NumberField(
-              label: 'Real size',
+              label: context.l10n.inRealSize,
               valueMm: element.valueMm,
-              help: 'Type the true measurement. The whole design is scaled '
-                  'to match it, in proportion — nothing moves relative to '
-                  'anything else.',
+              help: context.l10n.inRealSizeHelp,
               onSet: (v) => controller.setDimensionValue(element.id, v),
             ),
             const SizedBox(height: 14),
             _DeleteButton(
-              label: 'Delete this dimension',
+              label: context.l10n.inDeleteDimension,
               onPressed: controller.deleteSelected,
             ),
           ],
         TextElement() => [
-            _Readout('Note', element.text),
+            _Readout(context.l10n.inNote, element.text),
             const SizedBox(height: 14),
             _DeleteButton(
-              label: 'Delete this note',
+              label: context.l10n.inDeleteNote,
               onPressed: controller.deleteSelected,
             ),
           ],
         ArrowElement() => [
-            const _Readout('Arrow', 'Drag it to move it.'),
+            _Readout(context.l10n.inArrow, context.l10n.inDragToMove),
             const SizedBox(height: 14),
             _DeleteButton(
-              label: 'Delete this arrow',
+              label: context.l10n.inDeleteArrow,
               onPressed: controller.deleteSelected,
             ),
           ],
@@ -399,7 +401,7 @@ class _Identity extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            design.shownName,
+            design.shownNameIn(context.words),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -413,7 +415,10 @@ class _Identity extends ConsumerWidget {
             spacing: 12,
             runSpacing: 4,
             children: [
-              _Fact(icon: Icons.category_outlined, text: design.kind.label),
+              _Fact(
+                icon: Icons.category_outlined,
+                text: design.kind.labelIn(context.words),
+              ),
               if (who.isNotEmpty)
                 _Fact(icon: Icons.person_outline, text: who),
             ],
@@ -431,7 +436,7 @@ class _Identity extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 6),
             ),
             icon: const Icon(Icons.edit_outlined, size: 17),
-            label: const Text('Edit information'),
+            label: Text(context.l10n.editInformation),
           ),
         ],
       ),
@@ -491,9 +496,7 @@ class _DesignFields extends StatelessWidget {
     final design = state.design;
     if (design.frame == null) {
       return Text(
-        'Draw the outline of your ${design.kind.noun}, then '
-        'read the drawing. Whatever you draw is what gets built — nothing is '
-        'assumed and nothing is filled in for you.',
+        context.l10n.inDrawOutline(design.kind.nounIn(context.words)),
         style: Theme.of(context).textTheme.bodySmall,
       );
     }
@@ -501,14 +504,14 @@ class _DesignFields extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _NumberField(
-          label: 'Overall width',
+          label: context.l10n.inOverallWidth,
           valueMm: design.widthMm,
           known: Measurements.knowsOverall(design, MeasureAxis.across),
-          help: 'The width alone: the height stays as it is.',
+          help: context.l10n.inOverallWidthHelp,
           onSet: controller.setRealWidth,
         ),
         _NumberField(
-          label: 'Overall height',
+          label: context.l10n.inOverallHeight,
           valueMm: design.heightMm,
           known: Measurements.knowsOverall(design, MeasureAxis.down),
           onSet: controller.setRealHeight,
@@ -519,16 +522,16 @@ class _DesignFields extends StatelessWidget {
           icon: const Icon(Icons.straighten, size: 19),
           label: Text(
             Measurements.complete(design)
-                ? 'All sizes'
-                : 'Enter the sizes',
+                ? context.l10n.inAllSizes
+                : context.l10n.inEnterSizes,
           ),
           style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
         ),
         const SizedBox(height: 8),
         const SizedBox(height: 10),
-        _Readout('Sections', '${design.sections.length}'),
-        _Readout('Bars', '${design.dividers.length}'),
-        _Readout('Openings', '${design.openings.length}'),
+        _Readout(context.l10n.inSections, '${design.sections.length}'),
+        _Readout(context.l10n.inBars, '${design.dividers.length}'),
+        _Readout(context.l10n.inOpenings, '${design.openings.length}'),
         // What it comes to, by the price list, as it is now.
         const SizedBox(height: 18),
         const PricePanel(),
@@ -569,10 +572,10 @@ class _OpeningKinds extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _Label('Opening types'),
+        _Label(context.l10n.inOpeningTypes),
         const SizedBox(height: 4),
         Text(
-          'Picked the wrong one? Change it here.',
+          context.l10n.inPickedWrong,
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 8),
@@ -588,7 +591,7 @@ class _OpeningKinds extends StatelessWidget {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Text(
-                        design.nameOf(opening),
+                        design.nameOfIn(context.words, opening),
                         style: Theme.of(context).textTheme.bodyMedium,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -603,7 +606,10 @@ class _OpeningKinds extends StatelessWidget {
                   ),
                   segments: [
                     for (final kind in DesignKind.leafKinds)
-                      ButtonSegment(value: kind, label: Text(kind.label)),
+                      ButtonSegment(
+                        value: kind,
+                        label: Text(kind.labelIn(context.words)),
+                      ),
                   ],
                   // Empty where nobody has said and the design does not
                   // say either: showing one selected would be the panel
@@ -668,15 +674,18 @@ class _OpeningHardwareFields extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'On ${opening.mechanism.label.toLowerCase()} — '
-          '${opening.mechanism.description.toLowerCase()}. '
-          'This is the opening\u2019s, so it moves with it.',
+          context.l10n.inOnLeaf(
+            opening.mechanism.labelIn(context.words).toLowerCase(),
+            opening.mechanism.descriptionIn(context.words).toLowerCase(),
+          ),
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 16),
         if (piece.kind == HardwareKind.hinge) ...[
           _NumberField(
-            label: sideHung ? 'First hinge from the top' : 'From the left',
+            label: sideHung
+                ? context.l10n.inFirstHinge
+                : context.l10n.inFromLeft,
             known: Measurements.complete(design),
             valueMm: opening.hingeFromStartMm ??
                 OpeningHardware.defaultEndInsetMm,
@@ -686,7 +695,9 @@ class _OpeningHardwareFields extends StatelessWidget {
             ),
           ),
           _NumberField(
-            label: sideHung ? 'Last hinge from the bottom' : 'From the right',
+            label: sideHung
+                ? context.l10n.inLastHinge
+                : context.l10n.inFromRight,
             known: Measurements.complete(design),
             valueMm:
                 opening.hingeFromEndMm ?? OpeningHardware.defaultEndInsetMm,
@@ -695,13 +706,13 @@ class _OpeningHardwareFields extends StatelessWidget {
               hingeFromEndMm: v,
             ),
           ),
-          const _Label('Number of hinges'),
+          _Label(context.l10n.inHingeCount),
           const SizedBox(height: 6),
           Row(
             children: [
               for (final n in [2, 3, 4])
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsetsDirectional.only(end: 8),
                   child: ChoiceChip(
                     label: Text('$n'),
                     selected: count == n,
@@ -715,36 +726,35 @@ class _OpeningHardwareFields extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Evenly spaced between the two ends, because evenly is the only '
-            'spacing that is not a decision about where they look best.',
+            context.l10n.inEvenly,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ] else ...[
           // What form the handle takes. A lever, a knob or a pull are the
           // same part of the leaf in three shapes, so this is one choice
           // and not three pieces of ironmongery.
-          const _Label('Handle type'),
+          _Label(context.l10n.inHandleType),
           const SizedBox(height: 7),
           SegmentedButton<HardwareKind>(
             segments: [
               // A sliding panel is drawn along by a bar, so that is the
               // first of its forms; a leaf that swings has none.
               if (opening.mechanism.slideEdge != null)
-                const ButtonSegment(
+                ButtonSegment(
                   value: HardwareKind.pull,
-                  label: Text('Bar'),
+                  label: Text(context.l10n.inHandleBar),
                 ),
-              const ButtonSegment(
+              ButtonSegment(
                 value: HardwareKind.lever,
-                label: Text('Lever'),
+                label: Text(context.l10n.inHandleLever),
               ),
-              const ButtonSegment(
+              ButtonSegment(
                 value: HardwareKind.knob,
-                label: Text('Knob'),
+                label: Text(context.l10n.inHandleKnob),
               ),
-              const ButtonSegment(
+              ButtonSegment(
                 value: HardwareKind.handle,
-                label: Text('Pull'),
+                label: Text(context.l10n.inHandlePull),
               ),
             ],
             selected: {piece.kind},
@@ -754,13 +764,14 @@ class _OpeningHardwareFields extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _NumberField(
-            label: sideHung ? 'Height from the bottom' : 'From the left',
+            label: sideHung
+                ? context.l10n.inHeightFromBottom
+                : context.l10n.inFromLeft,
             known: Measurements.complete(design),
             valueMm: sideHung
                 ? outline.bottom - piece.at.y
                 : piece.at.x - outline.left,
-            help: 'Measured on the leaf, not on the frame, so it stays where '
-                'you put it when the opening moves.',
+            help: context.l10n.inHandleHelp,
             onSet: (v) => controller.setOpeningHardware(
               opening.id,
               handleAlongMm: v,
@@ -805,12 +816,10 @@ class _MarksAnOpening extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _Label('This diagonal'),
+        _Label(context.l10n.inThisDiagonal),
         const SizedBox(height: 6),
         Text(
-          'It is built as a bar, exactly where you drew it. On a drawing a '
-          'diagonal often means the pane opens instead — if that is what you '
-          'meant, say so and the line becomes the opening.',
+          context.l10n.inDiagonalHelp,
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 10),
@@ -828,7 +837,9 @@ class _MarksAnOpening extends StatelessWidget {
                 onPressed: () =>
                     controller.openSectionOfBar(divider.id, mechanism),
                 child: Text(
-                  'Opens ${mechanism.glyph ?? mechanism.label}',
+                  context.l10n.inOpensAs(
+                    mechanism.glyph ?? mechanism.labelIn(context.words),
+                  ),
                 ),
               ),
           ],
@@ -876,20 +887,19 @@ class _WithinOpening extends StatelessWidget {
       children: [
         _NumberField(
           label: divider.isHorizontal
-              ? 'From the top of the opening'
+              ? context.l10n.inFromTopOfOpening
               : divider.isVertical
-                  ? 'From the left of the opening'
-                  : 'Into the opening, square to this bar',
+                  ? context.l10n.inFromLeftOfOpening
+                  : context.l10n.inIntoOpening,
           valueMm: along,
           known: Measurements.complete(state.design),
           help: opening == null
-              ? 'Measured inside the section this bar divides.'
-              : 'Measured inside the opening, so it stays where you put it '
-                  'when the opening moves.',
+              ? context.l10n.inMeasuredInSection
+              : context.l10n.inMeasuredInOpening,
           onSet: (v) => controller.moveDividerWithin(divider.id, v),
         ),
         _Readout(
-          'The opening is',
+          context.l10n.inTheOpeningIs,
           Measurements.sizeOf(state.design, within),
         ),
         const SizedBox(height: 10),
@@ -921,11 +931,11 @@ class _PlaceInside extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Readout('From the top of the opening', Units.label(corner.y)),
-        _Readout('From the left of the opening', Units.label(corner.x)),
+        _Readout(context.l10n.inFromTopOfOpening, Units.label(corner.y)),
+        _Readout(context.l10n.inFromLeftOfOpening, Units.label(corner.x)),
         const SizedBox(height: 4),
         Text(
-          'This pane is inside the opening, so it moves and swings with it.',
+          context.l10n.inPaneInside,
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
@@ -960,24 +970,27 @@ class _BelongsTo extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _Label('Divides'),
+        _Label(context.l10n.inDivides),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
           initialValue: state.design.sectionHolding(divider.parentId) ?? '',
           isExpanded: true,
           items: [
-            const DropdownMenuItem(
+            DropdownMenuItem(
               value: '',
-              child: Text('The whole design'),
+              child: Text(context.l10n.inWholeDesign),
             ),
             for (final section in containers)
               DropdownMenuItem(
                 value: section.id,
                 child: Text(
                   state.design.openingOf(section.id) != null
-                      ? 'Inside the opening — '
-                          '${describeSection(section, state.design)}'
-                      : 'Inside ${describeSection(section, state.design)}',
+                      ? context.l10n.inInsideOpening(
+                          describeSection(context.l10n, section, state.design),
+                        )
+                      : context.l10n.inInsideSection(
+                          describeSection(context.l10n, section, state.design),
+                        ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -990,9 +1003,8 @@ class _BelongsTo extends StatelessWidget {
         const SizedBox(height: 7),
         Text(
           divider.isInternal
-              ? 'This line is inside that section. It divides that section '
-                  'only, and travels with it.'
-              : 'This line divides the design itself.',
+              ? context.l10n.inLineInside
+              : context.l10n.inLineDividesDesign,
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
@@ -1023,14 +1035,17 @@ class _OpeningFields extends StatelessWidget {
         // What this leaf is. It belongs to this opening and to no other:
         // one design may hold a door and a window side by side, so this is
         // never asked about the design as a whole.
-        const _Label('Opening type'),
+        _Label(context.l10n.inOpeningType),
         const SizedBox(height: 7),
         SegmentedButton<DesignKind>(
           // A leaf is a door or a window. `both` is what an assembly can be,
           // never what one leaf is, so it is not on offer here.
           segments: [
             for (final kind in DesignKind.leafKinds)
-              ButtonSegment(value: kind, label: Text(kind.label)),
+              ButtonSegment(
+                        value: kind,
+                        label: Text(kind.labelIn(context.words)),
+                      ),
           ],
           // Empty where neither the leaf nor the design says, because
           // showing one of them selected would be the panel answering the
@@ -1051,22 +1066,16 @@ class _OpeningFields extends StatelessWidget {
           Text(
             state.design.kind.leafDefault == null
                 ? state.design.kind == DesignKind.angled
-                      ? 'Nobody has said what this leaf is. An angled '
-                            'design can hold doors or windows, so it does '
-                            'not say which — until you choose, it hangs on '
-                            'its hinges and carries no handle.'
-                      : 'Nobody has said what this leaf is. This design '
-                            'holds doors and windows, so it does not say '
-                            'either — until you choose, it hangs on its '
-                            'hinges and carries no handle.'
-                : 'Nobody has said yet, so this leaf follows the design — a '
-                    '${state.design.kind.label.toLowerCase()}. Choose to '
-                    'say.',
+                      ? context.l10n.inNobodyAngled
+                      : context.l10n.inNobodyBoth
+                : context.l10n.inFollowsDesign(
+                    state.design.kind.labelIn(context.words).toLowerCase(),
+                  ),
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
         const SizedBox(height: 18),
-        const _Label('Direction'),
+        _Label(context.l10n.inDirection),
         const SizedBox(height: 7),
         _DirectionPicker(
           mechanism: opening.mechanism,
@@ -1076,13 +1085,13 @@ class _OpeningFields extends StatelessWidget {
         if (drawn != null && now != null && drawn != now) ...[
           const SizedBox(height: 7),
           Text(
-            'You drew $drawn here. You have since changed it to $now.',
+            context.l10n.inDrewChanged(drawn, now),
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ] else if (drawn != null) ...[
           const SizedBox(height: 7),
           Text(
-            'You marked this section with a $drawn.',
+            context.l10n.inMarkedWith(drawn),
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -1093,11 +1102,8 @@ class _OpeningFields extends StatelessWidget {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             dense: true,
-            title: const Text('Pleated screen'),
-            subtitle: const Text(
-              'An insect screen that fans out of a cassette at the jamb '
-              'across the passage as the panel opens.',
-            ),
+            title: Text(context.l10n.inPleated),
+            subtitle: Text(context.l10n.inPleatedHelp),
             value: opening.pleatedScreen,
             onChanged: (on) =>
                 controller.setOpeningFittings(opening.id, pleatedScreen: on),
@@ -1105,18 +1111,15 @@ class _OpeningFields extends StatelessWidget {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             dense: true,
-            title: const Text('Automatic, by sensor'),
-            subtitle: const Text(
-              'Opened by a drive when the sensor on the head sees somebody '
-              'coming.',
-            ),
+            title: Text(context.l10n.inAutomatic),
+            subtitle: Text(context.l10n.inAutomaticHelp),
             value: opening.automatic,
             onChanged: (on) =>
                 controller.setOpeningFittings(opening.id, automatic: on),
           ),
         ],
         const SizedBox(height: 18),
-        const _Label('How it opens'),
+        _Label(context.l10n.inHowItOpens),
         const SizedBox(height: 6),
         DropdownButtonFormField<OpeningMechanism>(
           initialValue: opening.mechanism,
@@ -1126,7 +1129,10 @@ class _OpeningFields extends StatelessWidget {
               if (option != OpeningMechanism.fixed)
                 DropdownMenuItem(
                   value: option,
-                  child: Text(option.label, overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    option.labelIn(context.words),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
           ],
           onChanged: (value) {
@@ -1137,7 +1143,7 @@ class _OpeningFields extends StatelessWidget {
         ),
         const SizedBox(height: 7),
         Text(
-          opening.mechanism.description,
+          opening.mechanism.descriptionIn(context.words),
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 14),
@@ -1145,14 +1151,14 @@ class _OpeningFields extends StatelessWidget {
         // track; it swings neither in nor out.
         if (opening.mechanism.slideEdge == null)
         SegmentedButton<OpeningDirection>(
-          segments: const [
+          segments: [
             ButtonSegment(
               value: OpeningDirection.inward,
-              label: Text('Inward'),
+              label: Text(context.l10n.inInward),
             ),
             ButtonSegment(
               value: OpeningDirection.outward,
-              label: Text('Outward'),
+              label: Text(context.l10n.inOutward),
             ),
           ],
           selected: {opening.direction},
@@ -1163,7 +1169,7 @@ class _OpeningFields extends StatelessWidget {
         if (section != null) ...[
           const SizedBox(height: 20),
           _NumberField(
-            label: 'Width',
+            label: context.l10n.inWidth,
             valueMm: section.widthMm,
             known: Measurements.knowsSection(
               state.design,
@@ -1173,7 +1179,7 @@ class _OpeningFields extends StatelessWidget {
             onSet: (v) => controller.setSectionWidth(section.id, v),
           ),
           _NumberField(
-            label: 'Height',
+            label: context.l10n.inHeight,
             valueMm: section.heightMm,
             known: Measurements.knowsSection(
               state.design,
@@ -1184,7 +1190,7 @@ class _OpeningFields extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 6),
-        const _Label('Position'),
+        _Label(context.l10n.inPosition),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
           initialValue: opening.sectionId,
@@ -1195,7 +1201,7 @@ class _OpeningFields extends StatelessWidget {
               DropdownMenuItem(
                 value: option.id,
                 child: Text(
-                  describeSection(option, state.design),
+                  describeSection(context.l10n, option, state.design),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -1208,14 +1214,12 @@ class _OpeningFields extends StatelessWidget {
         ),
         const SizedBox(height: 7),
         Text(
-          'Moving the opening changes which section opens. Neither section '
-          'changes shape, and whatever you have drawn inside the opening '
-          'goes with it.',
+          context.l10n.inMovingOpening,
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 18),
         _DeleteButton(
-          label: 'This section does not open',
+          label: context.l10n.inDoesNotOpen,
           onPressed: () => controller.setOpeningMechanism(
             opening.id,
             OpeningMechanism.fixed,
@@ -1258,9 +1262,10 @@ class _DirectionPicker extends StatelessWidget {
           for (final option in _options)
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.only(right: 7),
+                padding: const EdgeInsetsDirectional.only(end: 7),
                 child: Tooltip(
-                  message: '${option.glyph}  ${option.description}',
+                  message:
+                      '${option.glyph}  ${option.descriptionIn(context.words)}',
                   child: Material(
                     color: option == mechanism
                         ? context.palette.band
@@ -1285,6 +1290,7 @@ class _DirectionPicker extends StatelessWidget {
                           option.glyph ?? '?',
                           style: TextStyle(
                             fontFamily: AppTheme.fontFamily,
+                            fontFamilyFallback: AppTheme.fontFallback,
                             fontSize: 21,
                             fontWeight: FontWeight.w700,
                             color: option == mechanism
@@ -1303,24 +1309,28 @@ class _DirectionPicker extends StatelessWidget {
 }
 
 /// A section named the way somebody would point at it.
-String describeSection(SectionElement section, Design design) {
+String describeSection(
+  AppLocalizations l,
+  SectionElement section,
+  Design design,
+) {
   final frame = design.frame;
-  final where = StringBuffer();
+  final where = <String>[];
   if (frame != null) {
     final middleY = (frame.outline.top + frame.outline.bottom) / 2;
     final middleX = (frame.outline.left + frame.outline.right) / 2;
     final centre = section.outline.centroid;
     if (SectionBands.rows(design) > 1) {
-      where.write(centre.y < middleY ? 'Upper ' : 'Lower ');
+      where.add(centre.y < middleY ? l.secUpper : l.secLower);
     }
     if (SectionBands.columns(design) > 1) {
-      where.write(centre.x < middleX ? 'left' : 'right');
+      where.add(centre.x < middleX ? l.secLeft : l.secRight);
     }
   }
-  final place = where.toString().trim();
+  final place = where.join(' ');
   final size = '${Units.format(section.widthMm)} × '
       '${Units.label(section.heightMm)}';
-  return place.isEmpty ? size : '$place section — $size';
+  return place.isEmpty ? size : l.secPlaced(place, size);
 }
 
 class _OpeningField extends StatelessWidget {
@@ -1342,13 +1352,13 @@ class _OpeningField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _Label('Opens'),
+        _Label(context.l10n.inOpens),
         const SizedBox(height: 6),
         if (opening != null) ...[
           OutlinedButton.icon(
             onPressed: () => controller.select(opening.id),
             icon: const Icon(Icons.open_in_new, size: 17),
-            label: const Text('Edit this opening'),
+            label: Text(context.l10n.inEditOpening),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(0, 42),
               textStyle: AppTheme.buttonLabel.copyWith(fontSize: 13.5),
@@ -1369,6 +1379,7 @@ class _OpeningField extends StatelessWidget {
                   opening!.markGlyph!,
                   style: TextStyle(
                     fontFamily: AppTheme.fontFamily,
+                    fontFamilyFallback: AppTheme.fontFallback,
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                     color: context.palette.onNotice,
@@ -1377,8 +1388,7 @@ class _OpeningField extends StatelessWidget {
                 const SizedBox(width: 11),
                 Expanded(
                   child: Text(
-                    'You marked this section with a '
-                    '${opening.markGlyph}. Nothing else opens.',
+                    context.l10n.inMarkedNothingElse(opening.markGlyph!),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: context.palette.onNotice.withValues(alpha: 0.85),
                         ),
@@ -1396,7 +1406,10 @@ class _OpeningField extends StatelessWidget {
             for (final option in OpeningMechanism.values)
               DropdownMenuItem(
                 value: option,
-                child: Text(option.label, overflow: TextOverflow.ellipsis),
+                child: Text(
+                    option.labelIn(context.words),
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ),
           ],
           onChanged: (value) {
@@ -1406,19 +1419,19 @@ class _OpeningField extends StatelessWidget {
         if (opening != null) ...[
           const SizedBox(height: 8),
           Text(
-            opening.mechanism.description,
+            opening.mechanism.descriptionIn(context.words),
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
           SegmentedButton<OpeningDirection>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: OpeningDirection.inward,
-                label: Text('Inward'),
+                label: Text(context.l10n.inInward),
               ),
               ButtonSegment(
                 value: OpeningDirection.outward,
-                label: Text('Outward'),
+                label: Text(context.l10n.inOutward),
               ),
             ],
             selected: {opening.direction},
@@ -1445,11 +1458,10 @@ class _HardwareField extends StatelessWidget {
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _Label('Add hardware here'),
+          _Label(context.l10n.inAddHardware),
           const SizedBox(height: 4),
           Text(
-            'Nothing is added on its own. What you add goes in the middle of '
-            'this section, and you can drag it where you want it.',
+            context.l10n.inAddHardwareHelp,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
@@ -1468,7 +1480,7 @@ class _HardwareField extends StatelessWidget {
                     kind,
                     section.outline.centroid,
                   ),
-                  child: Text(kind.label),
+                  child: Text(kind.labelIn(context.words)),
                 ),
             ],
           ),
@@ -1510,7 +1522,7 @@ class _HardwareColoursState extends State<_HardwareColours> {
             for (final option in HardwareColour.values)
               _NamedSwatch(
                 colour: option.colour,
-                label: option.label,
+                label: option.labelIn(context.words),
                 selected: !showing && named == option,
                 onTap: () {
                   setState(() => _custom = false);
@@ -1519,7 +1531,7 @@ class _HardwareColoursState extends State<_HardwareColours> {
               ),
             _NamedSwatch(
               colour: widget.colour,
-              label: 'Custom',
+              label: context.l10n.custom,
               selected: showing,
               onTap: () => setState(() => _custom = true),
             ),
@@ -1625,7 +1637,7 @@ class _FinishFields extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _Label('Material'),
+        _Label(context.l10n.inMaterial),
         const SizedBox(height: 6),
         DropdownButtonFormField<MaterialKind>(
           initialValue:
@@ -1633,14 +1645,17 @@ class _FinishFields extends StatelessWidget {
           isExpanded: true,
           items: [
             for (final material in materials)
-              DropdownMenuItem(value: material, child: Text(material.label)),
+              DropdownMenuItem(
+                value: material,
+                child: Text(material.labelIn(context.words)),
+              ),
           ],
           onChanged: (value) {
             if (value != null) onChanged(finish.copyWith(material: value));
           },
         ),
         const SizedBox(height: 14),
-        const _Label('Colour'),
+        _Label(context.l10n.inColour),
         const SizedBox(height: 6),
         if (hardware)
           _HardwareColours(
@@ -1798,8 +1813,8 @@ class _Readout extends StatelessWidget {
             Expanded(
               flex: 2,
               child: Text(
-                value,
-                textAlign: TextAlign.right,
+                context.figures(value),
+                textAlign: TextAlign.end,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),

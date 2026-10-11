@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../domain/model/design.dart';
 import '../../domain/model/new_design_setup.dart';
+import '../../domain/text/names.dart';
+import '../l10n/l10n.dart';
 import '../theme/app_theme.dart';
 import 'design_name_screen.dart';
 import 'designs_screen.dart';
@@ -62,7 +64,7 @@ class _DesignInformationScreenState extends State<DesignInformationScreen> {
   }
 
   void _save() {
-    final problem = NewDesignSetup.nameProblem(_name.text);
+    final problem = NewDesignSetup.nameProblem(_name.text, context.words);
     if (problem != null) {
       setState(() => _problem = problem);
       _focus.requestFocus();
@@ -78,7 +80,7 @@ class _DesignInformationScreenState extends State<DesignInformationScreen> {
     final who = widget.customer?.trim() ?? '';
     final problem = _problem;
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit information')),
+      appBar: AppBar(title: Text(context.l10n.editInformation)),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -104,7 +106,7 @@ class _DesignInformationScreenState extends State<DesignInformationScreen> {
                       const SizedBox(height: 14),
                     ],
                     Text(
-                      'Edit information',
+                      context.l10n.editInformation,
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
@@ -113,8 +115,7 @@ class _DesignInformationScreenState extends State<DesignInformationScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Change what this design is called. The drawing, its '
-                      'sizes and everything in it stay exactly as they are.',
+                      context.l10n.editInformationLine,
                       style: TextStyle(fontSize: 14, color: p.muted),
                     ),
                     const SizedBox(height: 26),
@@ -130,8 +131,8 @@ class _DesignInformationScreenState extends State<DesignInformationScreen> {
                       },
                       onSubmitted: (_) => _save(),
                       decoration: InputDecoration(
-                        labelText: 'Design name',
-                        hintText: 'e.g. Basement Door',
+                        labelText: context.l10n.designName,
+                        hintText: context.l10n.designNameHint,
                         hintStyle: TextStyle(color: p.muted),
                         prefixIcon: Icon(
                           Icons.drive_file_rename_outline,
@@ -185,7 +186,7 @@ class _DesignInformationScreenState extends State<DesignInformationScreen> {
                     ],
                     const SizedBox(height: 22),
                     Text(
-                      'Category',
+                      context.l10n.category,
                       style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
@@ -212,7 +213,7 @@ class _DesignInformationScreenState extends State<DesignInformationScreen> {
                           const SizedBox(width: 10),
                           Flexible(
                             child: Text(
-                              widget.kind.label,
+                              widget.kind.labelIn(context.words),
                               key: DesignInformationScreen.categoryText,
                               style: TextStyle(
                                 fontSize: 15,
@@ -226,7 +227,7 @@ class _DesignInformationScreenState extends State<DesignInformationScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'The category stays with the design.',
+                      context.l10n.categoryStays,
                       style: TextStyle(fontSize: 12.5, color: p.muted),
                     ),
                     const SizedBox(height: 24),
@@ -237,7 +238,7 @@ class _DesignInformationScreenState extends State<DesignInformationScreen> {
                         minimumSize: const Size(0, 52),
                       ),
                       icon: const Icon(Icons.check),
-                      label: const Text('Save changes'),
+                      label: Text(context.l10n.saveChanges),
                     ),
                   ],
                 ),

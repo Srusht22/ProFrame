@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/design.dart';
 import '../../domain/model/infill.dart';
+import '../l10n/l10n.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'infill_choices.dart';
@@ -86,14 +87,14 @@ class MaterialForm extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Material',
+                      context.l10n.mtTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.headlineSmall,
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Close',
+                    tooltip: context.l10n.actClose,
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
@@ -108,11 +109,8 @@ class MaterialForm extends ConsumerWidget {
                 children: [
                   Text(
                     parts.isEmpty
-                        ? 'Read your drawing first: its parts are what '
-                              'glass or panel goes into.'
-                        : 'Choose glass or panel for any part. Only what '
-                              'fills the part changes — every line stays '
-                              'where you drew it.',
+                        ? context.l10n.mtReadFirst
+                        : context.l10n.mtChoose,
                     style: theme.textTheme.bodySmall,
                   ),
                   for (final part in ordered) ...[
@@ -134,11 +132,11 @@ class MaterialForm extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
               child: Align(
-                alignment: Alignment.centerRight,
+                alignment: AlignmentDirectional.centerEnd,
                 child: FilledButton(
                   onPressed: () => Navigator.of(context).pop(),
                   style: FilledButton.styleFrom(minimumSize: const Size(0, 46)),
-                  child: const Text('Done'),
+                  child: Text(context.l10n.actDone),
                 ),
               ),
             ),
