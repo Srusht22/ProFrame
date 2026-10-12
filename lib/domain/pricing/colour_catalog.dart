@@ -1,5 +1,6 @@
 import '../model/materials.dart';
 import '../text/names.dart';
+import '../text/numerals.dart';
 import '../text/words.dart';
 import 'price_list.dart';
 import 'price_list_migration.dart';
@@ -63,7 +64,7 @@ abstract final class ColourCatalog {
     String text, [
     Words w = const EnglishWords(),
   ]) {
-    final words = text.trim();
+    final words = Numerals.latin(text).trim();
     if (words.isEmpty) return (value: null, problem: null);
     final value = double.tryParse(words);
     if (value == null || !value.isFinite) {

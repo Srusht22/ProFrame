@@ -5,6 +5,7 @@ import '../../domain/model/design.dart';
 import '../../infrastructure/design_store.dart';
 import '../canvas/design_preview.dart';
 import '../l10n/l10n.dart';
+import '../l10n/name_text.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 
@@ -137,10 +138,8 @@ class DesignActionsSheet extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        NameText(
                           summary.shownNameIn(context.words),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         if (summary.customer?.trim() case final who?

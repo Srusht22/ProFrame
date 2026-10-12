@@ -38,6 +38,14 @@ class RateField {
   /// Whether it is a count, not an amount.
   final bool whole;
 
+  /// What the figures under its heading apply to, in words — shown once,
+  /// under the heading. Null where nothing more needs saying.
+  final String? about;
+
+  /// Whether it is money: an amount in the list's currency, rather than a
+  /// count or a percentage.
+  bool get isMoney => !whole && unit != '%';
+
   final double? Function(PriceList list) read;
   final PriceList Function(PriceList list, double? value) write;
 
@@ -50,6 +58,7 @@ class RateField {
     required this.write,
     this.optional = false,
     this.whole = false,
+    this.about,
   });
 
   /// Why [value] cannot be this figure, or null where it can.
@@ -74,6 +83,7 @@ class RateField {
         ..._looks(
           w,
           w.rfGlassSingle,
+          w.rfAboutGlassSingle,
           'glass.single',
           (l) => l.glassPerM2,
           (l, map) => l.copyWith(glassPerM2: map),
@@ -85,6 +95,7 @@ class RateField {
         ..._looks(
           w,
           w.rfSealed,
+          w.rfAboutSealed,
           'glass.sealed',
           (l) => l.sealedGlassPerM2,
           (l, map) => l.copyWith(sealedGlassPerM2: map),
@@ -97,6 +108,7 @@ class RateField {
           RateField(
             id: 'panel.${c.name}',
             section: w.rfPanel,
+            about: w.rfAboutPanel,
             label: c.labelIn(w),
             unit: '/ m²',
             optional: true,
@@ -106,6 +118,7 @@ class RateField {
         RateField(
           id: 'panel.custom',
           section: w.rfPanel,
+          about: w.rfAboutPanel,
           label: w.rfAnyOtherColour,
           unit: '/ m²',
           optional: true,
@@ -118,6 +131,7 @@ class RateField {
           RateField(
             id: 'hardware.${k.name}',
             section: w.rfHardware,
+            about: w.rfAboutHardware,
             label: k.labelIn(w),
             unit: w.rfUnitEach,
             optional: true,
@@ -128,6 +142,7 @@ class RateField {
         RateField(
           id: 'sliding.track',
           section: w.rfSliding,
+          about: w.rfAboutSliding,
           label: w.rfTrack,
           unit: '/ m',
           read: (l) => l.trackPerMetre,
@@ -136,6 +151,7 @@ class RateField {
         RateField(
           id: 'sliding.roller',
           section: w.rfSliding,
+          about: w.rfAboutSliding,
           label: w.rfRoller,
           unit: w.rfUnitEach,
           read: (l) => l.rollerEach,
@@ -144,6 +160,7 @@ class RateField {
         RateField(
           id: 'sliding.rollersPerPanel',
           section: w.rfSliding,
+          about: w.rfAboutSliding,
           label: w.rfRollersPerPanel,
           unit: w.rfUnitRollers,
           whole: true,
@@ -153,6 +170,7 @@ class RateField {
         RateField(
           id: 'installation.fixed',
           section: w.rfInstallation,
+          about: w.rfAboutInstallation,
           label: w.rfEachDesign,
           unit: w.rfUnitFixed,
           read: (l) => l.installation.fixed,
@@ -166,6 +184,7 @@ class RateField {
         RateField(
           id: 'installation.area',
           section: w.rfInstallation,
+          about: w.rfAboutInstallation,
           label: w.rfByArea,
           unit: '/ m²',
           read: (l) => l.installation.perSquareMetre,
@@ -200,6 +219,7 @@ class RateField {
         RateField(
           id: 'profile.${m.name}.${c.name}',
           section: w.rfBorderLines,
+          about: w.rfAboutBorderLines,
           label: c.labelIn(w),
           unit: '/ m',
           optional: true,
@@ -227,6 +247,7 @@ class RateField {
     RateField(
       id: 'profile.${m.name}.normal',
       section: w.rfBorderLines,
+      about: w.rfAboutBorderLines,
       label: m.labelIn(w),
       unit: '/ m',
       read: (l) => l.profiles[m]?.normalPerMetre,
@@ -235,6 +256,7 @@ class RateField {
     RateField(
       id: 'profile.${m.name}.opening',
       section: w.rfOpeningProfile,
+      about: w.rfAboutOpening,
       label: m.labelIn(w),
       unit: '/ m',
       read: (l) => l.profiles[m]?.openingPerMetre,
@@ -252,6 +274,7 @@ class RateField {
       RateField(
         id: 'colour.${m.name}.special.metre',
         section: section,
+        about: w.rfAboutColour,
         label: w.rfAMetre,
         unit: '/ m',
         read: (l) => l.profiles[m]?.special.perMetre,
@@ -260,6 +283,7 @@ class RateField {
       RateField(
         id: 'colour.${m.name}.special.percent',
         section: section,
+        about: w.rfAboutColour,
         label: w.rfOnProfile,
         unit: '%',
         read: (l) => l.profiles[m]?.special.percent,
@@ -271,6 +295,7 @@ class RateField {
   static List<RateField> _looks(
     Words w,
     String section,
+    String about,
     String id,
     Map<GlassLook, double> Function(PriceList) map,
     PriceList Function(PriceList, Map<GlassLook, double>) put, {
@@ -281,6 +306,7 @@ class RateField {
       RateField(
         id: '$id.${look.name}',
         section: section,
+        about: about,
         label: look.labelIn(w),
         unit: '/ m²',
         optional: true,
@@ -290,6 +316,7 @@ class RateField {
     RateField(
       id: '$id.custom',
       section: section,
+      about: about,
       label: w.rfAnyOtherColour,
       unit: '/ m²',
       optional: true,
@@ -317,6 +344,7 @@ class RateField {
       RateField(
         id: 'labour.$category.fixed',
         section: section,
+        about: w.rfAboutLabour,
         label: w.rfEachDesign,
         unit: w.rfUnitFixed,
         read: (l) => of(l).fixed,
@@ -332,6 +360,7 @@ class RateField {
       RateField(
         id: 'labour.$category.area',
         section: section,
+        about: w.rfAboutLabour,
         label: w.rfByArea,
         unit: '/ m²',
         read: (l) => of(l).perSquareMetre,
@@ -347,6 +376,7 @@ class RateField {
       RateField(
         id: 'labour.$category.percent',
         section: section,
+        about: w.rfAboutLabour,
         label: w.rfOnMaterials,
         unit: '%',
         read: (l) => of(l).percent,

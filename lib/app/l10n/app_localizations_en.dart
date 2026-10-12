@@ -1798,9 +1798,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'You do not have permission to complete designs.';
 
   @override
-  String completeSaveFailed(String error) {
-    return 'The design could not be saved, so it was not completed. Your work is still here — try again. ($error)';
-  }
+  String get completeSaveFailed =>
+      'The design could not be saved, so it was not completed. Your work is still here — try again.';
 
   @override
   String bulleted(String item) {
@@ -4285,4 +4284,319 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get mnCatalog =>
       'Colours are now one catalog: a colour sold in more than one material is one colour with a rate on each, at the figures it had.';
+
+  @override
+  String get glassDisabled => 'Glass charging is turned off';
+
+  @override
+  String xiNameTaken(String name) {
+    return 'An item called $name is already in the factory\'s list.';
+  }
+
+  @override
+  String get rcpNotForRefund => 'A receipt is for a payment, not a refund.';
+
+  @override
+  String get errNotKept =>
+      'This could not be saved on this device. Nothing was changed — try again.';
+
+  @override
+  String get errSomethingWrong =>
+      'Something went wrong and this was not done. Try again.';
+
+  @override
+  String get psTitle => 'Price summary';
+
+  @override
+  String psFor(String name) {
+    return 'For $name';
+  }
+
+  @override
+  String psIncludesDiscount(String amount) {
+    return 'After a discount of $amount';
+  }
+
+  @override
+  String get psProfiles => 'Profiles and frame';
+
+  @override
+  String get psPanels => 'Panels';
+
+  @override
+  String get psGlass => 'Glass';
+
+  @override
+  String get psHardware => 'Hardware';
+
+  @override
+  String get psLabour => 'Labour and installation';
+
+  @override
+  String get psExtras => 'Extra charges';
+
+  @override
+  String get psDiscount => 'Discount';
+
+  @override
+  String get psCalculation => 'Final calculation';
+
+  @override
+  String get psChoices => 'Material and options';
+
+  @override
+  String get psMeasurements => 'Measurements';
+
+  @override
+  String get psSharedRate =>
+      'The border and the internal lines are measured apart and charged at the same rate for each profile.';
+
+  @override
+  String get psNoPanel => 'This design has no panel.';
+
+  @override
+  String get psNoGlass => 'This design has no glass.';
+
+  @override
+  String psGlassNotIncluded(String area) {
+    return 'The design has $area of glass. It is not charged: Include glass in price is off for this design.';
+  }
+
+  @override
+  String psGlassDisabled(String area) {
+    return 'The design has $area of glass. It is not charged: the factory\'s Charge for glass setting is off.';
+  }
+
+  @override
+  String get psGlassNothing =>
+      'Glass is included in the price, and the design has no glass to charge.';
+
+  @override
+  String get psAddExtra => 'Add extra charge';
+
+  @override
+  String get psEditPricing => 'Edit factory prices';
+
+  @override
+  String get psCombinedProfile => 'Border and internal lines together';
+
+  @override
+  String get psShowMeasurements => 'Show measurements';
+
+  @override
+  String get psHideMeasurements => 'Hide measurements';
+
+  @override
+  String psCollapse(String section) {
+    return 'Hide $section';
+  }
+
+  @override
+  String psExpand(String section) {
+    return 'Show $section';
+  }
+
+  @override
+  String get psFromCatalog => 'From the factory\'s list';
+
+  @override
+  String get poGlassFactoryOff =>
+      'The factory does not charge for glass (Factory prices). The glass is kept and measured, and not charged.';
+
+  @override
+  String get rfAboutBorderLines =>
+      'A metre of profile for the frame\'s border and the lines inside the design. Each profile has one rate for both; the two are measured and shown apart on every price.';
+
+  @override
+  String get rfAboutOpening =>
+      'A metre of the profile round each opening, one rate a material. Aluminium\'s opening profile has one rate, whichever aluminium type.';
+
+  @override
+  String get rfAboutColour =>
+      'What a colour the catalog does not name adds on this material\'s profile: so much a metre, and a share of the profile\'s price.';
+
+  @override
+  String get rfAboutGlassSingle =>
+      'A square metre of single-sheet glass, by its look. Charged only while Charge for glass is on, and only on a design that includes its glass.';
+
+  @override
+  String get rfAboutSealed =>
+      'A square metre of sealed glass unit — two sheets with a cavity — by its look, charged the same way as single-sheet glass.';
+
+  @override
+  String get rfAboutPanel => 'A square metre of panel, by its colour.';
+
+  @override
+  String get rfAboutHardware =>
+      'Each piece of hardware a design has — hinges, handles, locks — by the piece.';
+
+  @override
+  String get rfAboutSliding =>
+      'A sliding design\'s track by the metre, and the rollers each sliding panel runs on.';
+
+  @override
+  String get rfAboutInstallation =>
+      'Charged only on a design whose price includes installation: a fixed figure, and so much a square metre.';
+
+  @override
+  String get rfAboutLabour =>
+      'Labour for every design of this category: a fixed figure, so much a square metre, and a share of the materials.';
+
+  @override
+  String get fpIntro =>
+      'Each figure is what the factory charges. Keeping new prices changes no quotation, receipt or payment: they keep the figures they were given.';
+
+  @override
+  String get fpChargeGlass => 'Charge for glass';
+
+  @override
+  String get fpChargeGlassOff =>
+      'Off: no design\'s glass is charged. The glass stays in every design and is measured.';
+
+  @override
+  String get fpChargeGlassOn =>
+      'On: a design\'s glass is charged at the rates below wherever the design\'s own Include glass in price is on.';
+
+  @override
+  String get fpDiscard => 'Discard changes';
+
+  @override
+  String get fpDiscardAsk => 'Discard the changes you have not kept?';
+
+  @override
+  String get fpDiscardBody =>
+      'Every figure goes back to the price list as it is kept.';
+
+  @override
+  String get fpKeepEditing => 'Keep editing';
+
+  @override
+  String fpConfirmTitle(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Keep $count changes?',
+      one: 'Keep 1 change?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get fpConfirmBody =>
+      'Every price already calculated will need recalculating. Quotations, receipts and payments keep the figures they were given.';
+
+  @override
+  String get fpSaving => 'Saving…';
+
+  @override
+  String get fxTitle => 'Extra items';
+
+  @override
+  String get fxIntro =>
+      'What the factory charges again and again, each at its own price. Choosing one on a design copies its price, so changing it here changes nothing already added.';
+
+  @override
+  String get fxNone =>
+      'No items yet. An extra charge can still be typed in full on any design.';
+
+  @override
+  String get fxAdd => 'Add item';
+
+  @override
+  String get fxEditTitle => 'Edit item';
+
+  @override
+  String fxPerUnit(String amount, String unit) {
+    return '$amount per $unit';
+  }
+
+  @override
+  String get fxAdded => 'Item added.';
+
+  @override
+  String get fxSaved => 'Item saved.';
+
+  @override
+  String fxRetireAsk(String name) {
+    return 'Stop offering $name?';
+  }
+
+  @override
+  String get fxRetireBody =>
+      'It will not be offered for new extra charges. Every charge already added from it keeps its name and price.';
+
+  @override
+  String get fxRetire => 'Stop offering';
+
+  @override
+  String fxRetired(String name) {
+    return '$name is no longer offered.';
+  }
+
+  @override
+  String get fxNote => 'Explanation (optional)';
+
+  @override
+  String fxCurrency(String currency) {
+    return 'Prices in $currency';
+  }
+
+  @override
+  String get xFrom => 'Item';
+
+  @override
+  String get xCustomItem => 'One-time item — type it in';
+
+  @override
+  String xFactoryPrice(String amount, String unit) {
+    return 'Factory price: $amount per $unit. To charge another price, choose a one-time item.';
+  }
+
+  @override
+  String get xCalculated => 'Calculated amount';
+
+  @override
+  String get lbTooltip => 'Change language';
+
+  @override
+  String abTooltip(String mode) {
+    return 'Change appearance — now $mode';
+  }
+
+  @override
+  String lbCurrent(String language) {
+    return 'Language — now $language';
+  }
+
+  @override
+  String get fwLookUp => 'Look up';
+
+  @override
+  String get fwSearchWeb => 'Search the web';
+
+  @override
+  String get fwShare => 'Share';
+
+  @override
+  String get fwNavigationMenu => 'Navigation menu';
+
+  @override
+  String get fwScrim => 'Scrim';
+
+  @override
+  String fwCloseOf(String name) {
+    return 'Close $name';
+  }
+
+  @override
+  String get fwNoReplacements => 'No replacements found';
+
+  @override
+  String get fwDismissMenu => 'Dismiss menu';
+
+  @override
+  String get fwClear => 'Clear';
+
+  @override
+  String get psFinalTotal => 'Final total';
 }

@@ -27,6 +27,7 @@
 library;
 
 import '../text/names.dart';
+import '../text/numerals.dart';
 import '../text/words.dart';
 import 'price_result.dart';
 
@@ -126,6 +127,12 @@ class ExtraCharge {
   /// Who wrote it last: *Owner*, a member of staff's name.
   final String by;
 
+  /// The factory's catalog item it was added from (`ExtraItem.id`), where
+  /// it was one; null for a one-time charge typed in full. Only where it
+  /// came from: its name, unit and unit price are its own, copied when it
+  /// was added, so changing the catalog afterwards changes no extra.
+  final String? itemId;
+
   const ExtraCharge({
     required this.id,
     required this.name,
@@ -139,6 +146,7 @@ class ExtraCharge {
     required this.updatedAt,
     this.note = '',
     this.by = '',
+    this.itemId,
   });
 
   /// What it comes to, in whole cents: quantity × unit price, half a cent
@@ -203,6 +211,7 @@ class ExtraCharge {
     updatedAt: updatedAt ?? this.updatedAt,
     note: note ?? this.note,
     by: by ?? this.by,
+    itemId: itemId,
   );
 
   /// Why an extra of this shape cannot be kept, or null where it can: a
@@ -231,7 +240,7 @@ class ExtraCharge {
     String text, [
     Words w = const EnglishWords(),
   ]) {
-    final words = text.trim().replaceAll(',', '');
+    final words = Numerals.latin(text).trim().replaceAll(',', '');
     if (words.isEmpty) return (value: null, problem: w.xQtyEnter);
     if (words.startsWith('-')) {
       return (value: null, problem: w.xQtyMore);
@@ -258,7 +267,7 @@ class ExtraCharge {
     String text, [
     Words w = const EnglishWords(),
   ]) {
-    final words = text.trim().replaceAll(',', '');
+    final words = Numerals.latin(text).trim().replaceAll(',', '');
     if (words.isEmpty) return (value: null, problem: w.xPriceEnter);
     if (words.startsWith('-')) {
       return (value: null, problem: w.xPriceNotBelow);
@@ -290,6 +299,7 @@ class ExtraCharge {
     'updatedAt': updatedAt.toIso8601String(),
     if (note.isNotEmpty) 'note': note,
     if (by.isNotEmpty) 'by': by,
+    if (itemId != null) 'itemId': itemId,
   };
 
   /// An extra as kept, or null where the record is not one — never a
@@ -330,6 +340,10 @@ class ExtraCharge {
           DateTime.tryParse(json['updatedAt'] as String? ?? '') ?? created,
       note: json['note'] as String? ?? '',
       by: json['by'] as String? ?? '',
+      itemId: switch (json['itemId']) {
+        final String id when id.isNotEmpty => id,
+        _ => null,
+      },
     );
   }
 
@@ -349,7 +363,8 @@ class ExtraCharge {
       other is ExtraCharge &&
       samePriceAs(other) &&
       other.note == note &&
-      other.scope == scope;
+      other.scope == scope &&
+      other.itemId == itemId;
 
   @override
   int get hashCode => Object.hash(

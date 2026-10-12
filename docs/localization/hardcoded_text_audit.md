@@ -138,8 +138,7 @@ being rewritten:
 
 | Where | What | Why it stays English |
 | --- | --- | --- |
-| `StaffMember.problemGiving`, `StaffStore` | Refusals thrown as `ArgumentError` | A guard behind the screens. The dialogs check first and say the same thing in the chosen language, so a user never sees these. |
-| `CustomerStore.saveExtra` | The double-charge refusal thrown as `StateError` | The same: the extra-charge form checks first, in the chosen language. |
+| `StaffMember.problemGiving` | Why a permission cannot be given | Never shown: the store throws `AccessDenied` in its place, which is said in the chosen language. |
 | `NewDesignSetup.begin` | `StateError` for a setup not complete | A programming guard; the screens never call it with an incomplete setup. |
 | `DimensionConflict.message` | *This reads … but you typed …* | Not shown anywhere: the geometry check says it through `Words`. |
 | The interpreter's gap side (`'the bottom'`, …) | Internal names | Compared inside the reading only; shown through `_Gap.sideIn(w)`. |
@@ -147,7 +146,7 @@ being rewritten:
 | `Surface`, `FrameProfile` names | Material descriptions in the renderer | Never shown as text. |
 | `brandName` on the launch screen | کارگەی وەستا سۆران شارباژێڕی | The workshop's own name, already in Kurdish, and never altered. |
 | `AppLanguage.endonym` | `English`, `کوردی (سۆرانی)` | Each language is named in itself, as a language list should be. |
-| Flutter's own words that `KurdishMaterialLocalizations` does not override | Rarely shown labels: some screen-reader hints, time-picker words the app never opens | English is the promised fallback. Everything the application's screens show is overridden. |
+| Flutter's own words that the Kurdish localizations do not override | The iPhone's own date and time wheels, the time picker, paging tables, licence pages — none of which the application opens | English is the promised fallback. Since Phase 35 everything a phone can show is overridden: the text-selection menu (*look up*, *search the web*, *share*), an iPhone's menu and dialog labels, the drawer's and the scrim's labels. |
 
 ## How it is kept this way
 
@@ -156,3 +155,27 @@ being rewritten:
 | `test/app/the_words_are_one_set_test.dart` | The two ARB files have the same keys and placeholders. No Kurdish message is empty or equal to its key. The generated `Words`, adapter and localisations are current. The domain's English equals the screen's. Every Kurdish letter has a glyph. |
 | `test/app/the_app_in_central_kurdish_test.dart` | English by default and left to right. The switch in Settings works at once, is kept, and the app reopens in it. Kurdish is right to left. A language the app does not know opens in English. Storage is unchanged by switching, the same price figure shows in both, and no key is ever shown. Nothing overflows in Kurdish at a phone's, a tablet's or a laptop's width. The technical drawing is not mirrored, and design names are never translated. |
 | `test/app/the_translation_review_test.dart` | The review file lists every message with the wording the application shows, and the apply tool reads an approved row exactly. |
+
+## Phase 35 (2026-10-12)
+
+- **Refusals are said in the chosen language.** `StaffStore` and
+  `CustomerStore.saveExtra` and `issueReceipt` used to throw English
+  `ArgumentError`s and `StateError`s, and `StaffScreen` showed one raw.
+  They now throw a `Refusal` or a `StateRefusal` (`lib/domain/text/refusal.dart`)
+  — still an `ArgumentError` and a `StateError` — carrying what they say,
+  and the screens say it through `userMessageOf`
+  (`lib/app/l10n/errors.dart`). A fault that is not a refusal is never
+  shown: the user reads *Something went wrong and this was not done*, and
+  the fault goes to the log. Completing a design no longer shows the
+  exception's text.
+- **Figures typed on a Kurdish keyboard** are read: `LatinDigits` on every
+  numeric field, `Numerals.latin` in every reader. Figures are still shown
+  in Latin digits in both languages, deliberately — see `Numerals`.
+- **Flutter's own words** a phone shows — the text-selection menu, an
+  iPhone's menu and dialog labels, the drawer and the scrim — come from the
+  ARB (`fw…`). The date picker's typed date is read day, month, year, as the
+  Kurdish screen writes it.
+- **Names somebody typed** are laid out in their own direction (`NameText`).
+- Every new message (85) is in both ARB files and in the review file under
+  *Added in Phase 35*.
+

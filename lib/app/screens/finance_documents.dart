@@ -11,6 +11,7 @@ import '../../domain/pricing/quotation.dart';
 import '../../domain/text/names.dart';
 import '../inspector/price_panel.dart';
 import '../l10n/l10n.dart';
+import '../l10n/latin_digits.dart';
 import '../state/access.dart';
 import '../state/language.dart';
 import '../state/pricing.dart';
@@ -261,6 +262,7 @@ class _DiscountDialogState extends State<DiscountDialog> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
+                inputFormatters: const [LatinDigits()],
                 decoration: InputDecoration(
                   labelText: l.finDiscount,
                   suffixText: _kind == DiscountKind.percent

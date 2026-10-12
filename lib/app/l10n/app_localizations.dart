@@ -3164,11 +3164,11 @@ abstract class AppLocalizations {
   /// **'You do not have permission to complete designs.'**
   String get completeNoPermission;
 
-  /// Completing when the save failed; the error is technical text.
+  /// Completing when the save failed. The technical reason goes to the log only.
   ///
   /// In en, this message translates to:
-  /// **'The design could not be saved, so it was not completed. Your work is still here — try again. ({error})'**
-  String completeSaveFailed(String error);
+  /// **'The design could not be saved, so it was not completed. Your work is still here — try again.'**
+  String get completeSaveFailed;
 
   /// An item in a list, with a bullet.
   ///
@@ -7411,6 +7411,516 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Colours are now one catalog: a colour sold in more than one material is one colour with a rate on each, at the figures it had.'**
   String get mnCatalog;
+
+  /// [domain] Glass in a price: the factory does not charge for glass at all.
+  ///
+  /// In en, this message translates to:
+  /// **'Glass charging is turned off'**
+  String get glassDisabled;
+
+  /// [domain] Factory list of extras: a name already used.
+  ///
+  /// In en, this message translates to:
+  /// **'An item called {name} is already in the factory\'s list.'**
+  String xiNameTaken(String name);
+
+  /// [domain] Refusal: a receipt was asked for a refund.
+  ///
+  /// In en, this message translates to:
+  /// **'A receipt is for a payment, not a refund.'**
+  String get rcpNotForRefund;
+
+  /// The device refused to keep a change.
+  ///
+  /// In en, this message translates to:
+  /// **'This could not be saved on this device. Nothing was changed — try again.'**
+  String get errNotKept;
+
+  /// An unexpected fault; the details go to the log, never to the user.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong and this was not done. Try again.'**
+  String get errSomethingWrong;
+
+  /// Title of a design's price sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Price summary'**
+  String get psTitle;
+
+  /// Price summary header: the customer the design is for.
+  ///
+  /// In en, this message translates to:
+  /// **'For {name}'**
+  String psFor(String name);
+
+  /// Under the final total, where a discount was taken off.
+  ///
+  /// In en, this message translates to:
+  /// **'After a discount of {amount}'**
+  String psIncludesDiscount(String amount);
+
+  /// Price summary section: the frame's border, internal lines, opening profile and the colour on them.
+  ///
+  /// In en, this message translates to:
+  /// **'Profiles and frame'**
+  String get psProfiles;
+
+  /// Price summary section.
+  ///
+  /// In en, this message translates to:
+  /// **'Panels'**
+  String get psPanels;
+
+  /// Price summary section.
+  ///
+  /// In en, this message translates to:
+  /// **'Glass'**
+  String get psGlass;
+
+  /// Price summary section: hinges, handles, locks.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware'**
+  String get psHardware;
+
+  /// Price summary section.
+  ///
+  /// In en, this message translates to:
+  /// **'Labour and installation'**
+  String get psLabour;
+
+  /// Price summary section: charges added by hand.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra charges'**
+  String get psExtras;
+
+  /// Price summary section.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount'**
+  String get psDiscount;
+
+  /// Price summary section: design cost, extras, subtotal, discount, total.
+  ///
+  /// In en, this message translates to:
+  /// **'Final calculation'**
+  String get psCalculation;
+
+  /// Price summary section where the profile's material, colour, aluminium type and glass charging are chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Material and options'**
+  String get psChoices;
+
+  /// Price summary section listing lengths and areas.
+  ///
+  /// In en, this message translates to:
+  /// **'Measurements'**
+  String get psMeasurements;
+
+  /// Note under the profile lines of a price.
+  ///
+  /// In en, this message translates to:
+  /// **'The border and the internal lines are measured apart and charged at the same rate for each profile.'**
+  String get psSharedRate;
+
+  /// Price summary: no panel in the design.
+  ///
+  /// In en, this message translates to:
+  /// **'This design has no panel.'**
+  String get psNoPanel;
+
+  /// Price summary: no glass in the design.
+  ///
+  /// In en, this message translates to:
+  /// **'This design has no glass.'**
+  String get psNoGlass;
+
+  /// Price summary: glass measured and not charged by the design's own choice.
+  ///
+  /// In en, this message translates to:
+  /// **'The design has {area} of glass. It is not charged: Include glass in price is off for this design.'**
+  String psGlassNotIncluded(String area);
+
+  /// Price summary: glass measured and not charged because the factory does not charge for glass.
+  ///
+  /// In en, this message translates to:
+  /// **'The design has {area} of glass. It is not charged: the factory\'s Charge for glass setting is off.'**
+  String psGlassDisabled(String area);
+
+  /// Price summary: glass switched on and nothing measurable.
+  ///
+  /// In en, this message translates to:
+  /// **'Glass is included in the price, and the design has no glass to charge.'**
+  String get psGlassNothing;
+
+  /// Button on the price summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Add extra charge'**
+  String get psAddExtra;
+
+  /// Button on the price summary, for whoever may change the factory's rates.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit factory prices'**
+  String get psEditPricing;
+
+  /// Price summary row: what the border and the lines cost together.
+  ///
+  /// In en, this message translates to:
+  /// **'Border and internal lines together'**
+  String get psCombinedProfile;
+
+  /// Button that opens the measurements on the price summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Show measurements'**
+  String get psShowMeasurements;
+
+  /// Button that closes the measurements on the price summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide measurements'**
+  String get psHideMeasurements;
+
+  /// Tooltip on a price summary section's heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide {section}'**
+  String psCollapse(String section);
+
+  /// Tooltip on a price summary section's heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Show {section}'**
+  String psExpand(String section);
+
+  /// Shown on an extra charge added from the factory's list of extras.
+  ///
+  /// In en, this message translates to:
+  /// **'From the factory\'s list'**
+  String get psFromCatalog;
+
+  /// Under a design's Include glass in price switch, where the factory's Charge for glass is off.
+  ///
+  /// In en, this message translates to:
+  /// **'The factory does not charge for glass (Factory prices). The glass is kept and measured, and not charged.'**
+  String get poGlassFactoryOff;
+
+  /// [domain] Factory prices: what the border-and-lines rates apply to, and that the two share one rate.
+  ///
+  /// In en, this message translates to:
+  /// **'A metre of profile for the frame\'s border and the lines inside the design. Each profile has one rate for both; the two are measured and shown apart on every price.'**
+  String get rfAboutBorderLines;
+
+  /// [domain] Factory prices: what the opening-profile rates apply to.
+  ///
+  /// In en, this message translates to:
+  /// **'A metre of the profile round each opening, one rate a material. Aluminium\'s opening profile has one rate, whichever aluminium type.'**
+  String get rfAboutOpening;
+
+  /// [domain] Factory prices: the any-other-colour figures.
+  ///
+  /// In en, this message translates to:
+  /// **'What a colour the catalog does not name adds on this material\'s profile: so much a metre, and a share of the profile\'s price.'**
+  String get rfAboutColour;
+
+  /// [domain] Factory prices: what the single-sheet glass rates apply to.
+  ///
+  /// In en, this message translates to:
+  /// **'A square metre of single-sheet glass, by its look. Charged only while Charge for glass is on, and only on a design that includes its glass.'**
+  String get rfAboutGlassSingle;
+
+  /// [domain] Factory prices: what the sealed-unit rates apply to.
+  ///
+  /// In en, this message translates to:
+  /// **'A square metre of sealed glass unit — two sheets with a cavity — by its look, charged the same way as single-sheet glass.'**
+  String get rfAboutSealed;
+
+  /// [domain] Factory prices: what the panel rates apply to.
+  ///
+  /// In en, this message translates to:
+  /// **'A square metre of panel, by its colour.'**
+  String get rfAboutPanel;
+
+  /// [domain] Factory prices: what the hardware rates apply to.
+  ///
+  /// In en, this message translates to:
+  /// **'Each piece of hardware a design has — hinges, handles, locks — by the piece.'**
+  String get rfAboutHardware;
+
+  /// [domain] Factory prices: what the sliding rates apply to.
+  ///
+  /// In en, this message translates to:
+  /// **'A sliding design\'s track by the metre, and the rollers each sliding panel runs on.'**
+  String get rfAboutSliding;
+
+  /// [domain] Factory prices: what the installation rates apply to.
+  ///
+  /// In en, this message translates to:
+  /// **'Charged only on a design whose price includes installation: a fixed figure, and so much a square metre.'**
+  String get rfAboutInstallation;
+
+  /// [domain] Factory prices: what the labour rates apply to.
+  ///
+  /// In en, this message translates to:
+  /// **'Labour for every design of this category: a fixed figure, so much a square metre, and a share of the materials.'**
+  String get rfAboutLabour;
+
+  /// Factory prices: what keeping prices does and does not change.
+  ///
+  /// In en, this message translates to:
+  /// **'Each figure is what the factory charges. Keeping new prices changes no quotation, receipt or payment: they keep the figures they were given.'**
+  String get fpIntro;
+
+  /// Factory prices: the switch for whether glass is charged at all.
+  ///
+  /// In en, this message translates to:
+  /// **'Charge for glass'**
+  String get fpChargeGlass;
+
+  /// Factory prices: what Charge for glass off means.
+  ///
+  /// In en, this message translates to:
+  /// **'Off: no design\'s glass is charged. The glass stays in every design and is measured.'**
+  String get fpChargeGlassOff;
+
+  /// Factory prices: what Charge for glass on means.
+  ///
+  /// In en, this message translates to:
+  /// **'On: a design\'s glass is charged at the rates below wherever the design\'s own Include glass in price is on.'**
+  String get fpChargeGlassOn;
+
+  /// Factory prices: put every figure back to what is kept.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes'**
+  String get fpDiscard;
+
+  /// Factory prices: leaving with unkept changes.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard the changes you have not kept?'**
+  String get fpDiscardAsk;
+
+  /// Factory prices: what discarding does.
+  ///
+  /// In en, this message translates to:
+  /// **'Every figure goes back to the price list as it is kept.'**
+  String get fpDiscardBody;
+
+  /// Factory prices: stay with the unkept changes.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get fpKeepEditing;
+
+  /// Factory prices: confirming a broad change.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Keep 1 change?} other{Keep {count} changes?}}'**
+  String fpConfirmTitle(num count);
+
+  /// Factory prices: what a broad change does.
+  ///
+  /// In en, this message translates to:
+  /// **'Every price already calculated will need recalculating. Quotations, receipts and payments keep the figures they were given.'**
+  String get fpConfirmBody;
+
+  /// Factory prices: while the list is being kept.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get fpSaving;
+
+  /// Factory prices: the factory's own list of extras (silicone, labour, transport).
+  ///
+  /// In en, this message translates to:
+  /// **'Extra items'**
+  String get fxTitle;
+
+  /// Factory prices: what the list of extras is.
+  ///
+  /// In en, this message translates to:
+  /// **'What the factory charges again and again, each at its own price. Choosing one on a design copies its price, so changing it here changes nothing already added.'**
+  String get fxIntro;
+
+  /// Factory prices: the list of extras is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No items yet. An extra charge can still be typed in full on any design.'**
+  String get fxNone;
+
+  /// Factory prices: add an item to the list of extras.
+  ///
+  /// In en, this message translates to:
+  /// **'Add item'**
+  String get fxAdd;
+
+  /// Dialog title.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit item'**
+  String get fxEditTitle;
+
+  /// An item's price: 3.00 USD per bottle.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} per {unit}'**
+  String fxPerUnit(String amount, String unit);
+
+  /// Snack after adding an item.
+  ///
+  /// In en, this message translates to:
+  /// **'Item added.'**
+  String get fxAdded;
+
+  /// Snack after editing an item.
+  ///
+  /// In en, this message translates to:
+  /// **'Item saved.'**
+  String get fxSaved;
+
+  /// Confirm retiring an item.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop offering {name}?'**
+  String fxRetireAsk(String name);
+
+  /// Confirm retiring an item: what it does.
+  ///
+  /// In en, this message translates to:
+  /// **'It will not be offered for new extra charges. Every charge already added from it keeps its name and price.'**
+  String get fxRetireBody;
+
+  /// Button: retire an item.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop offering'**
+  String get fxRetire;
+
+  /// Snack after retiring an item.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is no longer offered.'**
+  String fxRetired(String name);
+
+  /// Field of an item of the list of extras.
+  ///
+  /// In en, this message translates to:
+  /// **'Explanation (optional)'**
+  String get fxNote;
+
+  /// Under the price field of an item.
+  ///
+  /// In en, this message translates to:
+  /// **'Prices in {currency}'**
+  String fxCurrency(String currency);
+
+  /// Extra charge form: choose from the factory's list or a one-time item.
+  ///
+  /// In en, this message translates to:
+  /// **'Item'**
+  String get xFrom;
+
+  /// Extra charge form: an extra not from the factory's list.
+  ///
+  /// In en, this message translates to:
+  /// **'One-time item — type it in'**
+  String get xCustomItem;
+
+  /// Extra charge form: the price of an item from the factory's list is fixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Factory price: {amount} per {unit}. To charge another price, choose a one-time item.'**
+  String xFactoryPrice(String amount, String unit);
+
+  /// Extra charge form: the live total.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculated amount'**
+  String get xCalculated;
+
+  /// Tooltip and label of the language button (a translate icon).
+  ///
+  /// In en, this message translates to:
+  /// **'Change language'**
+  String get lbTooltip;
+
+  /// Tooltip and label of the appearance button (a sun or moon icon). {mode} is Light, Dark or Match device.
+  ///
+  /// In en, this message translates to:
+  /// **'Change appearance — now {mode}'**
+  String abTooltip(String mode);
+
+  /// Screen reader label of the language button. {language} is the language's own name.
+  ///
+  /// In en, this message translates to:
+  /// **'Language — now {language}'**
+  String lbCurrent(String language);
+
+  /// Flutter: text-selection menu on a phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Look up'**
+  String get fwLookUp;
+
+  /// Flutter: text-selection menu on a phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Search the web'**
+  String get fwSearchWeb;
+
+  /// Flutter: text-selection menu on a phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get fwShare;
+
+  /// Flutter: the drawer's label for a screen reader (the side panel on a phone).
+  ///
+  /// In en, this message translates to:
+  /// **'Navigation menu'**
+  String get fwNavigationMenu;
+
+  /// Flutter: the dimmed area behind a sheet, for a screen reader.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrim'**
+  String get fwScrim;
+
+  /// Flutter: tapping the dimmed area closes a sheet or a drawer, for a screen reader.
+  ///
+  /// In en, this message translates to:
+  /// **'Close {name}'**
+  String fwCloseOf(String name);
+
+  /// Flutter (iPhone): spell check found nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'No replacements found'**
+  String get fwNoReplacements;
+
+  /// Flutter: closing a menu, for a screen reader.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss menu'**
+  String get fwDismissMenu;
+
+  /// Flutter (iPhone): clear a field.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get fwClear;
+
+  /// Price summary: what the design comes to, at the head of the summary and at the foot of its calculation.
+  ///
+  /// In en, this message translates to:
+  /// **'Final total'**
+  String get psFinalTotal;
 }
 
 class _AppLocalizationsDelegate

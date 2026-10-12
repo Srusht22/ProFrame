@@ -1518,6 +1518,45 @@ abstract interface class Words {
   /// Price list upgrade note.
   String get mnCatalog;
 
+  /// Glass in a price: the factory does not charge for glass at all.
+  String get glassDisabled;
+
+  /// Factory list of extras: a name already used.
+  String xiNameTaken(String name);
+
+  /// Refusal: a receipt was asked for a refund.
+  String get rcpNotForRefund;
+
+  /// Factory prices: what the border-and-lines rates apply to, and that the two share one rate.
+  String get rfAboutBorderLines;
+
+  /// Factory prices: what the opening-profile rates apply to.
+  String get rfAboutOpening;
+
+  /// Factory prices: the any-other-colour figures.
+  String get rfAboutColour;
+
+  /// Factory prices: what the single-sheet glass rates apply to.
+  String get rfAboutGlassSingle;
+
+  /// Factory prices: what the sealed-unit rates apply to.
+  String get rfAboutSealed;
+
+  /// Factory prices: what the panel rates apply to.
+  String get rfAboutPanel;
+
+  /// Factory prices: what the hardware rates apply to.
+  String get rfAboutHardware;
+
+  /// Factory prices: what the sliding rates apply to.
+  String get rfAboutSliding;
+
+  /// Factory prices: what the installation rates apply to.
+  String get rfAboutInstallation;
+
+  /// Factory prices: what the labour rates apply to.
+  String get rfAboutLabour;
+
 }
 
 /// The domain in English.
@@ -3535,5 +3574,57 @@ class EnglishWords implements Words {
   @override
   String get mnCatalog =>
       'Colours are now one catalog: a colour sold in more than one material is one colour with a rate on each, at the figures it had.';
+
+  @override
+  String get glassDisabled =>
+      'Glass charging is turned off';
+
+  @override
+  String xiNameTaken(String name) =>
+      'An item called $name is already in the factory\'s list.';
+
+  @override
+  String get rcpNotForRefund =>
+      'A receipt is for a payment, not a refund.';
+
+  @override
+  String get rfAboutBorderLines =>
+      'A metre of profile for the frame\'s border and the lines inside the design. Each profile has one rate for both; the two are measured and shown apart on every price.';
+
+  @override
+  String get rfAboutOpening =>
+      'A metre of the profile round each opening, one rate a material. Aluminium\'s opening profile has one rate, whichever aluminium type.';
+
+  @override
+  String get rfAboutColour =>
+      'What a colour the catalog does not name adds on this material\'s profile: so much a metre, and a share of the profile\'s price.';
+
+  @override
+  String get rfAboutGlassSingle =>
+      'A square metre of single-sheet glass, by its look. Charged only while Charge for glass is on, and only on a design that includes its glass.';
+
+  @override
+  String get rfAboutSealed =>
+      'A square metre of sealed glass unit — two sheets with a cavity — by its look, charged the same way as single-sheet glass.';
+
+  @override
+  String get rfAboutPanel =>
+      'A square metre of panel, by its colour.';
+
+  @override
+  String get rfAboutHardware =>
+      'Each piece of hardware a design has — hinges, handles, locks — by the piece.';
+
+  @override
+  String get rfAboutSliding =>
+      'A sliding design\'s track by the metre, and the rollers each sliding panel runs on.';
+
+  @override
+  String get rfAboutInstallation =>
+      'Charged only on a design whose price includes installation: a fixed figure, and so much a square metre.';
+
+  @override
+  String get rfAboutLabour =>
+      'Labour for every design of this category: a fixed figure, so much a square metre, and a share of the materials.';
 
 }

@@ -17,6 +17,7 @@ import '../../domain/model/design.dart';
 import '../../domain/model/elements.dart';
 import '../../domain/text/names.dart';
 import '../l10n/l10n.dart';
+import '../l10n/latin_digits.dart';
 import '../state/everything_shown.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -1189,6 +1190,7 @@ class _FigureEditorState extends State<_FigureEditor> {
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [
+                  const LatinDigits(),
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                 ],
                 style: const TextStyle(

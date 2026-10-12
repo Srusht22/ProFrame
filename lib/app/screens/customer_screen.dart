@@ -15,15 +15,18 @@ import '../inspector/price_actions.dart';
 import '../inspector/price_panel.dart';
 import '../inspector/profile_chooser.dart';
 import '../l10n/l10n.dart';
+import '../l10n/name_text.dart';
 import '../state/access.dart';
 import '../state/pricing.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
+import 'appearance_button.dart';
 import 'customer_finance.dart';
 import 'customers_screen.dart';
 import 'design_actions.dart';
 import 'design_name_screen.dart';
 import 'designs_screen.dart';
+import 'language_button.dart';
 import 'new_customer_screen.dart';
 
 /// One customer, and the designs that are theirs.
@@ -374,179 +377,190 @@ class _CustomerScreenState extends ConsumerState<CustomerScreen> {
     final mayViewDesigns = ref.offers(Capability.designsView);
     final mayCreate = ref.offers(Capability.designsCreate);
 
-    return Scaffold(
-      backgroundColor: p.shell,
-      appBar: AppBar(
-        backgroundColor: p.band,
-        foregroundColor: AppTheme.accent,
-        title: Text(customer?.name ?? ''),
-        // Until who is at the device is known, nothing that needs a
-        // permission is offered, and this says it is being worked out.
-        bottom: const PermissionsLoading(),
-        // Their money at a glance, beside their name: how they stand and
-        // what is due. The whole of it is under their designs.
-        actions: [
-          if (customer != null && _all > 0)
-            Padding(
-              padding: const EdgeInsetsDirectional.only(end: 12),
-              child: CustomerMoneyGlance(customer: customer),
-            ),
-          if (customer != null && ref.offers(Capability.customersDelete))
-            PopupMenuButton<String>(
-              key: CustomerScreen.menuKey,
-              onSelected: (_) => _delete(customer),
-              itemBuilder: (_) => [
-                PopupMenuItem(
-                  key: CustomerScreen.deleteKey,
-                  value: 'delete',
-                  child: Text(context.l10n.deleteCustomer),
+    // The width there is, for the bar: the language and the appearance
+    // stand on it where there is room, and on a phone stay on the
+    // customers' header one step back, so the bar keeps its back arrow
+    // and the customer's money in sight.
+    return LayoutBuilder(
+      builder: (context, room) => Scaffold(
+        backgroundColor: p.shell,
+        appBar: AppBar(
+          backgroundColor: p.band,
+          foregroundColor: AppTheme.accent,
+          // Their name as they typed it, in its own direction.
+          title: NameText(customer?.name ?? '', whole: true),
+          // Until who is at the device is known, nothing that needs a
+          // permission is offered, and this says it is being worked out.
+          bottom: const PermissionsLoading(),
+          // Their money at a glance, beside their name: how they stand and
+          // what is due. The whole of it is under their designs.
+          actions: [
+            if (customer != null && _all > 0)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 12),
+                child: CustomerMoneyGlance(customer: customer),
+              ),
+            if (room.maxWidth >= 600) ...[
+              const LanguageButton(colour: AppTheme.accent),
+              const AppearanceButton(colour: AppTheme.accent),
+            ],
+            if (customer != null && ref.offers(Capability.customersDelete))
+              PopupMenuButton<String>(
+                key: CustomerScreen.menuKey,
+                onSelected: (_) => _delete(customer),
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    key: CustomerScreen.deleteKey,
+                    value: 'delete',
+                    child: Text(context.l10n.deleteCustomer),
+                  ),
+                ],
+              ),
+          ],
+        ),
+        // Where the customer has designs, New Design stands at the foot of the
+        // screen whatever is scrolled past — a customer with forty designs can
+        // begin the forty-first without scrolling back to the top. Where they
+        // have none, the empty state carries it instead, in the middle of the
+        // page.
+        floatingActionButton:
+            customer == null || _all == 0 || !mayCreate || !mayView
+            ? null
+            : FloatingActionButton.extended(
+                key: CustomerScreen.newDesignButton,
+                onPressed: () => _newDesign(customer),
+                backgroundColor: p.band,
+                foregroundColor: AppTheme.accent,
+                icon: const Icon(Icons.add),
+                label: Text(context.l10n.newDesign),
+              ),
+        body: !mayView
+            ? Center(
+                child: Text(
+                  context.l10n.customersNoAccess,
+                  key: CustomerScreen.noAccessKey,
+                  style: TextStyle(color: p.muted),
                 ),
-              ],
-            ),
-        ],
-      ),
-      // Where the customer has designs, New Design stands at the foot of the
-      // screen whatever is scrolled past — a customer with forty designs can
-      // begin the forty-first without scrolling back to the top. Where they
-      // have none, the empty state carries it instead, in the middle of the
-      // page.
-      floatingActionButton:
-          customer == null || _all == 0 || !mayCreate || !mayView
-          ? null
-          : FloatingActionButton.extended(
-              key: CustomerScreen.newDesignButton,
-              onPressed: () => _newDesign(customer),
-              backgroundColor: p.band,
-              foregroundColor: AppTheme.accent,
-              icon: const Icon(Icons.add),
-              label: Text(context.l10n.newDesign),
-            ),
-      body: !mayView
-          ? Center(
-              child: Text(
-                context.l10n.customersNoAccess,
-                key: CustomerScreen.noAccessKey,
-                style: TextStyle(color: p.muted),
-              ),
-            )
-          : !_loaded
-          ? const SizedBox.shrink()
-          : customer == null
-          ? Center(
-              child: Text(
-                context.l10n.customerGone,
-                style: TextStyle(color: p.muted),
-              ),
-            )
-          : LayoutBuilder(
-              builder: (context, room) {
-                final gutter = room.maxWidth < 600 ? 16.0 : 32.0;
-                final across = room.maxWidth > _contentWidth + gutter * 2
-                    ? (room.maxWidth - _contentWidth) / 2
-                    : gutter;
-                return CustomScrollView(
-                  slivers: [
-                    SliverPadding(
-                      padding: EdgeInsets.fromLTRB(across, 20, across, 0),
-                      sliver: SliverToBoxAdapter(
-                        child: _Person(
-                          customer: customer,
-                          designs: _all,
-                          onEdit: ref.offers(Capability.customersEdit)
-                              ? () => _edit(customer)
-                              : null,
-                        ),
-                      ),
-                    ),
-                    SliverPadding(
-                      padding: EdgeInsets.fromLTRB(across, 28, across, 12),
-                      sliver: SliverToBoxAdapter(
-                        child: _DesignsHeading(
-                          count: _all,
-                          found: _narrowed ? _total : null,
-                        ),
-                      ),
-                    ),
-                    if (_all > 0)
+              )
+            : !_loaded
+            ? const SizedBox.shrink()
+            : customer == null
+            ? Center(
+                child: Text(
+                  context.l10n.customerGone,
+                  style: TextStyle(color: p.muted),
+                ),
+              )
+            : LayoutBuilder(
+                builder: (context, room) {
+                  final gutter = room.maxWidth < 600 ? 16.0 : 32.0;
+                  final across = room.maxWidth > _contentWidth + gutter * 2
+                      ? (room.maxWidth - _contentWidth) / 2
+                      : gutter;
+                  return CustomScrollView(
+                    slivers: [
                       SliverPadding(
-                        padding: EdgeInsets.fromLTRB(across, 0, across, 16),
+                        padding: EdgeInsets.fromLTRB(across, 20, across, 0),
                         sliver: SliverToBoxAdapter(
-                          child: _Finder(
-                            search: _search,
-                            onSearch: _searchFor,
-                            kinds: _kinds,
-                            all: _all,
-                            chosen: _kind,
-                            onFilter: _filterTo,
-                          ),
-                        ),
-                      ),
-                    if (!mayViewDesigns)
-                      SliverPadding(
-                        padding: EdgeInsets.symmetric(horizontal: across),
-                        sliver: SliverToBoxAdapter(
-                          child: Text(
-                            context.l10n.designsNoAccess,
-                            key: CustomerScreen.noDesignsAccessKey,
-                            style: TextStyle(color: p.muted),
-                          ),
-                        ),
-                      )
-                    else if (_all == 0)
-                      SliverPadding(
-                        padding: EdgeInsets.symmetric(horizontal: across),
-                        sliver: SliverToBoxAdapter(
-                          child: _NoDesigns(
-                            name: customer.name,
-                            onNewDesign: mayCreate
-                                ? () => _newDesign(customer)
+                          child: _Person(
+                            customer: customer,
+                            designs: _all,
+                            onEdit: ref.offers(Capability.customersEdit)
+                                ? () => _edit(customer)
                                 : null,
                           ),
                         ),
-                      )
-                    else if (_total == 0)
+                      ),
                       SliverPadding(
-                        padding: EdgeInsets.symmetric(horizontal: across),
+                        padding: EdgeInsets.fromLTRB(across, 28, across, 12),
                         sliver: SliverToBoxAdapter(
-                          child: _NoMatch(
-                            query: _query.trim(),
-                            kind: _kind,
-                            onShowAll: _showAll,
+                          child: _DesignsHeading(
+                            count: _all,
+                            found: _narrowed ? _total : null,
                           ),
                         ),
-                      )
-                    else
-                      SliverPadding(
-                        padding: EdgeInsets.symmetric(horizontal: across),
-                        sliver: _Cards(
-                          designs: _designs,
-                          width: room.maxWidth - across * 2,
-                          onOpen: _open,
-                          onEdit: ref.offers(Capability.designsEdit)
-                              ? _editInformation
-                              : null,
-                          onMore: _moreFor,
-                          onNearEnd: () => WidgetsBinding.instance
-                              .addPostFrameCallback((_) => _more()),
-                        ),
                       ),
-                    // What all of their designs come to, what they have paid
-                    // and what is due — under the cards, so it moves none of
-                    // them.
-                    if (_all > 0 && mayViewDesigns)
-                      SliverPadding(
-                        padding: EdgeInsets.fromLTRB(across, 16, across, 0),
-                        sliver: SliverToBoxAdapter(
-                          child: CustomerFinancialSummary(customer: customer),
+                      if (_all > 0)
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(across, 0, across, 16),
+                          sliver: SliverToBoxAdapter(
+                            child: _Finder(
+                              search: _search,
+                              onSearch: _searchFor,
+                              kinds: _kinds,
+                              all: _all,
+                              chosen: _kind,
+                              onFilter: _filterTo,
+                            ),
+                          ),
                         ),
-                      ),
-                    // Room under the last card for New Design, so it never
-                    // stands over a card that cannot be scrolled clear of it.
-                    const SliverToBoxAdapter(child: SizedBox(height: 104)),
-                  ],
-                );
-              },
-            ),
+                      if (!mayViewDesigns)
+                        SliverPadding(
+                          padding: EdgeInsets.symmetric(horizontal: across),
+                          sliver: SliverToBoxAdapter(
+                            child: Text(
+                              context.l10n.designsNoAccess,
+                              key: CustomerScreen.noDesignsAccessKey,
+                              style: TextStyle(color: p.muted),
+                            ),
+                          ),
+                        )
+                      else if (_all == 0)
+                        SliverPadding(
+                          padding: EdgeInsets.symmetric(horizontal: across),
+                          sliver: SliverToBoxAdapter(
+                            child: _NoDesigns(
+                              name: customer.name,
+                              onNewDesign: mayCreate
+                                  ? () => _newDesign(customer)
+                                  : null,
+                            ),
+                          ),
+                        )
+                      else if (_total == 0)
+                        SliverPadding(
+                          padding: EdgeInsets.symmetric(horizontal: across),
+                          sliver: SliverToBoxAdapter(
+                            child: _NoMatch(
+                              query: _query.trim(),
+                              kind: _kind,
+                              onShowAll: _showAll,
+                            ),
+                          ),
+                        )
+                      else
+                        SliverPadding(
+                          padding: EdgeInsets.symmetric(horizontal: across),
+                          sliver: _Cards(
+                            designs: _designs,
+                            width: room.maxWidth - across * 2,
+                            onOpen: _open,
+                            onEdit: ref.offers(Capability.designsEdit)
+                                ? _editInformation
+                                : null,
+                            onMore: _moreFor,
+                            onNearEnd: () => WidgetsBinding.instance
+                                .addPostFrameCallback((_) => _more()),
+                          ),
+                        ),
+                      // What all of their designs come to, what they have paid
+                      // and what is due — under the cards, so it moves none of
+                      // them.
+                      if (_all > 0 && mayViewDesigns)
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(across, 16, across, 0),
+                          sliver: SliverToBoxAdapter(
+                            child: CustomerFinancialSummary(customer: customer),
+                          ),
+                        ),
+                      // Room under the last card for New Design, so it never
+                      // stands over a card that cannot be scrolled clear of it.
+                      const SliverToBoxAdapter(child: SizedBox(height: 104)),
+                    ],
+                  );
+                },
+              ),
+      ),
     );
   }
 }
@@ -1169,10 +1183,8 @@ class CustomerDesignCard extends StatelessWidget {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
+                      child: NameText(
                         design.shownNameIn(context.words),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,

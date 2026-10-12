@@ -9,6 +9,7 @@ import '../domain/model/receipt.dart';
 import '../domain/pricing/extra_charge.dart';
 import '../domain/pricing/price_result.dart';
 import '../domain/pricing/pricing_access.dart';
+import '../domain/text/refusal.dart';
 import '../domain/text/words.dart';
 import 'design_store.dart';
 import 'quotation_store.dart';
@@ -350,13 +351,16 @@ class CustomerStore {
     final customer = _loadNow(prefs, customerId);
     final exists = customer?.extras.any((e) => e.id == extra.id) ?? false;
     by.require(exists ? Capability.extrasEdit : Capability.extrasCreate);
-    final problem = ExtraCharge.problemWith(
+    String? problemIn(Words w) => ExtraCharge.problemWith(
       name: extra.name,
       quantityMilli: extra.quantityMilli,
       unit: extra.unit,
       unitPriceCents: extra.unitPriceCents,
+      words: w,
     );
-    if (problem != null) throw ArgumentError(problem);
+    if (problemIn(const EnglishWords()) != null) {
+      throw Refusal((w) => problemIn(w)!);
+    }
     if (!additional) {
       final same = ExtraCharge.alreadyCalculated(
         extra.name,
@@ -364,10 +368,11 @@ class CustomerStore {
         calculated,
       );
       if (same.isNotEmpty) {
-        throw StateError(
-          ExtraCharge.alreadyCalculatedMessage(
+        throw StateRefusal(
+          (w) => ExtraCharge.alreadyCalculatedMessage(
             same,
-            (c) => (c / 100).toStringAsFixed(2),
+            (c) => '${(c / 100).toStringAsFixed(2)} ${extra.currency}',
+            w,
           ),
         );
       }
@@ -459,7 +464,7 @@ class CustomerStore {
         .firstOrNull;
     if (payment == null) return null;
     if (payment.type != PaymentType.payment) {
-      throw ArgumentError('A receipt is for a payment, not a refund.');
+      throw Refusal((w) => w.rcpNotForRefund);
     }
     final existing = customer.receiptFor(transactionId);
     if (existing != null) return existing;

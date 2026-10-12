@@ -14,8 +14,8 @@ import '../state/access.dart';
 import '../state/pricing.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
-import 'extra_charges.dart';
 import 'price_actions.dart';
+import 'price_summary.dart';
 import 'pricing_options.dart';
 import 'profile_chooser.dart';
 
@@ -211,6 +211,7 @@ class _PricePanelState extends ConsumerState<PricePanel> {
           const SizedBox(height: 10),
           PricingOptions(
             design: design,
+            factoryChargesGlass: list.chargesGlass,
             onChange: !ref.offers(Capability.designsEdit)
                 ? null
                 : (change) async {

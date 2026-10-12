@@ -45,7 +45,15 @@ const engine = PricingEngine();
 
 /// Every category, material, glass, panel and piece present and priced at
 /// nothing, so nothing is missing and nothing is charged until a test says.
+/// The example list with glass charged. Since Phase 35 a new configuration
+/// charges no glass until the owner turns *Charge for glass* on
+/// (`PriceList.chargesGlass`, off in the example list); these tests price
+/// glass, so they turn it on, as an owner would. Nothing else differs.
+final glassCharged = PriceList.starter.copyWith(chargesGlass: true);
+
 final zero = PriceList(
+  // Glass charged, as in [glassCharged].
+  chargesGlass: true,
   currency: 'USD',
   profiles: {
     MaterialKind.upvc: const ProfileRate(
@@ -516,8 +524,8 @@ void main() {
       expect(totalOf(alu, list), closeTo(6 * 11 + 1.6 * 7 + 6 * 18, 1e-9));
       expect(pvc.frame!.outline, alu.frame!.outline);
       expect(
-        totalOf(pvc, PriceList.starter),
-        isNot(totalOf(alu, PriceList.starter)),
+        totalOf(pvc, glassCharged),
+        isNot(totalOf(alu, glassCharged)),
       );
     });
 
@@ -586,8 +594,8 @@ void main() {
       // Wood effect dearer than white in the starter list.
       const oak = Finish(colour: 0xFF7B4A2B, material: MaterialKind.upvc);
       expect(
-        totalOf(framedIn(d, oak), PriceList.starter),
-        greaterThan(totalOf(framedIn(d, pvcWhite), PriceList.starter)),
+        totalOf(framedIn(d, oak), glassCharged),
+        greaterThan(totalOf(framedIn(d, pvcWhite), glassCharged)),
       );
     });
   });
@@ -595,7 +603,7 @@ void main() {
   group('categories', () {
     test('15. a door: border, opening, its leaf\'s glass and its hardware', () {
       final d = door();
-      final labels = linesOf(d, PriceList.starter).map((l) => l.group).toSet();
+      final labels = linesOf(d, glassCharged).map((l) => l.group).toSet();
       expect(
         labels,
         containsAll([
@@ -605,7 +613,7 @@ void main() {
           PriceGroup.hardware,
         ]),
       );
-      expect(engine.price(d, PriceList.starter).measurements.openings, 1);
+      expect(engine.price(d, glassCharged).measurements.openings, 1);
     });
 
     test('16. a window measured as the same sheet', () {
@@ -614,7 +622,7 @@ void main() {
         PricingTakeoff.of(w).totalProfile.value,
         closeTo(PricingTakeoff.of(door()).totalProfile.value, 1e-9),
       );
-      expect(engine.price(w, PriceList.starter).isPriced, isTrue);
+      expect(engine.price(w, glassCharged).isPriced, isTrue);
     });
 
     test('17. a sliding set: its track as other profile, the frame\'s '
@@ -659,7 +667,7 @@ void main() {
       final raked = d.openings.single;
       final region = d.sectionById(raked.sectionId)!.outline;
       expect(t.openingProfile.value, closeTo(perimeter(region) / 1000, 5e-4));
-      expect(engine.price(d, PriceList.starter).isPriced, isTrue);
+      expect(engine.price(d, glassCharged).isPriced, isTrue);
       expect(jsonEncode(d.toJson()), before);
     });
 
@@ -668,7 +676,7 @@ void main() {
       final d = given(sloped());
       for (final saved in <Object?>['future_custom_shape', 'circular', 12345]) {
         final future = Design.fromJson(keptAs(d, saved));
-        final r = engine.price(future, PriceList.starter);
+        final r = engine.price(future, glassCharged);
         expect(r.status, PriceStatus.unsupportedCategory, reason: '$saved');
         expect(r.total, isNull);
         expect(r.lines, isEmpty);
@@ -679,7 +687,7 @@ void main() {
         engine
             .price(
               Design.fromJson(keptAs(d, null, has: false)),
-              PriceList.starter,
+              glassCharged,
             )
             .status,
         PriceStatus.unsupportedCategory,
@@ -691,7 +699,7 @@ void main() {
       final d = given(sliding.sheet(left: '>'));
       const noSliding = PricingEngine({'door': FramedPricing()});
       expect(
-        noSliding.price(d, PriceList.starter).status,
+        noSliding.price(d, glassCharged).status,
         PriceStatus.unsupportedCategory,
       );
       final noRate = zero.copyWith(
@@ -757,7 +765,7 @@ void main() {
       );
       final designs = [one, two, three];
       final texts = [for (final d in designs) jsonEncode(d.toJson())];
-      final list = PriceList.starter;
+      final list = glassCharged;
       PriceRecord rec(Design d) => PriceRecord.calculate(d, list)!;
       final adam = CustomerPricing.of([
         for (final d in designs) (d, rec(d)),
@@ -834,8 +842,8 @@ void main() {
       final back = Design.fromJson(jsonDecode(jsonEncode(d.toJson())));
       expect(back.pricing, d.pricing);
       expect(jsonEncode(back.toJson()), jsonEncode(d.toJson()));
-      final a = engine.price(d, PriceList.starter);
-      final b = engine.price(back, PriceList.starter);
+      final a = engine.price(d, glassCharged);
+      final b = engine.price(back, glassCharged);
       expect(b.total, a.total);
       expect(jsonEncode(b.toJson()), jsonEncode(a.toJson()));
       // A kept price keeps its measurements, and a dearer list leaves it be.
@@ -848,7 +856,7 @@ void main() {
         ),
       );
       final dearer = withProfile(
-        PriceList.starter,
+        glassCharged,
         MaterialKind.upvc,
         normal: 99,
         opening: 99,
@@ -870,9 +878,9 @@ void main() {
         given(sliding.sheet(left: '>')),
       ]) {
         final before = jsonEncode(d.toJson());
-        engine.price(d, PriceList.starter);
+        engine.price(d, glassCharged);
         PricingTakeoff.of(d);
-        CustomerPricing.of([(d, null), (d, null)], PriceList.starter);
+        CustomerPricing.of([(d, null), (d, null)], glassCharged);
         expect(jsonEncode(d.toJson()), before);
       }
     });
@@ -897,8 +905,8 @@ void main() {
         pane.copyWith(finish: PanelColour.white.finish),
       );
       expect(
-        totalOf(panel, PriceList.starter),
-        isNot(totalOf(d, PriceList.starter)),
+        totalOf(panel, glassCharged),
+        isNot(totalOf(d, glassCharged)),
       );
     });
 
@@ -914,7 +922,7 @@ void main() {
       final older = Design.fromJson(
         jsonDecode(jsonEncode({...json}..remove('measured'))),
       );
-      expect(engine.price(older, PriceList.starter).isPriced, isTrue);
+      expect(engine.price(older, glassCharged).isPriced, isTrue);
     });
   });
 
@@ -966,12 +974,12 @@ void main() {
         final bad = d.copyWith(
           frame: d.frame!.copyWith(outline: Polygon(outline)),
         );
-        final r = engine.price(bad, PriceList.starter);
+        final r = engine.price(bad, glassCharged);
         expect(r.status, PriceStatus.invalid, reason: '$outline');
         expect(r.total, isNull);
       }
       for (final x in [door(), acceptance(), screen(), given(sloped())]) {
-        for (final l in engine.price(x, PriceList.starter).lines) {
+        for (final l in engine.price(x, glassCharged).lines) {
           expect(l.amount.isFinite && l.amount >= 0, isTrue, reason: '$l');
         }
       }
@@ -1032,7 +1040,7 @@ void main() {
       expect(prefs.getString(PriceListStore.key), '{bad');
 
       final json = jsonDecode(
-        jsonEncode(PriceList.starter.toJson()),
+        jsonEncode(glassCharged.toJson()),
       ) as Map<String, Object?>;
       (json['glassPerM2']! as Map<String, Object?>)['clear'] = -5;
       (json['sealedGlassPerM2']! as Map<String, Object?>)['clear'] = -5;

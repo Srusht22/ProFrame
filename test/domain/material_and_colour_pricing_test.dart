@@ -285,7 +285,12 @@ void main() {
         madeIn(door(), MaterialKind.upvc, white),
         madeIn(glassOverPanel(door()), MaterialKind.aluminium, black),
       ]) {
-        final r = engine.price(d, DefaultFactoryPricing.list);
+        // Glass charged, as an owner would turn it on: since Phase 35 the
+        // example list charges no glass until *Charge for glass* is on.
+        final r = engine.price(
+          d,
+          DefaultFactoryPricing.list.copyWith(chargesGlass: true),
+        );
         expect(r.isPriced, isTrue, reason: '${r.issues}');
         final areas = r.lines.where((l) => l.unit == PriceUnit.squareMetre);
         expect(areas, isNotEmpty);

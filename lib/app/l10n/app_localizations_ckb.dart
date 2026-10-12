@@ -1796,9 +1796,8 @@ class AppLocalizationsCkb extends AppLocalizations {
   String get completeNoPermission => 'مۆڵەتی تەواوکردنی دیزاینەکانت نییە.';
 
   @override
-  String completeSaveFailed(String error) {
-    return 'دیزاینەکە پاشەکەوت نەکرا، بۆیە تەواو نەکرا. کارەکەت هێشتا لێرەیە — دووبارە هەوڵ بدەرەوە. ($error)';
-  }
+  String get completeSaveFailed =>
+      'دیزاینەکە پاشەکەوت نەکرا، بۆیە تەواو نەکرا. کارەکەت هێشتا لێرەیە — دووبارە هەوڵ بدەرەوە.';
 
   @override
   String bulleted(String item) {
@@ -4280,4 +4279,318 @@ class AppLocalizationsCkb extends AppLocalizations {
   @override
   String get mnCatalog =>
       'ڕەنگەکان ئێستا یەک کاتالۆگن: ڕەنگێک کە بە زیاتر لە یەک کەرەستە دەفرۆشرێت یەک ڕەنگە و نرخێکی لەسەر هەریەکەیان هەیە، بە هەمان ژمارەکانی پێشوو.';
+
+  @override
+  String get glassDisabled => 'نرخی شووشە کوژاوەتەوە';
+
+  @override
+  String xiNameTaken(String name) {
+    return 'بڕگەیەک بە ناوی $name پێشتر لە لیستی کارگەدا هەیە.';
+  }
+
+  @override
+  String get rcpNotForRefund => 'پسوولە بۆ پارەدانە، نەک بۆ گەڕاندنەوەی پارە.';
+
+  @override
+  String get errNotKept =>
+      'ئەمە لەسەر ئەم ئامێرە پاشەکەوت نەکرا. هیچ نەگۆڕدرا — دووبارە هەوڵ بدەرەوە.';
+
+  @override
+  String get errSomethingWrong =>
+      'هەڵەیەک ڕوویدا و ئەمە نەکرا. دووبارە هەوڵ بدەرەوە.';
+
+  @override
+  String get psTitle => 'پوختەی نرخ';
+
+  @override
+  String psFor(String name) {
+    return 'بۆ $name';
+  }
+
+  @override
+  String psIncludesDiscount(String amount) {
+    return 'دوای داشکاندنی ‎$amount‎';
+  }
+
+  @override
+  String get psProfiles => 'پرۆفایل و چوارچێوە';
+
+  @override
+  String get psPanels => 'پانێڵەکان';
+
+  @override
+  String get psGlass => 'شووشە';
+
+  @override
+  String get psHardware => 'ئیکسسوار';
+
+  @override
+  String get psLabour => 'کرێی کار و دامەزراندن';
+
+  @override
+  String get psExtras => 'تێچووە زیادەکان';
+
+  @override
+  String get psDiscount => 'داشکاندن';
+
+  @override
+  String get psCalculation => 'هەژمارکردنی کۆتایی';
+
+  @override
+  String get psChoices => 'کەرەستە و هەڵبژاردنەکان';
+
+  @override
+  String get psMeasurements => 'پێوانەکان';
+
+  @override
+  String get psSharedRate =>
+      'لێوار و هێڵە ناوەکییەکان جیا دەپێورێن و بۆ هەر پرۆفایلێک بە هەمان نرخ هەژمار دەکرێن.';
+
+  @override
+  String get psNoPanel => 'ئەم دیزاینە هیچ پانێڵێکی نییە.';
+
+  @override
+  String get psNoGlass => 'ئەم دیزاینە هیچ شووشەیەکی نییە.';
+
+  @override
+  String psGlassNotIncluded(String area) {
+    return 'دیزاینەکە $area شووشەی هەیە. نرخی لێ وەرناگیرێت: «شووشە بخەرە ناو نرخەوە» بۆ ئەم دیزاینە کوژاوەتەوە.';
+  }
+
+  @override
+  String psGlassDisabled(String area) {
+    return 'دیزاینەکە $area شووشەی هەیە. نرخی لێ وەرناگیرێت: ڕێکخستنی «نرخی شووشە» لە نرخەکانی کارگەدا کوژاوەتەوە.';
+  }
+
+  @override
+  String get psGlassNothing =>
+      'شووشە لە نرخدا لەخۆگیراوە، بەڵام دیزاینەکە هیچ شووشەیەکی نییە بۆ نرخدانان.';
+
+  @override
+  String get psAddExtra => 'زیادکردنی تێچووی زیادە';
+
+  @override
+  String get psEditPricing => 'دەستکاریکردنی نرخەکانی کارگە';
+
+  @override
+  String get psCombinedProfile => 'لێوار و هێڵە ناوەکییەکان پێکەوە';
+
+  @override
+  String get psShowMeasurements => 'پیشاندانی پێوانەکان';
+
+  @override
+  String get psHideMeasurements => 'شاردنەوەی پێوانەکان';
+
+  @override
+  String psCollapse(String section) {
+    return 'شاردنەوەی $section';
+  }
+
+  @override
+  String psExpand(String section) {
+    return 'پیشاندانی $section';
+  }
+
+  @override
+  String get psFromCatalog => 'لە لیستی کارگەوە';
+
+  @override
+  String get poGlassFactoryOff =>
+      'کارگە نرخی شووشە وەرناگرێت (نرخەکانی کارگە). شووشەکە دەمێنێتەوە و دەپێورێت، بەڵام نرخی لێ وەرناگیرێت.';
+
+  @override
+  String get rfAboutBorderLines =>
+      'مەترێک پرۆفایل بۆ لێواری چوارچێوە و هێڵەکانی ناو دیزاین. هەر پرۆفایلێک یەک نرخی هەیە بۆ هەردووکیان؛ لە هەموو نرخێکدا جیا دەپێورێن و پیشان دەدرێن.';
+
+  @override
+  String get rfAboutOpening =>
+      'مەترێک لەو پرۆفایلەی دەوری هەر بەشێکی کراوەیە، یەک نرخ بۆ هەر کەرەستەیەک. پرۆفایلی بەشی کراوەی ئەلەمنیۆم یەک نرخی هەیە، هەر جۆرێکی ئەلەمنیۆم بێت.';
+
+  @override
+  String get rfAboutColour =>
+      'ئەوەی ڕەنگێک کە لە کاتالۆگدا ناوی نییە دەیخاتە سەر پرۆفایلی ئەم کەرەستەیە: بڕێک بۆ هەر مەترێک، و بەشێک لە نرخی پرۆفایلەکە.';
+
+  @override
+  String get rfAboutGlassSingle =>
+      'مەترێکی چوارگۆشە شووشەی یەک چین، بەپێی جۆرەکەی. تەنها کاتێک نرخی لێ وەردەگیرێت کە «نرخی شووشە» هەڵکرابێت، و تەنها لەسەر دیزاینێک کە شووشەکەی لەخۆبگرێت.';
+
+  @override
+  String get rfAboutSealed =>
+      'مەترێکی چوارگۆشە شووشەی دووقات — دوو چین بە بۆشاییەک لە نێوانیاندا — بەپێی جۆرەکەی، بە هەمان شێوەی شووشەی یەک چین نرخی لێ وەردەگیرێت.';
+
+  @override
+  String get rfAboutPanel => 'مەترێکی چوارگۆشە پانێڵ، بەپێی ڕەنگەکەی.';
+
+  @override
+  String get rfAboutHardware =>
+      'هەر پارچەیەک لە ئیکسسوارەکانی دیزاین — لولاو، دەسک، قوفڵ — بە دانە.';
+
+  @override
+  String get rfAboutSliding =>
+      'ڕێڕەوی دیزاینی سلایدینگ بە مەتر، و ئەو تەگەرانەی هەر پانێڵێکی سلایدینگ لەسەری دەڕوات.';
+
+  @override
+  String get rfAboutInstallation =>
+      'تەنها لەسەر دیزاینێک نرخی لێ وەردەگیرێت کە نرخەکەی دامەزراندن لەخۆبگرێت: بڕێکی جێگیر، و بڕێک بۆ هەر مەترێکی چوارگۆشە.';
+
+  @override
+  String get rfAboutLabour =>
+      'کرێی کار بۆ هەموو دیزاینێکی ئەم جۆرە: بڕێکی جێگیر، بڕێک بۆ هەر مەترێکی چوارگۆشە، و بەشێک لە نرخی کەرەستەکان.';
+
+  @override
+  String get fpIntro =>
+      'هەر ژمارەیەک ئەوەیە کە کارگە وەریدەگرێت. هەڵگرتنی نرخی نوێ هیچ پێشنیاری نرخ، پسوولە یان پارەدانێک ناگۆڕێت: ئەوان ژمارەکانی خۆیان دەهێڵنەوە.';
+
+  @override
+  String get fpChargeGlass => 'نرخی شووشە وەربگیرێت';
+
+  @override
+  String get fpChargeGlassOff =>
+      'کوژاوە: نرخی شووشەی هیچ دیزاینێک وەرناگیرێت. شووشەکە لە هەموو دیزاینێکدا دەمێنێتەوە و دەپێورێت.';
+
+  @override
+  String get fpChargeGlassOn =>
+      'هەڵکراو: شووشەی دیزاینێک بەو نرخانەی خوارەوە هەژمار دەکرێت هەر کاتێک «شووشە بخەرە ناو نرخەوە»ی خودی دیزاینەکە هەڵکرابێت.';
+
+  @override
+  String get fpDiscard => 'وازهێنان لە گۆڕانکارییەکان';
+
+  @override
+  String get fpDiscardAsk => 'واز لەو گۆڕانکارییانە دەهێنیت کە هەڵتنەگرتوون؟';
+
+  @override
+  String get fpDiscardBody =>
+      'هەموو ژمارەیەک دەگەڕێتەوە بۆ لیستی نرخ وەک ئەوەی هەڵگیراوە.';
+
+  @override
+  String get fpKeepEditing => 'بەردەوامبوون لە دەستکاری';
+
+  @override
+  String fpConfirmTitle(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count گۆڕانکاری هەڵدەگریت؟',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get fpConfirmBody =>
+      'هەموو نرخێک کە پێشتر هەژمار کراوە پێویستی بە دووبارە هەژمارکردنەوە دەبێت. پێشنیاری نرخ، پسوولە و پارەدانەکان ژمارەکانی خۆیان دەهێڵنەوە.';
+
+  @override
+  String get fpSaving => 'پاشەکەوت دەکرێت…';
+
+  @override
+  String get fxTitle => 'بڕگە زیادەکان';
+
+  @override
+  String get fxIntro =>
+      'ئەوەی کارگە جار لە دوای جار نرخی لێ وەردەگرێت، هەریەکە بە نرخی خۆی. هەڵبژاردنی یەکێکیان لەسەر دیزاینێک نرخەکەی کۆپی دەکات، بۆیە گۆڕینی لێرە هیچ شتێکی پێشتر زیادکراو ناگۆڕێت.';
+
+  @override
+  String get fxNone =>
+      'هێشتا هیچ بڕگەیەک نییە. تێچووی زیادە هێشتا دەتوانرێت بە تەواوی لەسەر هەر دیزاینێک بنووسرێت.';
+
+  @override
+  String get fxAdd => 'زیادکردنی بڕگە';
+
+  @override
+  String get fxEditTitle => 'دەستکاریکردنی بڕگە';
+
+  @override
+  String fxPerUnit(String amount, String unit) {
+    return '‎$amount‎ بۆ هەر $unit';
+  }
+
+  @override
+  String get fxAdded => 'بڕگەکە زیادکرا.';
+
+  @override
+  String get fxSaved => 'بڕگەکە پاشەکەوت کرا.';
+
+  @override
+  String fxRetireAsk(String name) {
+    return 'چیتر $name پێشنیار ناکرێت؟';
+  }
+
+  @override
+  String get fxRetireBody =>
+      'بۆ تێچووی زیادەی نوێ پێشنیار ناکرێت. هەموو تێچوویەک کە پێشتر لێیەوە زیادکراوە ناو و نرخی خۆی دەهێڵێتەوە.';
+
+  @override
+  String get fxRetire => 'ڕاگرتنی پێشنیارکردن';
+
+  @override
+  String fxRetired(String name) {
+    return '$name چیتر پێشنیار ناکرێت.';
+  }
+
+  @override
+  String get fxNote => 'ڕوونکردنەوە (ئارەزوومەندانە)';
+
+  @override
+  String fxCurrency(String currency) {
+    return 'نرخەکان بە $currency';
+  }
+
+  @override
+  String get xFrom => 'بڕگە';
+
+  @override
+  String get xCustomItem => 'بڕگەی یەکجارە — خۆت بینووسە';
+
+  @override
+  String xFactoryPrice(String amount, String unit) {
+    return 'نرخی کارگە: ‎$amount‎ بۆ هەر $unit. بۆ وەرگرتنی نرخێکی تر، بڕگەیەکی یەکجارە هەڵبژێرە.';
+  }
+
+  @override
+  String get xCalculated => 'بڕی هەژمارکراو';
+
+  @override
+  String get lbTooltip => 'گۆڕینی زمان';
+
+  @override
+  String abTooltip(String mode) {
+    return 'گۆڕینی ڕووکار — ئێستا $mode';
+  }
+
+  @override
+  String lbCurrent(String language) {
+    return 'زمان — ئێستا $language';
+  }
+
+  @override
+  String get fwLookUp => 'گەڕان بە دوایدا';
+
+  @override
+  String get fwSearchWeb => 'گەڕان لە وێب';
+
+  @override
+  String get fwShare => 'هاوبەشکردن';
+
+  @override
+  String get fwNavigationMenu => 'لیستی ڕێنمایی';
+
+  @override
+  String get fwScrim => 'پەردە';
+
+  @override
+  String fwCloseOf(String name) {
+    return 'داخستنی $name';
+  }
+
+  @override
+  String get fwNoReplacements => 'هیچ جێگرەوەیەک نەدۆزرایەوە';
+
+  @override
+  String get fwDismissMenu => 'داخستنی لیست';
+
+  @override
+  String get fwClear => 'سڕینەوە';
+
+  @override
+  String get psFinalTotal => 'کۆی کۆتایی';
 }

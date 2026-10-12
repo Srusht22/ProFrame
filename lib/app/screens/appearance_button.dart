@@ -11,38 +11,58 @@ class AppearanceButton extends ConsumerWidget {
 
   const AppearanceButton({super.key, required this.colour});
 
+  static const buttonKey = ValueKey('appearance-button');
+  static ValueKey<String> optionKey(ThemeMode mode) =>
+      ValueKey('appearance-option-${mode.name}');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(appearanceProvider);
-    return PopupMenuButton<ThemeMode>(
-      tooltip: context.l10n.settingsAppearance,
-      initialValue: mode,
-      position: PopupMenuPosition.under,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      onSelected: ref.read(appearanceProvider.notifier).choose,
-      itemBuilder: (context) => [
-        for (final option in Appearance.icons.keys)
-          PopupMenuItem(
-            value: option,
-            child: Row(
-              children: [
-                Icon(Appearance.icons[option], size: 20),
-                const SizedBox(width: 12),
-                Expanded(child: Text(appearanceLabel(context.l10n, option))),
-                if (option == mode) ...[
-                  const SizedBox(width: 12),
-                  Icon(
-                    Icons.check,
-                    size: 18,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ],
-              ],
+    final said = context.l10n.abTooltip(appearanceLabel(context.l10n, mode));
+    return Semantics(
+      button: true,
+      label: said,
+      excludeSemantics: true,
+      child: PopupMenuButton<ThemeMode>(
+        key: buttonKey,
+        tooltip: said,
+        initialValue: mode,
+        position: PopupMenuPosition.under,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        onSelected: ref.read(appearanceProvider.notifier).choose,
+        itemBuilder: (context) => [
+          PopupMenuItem<ThemeMode>(
+            enabled: false,
+            height: 36,
+            child: Text(
+              context.l10n.settingsAppearance,
+              style: Theme.of(context).textTheme.labelLarge,
             ),
           ),
-      ],
-      style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
-      icon: Icon(Appearance.icons[mode], color: colour, size: 22),
+          for (final option in Appearance.icons.keys)
+            PopupMenuItem(
+              key: optionKey(option),
+              value: option,
+              child: Row(
+                children: [
+                  Icon(Appearance.icons[option], size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(appearanceLabel(context.l10n, option))),
+                  if (option == mode) ...[
+                    const SizedBox(width: 12),
+                    Icon(
+                      Icons.check,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+        ],
+        style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
+        icon: Icon(Appearance.icons[mode], color: colour, size: 22),
+      ),
     );
   }
 }

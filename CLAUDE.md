@@ -1052,9 +1052,11 @@ why every app test that opens the app still passes unchanged.
 
 The application has a dark appearance beside the light one. It follows the
 device until the user says otherwise, with **Match device**, **Light** and
-**Dark** behind one button on the designs' header (`AppearanceButton`), and
-the choice is kept on the device (`appearanceProvider`,
-`proframe.appearance`).
+**Dark** behind one button on the customers' header (`AppearanceButton`,
+its icon a sun, a moon or the device's mark), and the choice is kept on the
+device (`appearanceProvider`, `proframe.appearance`). The language has a
+button of its own beside it (`LanguageButton`), never the same one — see
+*Simple prices, the factory's rates, and two controls*.
 
 **The light appearance is exactly what it was.** Every colour a widget
 shows comes from `context.palette` — a `Palette`, the theme's own extension
@@ -6402,10 +6404,9 @@ Design ─ PriceReadiness ─ PricingEngine ─ PriceRecord? ─ DesignPriceStat
   - Where the design cannot be priced it is drawn disabled, and a press on
     it says the exact thing to complete (`PriceButton.explain`).
   - Pressed while enabled, it keeps the design as it is, calculates by the
-    one engine, keeps the price, and shows `DesignPriceSheet`: **MATERIAL
-    MEASUREMENTS** (profile in metres, panel and glass in m², never added
-    together), **COST BREAKDOWN** by group with each line's quantity and
-    rate, and **DESIGN TOTAL**.
+    one engine, keeps the price, and shows `DesignPriceSheet` — since Phase
+    35 a summary: the final total first, then each part with what it comes
+    to (see *Simple prices, the factory's rates, and two controls*).
   - It follows every edit at once (`workspacePriceStateProvider`): a size
     given enables it, a size taken away or a line drawn in a sash disables
     it.
@@ -7537,7 +7538,8 @@ lib/app/l10n/app_ckb.arb ─┘                                          (screen
   is English. `MaterialApp` is given the locale outright, so the device's
   own language never decides. **Settings** (`SettingsScreen`, the gear on
   the customers' header) offers *English* and *کوردی (سۆرانی)*, each named
-  in itself and set in its own direction, beside the appearance.
+  in itself and set in its own direction, beside the appearance; since
+  Phase 35 the language also has its own button (`LanguageButton`).
 - **Flutter has no Central Kurdish**, so
   `lib/app/l10n/kurdish_framework.dart` gives it Material, Widgets and
   Cupertino localizations: the widgets right to left, and the words the
@@ -7596,6 +7598,162 @@ customers, Settings, a customer's page and Draw, CAD and 3D; the technical
 drawing's lines the same pixels in both; and a design's name never
 translated. `test/app/the_translation_review_test.dart` holds the review
 file current with the ARB and the apply tool's reading of it.
+
+### Simple prices, the factory's rates, and two controls
+
+The brief: *the pricing sheet is crowded — make it something an ordinary
+factory worker understands at a glance on a phone; let the administrator
+set every rate field by field, glass optional and off for a new
+configuration, extras priced without a code change; give the language and
+the appearance each a control of its own; and finish what Phase 34 left.*
+`docs/phase_35_audit.md` is the audit written first.
+
+**The price summary** (`DesignPriceSheet`, `price_actions.dart`;
+`PriceBreakdown`, `CostSection`, `CostRow` in `price_summary.dart`):
+
+```
+Price summary                                   ✕
+Front Entrance Door
+For Adam · Door · Draft
+┌ FINAL TOTAL  350.00 USD ┐       the engine's total, nothing else
+Profiles and frame              200.00 USD
+  uPVC — Border                 152.00 USD
+  7.600 m × 20.00 USD/m
+  …
+Panels · Glass · Hardware · Labour and installation
+Extra charges · Discount · Final calculation
+Material and options                         the choices that make the price
+Show measurements                            folded away
+Edit factory prices                          only with pricing.edit
+```
+
+- **The final total is first**, in a band of its own, and is the engine's
+  `PriceResult.total` — the summary adds up nothing but a part's own lines,
+  which are whole cents, so the parts add up to the design cost under them
+  to the cent.
+- **Every line says how it is worked out**, under its name: the
+  measurement, the rate with its unit and currency (`USD/m`, `USD/m²`) —
+  `CostRow.detailOf` — and the amount at the end. The border and the
+  internal lines are two lines at the rate they share, then what they come
+  to together, and a note that they share it; an extra is `5 bottles × 3.00
+  USD`.
+- **Nothing is an unexplained zero.** A part the design does not have says
+  *Not used* and why; glass the design has and is not charged says how much
+  there is and which switch is off — the design's own *Include glass in
+  price*, or the factory's *Charge for glass* (`GlassState.disabled`).
+- **Choosing is apart from reading**: the profile's material and colour,
+  its aluminium type and the design's glass switch are under *Material and
+  options*, after the price they make; the factory's rates are never edited
+  here, and **Edit factory prices** opens them for whoever may.
+- Each part folds on a tap of its heading and starts open. The keys tests
+  read stayed on the same figures (`ExtraKeys.*`, `DesignPriceSheet.*`).
+
+**Factory prices, field by field** (`FactoryPricesScreen`) — the existing
+editor, improved, not a second one:
+
+- **Each section says what its figures apply to** (`RateField.about`), and
+  which are shared: one rate per profile for the border and the lines,
+  measured and shown apart; one opening-profile rate per material, whichever
+  aluminium type. No rate was merged or split.
+- **Every money figure shows its currency** — `USD / m`, `USD each`
+  (`RateField.isMoney`).
+- **Typed and not kept** shows **Discard changes**; leaving asks first. Many
+  figures at once (`broadChange`, five) or the glass switch are asked about
+  before they are kept. A keep the device refuses (`KeepFailed`, thrown by
+  `PriceListStore.save` where `setString` comes back false) is said, and
+  every figure typed stays in its field — nobody is told it was kept.
+- **Charge for glass** (`PriceList.chargesGlass`) is the factory's master
+  switch: off, no design's glass is charged and its rates are not shown
+  (they are kept); on, each design still decides by its own *Include glass
+  in price*, as since Phase 33. **Off for a new configuration** — the
+  example list and a list built without saying. A list kept before the
+  switch has no such key and reads as on, and the key is written only when
+  off, so such a list's JSON — and every price kept against it — is
+  unchanged. The example list's JSON did change, so **a price calculated
+  against the example list says *needs recalculation* once**, and
+  recalculated, a design that included its glass is no longer charged it
+  until the owner turns *Charge for glass* on.
+
+**The factory's list of extras** (`ExtraItem`, `ExtraCatalog`,
+`lib/domain/pricing/extra_catalog.dart`; `ExtraCatalogStore`,
+`proframe.extra-items.v1`; **Extra items** in Factory prices,
+`factory_extras.dart`):
+
+- An item is a name, a category, a unit, a unit price in the list's
+  currency and an explanation. Added, changed, no longer offered, offered
+  again — never deleted — by whoever holds `pricing.edit`, which **the store
+  checks**: `extras.create` does not give it.
+- **An item is a template, never a charge.** Choosing one in the extra form
+  (`ExtraDialog.items`, offered in the price's own currency) writes an
+  `ExtraCharge` with the item's name, category, unit and price copied in and
+  `ExtraCharge.itemId` beside them. The price is the factory's and is not
+  typed over; to charge another, the form's *One-time item* is the extra
+  typed in full, as before. So changing an item reprices no design,
+  customer or quotation, and `PriceInputs` reads no `itemId`.
+- Kept apart from the price list on purpose: an item is not a rate the
+  engine reads, and adding one must not make every kept price stale.
+- A design's extra and a customer's extra keep their scopes as they were;
+  a job's extra is counted once, in `CustomerFinance`.
+
+**Two controls** — `LanguageButton` (a translate mark) and
+`AppearanceButton` (a sun, a moon or the device's mark) on the customers'
+header, each with a tooltip and a screen-reader label saying what it is now
+(*Language — now English*), each opening its own short list with the one in
+use ticked, no flag. Choosing takes effect at once, is kept
+(`proframe.language`, `proframe.appearance`), and leaves the other and the
+screen where they were. Under 1000 wide the customers' header is laid out
+as on a phone, its icons on the title's line, so a sixth icon never crowds
+the title; on a customer's page the two are on the bar from 600 wide.
+**Settings** still has both.
+
+**What Phase 34 left:**
+
+1. **Digits.** Every figure is still *shown* in Latin digits, in both
+   languages, deliberately (`Numerals`): the drawing, the units and the
+   trade's figures are Latin, and a screen writing some figures one way and
+   some the other would be worse than either. What was wrong was input:
+   every numeric field filtered to `[0-9.]`, so **a Kurdish keyboard could
+   not type a price at all**. `LatinDigits` now goes first on every numeric
+   field, turning `١٢٫٥` and `۱۲.۵` into `12.5` as they are typed, and every
+   reader of a typed figure — sizes, prices, quantities, payments,
+   discounts, colour rates, the factory's figures — reads through
+   `Numerals.latin`. No stored figure changed.
+2. **Errors.** A store's refusal is a `Refusal` (an `ArgumentError`) or a
+   `StateRefusal` (a `StateError`) carrying what it says, so a screen says
+   it in its own language (`userMessageOf`, `lib/app/l10n/errors.dart`). A
+   fault that is not a refusal is never shown raw: the user is told it did
+   not work, and the fault goes to the log. Completing a design no longer
+   puts the exception's text in its message.
+3. **Flutter's own words** a phone shows are Kurdish: the text-selection
+   menu's *look up*, *search the web* and *share*
+   (`KurdishWidgetsLocalizations`), an iPhone's whole menu and its dialog
+   labels (`KurdishCupertinoLocalizations`), the drawer's and the scrim's
+   labels. And **the date picker's typed date was read month-first** while
+   the Kurdish screen wrote it day-first: `parseCompactDate` now reads it as
+   written, in either digits. Words the application never opens — the
+   iPhone's own date and time wheels — stay Flutter's English.
+4. **Mixed titles.** A name somebody typed (`NameText`) is laid out in its
+   own direction — its first letter's — and placed at the start of the line
+   as the screen reads, so an English design name in a Kurdish title is cut,
+   if it must be, at its own end. Titles allow two lines, and where `whole`
+   is said a long press shows all of it (not on a card, whose long press is
+   the card's).
+
+Tests: `test/domain/simplified_pricing_and_rates_test.dart` (the glass
+switch and its compatibility, the extras list and its store's permission,
+Kurdish digits read by every reader, refusals said in Kurdish);
+`test/app/simplified_mobile_pricing_test.dart` (the summary on a phone and
+in Kurdish, the glass notes, *Edit factory prices* by permission, the
+editor's keep, discard, refusal and the glass switch through a restart,
+staff refused, and an item chosen on a design with its price copied);
+`test/app/language_and_theme_controls_test.dart` (the two controls at
+three widths, each choice at once, kept and independent, nothing anybody
+made changed, and the four leftovers).
+
+Tests moved with it, each saying why: the pricing tests that price glass
+build their lists with `chargesGlass: true` (`glassCharged`, `zero`); one
+price-sheet test reads the new headings; one scrolls to the colour field,
+which now sits under the price.
 
 ## Working on this repository
 

@@ -2614,14 +2614,9 @@
   "@completeNoPermission": {
     "description": "Completing without permission."
   },
-  "completeSaveFailed": "The design could not be saved, so it was not completed. Your work is still here — try again. ({error})",
+  "completeSaveFailed": "The design could not be saved, so it was not completed. Your work is still here — try again.",
   "@completeSaveFailed": {
-    "description": "Completing when the save failed; the error is technical text.",
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
+    "description": "Completing when the save failed. The technical reason goes to the log only."
   },
   "bulleted": "• {item}",
   "@bulleted": {
@@ -6207,5 +6202,431 @@
   "mnCatalog": "Colours are now one catalog: a colour sold in more than one material is one colour with a rate on each, at the figures it had.",
   "@mnCatalog": {
     "description": "[domain] Price list upgrade note."
+  },
+  "glassDisabled": "Glass charging is turned off",
+  "@glassDisabled": {
+    "description": "[domain] Glass in a price: the factory does not charge for glass at all."
+  },
+  "xiNameTaken": "An item called {name} is already in the factory's list.",
+  "@xiNameTaken": {
+    "description": "[domain] Factory list of extras: a name already used.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rcpNotForRefund": "A receipt is for a payment, not a refund.",
+  "@rcpNotForRefund": {
+    "description": "[domain] Refusal: a receipt was asked for a refund."
+  },
+  "errNotKept": "This could not be saved on this device. Nothing was changed — try again.",
+  "@errNotKept": {
+    "description": "The device refused to keep a change."
+  },
+  "errSomethingWrong": "Something went wrong and this was not done. Try again.",
+  "@errSomethingWrong": {
+    "description": "An unexpected fault; the details go to the log, never to the user."
+  },
+  "psTitle": "Price summary",
+  "@psTitle": {
+    "description": "Title of a design's price sheet."
+  },
+  "psFor": "For {name}",
+  "@psFor": {
+    "description": "Price summary header: the customer the design is for.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "psIncludesDiscount": "After a discount of {amount}",
+  "@psIncludesDiscount": {
+    "description": "Under the final total, where a discount was taken off.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "psProfiles": "Profiles and frame",
+  "@psProfiles": {
+    "description": "Price summary section: the frame's border, internal lines, opening profile and the colour on them."
+  },
+  "psPanels": "Panels",
+  "@psPanels": {
+    "description": "Price summary section."
+  },
+  "psGlass": "Glass",
+  "@psGlass": {
+    "description": "Price summary section."
+  },
+  "psHardware": "Hardware",
+  "@psHardware": {
+    "description": "Price summary section: hinges, handles, locks."
+  },
+  "psLabour": "Labour and installation",
+  "@psLabour": {
+    "description": "Price summary section."
+  },
+  "psExtras": "Extra charges",
+  "@psExtras": {
+    "description": "Price summary section: charges added by hand."
+  },
+  "psDiscount": "Discount",
+  "@psDiscount": {
+    "description": "Price summary section."
+  },
+  "psCalculation": "Final calculation",
+  "@psCalculation": {
+    "description": "Price summary section: design cost, extras, subtotal, discount, total."
+  },
+  "psChoices": "Material and options",
+  "@psChoices": {
+    "description": "Price summary section where the profile's material, colour, aluminium type and glass charging are chosen."
+  },
+  "psMeasurements": "Measurements",
+  "@psMeasurements": {
+    "description": "Price summary section listing lengths and areas."
+  },
+  "psSharedRate": "The border and the internal lines are measured apart and charged at the same rate for each profile.",
+  "@psSharedRate": {
+    "description": "Note under the profile lines of a price."
+  },
+  "psNoPanel": "This design has no panel.",
+  "@psNoPanel": {
+    "description": "Price summary: no panel in the design."
+  },
+  "psNoGlass": "This design has no glass.",
+  "@psNoGlass": {
+    "description": "Price summary: no glass in the design."
+  },
+  "psGlassNotIncluded": "The design has {area} of glass. It is not charged: Include glass in price is off for this design.",
+  "@psGlassNotIncluded": {
+    "description": "Price summary: glass measured and not charged by the design's own choice.",
+    "placeholders": {
+      "area": {
+        "type": "String"
+      }
+    }
+  },
+  "psGlassDisabled": "The design has {area} of glass. It is not charged: the factory's Charge for glass setting is off.",
+  "@psGlassDisabled": {
+    "description": "Price summary: glass measured and not charged because the factory does not charge for glass.",
+    "placeholders": {
+      "area": {
+        "type": "String"
+      }
+    }
+  },
+  "psGlassNothing": "Glass is included in the price, and the design has no glass to charge.",
+  "@psGlassNothing": {
+    "description": "Price summary: glass switched on and nothing measurable."
+  },
+  "psAddExtra": "Add extra charge",
+  "@psAddExtra": {
+    "description": "Button on the price summary."
+  },
+  "psEditPricing": "Edit factory prices",
+  "@psEditPricing": {
+    "description": "Button on the price summary, for whoever may change the factory's rates."
+  },
+  "psCombinedProfile": "Border and internal lines together",
+  "@psCombinedProfile": {
+    "description": "Price summary row: what the border and the lines cost together."
+  },
+  "psShowMeasurements": "Show measurements",
+  "@psShowMeasurements": {
+    "description": "Button that opens the measurements on the price summary."
+  },
+  "psHideMeasurements": "Hide measurements",
+  "@psHideMeasurements": {
+    "description": "Button that closes the measurements on the price summary."
+  },
+  "psCollapse": "Hide {section}",
+  "@psCollapse": {
+    "description": "Tooltip on a price summary section's heading.",
+    "placeholders": {
+      "section": {
+        "type": "String"
+      }
+    }
+  },
+  "psExpand": "Show {section}",
+  "@psExpand": {
+    "description": "Tooltip on a price summary section's heading.",
+    "placeholders": {
+      "section": {
+        "type": "String"
+      }
+    }
+  },
+  "psFromCatalog": "From the factory's list",
+  "@psFromCatalog": {
+    "description": "Shown on an extra charge added from the factory's list of extras."
+  },
+  "poGlassFactoryOff": "The factory does not charge for glass (Factory prices). The glass is kept and measured, and not charged.",
+  "@poGlassFactoryOff": {
+    "description": "Under a design's Include glass in price switch, where the factory's Charge for glass is off."
+  },
+  "rfAboutBorderLines": "A metre of profile for the frame's border and the lines inside the design. Each profile has one rate for both; the two are measured and shown apart on every price.",
+  "@rfAboutBorderLines": {
+    "description": "[domain] Factory prices: what the border-and-lines rates apply to, and that the two share one rate."
+  },
+  "rfAboutOpening": "A metre of the profile round each opening, one rate a material. Aluminium's opening profile has one rate, whichever aluminium type.",
+  "@rfAboutOpening": {
+    "description": "[domain] Factory prices: what the opening-profile rates apply to."
+  },
+  "rfAboutColour": "What a colour the catalog does not name adds on this material's profile: so much a metre, and a share of the profile's price.",
+  "@rfAboutColour": {
+    "description": "[domain] Factory prices: the any-other-colour figures."
+  },
+  "rfAboutGlassSingle": "A square metre of single-sheet glass, by its look. Charged only while Charge for glass is on, and only on a design that includes its glass.",
+  "@rfAboutGlassSingle": {
+    "description": "[domain] Factory prices: what the single-sheet glass rates apply to."
+  },
+  "rfAboutSealed": "A square metre of sealed glass unit — two sheets with a cavity — by its look, charged the same way as single-sheet glass.",
+  "@rfAboutSealed": {
+    "description": "[domain] Factory prices: what the sealed-unit rates apply to."
+  },
+  "rfAboutPanel": "A square metre of panel, by its colour.",
+  "@rfAboutPanel": {
+    "description": "[domain] Factory prices: what the panel rates apply to."
+  },
+  "rfAboutHardware": "Each piece of hardware a design has — hinges, handles, locks — by the piece.",
+  "@rfAboutHardware": {
+    "description": "[domain] Factory prices: what the hardware rates apply to."
+  },
+  "rfAboutSliding": "A sliding design's track by the metre, and the rollers each sliding panel runs on.",
+  "@rfAboutSliding": {
+    "description": "[domain] Factory prices: what the sliding rates apply to."
+  },
+  "rfAboutInstallation": "Charged only on a design whose price includes installation: a fixed figure, and so much a square metre.",
+  "@rfAboutInstallation": {
+    "description": "[domain] Factory prices: what the installation rates apply to."
+  },
+  "rfAboutLabour": "Labour for every design of this category: a fixed figure, so much a square metre, and a share of the materials.",
+  "@rfAboutLabour": {
+    "description": "[domain] Factory prices: what the labour rates apply to."
+  },
+  "fpIntro": "Each figure is what the factory charges. Keeping new prices changes no quotation, receipt or payment: they keep the figures they were given.",
+  "@fpIntro": {
+    "description": "Factory prices: what keeping prices does and does not change."
+  },
+  "fpChargeGlass": "Charge for glass",
+  "@fpChargeGlass": {
+    "description": "Factory prices: the switch for whether glass is charged at all."
+  },
+  "fpChargeGlassOff": "Off: no design's glass is charged. The glass stays in every design and is measured.",
+  "@fpChargeGlassOff": {
+    "description": "Factory prices: what Charge for glass off means."
+  },
+  "fpChargeGlassOn": "On: a design's glass is charged at the rates below wherever the design's own Include glass in price is on.",
+  "@fpChargeGlassOn": {
+    "description": "Factory prices: what Charge for glass on means."
+  },
+  "fpDiscard": "Discard changes",
+  "@fpDiscard": {
+    "description": "Factory prices: put every figure back to what is kept."
+  },
+  "fpDiscardAsk": "Discard the changes you have not kept?",
+  "@fpDiscardAsk": {
+    "description": "Factory prices: leaving with unkept changes."
+  },
+  "fpDiscardBody": "Every figure goes back to the price list as it is kept.",
+  "@fpDiscardBody": {
+    "description": "Factory prices: what discarding does."
+  },
+  "fpKeepEditing": "Keep editing",
+  "@fpKeepEditing": {
+    "description": "Factory prices: stay with the unkept changes."
+  },
+  "fpConfirmTitle": "{count, plural, =1{Keep 1 change?} other{Keep {count} changes?}}",
+  "@fpConfirmTitle": {
+    "description": "Factory prices: confirming a broad change.",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "fpConfirmBody": "Every price already calculated will need recalculating. Quotations, receipts and payments keep the figures they were given.",
+  "@fpConfirmBody": {
+    "description": "Factory prices: what a broad change does."
+  },
+  "fpSaving": "Saving…",
+  "@fpSaving": {
+    "description": "Factory prices: while the list is being kept."
+  },
+  "fxTitle": "Extra items",
+  "@fxTitle": {
+    "description": "Factory prices: the factory's own list of extras (silicone, labour, transport)."
+  },
+  "fxIntro": "What the factory charges again and again, each at its own price. Choosing one on a design copies its price, so changing it here changes nothing already added.",
+  "@fxIntro": {
+    "description": "Factory prices: what the list of extras is."
+  },
+  "fxNone": "No items yet. An extra charge can still be typed in full on any design.",
+  "@fxNone": {
+    "description": "Factory prices: the list of extras is empty."
+  },
+  "fxAdd": "Add item",
+  "@fxAdd": {
+    "description": "Factory prices: add an item to the list of extras."
+  },
+  "fxEditTitle": "Edit item",
+  "@fxEditTitle": {
+    "description": "Dialog title."
+  },
+  "fxPerUnit": "{amount} per {unit}",
+  "@fxPerUnit": {
+    "description": "An item's price: 3.00 USD per bottle.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "fxAdded": "Item added.",
+  "@fxAdded": {
+    "description": "Snack after adding an item."
+  },
+  "fxSaved": "Item saved.",
+  "@fxSaved": {
+    "description": "Snack after editing an item."
+  },
+  "fxRetireAsk": "Stop offering {name}?",
+  "@fxRetireAsk": {
+    "description": "Confirm retiring an item.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fxRetireBody": "It will not be offered for new extra charges. Every charge already added from it keeps its name and price.",
+  "@fxRetireBody": {
+    "description": "Confirm retiring an item: what it does."
+  },
+  "fxRetire": "Stop offering",
+  "@fxRetire": {
+    "description": "Button: retire an item."
+  },
+  "fxRetired": "{name} is no longer offered.",
+  "@fxRetired": {
+    "description": "Snack after retiring an item.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fxNote": "Explanation (optional)",
+  "@fxNote": {
+    "description": "Field of an item of the list of extras."
+  },
+  "fxCurrency": "Prices in {currency}",
+  "@fxCurrency": {
+    "description": "Under the price field of an item.",
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "xFrom": "Item",
+  "@xFrom": {
+    "description": "Extra charge form: choose from the factory's list or a one-time item."
+  },
+  "xCustomItem": "One-time item — type it in",
+  "@xCustomItem": {
+    "description": "Extra charge form: an extra not from the factory's list."
+  },
+  "xFactoryPrice": "Factory price: {amount} per {unit}. To charge another price, choose a one-time item.",
+  "@xFactoryPrice": {
+    "description": "Extra charge form: the price of an item from the factory's list is fixed.",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "xCalculated": "Calculated amount",
+  "@xCalculated": {
+    "description": "Extra charge form: the live total."
+  },
+  "lbTooltip": "Change language",
+  "@lbTooltip": {
+    "description": "Tooltip and label of the language button (a translate icon)."
+  },
+  "abTooltip": "Change appearance — now {mode}",
+  "@abTooltip": {
+    "description": "Tooltip and label of the appearance button (a sun or moon icon). {mode} is Light, Dark or Match device.",
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "lbCurrent": "Language — now {language}",
+  "@lbCurrent": {
+    "description": "Screen reader label of the language button. {language} is the language's own name.",
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "fwLookUp": "Look up",
+  "@fwLookUp": {
+    "description": "Flutter: text-selection menu on a phone."
+  },
+  "fwSearchWeb": "Search the web",
+  "@fwSearchWeb": {
+    "description": "Flutter: text-selection menu on a phone."
+  },
+  "fwShare": "Share",
+  "@fwShare": {
+    "description": "Flutter: text-selection menu on a phone."
+  },
+  "fwNavigationMenu": "Navigation menu",
+  "@fwNavigationMenu": {
+    "description": "Flutter: the drawer's label for a screen reader (the side panel on a phone)."
+  },
+  "fwScrim": "Scrim",
+  "@fwScrim": {
+    "description": "Flutter: the dimmed area behind a sheet, for a screen reader."
+  },
+  "fwCloseOf": "Close {name}",
+  "@fwCloseOf": {
+    "description": "Flutter: tapping the dimmed area closes a sheet or a drawer, for a screen reader.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fwNoReplacements": "No replacements found",
+  "@fwNoReplacements": {
+    "description": "Flutter (iPhone): spell check found nothing."
+  },
+  "fwDismissMenu": "Dismiss menu",
+  "@fwDismissMenu": {
+    "description": "Flutter: closing a menu, for a screen reader."
+  },
+  "fwClear": "Clear",
+  "@fwClear": {
+    "description": "Flutter (iPhone): clear a field."
+  },
+  "psFinalTotal": "Final total",
+  "@psFinalTotal": {
+    "description": "Price summary: what the design comes to, at the head of the summary and at the foot of its calculation."
   }
 }

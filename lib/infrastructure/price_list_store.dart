@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/pricing/price_list.dart';
 import '../domain/pricing/pricing_access.dart';
+import 'keep_failed.dart';
 
 /// Keeps the workshop's price list on the device.
 ///
@@ -53,7 +54,10 @@ class PriceListStore {
         )
         .toJson();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(key, jsonEncode(json));
+    // A write the device refuses is said, so nobody is told it was kept.
+    if (!await prefs.setString(key, jsonEncode(json))) {
+      throw const KeepFailed(key);
+    }
     // As kept — in the current schema, and no longer a migrated list.
     return PriceList.fromJson(json)!;
   }

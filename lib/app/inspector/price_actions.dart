@@ -3,22 +3,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/customer_discount.dart';
 import '../../domain/model/design.dart';
+import '../../domain/model/design_completion.dart';
 import '../../domain/model/materials.dart';
 import '../../domain/pricing/design_price_state.dart';
 import '../../domain/pricing/design_pricing.dart';
+import '../../domain/pricing/extra_catalog.dart';
 import '../../domain/pricing/extra_charge.dart';
+import '../../domain/pricing/measurement.dart';
 import '../../domain/pricing/price_result.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/profile_selection.dart';
 import '../../domain/text/names.dart';
 import '../l10n/l10n.dart';
+import '../l10n/name_text.dart';
+import '../screens/factory_prices_screen.dart';
 import '../screens/finance_documents.dart' show DiscountAnswer, DiscountDialog;
 import '../state/access.dart';
 import '../state/language.dart';
 import '../state/pricing.dart';
+import '../state/workspace.dart' show customerNameProvider;
 import '../theme/app_theme.dart';
 import 'extra_charges.dart';
 import 'price_panel.dart';
+import 'price_summary.dart';
 import 'pricing_options.dart';
 import 'profile_chooser.dart';
 
@@ -204,6 +211,10 @@ class DesignPriceSheet extends ConsumerStatefulWidget {
   static const sheetKey = ValueKey('design-price-sheet');
   static const totalKey = ValueKey('design-price-sheet-total');
   static const categoryKey = ValueKey('design-price-sheet-category');
+  static const nameKey = ValueKey('design-price-sheet-name');
+  static const closeKey = ValueKey('design-price-sheet-close');
+  static const editPricingKey = ValueKey('design-price-sheet-edit-pricing');
+  static const measurementsKey = ValueKey('design-price-sheet-measurements');
 
   /// What the sheet says where the design as it now is cannot be priced.
   static const unavailableKey = ValueKey('design-price-sheet-unavailable');
@@ -294,6 +305,13 @@ class _DesignPriceSheetState extends ConsumerState<DesignPriceSheet> {
   String _money(int cents) => PricePanel.money(cents / 100, _result.currency);
 
   Future<void> _extra([ExtraCharge? editing]) async {
+    // The factory's items in this price's currency, read before the form
+    // opens.
+    final items = ExtraCatalog.offeredIn(
+      await ref.read(extraCatalogProvider.future),
+      _result.currency,
+    );
+    if (!mounted) return;
     final answer = await ExtraDialog.show(
       context,
       newId: _design.pricing.extras.nextExtraId(DateTime.now()),
@@ -303,6 +321,7 @@ class _DesignPriceSheetState extends ConsumerState<DesignPriceSheet> {
       where: _design.shownNameIn(context.words),
       editing: editing,
       calculated: _result.lines,
+      items: items,
     );
     if (answer == null) return;
     await _pricing(
@@ -375,126 +394,336 @@ class _DesignPriceSheetState extends ConsumerState<DesignPriceSheet> {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final p = context.palette;
+    final l = context.l10n;
+    final w = context.words;
     final result = _result;
     final edits = widget.onPricing != null && !_design.isUnsupported;
     bool may(Capability c) => edits && ref.offers(c);
     final design = _design;
     final list = ref.watch(priceListProvider).value;
     final currency = result.currency;
-    Widget heading(String words) => Padding(
-      padding: const EdgeInsets.only(top: 14, bottom: 4),
-      child: Text(
-        words,
-        style: text.labelMedium?.copyWith(
-          letterSpacing: 0.8,
-          fontWeight: FontWeight.w700,
-          color: p.muted,
+    final customer = design.customerId == null
+        ? null
+        : ref.watch(customerNameProvider(design.customerId!)).value;
+    final who = customer ?? design.customer;
+    final status = DesignCompletion.isCompleted(design)
+        ? l.stageCompleted
+        : l.stageDraft;
+
+    // What can be chosen about the design's price: its profile's material
+    // and colour, its aluminium type and whether its glass is charged.
+    final choices = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          l.paCategory(design.kind.labelIn(w)),
+          key: DesignPriceSheet.categoryKey,
+          style: text.bodyMedium,
         ),
-      ),
+        if (list != null && design.frame != null && !design.isUnsupported)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: ProfileChooser(
+              selection: ProfileSelection.of(design),
+              current: design.frame!.finish,
+              list: list,
+              onChanged: widget.onChoose == null || _working ? null : _choose,
+            ),
+          ),
+        // Which aluminium profile it is, and whether its glass is
+        // charged: said here, as the material is.
+        if (design.frame != null && !design.isUnsupported)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: PricingOptions(
+              design: design,
+              factoryChargesGlass: list?.chargesGlass ?? true,
+              onChange: !may(Capability.designsEdit) || _working
+                  ? null
+                  : (change) =>
+                        _pricing((by) => (design: change(by), problem: null)),
+            ),
+          ),
+      ],
     );
 
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.85,
-        maxWidth: 640,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+        maxWidth: 680,
       ),
-      child: SingleChildScrollView(
-        key: DesignPriceSheet.sheetKey,
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(context.l10n.paDesignPrice, style: text.labelMedium),
-            Text(design.shownNameIn(context.words), style: text.titleLarge),
-            const SizedBox(height: 4),
-            Text(
-              context.l10n.paCategory(design.kind.labelIn(context.words)),
-              key: DesignPriceSheet.categoryKey,
-              style: text.bodyMedium,
-            ),
-            if (list != null && design.frame != null && !design.isUnsupported)
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: ProfileChooser(
-                  selection: ProfileSelection.of(design),
-                  current: design.frame!.finish,
-                  list: list,
-                  onChanged: widget.onChoose == null || _working
-                      ? null
-                      : _choose,
-                ),
-              ),
-            // Which aluminium profile it is, and whether its glass is
-            // charged: said here, as the material is.
-            if (design.frame != null && !design.isUnsupported)
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: PricingOptions(
-                  design: design,
-                  onChange: !may(Capability.designsEdit) || _working
-                      ? null
-                      : (change) => _pricing(
-                          (by) => (design: change(by), problem: null),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Which design this is the price of, and the way out.
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 8, 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l.psTitle,
+                        style: text.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
+                      ),
+                      const SizedBox(height: 2),
+                      NameText(
+                        design.shownNameIn(w),
+                        key: DesignPriceSheet.nameKey,
+                        maxLines: 2,
+                        whole: true,
+                        style: text.titleMedium,
+                      ),
+                      Text(
+                        [
+                          if (who != null && who.trim().isNotEmpty)
+                            l.psFor(who),
+                          design.kind.labelIn(w),
+                          status,
+                        ].join(' · '),
+                        style: text.bodySmall?.copyWith(color: p.muted),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            if (_working)
-              const Padding(
-                padding: EdgeInsets.only(top: 10),
-                child: LinearProgressIndicator(),
-              ),
-            if (!result.isPriced) ...[
-              heading(context.l10n.ppPrice),
-              Text(
-                result.issues.isEmpty
-                    ? context.l10n.paCannot
-                    : result.issues.first.messageIn(context.words),
-                key: DesignPriceSheet.unavailableKey,
-                style: text.bodyMedium,
-              ),
-            ] else ...[
-              heading(context.l10n.paMeasurements),
-              MeasurementRows(result.measurements),
-              heading(context.l10n.paBreakdown),
-              PriceBreakdown(
-                result,
-                onAddExtra: may(Capability.extrasCreate)
-                    ? _extra
-                    : null,
-                onEditExtra: may(Capability.extrasEdit)
-                    ? _extra
-                    : null,
-                onRemoveExtra: may(Capability.extrasDelete)
-                    ? _remove
-                    : null,
-                onDiscount: may(Capability.discountsApply)
-                    ? _discount
-                    : null,
-              ),
-              const Divider(height: 24),
-              Row(
+                IconButton(
+                  key: DesignPriceSheet.closeKey,
+                  tooltip: MaterialLocalizations.of(context)
+                      .closeButtonTooltip,
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
+              ],
+            ),
+          ),
+          if (_working) const LinearProgressIndicator(minHeight: 2),
+          Divider(height: 1, color: p.hairline),
+          Flexible(
+            child: SingleChildScrollView(
+              key: DesignPriceSheet.sheetKey,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: Text(
-                      context.l10n.paFinalTotal,
-                      style: text.titleMedium,
+                  if (!result.isPriced)
+                    _Notice(
+                      title: l.ppPrice,
+                      child: Text(
+                        result.issues.isEmpty
+                            ? l.paCannot
+                            : result.issues.first.messageIn(w),
+                        key: DesignPriceSheet.unavailableKey,
+                        style: text.bodyMedium,
+                      ),
+                    )
+                  else ...[
+                    FinalTotal(result: result),
+                    PriceBreakdown(
+                      result,
+                      onAddExtra: may(Capability.extrasCreate) ? _extra : null,
+                      onEditExtra: may(Capability.extrasEdit) ? _extra : null,
+                      onRemoveExtra:
+                          may(Capability.extrasDelete) ? _remove : null,
+                      onDiscount:
+                          may(Capability.discountsApply) ? _discount : null,
                     ),
+                  ],
+                  CostSection(
+                    title: l.psChoices,
+                    icon: Icons.tune,
+                    value: '',
+                    children: [const SizedBox(height: 6), choices],
                   ),
-                  Text(
-                    PricePanel.money(result.total!, currency),
-                    key: DesignPriceSheet.totalKey,
-                    textDirection: TextDirection.ltr,
-                    style: text.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontFeatures: const [FontFeature.tabularFigures()],
+                  if (result.isPriced)
+                    _Measurements(result.measurements),
+                  // The factory's rates are changed on their own screen,
+                  // never in this list, and only by whoever may.
+                  if (ref.offers(Capability.pricingEdit))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: OutlinedButton.icon(
+                          key: DesignPriceSheet.editPricingKey,
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const FactoryPricesScreen(),
+                            ),
+                          ),
+                          icon: const Icon(Icons.price_change_outlined),
+                          label: Text(l.psEditPricing),
+                        ),
+                      ),
                     ),
-                  ),
+                  if (list?.isStarter ?? false)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        l.ppExamplePrices,
+                        style: text.bodySmall?.copyWith(color: p.muted),
+                      ),
+                    ),
+                  // Kept for the eye: the currency every figure is in.
+                  if (result.isPriced && currency.isNotEmpty)
+                    const SizedBox(height: 4),
                 ],
               ),
-            ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The figure the summary is for, at the head of it: what the design
+/// comes to, in its currency, and — where one was taken — the discount it
+/// is after. It is the engine's total, never one worked out here.
+class FinalTotal extends StatelessWidget {
+  final PriceResult result;
+
+  const FinalTotal({super.key, required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final p = context.palette;
+    final l = context.l10n;
+    final total = PricePanel.money(result.total!, result.currency);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: p.band,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l.psFinalTotal,
+              style: text.labelLarge?.copyWith(
+                color: p.onBand.withValues(alpha: 0.85),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 2),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(
+                total,
+                key: DesignPriceSheet.totalKey,
+                textDirection: TextDirection.ltr,
+                style: text.headlineMedium?.copyWith(
+                  color: p.onBand,
+                  fontWeight: FontWeight.w800,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+            if (result.discountCents > 0)
+              Text(
+                l.psIncludesDiscount(
+                  context.figure(
+                    PricePanel.money(result.discountAmount, result.currency),
+                  ),
+                ),
+                style: text.bodySmall?.copyWith(
+                  color: p.onBand.withValues(alpha: 0.85),
+                ),
+              ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Why there is no price, said where the total would be.
+class _Notice extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _Notice({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: p.notice,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: p.onNotice,
+              ),
+            ),
+            const SizedBox(height: 4),
+            DefaultTextStyle.merge(
+              style: TextStyle(color: p.onNotice),
+              child: child,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// What the design measures — the border and the lines apart, the opening
+/// profile, panel and glass in square metres — folded away until asked
+/// for: the figures each cost is worked out from are already on its line.
+class _Measurements extends StatefulWidget {
+  final MeasurementSummary measurements;
+
+  const _Measurements(this.measurements);
+
+  @override
+  State<_Measurements> createState() => _MeasurementsState();
+}
+
+class _MeasurementsState extends State<_Measurements> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 8),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton.icon(
+            key: DesignPriceSheet.measurementsKey,
+            onPressed: () => setState(() => _open = !_open),
+            icon: Icon(_open ? Icons.expand_less : Icons.expand_more),
+            label: Text(
+              _open ? l.psHideMeasurements : l.psShowMeasurements,
+            ),
+          ),
+        ),
+        if (_open)
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(12, 0, 12, 0),
+            child: MeasurementRows(widget.measurements),
+          ),
+      ],
     );
   }
 }

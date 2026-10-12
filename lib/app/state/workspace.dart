@@ -1731,13 +1731,17 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         await save();
       } on Object catch (e) {
         // Nothing was kept: the design in hand is what it was, and the
-        // completion is not claimed.
+        // completion is not claimed. What went wrong is for the log; the
+        // user is told plainly, in their own language.
         if (identical(state.design, done)) {
           state = state.copyWith(design: before);
         }
+        debugPrint('ProFrame: completing ${before.id} failed: $e');
         return Completion(
           CompletionResult.failed,
-          message: ref.l10n.completeSaveFailed('$e'),
+          message: e is AccessDenied
+              ? e.messageIn(ref.words)
+              : ref.l10n.completeSaveFailed,
         );
       }
       return Completion(CompletionResult.completed, design: state.design);

@@ -14,6 +14,7 @@ import '../../domain/solid/studio.dart';
 import '../../domain/text/names.dart';
 import '../canvas/view_controls.dart';
 import '../l10n/l10n.dart';
+import '../l10n/latin_digits.dart';
 import '../state/everything_shown.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -607,6 +608,7 @@ class _SolidNumberState extends State<_SolidNumber> {
               focusNode: _focus,
               keyboardType: const TextInputType.numberWithOptions(),
               inputFormatters: [
+                const LatinDigits(),
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
               ],
               onSubmitted: (_) => _commit(),

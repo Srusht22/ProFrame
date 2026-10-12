@@ -28,7 +28,17 @@ class PricingOptions extends StatefulWidget {
   /// How a change is made; null where it cannot be made from here.
   final PricingOptionChange? onChange;
 
-  const PricingOptions({super.key, required this.design, this.onChange});
+  /// Whether the factory charges for glass at all (`PriceList.chargesGlass`).
+  /// Where it does not, the design's own switch is shown, off and not to be
+  /// turned on, with the reason.
+  final bool factoryChargesGlass;
+
+  const PricingOptions({
+    super.key,
+    required this.design,
+    this.onChange,
+    this.factoryChargesGlass = true,
+  });
 
   static const glassKey = ValueKey('pricing-options-glass');
   static const glassNoteKey = ValueKey('pricing-options-glass-note');
@@ -66,7 +76,8 @@ class _PricingOptionsState extends State<PricingOptions> {
     );
     final hasGlass = Infill.partsOf(design)
         .any((x) => Infill.isGlass(x.finish));
-    final glassOn = design.pricing.glassPriced;
+    final factory = widget.factoryChargesGlass;
+    final glassOn = design.pricing.glassPriced && factory;
     final l = context.l10n;
     final w = context.words;
 
@@ -178,7 +189,7 @@ class _PricingOptionsState extends State<PricingOptions> {
             Switch(
               key: PricingOptions.glassKey,
               value: glassOn,
-              onChanged: change == null
+              onChanged: change == null || !factory
                   ? null
                   : (on) => change(
                       (by) => DesignPricing.setGlassPriced(design, on, by: by),
@@ -187,7 +198,9 @@ class _PricingOptionsState extends State<PricingOptions> {
           ],
         ),
         Text(
-          switch ((glassOn, hasGlass)) {
+          !factory
+              ? l.poGlassFactoryOff
+              : switch ((glassOn, hasGlass)) {
             (false, true) => l.poGlassMeasured,
             (false, false) => l.poGlassOff,
             (true, true) => l.poGlassCharged,

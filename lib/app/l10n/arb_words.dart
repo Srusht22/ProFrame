@@ -1529,4 +1529,43 @@ class ArbWords implements Words {
   @override
   String get mnCatalog => l.mnCatalog;
 
+  @override
+  String get glassDisabled => l.glassDisabled;
+
+  @override
+  String xiNameTaken(String name) => l.xiNameTaken(name);
+
+  @override
+  String get rcpNotForRefund => l.rcpNotForRefund;
+
+  @override
+  String get rfAboutBorderLines => l.rfAboutBorderLines;
+
+  @override
+  String get rfAboutOpening => l.rfAboutOpening;
+
+  @override
+  String get rfAboutColour => l.rfAboutColour;
+
+  @override
+  String get rfAboutGlassSingle => l.rfAboutGlassSingle;
+
+  @override
+  String get rfAboutSealed => l.rfAboutSealed;
+
+  @override
+  String get rfAboutPanel => l.rfAboutPanel;
+
+  @override
+  String get rfAboutHardware => l.rfAboutHardware;
+
+  @override
+  String get rfAboutSliding => l.rfAboutSliding;
+
+  @override
+  String get rfAboutInstallation => l.rfAboutInstallation;
+
+  @override
+  String get rfAboutLabour => l.rfAboutLabour;
+
 }

@@ -15,6 +15,7 @@ import '../../domain/model/materials.dart';
 import '../../domain/sections/section_bands.dart';
 import '../../domain/text/names.dart';
 import '../l10n/l10n.dart';
+import '../l10n/latin_digits.dart';
 import '../screens/design_information_screen.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -1777,6 +1778,7 @@ class _NumberFieldState extends State<_NumberField> {
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
+                const LatinDigits(),
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
               ],
               onSubmitted: (_) => _commit(),

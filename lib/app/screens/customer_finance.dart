@@ -5,13 +5,16 @@ import '../../domain/model/customer.dart';
 import '../../domain/model/payment.dart';
 import '../../domain/model/receipt.dart';
 import '../../domain/pricing/design_price_state.dart';
+import '../../domain/pricing/extra_catalog.dart';
 import '../../domain/pricing/extra_charge.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/quotation.dart';
 import '../../domain/text/names.dart';
 import '../inspector/extra_charges.dart';
 import '../inspector/price_panel.dart';
+import '../l10n/errors.dart';
 import '../l10n/l10n.dart';
+import '../l10n/latin_digits.dart';
 import '../state/access.dart';
 import '../state/pricing.dart';
 import '../theme/app_theme.dart';
@@ -486,6 +489,11 @@ class _CustomerExtras extends ConsumerWidget {
     WidgetRef ref, [
     ExtraCharge? editing,
   ]) async {
+    final items = ExtraCatalog.offeredIn(
+      await ref.read(extraCatalogProvider.future),
+      pricing.currency,
+    );
+    if (!context.mounted) return;
     final answer = await ExtraDialog.show(
       context,
       newId: customer.extras.nextExtraId(DateTime.now()),
@@ -494,6 +502,7 @@ class _CustomerExtras extends ConsumerWidget {
       by: ref.read(actorProvider).label,
       where: context.l10n.finWholeJobOf(customer.name),
       editing: editing,
+      items: items,
       calculated: [
         for (final d in pricing.priced) ...d.state.record!.result.lines,
       ],
@@ -508,7 +517,9 @@ class _CustomerExtras extends ConsumerWidget {
     } on AccessDenied catch (e) {
       if (context.mounted) say(context, e.messageIn(context.words));
     } on StateError catch (e) {
-      if (context.mounted) say(context, e.message);
+      if (context.mounted) say(context, userMessageOf(context, e));
+    } on ArgumentError catch (e) {
+      if (context.mounted) say(context, userMessageOf(context, e));
     }
   }
 
@@ -1230,6 +1241,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    inputFormatters: const [LatinDigits()],
                     decoration: InputDecoration(
                       labelText: _refund ? l.finRefundAmount : l.finAmount,
                       errorText: _problems['amount'],
@@ -1274,6 +1286,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
+                inputFormatters: const [LatinDigits()],
                 decoration: InputDecoration(
                   labelText: l.finRateOptional,
                   prefixText: '1 $_currency = ',

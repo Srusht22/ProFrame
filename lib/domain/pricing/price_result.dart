@@ -301,6 +301,11 @@ class PriceResult {
   /// price kept before the switch: its lines say what it charged.
   final bool? glassPriced;
 
+  /// Whether the factory charged for glass at all when it was priced
+  /// (`PriceList.chargesGlass`). Kept only where it was off; a price kept
+  /// before the factory's switch reads as on, which is how it priced.
+  final bool glassCharging;
+
   const PriceResult({
     required this.status,
     required this.currency,
@@ -313,6 +318,7 @@ class PriceResult {
     this.profile,
     this.extras = const [],
     this.glassPriced,
+    this.glassCharging = true,
   });
 
   /// A result with no price, for [status], saying why.
@@ -388,6 +394,7 @@ class PriceResult {
     if (profile != null) 'profile': profile!.toJson(),
     if (extras.isNotEmpty) 'extras': [for (final e in extras) e.toJson()],
     if (glassPriced != null) 'glassPriced': glassPriced,
+    if (!glassCharging) 'glassCharging': false,
   };
 
   /// What the result says about glass, for a breakdown to show.
@@ -395,6 +402,7 @@ class PriceResult {
     final charged = lines.any((l) => l.group == PriceGroup.glass);
     if (charged) return GlassState.charged;
     final has = measurements.glassArea.value > 0;
+    if (has && !glassCharging) return GlassState.disabled;
     return switch ((glassPriced, has)) {
       (true, _) => GlassState.nothingToCharge,
       (false, true) => GlassState.notIncluded,
@@ -426,6 +434,7 @@ class PriceResult {
       final bool b => b,
       _ => null,
     },
+    glassCharging: map['glassCharging'] != false,
   );
 }
 
@@ -441,6 +450,10 @@ enum GlassState {
   /// charge for — nothing is made up.
   nothingToCharge,
 
+  /// The design has glass, and the factory does not charge for glass at
+  /// all (`PriceList.chargesGlass` off).
+  disabled,
+
   /// The design has no glass.
   notUsed;
 
@@ -449,6 +462,7 @@ enum GlassState {
     GlassState.charged => '',
     GlassState.notIncluded => 'Not included',
     GlassState.nothingToCharge => 'No measurable glass to price',
+    GlassState.disabled => 'Glass charging is turned off',
     GlassState.notUsed => 'Not used',
   };
 }

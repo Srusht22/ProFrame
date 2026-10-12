@@ -128,7 +128,10 @@ abstract final class PriceInputs {
                 ..remove('createdAt')
                 ..remove('updatedAt')
                 ..remove('by')
-                ..remove('note'),
+                ..remove('note')
+                // Which catalog item it came from says nothing of what it
+                // charges, which is its own.
+                ..remove('itemId'),
         ];
       }
       if (priced['discount'] case final Map<String, Object?> d) {

@@ -23,6 +23,7 @@
 library;
 
 import '../text/names.dart';
+import '../text/numerals.dart';
 import '../text/words.dart';
 
 /// Which way the money went.
@@ -398,7 +399,7 @@ class PaymentLedger {
     String text, [
     Words w = const EnglishWords(),
   ]) {
-    final words = text.trim().replaceAll(',', '');
+    final words = Numerals.latin(text).trim().replaceAll(',', '');
     if (words.isEmpty) return (cents: null, problem: w.amtEnter);
     if (words.startsWith('-')) {
       return (cents: null, problem: w.amtMoreThanNothing);
@@ -485,7 +486,7 @@ class PaymentLedger {
     String text, [
     Words w = const EnglishWords(),
   ]) {
-    final words = text.trim().replaceAll(',', '');
+    final words = Numerals.latin(text).trim().replaceAll(',', '');
     if (words.isEmpty) return (rate: null, problem: null);
     if (!RegExp(r'^\d*\.?\d{1,6}$').hasMatch(words) ||
         RegExp(r'^\d+\.$').hasMatch(words)) {

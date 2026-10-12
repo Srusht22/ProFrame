@@ -123,7 +123,7 @@ class PricingEngine {
     final sheet = PriceSheet(
       list,
       profile: chosen,
-      glassPriced: said.glassPriced,
+      glassPriced: said.glassPriced && list.chargesGlass,
       categoryFor: said.categoryFor,
     );
     strategy.price(takeoff, sheet);
@@ -196,6 +196,7 @@ class PricingEngine {
       extras: said.extras,
       measurements: takeoff.summary,
       glassPriced: said.glassPriced,
+      glassCharging: list.chargesGlass,
       profile: switch (chosen) {
         ProfileSelection(:final material?, :final colour?) && final p =>
           PricedProfile(

@@ -21,6 +21,7 @@ import '../inspector/questions_panel.dart';
 import '../inspector/unsupported_category_note.dart';
 import '../inspector/view_only_note.dart';
 import '../l10n/l10n.dart';
+import '../l10n/name_text.dart';
 import '../state/everything_shown.dart';
 import '../state/tools.dart';
 import '../state/workspace.dart';
@@ -191,10 +192,11 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
           from: const Offset(-14, 0),
           child: AnimatedSwitcher(
             duration: BarMotion.of(context, BarMotion.change),
-            child: Text(
+            // The design's name as it was typed, in its own direction.
+            child: NameText(
               state.design.shownNameIn(context.words),
               key: ValueKey(state.design.shownNameIn(context.words)),
-              overflow: TextOverflow.ellipsis,
+              whole: true,
             ),
           ),
         ),

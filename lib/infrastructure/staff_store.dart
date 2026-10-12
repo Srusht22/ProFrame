@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/model/staff.dart';
 import '../domain/pricing/pricing_access.dart';
+import '../domain/text/refusal.dart';
 import '../domain/text/words.dart';
 import 'owner_access_store.dart';
 
@@ -66,10 +67,12 @@ class StaffStore {
     by.require(Capability.usersManage);
     final prefs = await SharedPreferences.getInstance();
     final members = _allNow(prefs);
-    final nameIssue = nameProblem(name, members);
-    if (nameIssue != null) throw ArgumentError(nameIssue);
-    final pinIssue = OwnerAccessStore.problemWith(pin);
-    if (pinIssue != null) throw ArgumentError(pinIssue);
+    if (nameProblem(name, members) != null) {
+      throw Refusal((w) => nameProblem(name, members, w: w)!);
+    }
+    if (OwnerAccessStore.problemWith(pin) != null) {
+      throw Refusal((w) => OwnerAccessStore.problemWith(pin, w)!);
+    }
     final at = now ?? DateTime.now();
     final salt = _salt();
     final member = StaffMember(
@@ -119,8 +122,11 @@ class StaffStore {
     final members = _allNow(prefs);
     final member = members.firstWhere((m) => m.id == id);
     if (active) {
-      final issue = nameProblem(member.name, members, except: id);
-      if (issue != null) throw ArgumentError(issue);
+      if (nameProblem(member.name, members, except: id) != null) {
+        throw Refusal(
+          (w) => nameProblem(member.name, members, except: id, w: w)!,
+        );
+      }
     }
     final changed = member.copyWith(active: active);
     await _write(prefs, [for (final m in members) m.id == id ? changed : m]);
@@ -134,8 +140,9 @@ class StaffStore {
     required Authority by,
   }) async {
     by.require(Capability.usersManage);
-    final issue = OwnerAccessStore.problemWith(pin);
-    if (issue != null) throw ArgumentError(issue);
+    if (OwnerAccessStore.problemWith(pin) != null) {
+      throw Refusal((w) => OwnerAccessStore.problemWith(pin, w)!);
+    }
     final prefs = await SharedPreferences.getInstance();
     final members = _allNow(prefs);
     final salt = _salt();

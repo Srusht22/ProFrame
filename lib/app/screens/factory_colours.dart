@@ -11,6 +11,7 @@ import '../inspector/price_panel.dart';
 import '../inspector/profile_chooser.dart';
 import '../l10n/arb_words.dart';
 import '../l10n/l10n.dart';
+import '../l10n/latin_digits.dart';
 import '../theme/app_theme.dart';
 
 /// The **Colours** of the factory's price list: every colour of its
@@ -495,6 +496,7 @@ class _ColourDialogState extends State<ColourDialog> {
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
+                          inputFormatters: const [LatinDigits()],
                           decoration: InputDecoration(
                             isDense: true,
                             labelText: l.fcAMetre,
@@ -510,6 +512,7 @@ class _ColourDialogState extends State<ColourDialog> {
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
+                          inputFormatters: const [LatinDigits()],
                           decoration: InputDecoration(
                             isDense: true,
                             labelText: l.fcOnProfile,

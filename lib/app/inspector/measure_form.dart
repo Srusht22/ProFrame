@@ -6,6 +6,7 @@ import '../../domain/dimensions/measurements.dart';
 import '../../domain/dimensions/units.dart';
 import '../../domain/model/design.dart';
 import '../l10n/l10n.dart';
+import '../l10n/latin_digits.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 
@@ -327,6 +328,7 @@ class _SizeField extends StatelessWidget {
             autofocus: first,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
+              const LatinDigits(),
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
             ],
             textInputAction: TextInputAction.next,

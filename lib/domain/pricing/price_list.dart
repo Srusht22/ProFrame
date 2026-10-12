@@ -90,6 +90,19 @@ class PriceList {
   /// Never written: a migrated list kept again is kept in the current one.
   final int? migratedFrom;
 
+  /// Whether the factory charges for glass at all. **Off for a new
+  /// configuration**: the example list the application starts with, and a
+  /// list built without saying, charge no glass until the owner turns this
+  /// on in Factory prices. A list kept before the switch existed reads as
+  /// on, because it charged glass wherever a design included it and
+  /// reading it must not change a price.
+  ///
+  /// Off, no design's glass is charged, whatever the design's own
+  /// *Include glass in price* says; on, each design still decides
+  /// (`PricingChoices.glassPriced`). Neither touches the glass itself: its
+  /// geometry and its area are the design's, and are measured either way.
+  final bool chargesGlass;
+
   /// What an older list held that the current schema has no place for, said
   /// in words, where it was migrated. Nothing is invented in its stead.
   List<String> get migrationNotes => migrationNotesIn(const EnglishWords());
@@ -131,6 +144,7 @@ class PriceList {
     this.customSealedGlassPerM2,
     this.migratedFrom,
     this.migrationSays = const [],
+    this.chargesGlass = false,
   });
 
   /// The example list the application starts with, until the owner keeps
@@ -158,6 +172,7 @@ class PriceList {
     InstallationRate? installation,
     int? migratedFrom,
     List<MigrationNote>? migrationSays,
+    bool? chargesGlass,
     bool clearCustomGlass = false,
     bool clearCustomSealedGlass = false,
     bool clearCustomPanel = false,
@@ -188,6 +203,7 @@ class PriceList {
     installation: installation ?? this.installation,
     migratedFrom: migratedFrom ?? this.migratedFrom,
     migrationSays: migrationSays ?? this.migrationSays,
+    chargesGlass: chargesGlass ?? this.chargesGlass,
   );
 
   Map<String, Object?> toJson() => {
@@ -214,6 +230,10 @@ class PriceList {
     'rollersPerSlidingPanel': rollersPerSlidingPanel,
     'categories': {for (final e in categories.entries) e.key: e.value.toJson()},
     'installation': installation.toJson(),
+    // Written only where it is off: a list kept before the switch has no
+    // such key and reads as on, so its JSON — and so every price kept
+    // against it — is the same as it was.
+    if (!chargesGlass) 'chargesGlass': false,
   };
 
   /// The list kept as [json]. **A figure that is not a price is left out
@@ -252,6 +272,7 @@ class PriceList {
     return PriceList(
       version: (json['version'] as num?)?.toInt() ?? 1,
       isStarter: json['isStarter'] == true,
+      chargesGlass: json['chargesGlass'] != false,
       currency: currency,
       profiles: {
         if (json['profiles'] case final Map<String, Object?> raw)

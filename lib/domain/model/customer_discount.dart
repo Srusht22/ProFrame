@@ -21,6 +21,7 @@
 /// unless that entry is a removal.
 library;
 
+import '../text/numerals.dart';
 import '../text/words.dart';
 
 enum DiscountKind {
@@ -142,7 +143,7 @@ class CustomerDiscount {
     String text, [
     Words w = const EnglishWords(),
   ]) {
-    final words = text.trim().replaceAll('%', '').trim();
+    final words = Numerals.latin(text).trim().replaceAll('%', '').trim();
     if (words.isEmpty) return (value: null, problem: w.discountEnter);
     if (words.startsWith('-')) {
       return (value: null, problem: w.discountMoreThanNothing);

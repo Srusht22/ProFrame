@@ -6,12 +6,14 @@ import '../../domain/model/design.dart';
 import '../../domain/model/payment.dart';
 import '../../domain/model/receipt.dart';
 import '../../domain/pricing/design_price_state.dart';
+import '../../domain/pricing/extra_catalog.dart';
 import '../../domain/pricing/extra_charge.dart';
 import '../../domain/pricing/price_list.dart';
 import '../../domain/pricing/price_result.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/pricing_engine.dart';
 import '../../domain/pricing/quotation.dart';
+import '../../infrastructure/extra_catalog_store.dart';
 import '../../infrastructure/price_list_store.dart';
 import '../../infrastructure/price_record_store.dart';
 import '../../infrastructure/quotation_store.dart';
@@ -28,6 +30,16 @@ final priceListStoreProvider = Provider<PriceListStore>(
 /// when the owner keeps a new one ([PriceListSaver]).
 final priceListProvider = FutureProvider<PriceList>(
   (ref) => ref.watch(priceListStoreProvider).load(),
+);
+
+/// Where the factory's list of extras is kept.
+final extraCatalogStoreProvider = Provider<ExtraCatalogStore>(
+  (ref) => ExtraCatalogStore(),
+);
+
+/// The factory's list of extras, as kept: what an extra can be added from.
+final extraCatalogProvider = FutureProvider<List<ExtraItem>>(
+  (ref) => ref.watch(extraCatalogStoreProvider).load(),
 );
 
 /// Whether the device is in the owner's hands. Starts as staff — see
@@ -67,6 +79,15 @@ extension PriceListSaver on WidgetRef {
     final kept = await read(priceListStoreProvider)
         .save(list, by: await actorNow());
     invalidate(priceListProvider);
+    return kept;
+  }
+
+  /// Keeps [items] as the factory's list of extras, as whoever is at the
+  /// device — refused by the store without `pricing.edit`.
+  Future<List<ExtraItem>> saveExtraCatalog(List<ExtraItem> items) async {
+    final kept = await read(extraCatalogStoreProvider)
+        .save(items, by: await actorNow());
+    invalidate(extraCatalogProvider);
     return kept;
   }
 }

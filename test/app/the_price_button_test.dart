@@ -179,8 +179,17 @@ void main() {
     final expected = engine.price(design, list);
     expect(expected.isPriced, isTrue);
     expect(sheetTotal(tester), PricePanel.money(expected.total!, 'USD'));
-    expect(find.text('MATERIAL MEASUREMENTS'), findsOneWidget);
-    expect(find.text('COST BREAKDOWN'), findsOneWidget);
+    // Since Phase 35 the sheet is a summary: the final total first, then
+    // the costs part by part, the measurements a tap away. Its headings
+    // moved with it; what is held is the same — the costs and what they
+    // are measured from are both on it.
+    expect(find.text('Price summary'), findsOneWidget);
+    expect(find.text('Profiles and frame'), findsOneWidget);
+    expect(find.text('Final calculation', skipOffstage: false), findsOneWidget);
+    expect(
+      find.byKey(DesignPriceSheet.measurementsKey, skipOffstage: false),
+      findsOneWidget,
+    );
     await closeSheet(tester);
     expect(
       textOf(tester, PricePanel.totalKey),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/model/customer.dart';
 import '../l10n/l10n.dart';
+import '../l10n/latin_digits.dart';
 import '../state/access.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
@@ -194,6 +195,7 @@ class _NewCustomerScreenState extends ConsumerState<NewCustomerScreen> {
                       keyboardType: TextInputType.phone,
                       textInputAction: TextInputAction.next,
                       inputFormatters: [
+                        const LatinDigits(),
                         FilteringTextInputFormatter.allow(
                           RegExp(r'[0-9+\-().\s]'),
                         ),

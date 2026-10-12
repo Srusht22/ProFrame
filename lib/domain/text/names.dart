@@ -233,6 +233,7 @@ extension GlassStateNames on GlassState {
     GlassState.charged => '',
     GlassState.notIncluded => w.glassNotIncluded,
     GlassState.nothingToCharge => w.glassNothingToCharge,
+    GlassState.disabled => w.glassDisabled,
     GlassState.notUsed => w.glassNotUsed,
   };
 }

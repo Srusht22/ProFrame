@@ -1,3 +1,5 @@
+import '../text/numerals.dart';
+
 /// The unit the user works in.
 ///
 /// Geometry is held in millimetres throughout the domain, because that is
@@ -68,7 +70,9 @@ abstract final class Units {
   /// number, so the field can put back what was there rather than guessing
   /// at what was meant.
   static double? parse(String text) {
-    final cm = double.tryParse(text.trim().replaceAll(',', '.'));
+    final cm = double.tryParse(
+      Numerals.latin(text).trim().replaceAll(',', '.'),
+    );
     return cm == null ? null : toMm(cm);
   }
 }

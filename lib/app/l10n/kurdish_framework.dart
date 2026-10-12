@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../domain/text/numerals.dart';
 import 'app_localizations.dart';
 
 /// Flutter's own words — a back button's tooltip, a date picker, the menu
@@ -32,10 +33,9 @@ class _MaterialDelegate extends LocalizationsDelegate<MaterialLocalizations> {
   bool isSupported(Locale locale) => KurdishFramework._isKurdish(locale);
 
   @override
-  Future<MaterialLocalizations> load(Locale locale) =>
-      SynchronousFuture(KurdishMaterialLocalizations(lookupAppLocalizations(
-        locale,
-      )));
+  Future<MaterialLocalizations> load(Locale locale) => SynchronousFuture(
+    KurdishMaterialLocalizations(lookupAppLocalizations(locale)),
+  );
 
   @override
   bool shouldReload(_MaterialDelegate old) => false;
@@ -48,8 +48,9 @@ class _WidgetsDelegate extends LocalizationsDelegate<WidgetsLocalizations> {
   bool isSupported(Locale locale) => KurdishFramework._isKurdish(locale);
 
   @override
-  Future<WidgetsLocalizations> load(Locale locale) =>
-      SynchronousFuture(const KurdishWidgetsLocalizations());
+  Future<WidgetsLocalizations> load(Locale locale) => SynchronousFuture(
+    KurdishWidgetsLocalizations(lookupAppLocalizations(locale)),
+  );
 
   @override
   bool shouldReload(_WidgetsDelegate old) => false;
@@ -62,19 +63,80 @@ class _CupertinoDelegate extends LocalizationsDelegate<CupertinoLocalizations> {
   bool isSupported(Locale locale) => KurdishFramework._isKurdish(locale);
 
   @override
-  Future<CupertinoLocalizations> load(Locale locale) =>
-      SynchronousFuture(const DefaultCupertinoLocalizations());
+  Future<CupertinoLocalizations> load(Locale locale) => SynchronousFuture(
+    KurdishCupertinoLocalizations(lookupAppLocalizations(locale)),
+  );
 
   @override
   bool shouldReload(_CupertinoDelegate old) => false;
 }
 
-/// Kurdish runs right to left; everything else is Flutter's default.
+/// Kurdish runs right to left, and the menu over selected text — the one
+/// a phone's own system draws — says its words in Kurdish.
 class KurdishWidgetsLocalizations extends DefaultWidgetsLocalizations {
-  const KurdishWidgetsLocalizations();
+  final AppLocalizations l;
+
+  const KurdishWidgetsLocalizations(this.l);
 
   @override
   TextDirection get textDirection => TextDirection.rtl;
+  @override
+  String get copyButtonLabel => l.fwCopy;
+  @override
+  String get cutButtonLabel => l.fwCut;
+  @override
+  String get pasteButtonLabel => l.fwPaste;
+  @override
+  String get selectAllButtonLabel => l.fwSelectAll;
+  @override
+  String get lookUpButtonLabel => l.fwLookUp;
+  @override
+  String get searchWebButtonLabel => l.fwSearchWeb;
+  @override
+  String get shareButtonLabel => l.fwShare;
+}
+
+/// What an iPhone shows in Flutter's own words — the menu over selected
+/// text, a dialog's and a barrier's labels — in Kurdish. A date or a time
+/// picker of the iPhone's kind is never opened by the application, so its
+/// words stay Flutter's.
+class KurdishCupertinoLocalizations extends DefaultCupertinoLocalizations {
+  final AppLocalizations l;
+
+  const KurdishCupertinoLocalizations(this.l);
+
+  @override
+  String get copyButtonLabel => l.fwCopy;
+  @override
+  String get cutButtonLabel => l.fwCut;
+  @override
+  String get pasteButtonLabel => l.fwPaste;
+  @override
+  String get selectAllButtonLabel => l.fwSelectAll;
+  @override
+  String get lookUpButtonLabel => l.fwLookUp;
+  @override
+  String get searchWebButtonLabel => l.fwSearchWeb;
+  @override
+  String get shareButtonLabel => l.fwShare;
+  @override
+  String get clearButtonLabel => l.fwClear;
+  @override
+  String get noSpellCheckReplacementsLabel => l.fwNoReplacements;
+  @override
+  String get searchTextFieldPlaceholderLabel => l.fwSearch;
+  @override
+  String get modalBarrierDismissLabel => l.fwDismiss;
+  @override
+  String get menuDismissLabel => l.fwDismissMenu;
+  @override
+  String get cancelButtonLabel => l.fwCancel;
+  @override
+  String get backButtonLabel => l.fwBack;
+  @override
+  String get alertDialogLabel => l.fwAlert;
+  @override
+  String get todayLabel => l.fwToday;
 }
 
 /// The Material words the application's screens actually show, in Kurdish.
@@ -215,4 +277,34 @@ class KurdishMaterialLocalizations extends DefaultMaterialLocalizations {
   String get collapsedIconTapHint => l.fwExpand;
   @override
   String get refreshIndicatorSemanticLabel => l.fwRefresh;
+  @override
+  String get lookUpButtonLabel => l.fwLookUp;
+  @override
+  String get searchWebButtonLabel => l.fwSearchWeb;
+  @override
+  String get shareButtonLabel => l.fwShare;
+  @override
+  String get drawerLabel => l.fwNavigationMenu;
+  @override
+  String get scrimLabel => l.fwScrim;
+  @override
+  String scrimOnTapHint(String modalRouteContentName) =>
+      l.fwCloseOf(modalRouteContentName);
+  /// A date typed in the date picker, read in the order [formatCompactDate]
+  /// writes it — day, month, year — and in either kind of digits. Flutter's
+  /// own reads month first, which would have taken 03/04 as the 4th of
+  /// March on a screen that writes the 3rd of April that way.
+  @override
+  DateTime? parseCompactDate(String? inputString) {
+    if (inputString == null) return null;
+    final parts = Numerals.latin(inputString).trim().split('/');
+    if (parts.length != 3) return null;
+    final day = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final year = int.tryParse(parts[2]);
+    if (day == null || month == null || year == null) return null;
+    if (month < 1 || month > 12 || day < 1 || year < 1) return null;
+    if (day > DateUtils.getDaysInMonth(year, month)) return null;
+    return DateTime(year, month, day);
+  }
 }

@@ -11,6 +11,7 @@ import '../theme/app_theme.dart';
 import 'appearance_button.dart';
 import 'customer_screen.dart';
 import 'factory_prices_screen.dart';
+import 'language_button.dart';
 import 'new_customer_screen.dart';
 import 'new_design_screen.dart';
 import 'settings_screen.dart';
@@ -186,6 +187,11 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                   SliverToBoxAdapter(
                     child: _Header(
                       phone: phone,
+                      // Short of a laptop's width, the header is laid out as
+                      // on a phone — its icons on the title's own line, the
+                      // search and the two buttons under it — so a sixth
+                      // icon never crowds the title off a tablet.
+                      iconsOnTop: room.maxWidth < 1000,
                       gutter: gutter,
                       count: _kept,
                       search: _search,
@@ -293,6 +299,10 @@ class _Centred extends StatelessWidget {
 /// the screen was reached from somewhere.
 class _Header extends StatelessWidget {
   final bool phone;
+
+  /// Whether the icons — the account, the factory's prices, the language,
+  /// the appearance and Settings — stand on the title's line.
+  final bool iconsOnTop;
   final double gutter;
   final int count;
   final TextEditingController search;
@@ -302,6 +312,7 @@ class _Header extends StatelessWidget {
 
   const _Header({
     required this.phone,
+    this.iconsOnTop = false,
     required this.gutter,
     required this.count,
     required this.search,
@@ -373,9 +384,10 @@ class _Header extends StatelessWidget {
                 ),
               ),
             ),
-            if (phone) ...[
+            if (phone || iconsOnTop) ...[
               const AccountButton(colour: AppTheme.accent),
               const FactoryPricesButton(colour: AppTheme.accent),
+              const LanguageButton(colour: AppTheme.accent),
               const AppearanceButton(colour: AppTheme.accent),
               const SettingsButton(colour: AppTheme.accent),
             ],
@@ -448,7 +460,7 @@ class _Header extends StatelessWidget {
           gutter: gutter,
           child: Padding(
             padding: EdgeInsets.only(top: phone ? 12 : 32, bottom: 24),
-            child: phone
+            child: phone || iconsOnTop
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -473,25 +485,31 @@ class _Header extends StatelessWidget {
                         children: [
                           Expanded(child: title),
                           const SizedBox(width: 16),
-                          const Padding(
-                            padding: EdgeInsets.only(bottom: 6),
-                            child: AccountButton(colour: AppTheme.accent),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.only(bottom: 6),
-                            child: FactoryPricesButton(
-                              colour: AppTheme.accent,
+                          if (!iconsOnTop) ...[
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 6),
+                              child: AccountButton(colour: AppTheme.accent),
                             ),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.only(bottom: 6),
-                            child: AppearanceButton(colour: AppTheme.accent),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.only(bottom: 6),
-                            child: SettingsButton(colour: AppTheme.accent),
-                          ),
-                          const SizedBox(width: 8),
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 6),
+                              child: FactoryPricesButton(
+                                colour: AppTheme.accent,
+                              ),
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 6),
+                              child: LanguageButton(colour: AppTheme.accent),
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 6),
+                              child: AppearanceButton(colour: AppTheme.accent),
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 6),
+                              child: SettingsButton(colour: AppTheme.accent),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
                           newDesign,
                           const SizedBox(width: 10),
                           newCustomer,
@@ -708,7 +726,9 @@ class _CustomerCardState extends State<CustomerCard> {
                             const SizedBox(width: 5),
                             Flexible(
                               child: Text(
-                                phone.isEmpty ? context.l10n.noPhoneNumber : phone,
+                                phone.isEmpty
+                                    ? context.l10n.noPhoneNumber
+                                    : phone,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 // A number reads left to right whatever the

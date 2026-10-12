@@ -6,7 +6,9 @@ import '../../domain/model/staff.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../infrastructure/owner_access_store.dart';
 import '../../infrastructure/staff_store.dart';
+import '../l10n/errors.dart';
 import '../l10n/l10n.dart';
+import '../l10n/latin_digits.dart';
 import '../state/access.dart';
 import '../state/language.dart';
 import '../theme/app_theme.dart';
@@ -189,7 +191,11 @@ class _StaffSignInState extends ConsumerState<StaffSignInDialog> {
                     controller: _pin,
                     obscureText: true,
                     keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    inputFormatters: [
+           const LatinDigits(),
+            const LatinDigits(),
+            FilteringTextInputFormatter.digitsOnly,
+          ],
                     decoration: InputDecoration(labelText: context.l10n.acPin),
                     onSubmitted: (_) => _ok(),
                   ),
@@ -255,7 +261,7 @@ class StaffScreen extends ConsumerWidget {
       } on AccessDenied catch (e) {
         if (context.mounted) _say(context, e.messageIn(context.words));
       } on ArgumentError catch (e) {
-        if (context.mounted) _say(context, '${e.message}');
+        if (context.mounted) _say(context, userMessageOf(context, e));
       }
     }
 
@@ -463,7 +469,11 @@ class _AddStaffState extends ConsumerState<AddStaffDialog> {
             controller: _pin,
             obscureText: true,
             keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            inputFormatters: [
+           const LatinDigits(),
+            const LatinDigits(),
+            FilteringTextInputFormatter.digitsOnly,
+          ],
             decoration: InputDecoration(labelText: context.l10n.acPin),
           ),
           TextField(
@@ -471,7 +481,11 @@ class _AddStaffState extends ConsumerState<AddStaffDialog> {
             controller: _again,
             obscureText: true,
             keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            inputFormatters: [
+           const LatinDigits(),
+            const LatinDigits(),
+            FilteringTextInputFormatter.digitsOnly,
+          ],
             decoration: InputDecoration(labelText: context.l10n.pinAgain),
             onSubmitted: (_) => _ok(),
           ),

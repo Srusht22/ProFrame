@@ -398,6 +398,11 @@ void main() {
       of: find.byKey(ProfileChooser.colourKey),
       matching: find.byWidgetPredicate((w) => w is DropdownButtonFormField),
     );
+    // Since Phase 35 the material and colour are chosen under the price
+    // they make, which comes first on the sheet: scrolled to, as a user
+    // would.
+    await tester.ensureVisible(colourField);
+    await tester.pumpAndSettle();
     await tester.tap(colourField);
     await tester.pumpAndSettle();
     final onAlu = offeredNames(tester);
