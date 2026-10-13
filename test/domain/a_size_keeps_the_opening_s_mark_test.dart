@@ -328,7 +328,11 @@ void main() {
       final said = out.problems[Measurements.widthKey];
       expect(said, isNotNull);
       expect(said, contains('Opening 1'));
-      expect(said, contains('The nearest size that fits is'));
+      expect(said, contains('so the size is not applied'));
+      expect(said, contains('The nearest size that keeps every part is'));
+      // An opening with no room would be lost with its kind and its
+      // contents, so that one size is not made.
+      expect(out.applied, isEmpty);
       final nearest = out.suggestions[Measurements.widthKey]!;
       expect(nearest, greaterThan(d.widthMm));
       expect(nearest, lessThan(4000));
@@ -344,6 +348,60 @@ void main() {
       );
       // The size refused changed nothing.
       expect(out.design.widthMm, d.widthMm);
+    });
+
+    // The user's next words, over the same form: *make it take every number
+    // we fill in, and give us the suggestion.* Where only a fixed light is
+    // squeezed out, the size is made as typed — every line is still there,
+    // and the light comes back the moment a size leaves it room — and the
+    // nearest size that keeps every part is still offered.
+    test('a fixed light squeezed out: the size is made as typed, and the '
+        'nearest that keeps every part is still offered', () {
+      final d = read(
+        Design.empty(id: 'a', kind: DesignKind.angled).copyWith(
+          sketch: Sketch(
+            strokes: [
+              pen('outline', const [
+                Vec2(0, 1000),
+                Vec2(0, 900),
+                Vec2(1400, 0),
+                Vec2(1400, 1000),
+                Vec2(0, 1000),
+              ]),
+              pen('m', const [Vec2(420, 0), Vec2(420, 1000)]),
+              pen('mark', chevron(const Vec2(910, 900))),
+            ],
+          ),
+        ),
+      ).copyWith(measured: {});
+      expect(d.openings, hasLength(1));
+      final opening = d.openings.single.id;
+      final lights = d.topLevelSections.length;
+      final bars = [for (final b in d.dividers) b.id];
+
+      final out = Measurements.apply(d, {Measurements.widthKey: 4000});
+      expect(out.applied, {Measurements.widthKey});
+      expect(out.design.widthMm, closeTo(4000, 0.5));
+      expect(out.design.measured, contains(Measurements.widthKey));
+      expect(
+        out.problems[Measurements.widthKey],
+        contains('squeezed out between the frame and a line'),
+      );
+      expect(out.design.openings.single.id, opening);
+      expect([for (final b in out.design.dividers) b.id], bars);
+      expect(out.design.topLevelSections.length, lessThan(lights));
+
+      // The suggestion, given afterwards, fits and brings the light back.
+      final nearest = out.suggestions[Measurements.widthKey]!;
+      expect(nearest, greaterThan(d.widthMm));
+      expect(nearest, lessThan(4000));
+      final back = Measurements.apply(out.design, {
+        Measurements.widthKey: nearest,
+      });
+      expect(back.problems, isEmpty);
+      expect(back.design.widthMm, closeTo(nearest, 0.5));
+      expect(back.design.topLevelSections.length, lights);
+      expect(back.design.openings.single.id, opening);
     });
 
     test(

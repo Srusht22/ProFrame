@@ -4647,32 +4647,32 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get msHintCrosses => 'At this size the frame would cross itself.';
+  String get msHintCrosses => 'At this size the frame crosses itself.';
 
   @override
   String get msHintBorder =>
-      'At this size a side of the frame would be shorter than its border.';
+      'At this size a side of the frame is shorter than its border.';
 
   @override
   String get msHintLight =>
-      'At this size a part of the design would be squeezed out between the frame and a line.';
+      'At this size a part of the design is squeezed out between the frame and a line.';
 
   @override
   String msHintOpening(String opening) {
-    return 'At this size there would be no room left for $opening.';
+    return 'At this size there is no room left for $opening, so the size is not applied.';
   }
 
   @override
   String msHintPaneIn(String opening) {
-    return 'At this size a pane inside $opening would be squeezed out.';
+    return 'At this size a pane inside $opening is squeezed out.';
   }
 
   @override
-  String get msHintPane => 'At this size a pane would be squeezed out.';
+  String get msHintPane => 'At this size a pane is squeezed out.';
 
   @override
   String msHintNearest(String size) {
-    return 'The nearest size that fits is $size.';
+    return 'The nearest size that keeps every part is $size.';
   }
 
   @override
@@ -4683,5 +4683,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String mfAlsoCheck(String problem) {
     return 'Something in the drawing may be in the way: $problem';
+  }
+
+  @override
+  String mfAppliedAnyway(String size) {
+    return '$size is applied, as you typed it.';
   }
 }

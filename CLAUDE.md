@@ -7857,14 +7857,34 @@ what the thing is.* Two changes:
   cause, the drawing's own warning where it has one, and **Use 325.6 cm**,
   which puts that figure in the field and nothing in the design until
   **Apply**. No size field shows an error any more.
+- **And the size typed is made, wherever the frame can still be built.**
+  The user's next words, over the suggestion: *make it take every number
+  we fill in, but give us the suggestion.* Where a fixed light or a pane
+  is squeezed out between the frame and a line, `FrameSides.reshape`
+  answers `Reshaped.squeezed` — the design at that size, and what does not
+  fit — and `Measurements.apply` makes it (`MeasureOutcome.applied`). The
+  form says *400 cm is applied, as you typed it.* over the cause and still
+  offers the nearest size that keeps every part. Nothing the user drew is
+  lost: every line is still there, and the light comes back the moment a
+  size leaves it room — a light coming back is not counted as anything
+  lost. **Three sizes are still not made**, and the suggestion says so: a
+  frame that would cross itself, a side shorter than its border, and an
+  opening left no region, which would take the opening, its kind and
+  everything inside it with it (*…no room left for Opening 1, so the size
+  is not applied*). `reshaped`, `overall` and `sized` still answer only a
+  design where everything fits (`Reshaped.fitted`), and so does the
+  search for the nearest size.
 
 `test/domain/a_size_keeps_the_opening_s_mark_test.dart` holds the mark
 under a stair's slope with and without a mullion, made taller and then
 wider (17 of the 18 fail without the carry), a refused width saying why
-with the nearest that fits taken and a centimetre more refused, and the
-corners' carry itself; `test/app/a_size_that_does_not_fit_is_suggested_test.dart`
-holds the form at a phone and a laptop: no error text, the suggestion, and
-**Use** then **Apply** making it.
+with the nearest that fits taken and a centimetre more refused, a width
+that squeezes out a fixed light made as typed with the opening and every
+line kept and the light back at the suggested size, and the corners' carry
+itself; `test/app/a_size_that_does_not_fit_is_suggested_test.dart` holds
+the form at a phone and a laptop: a squeezed light's width made and said to
+be, an opening's refused, no error text either way, and **Use** then
+**Apply** making the suggestion.
 
 **Factory defaults: measurements apart from prices.** The user's words:
 *a button on the first page to fill the frame border, the bar thickness

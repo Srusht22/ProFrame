@@ -125,10 +125,16 @@ class MeasureOutcome {
   /// in place of the size refused, never put in for them.
   final Map<String, double> suggestions;
 
+  /// By [Measure.key]: the sizes made as typed although something does
+  /// not fit — a light or a pane squeezed out — so the form can say the
+  /// size was taken and still offer [suggestions].
+  final Set<String> applied;
+
   const MeasureOutcome(
     this.design,
     this.problems, [
     this.suggestions = const {},
+    this.applied = const {},
   ]);
 
   bool get ok => problems.isEmpty;
@@ -478,6 +484,7 @@ abstract final class Measurements {
     var d = design;
     final problems = <String, String>{};
     final suggestions = <String, double>{};
+    final applied = <String>{};
     final said = <String>{...?design.measured};
 
     // What a refusal says: what the size would do, and the nearest size
@@ -552,9 +559,11 @@ abstract final class Measurements {
         // A frame that is not a rectangle: its far side moves, and each
         // side standing on it keeps its own size.
         final moved = FrameSides.overallTried(d, axis, value);
-        if (moved.design == null) {
+        if (!moved.ok) {
           refuse(key, _blocked(d, moved, w), current, value, fits);
-          continue;
+          // Made as typed wherever the frame can still be built.
+          if (moved.design == null) continue;
+          applied.add(key);
         }
         d = moved.design!;
       }
@@ -570,7 +579,7 @@ abstract final class Measurements {
       if (side == null) continue;
       final before = d;
       final moved = FrameSides.sizedTried(d, side, value);
-      if (moved.design == null) {
+      if (!moved.ok) {
         refuse(
           first.key,
           _blocked(d, moved, w),
@@ -578,7 +587,8 @@ abstract final class Measurements {
           value,
           (v) => FrameSides.sizedTried(before, side, v).ok,
         );
-        continue;
+        if (moved.design == null) continue;
+        applied.add(first.key);
       }
       d = moved.design!;
       if (first.asked) said.add(first.key);
@@ -608,7 +618,12 @@ abstract final class Measurements {
       said.add(measure.key);
     }
 
-    return MeasureOutcome(d.copyWith(measured: said), problems, suggestions);
+    return MeasureOutcome(
+      d.copyWith(measured: said),
+      problems,
+      suggestions,
+      applied,
+    );
   }
 
   /// What [reshaped] would have done to [design], in [w]: the frame

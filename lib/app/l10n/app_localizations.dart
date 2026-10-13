@@ -7997,43 +7997,43 @@ abstract class AppLocalizations {
   /// [domain] Size suggestion: why an overall or side size cannot be made.
   ///
   /// In en, this message translates to:
-  /// **'At this size the frame would cross itself.'**
+  /// **'At this size the frame crosses itself.'**
   String get msHintCrosses;
 
   /// [domain] Size suggestion: a side would be shorter than the frame's border.
   ///
   /// In en, this message translates to:
-  /// **'At this size a side of the frame would be shorter than its border.'**
+  /// **'At this size a side of the frame is shorter than its border.'**
   String get msHintBorder;
 
-  /// [domain] Size suggestion: a light would disappear.
+  /// [domain] Size suggestion: a light disappears at the size typed (the size is still applied).
   ///
   /// In en, this message translates to:
-  /// **'At this size a part of the design would be squeezed out between the frame and a line.'**
+  /// **'At this size a part of the design is squeezed out between the frame and a line.'**
   String get msHintLight;
 
-  /// [domain] Size suggestion: an opening would lose its region. {opening} is its name, such as Opening 1.
+  /// [domain] Size suggestion: an opening would lose its region, so the size is refused. {opening} is its name, such as Opening 1.
   ///
   /// In en, this message translates to:
-  /// **'At this size there would be no room left for {opening}.'**
+  /// **'At this size there is no room left for {opening}, so the size is not applied.'**
   String msHintOpening(String opening);
 
-  /// [domain] Size suggestion: a pane inside an opening would disappear.
+  /// [domain] Size suggestion: a pane inside an opening disappears (the size is still applied).
   ///
   /// In en, this message translates to:
-  /// **'At this size a pane inside {opening} would be squeezed out.'**
+  /// **'At this size a pane inside {opening} is squeezed out.'**
   String msHintPaneIn(String opening);
 
-  /// [domain] Size suggestion: a pane would disappear.
+  /// [domain] Size suggestion: a pane disappears (the size is still applied).
   ///
   /// In en, this message translates to:
-  /// **'At this size a pane would be squeezed out.'**
+  /// **'At this size a pane is squeezed out.'**
   String get msHintPane;
 
-  /// [domain] Size suggestion: the nearest size that fits. {size} is a figure with its unit.
+  /// [domain] Size suggestion: the nearest size at which every part still fits. {size} is a figure with its unit.
   ///
   /// In en, this message translates to:
-  /// **'The nearest size that fits is {size}.'**
+  /// **'The nearest size that keeps every part is {size}.'**
   String msHintNearest(String size);
 
   /// Sizes form: button putting the suggested size into the field. {size} is a figure with its unit.
@@ -8047,6 +8047,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Something in the drawing may be in the way: {problem}'**
   String mfAlsoCheck(String problem);
+
+  /// Sizes form: above a suggestion, saying the size typed was still applied. {size} is a figure with its unit.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} is applied, as you typed it.'**
+  String mfAppliedAnyway(String size);
 }
 
 class _AppLocalizationsDelegate

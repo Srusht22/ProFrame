@@ -4652,7 +4652,7 @@ class AppLocalizationsCkb extends AppLocalizations {
 
   @override
   String msHintOpening(String opening) {
-    return 'بەم قەبارەیە شوێن بۆ $opening نامێنێت.';
+    return 'بەم قەبارەیە شوێن بۆ $opening نامێنێت، بۆیە ئەم قەبارەیە جێبەجێ ناکرێت.';
   }
 
   @override
@@ -4665,7 +4665,7 @@ class AppLocalizationsCkb extends AppLocalizations {
 
   @override
   String msHintNearest(String size) {
-    return 'نزیکترین قەبارەی گونجاو: ‎$size‎.';
+    return 'نزیکترین قەبارە کە هەموو بەشەکان دەهێڵێتەوە: ‎$size‎.';
   }
 
   @override
@@ -4676,5 +4676,10 @@ class AppLocalizationsCkb extends AppLocalizations {
   @override
   String mfAlsoCheck(String problem) {
     return 'لەوانەیە شتێک لە وێنەکەدا ڕێگر بێت: $problem';
+  }
+
+  @override
+  String mfAppliedAnyway(String size) {
+    return '‎$size‎ جێبەجێکرا، وەک خۆت نووسیت.';
   }
 }

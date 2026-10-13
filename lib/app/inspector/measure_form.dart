@@ -65,6 +65,10 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
   /// The nearest size that fits, by key, for each size that did not.
   Map<String, double> _suggestions = const {};
 
+  /// The sizes made as typed although something did not fit, by key, with
+  /// the size made.
+  Map<String, double> _applied = const {};
+
   /// What the drawing itself warns about, said beside a size that did not
   /// fit, since it may be what is in the way.
   String? _alsoCheck;
@@ -163,6 +167,7 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
     setState(() {
       _problems = outcome.problems;
       _suggestions = outcome.suggestions;
+      _applied = {for (final key in outcome.applied) key: ?values[key]};
       _alsoCheck = feedback.notices.firstOrNull?.messageIn(context.words);
     });
   }
@@ -174,6 +179,7 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
     setState(() {
       _problems = {..._problems}..remove(key);
       _suggestions = {..._suggestions}..remove(key);
+      _applied = {..._applied}..remove(key);
     });
   }
 
@@ -324,6 +330,7 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
                       first: m.key == _first,
                       problem: _problems[m.key],
                       suggestion: _suggestions[m.key],
+                      applied: _applied[m.key],
                       alsoCheck: _alsoCheck,
                       onUse: (mm) => _use(m.key, mm),
                     )
@@ -506,6 +513,9 @@ class _SizeField extends StatelessWidget {
   /// The nearest size that fits, offered as a button.
   final double? suggestion;
 
+  /// The size made as typed although something did not fit.
+  final double? applied;
+
   /// The drawing's own warning, said with [problem] as what may be in the
   /// way.
   final String? alsoCheck;
@@ -521,6 +531,7 @@ class _SizeField extends StatelessWidget {
     required this.controller,
     this.problem,
     this.suggestion,
+    this.applied,
     this.alsoCheck,
     this.onUse,
     this.first = false,
@@ -571,6 +582,7 @@ class _SizeField extends StatelessWidget {
           SizeSuggestion(
             message: said,
             suggestion: suggestion,
+            applied: applied,
             alsoCheck: alsoCheck,
             onUse: onUse,
           ),
@@ -579,15 +591,20 @@ class _SizeField extends StatelessWidget {
   );
 }
 
-/// What a size that did not fit would have done, said as a suggestion: the
-/// cause, the drawing's own warning where it has one, and the nearest size
-/// that fits as a button that puts it in the field — never an error, and
-/// never a size put in for the user.
+/// What a size that does not fit does to the design, said as a suggestion:
+/// that the size was made as typed where it was, the cause, the drawing's
+/// own warning where it has one, and the nearest size that keeps every
+/// part as a button that puts it in the field — never an error, and never
+/// a size put in for the user.
 class SizeSuggestion extends StatelessWidget {
   static const useKey = Key('size-suggestion-use');
+  static const appliedKey = Key('size-suggestion-applied');
 
   final String message;
   final double? suggestion;
+
+  /// The size made as typed, where it was.
+  final double? applied;
   final String? alsoCheck;
   final ValueChanged<double>? onUse;
 
@@ -595,6 +612,7 @@ class SizeSuggestion extends StatelessWidget {
     super.key,
     required this.message,
     this.suggestion,
+    this.applied,
     this.alsoCheck,
     this.onUse,
   });
@@ -619,6 +637,18 @@ class SizeSuggestion extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (applied case final mm?)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      context.l10n.mfAppliedAnyway(Units.label(mm)),
+                      key: appliedKey,
+                      style: text.bodySmall?.copyWith(
+                        color: p.onNotice,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
                 Text(
                   message,
                   style: text.bodySmall?.copyWith(color: p.onNotice),

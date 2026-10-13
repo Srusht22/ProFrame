@@ -33,12 +33,20 @@ enum ReshapeBlock {
   pane,
 }
 
-/// What reshaping a frame gave: the design, or why there is none.
+/// What reshaping a frame gave: the design, why it does not fit, or both.
+///
+/// **A size the user typed is made wherever the frame can still be built.**
+/// Where a light or a pane is squeezed out between the frame and a line,
+/// the design is still given at that size ([design] and [block] both set):
+/// the lines are all still there, and the light comes back the moment the
+/// size leaves it room. Only a frame that crosses itself, a side shorter
+/// than its border, or an opening with no region left — which would take
+/// the user's opening, its kind and its contents with it — gives no design.
 class Reshaped {
-  /// The design reshaped, or null where it could not be.
+  /// The design reshaped, or null where it cannot be built.
   final Design? design;
 
-  /// Why not, where [design] is null.
+  /// What does not fit, where something does not.
   final ReshapeBlock? block;
 
   /// The opening the [block] is about, where it is about one.
@@ -47,8 +55,17 @@ class Reshaped {
   const Reshaped(Design this.design) : block = null, openingId = null;
   const Reshaped.blocked(ReshapeBlock this.block, {this.openingId})
     : design = null;
+  const Reshaped.squeezed(
+    Design this.design,
+    ReshapeBlock this.block, {
+    this.openingId,
+  });
 
-  bool get ok => design != null;
+  /// Whether everything fits.
+  bool get ok => design != null && block == null;
+
+  /// The design, where everything fits.
+  Design? get fitted => ok ? design : null;
 }
 
 /// One side of a frame that is not a rectangle, with a size of its own.
@@ -260,7 +277,7 @@ abstract final class FrameSides {
   /// next side follows, and stays a straight slope. Null when that is not
   /// a frame any more or the parts inside it no longer fit.
   static Design? sized(Design design, FrameSide side, double valueMm) =>
-      sizedTried(design, side, valueMm).design;
+      sizedTried(design, side, valueMm).fitted;
 
   /// [sized], saying why where it cannot be.
   static Reshaped sizedTried(Design design, FrameSide side, double valueMm) {
@@ -285,7 +302,7 @@ abstract final class FrameSides {
   /// and it is the slope between the sides that takes the difference. On a
   /// rectangle the whole sheet is stretched instead (`Measurements.stretch`).
   static Design? overall(Design design, MeasureAxis axis, double valueMm) =>
-      overallTried(design, axis, valueMm).design;
+      overallTried(design, axis, valueMm).fitted;
 
   /// [overall], saying why where it cannot be.
   static Reshaped overallTried(
@@ -374,7 +391,7 @@ abstract final class FrameSides {
   /// Null when the new outline is not a frame — crossing itself, or too
   /// small for its border — or when a light or an opening it held is lost.
   static Design? reshaped(Design design, List<Vec2> corners) =>
-      reshape(design, corners).design;
+      reshape(design, corners).fitted;
 
   /// [reshaped], saying why where it cannot be.
   static Reshaped reshape(Design design, List<Vec2> corners) {
@@ -591,20 +608,26 @@ abstract final class FrameSides {
         return Reshaped.blocked(ReshapeBlock.opening, openingId: opening.id);
       }
     }
-    if (rebuilt.topLevelSections.length != design.topLevelSections.length) {
-      return const Reshaped.blocked(ReshapeBlock.light);
+    // A light or a pane squeezed out: the size is still made, and said. A
+    // light coming back — a size that leaves room again for one an earlier
+    // size squeezed out — is nothing lost.
+    if (rebuilt.topLevelSections.length < design.topLevelSections.length) {
+      return Reshaped.squeezed(rebuilt, ReshapeBlock.light);
     }
-    if (rebuilt.sections.length != design.sections.length ||
-        rebuilt.openings.length != design.openings.length) {
-      // The opening whose panes changed, where it is one.
+    if (rebuilt.sections.length < design.sections.length) {
+      // The opening whose panes went, where it is one.
       String? inside;
       for (final opening in design.openings) {
         int panes(Design d) => d.sections
             .where((s) => d.openingHolding(s.parentId)?.id == opening.id)
             .length;
-        if (panes(rebuilt) != panes(design)) inside = opening.id;
+        if (panes(rebuilt) < panes(design)) inside = opening.id;
       }
-      return Reshaped.blocked(ReshapeBlock.pane, openingId: inside);
+      return Reshaped.squeezed(
+        rebuilt,
+        ReshapeBlock.pane,
+        openingId: inside,
+      );
     }
     return Reshaped(rebuilt);
   }
