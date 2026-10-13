@@ -1053,7 +1053,8 @@ why every app test that opens the app still passes unchanged.
 The application has a dark appearance beside the light one. It follows the
 device until the user says otherwise, with **Match device**, **Light** and
 **Dark** behind one button on the customers' header (`AppearanceButton`,
-its icon a sun, a moon or the device's mark), and the choice is kept on the
+its icon the appearance on the screen now — a sun or a moon, whoever chose
+it; the device's mark is only in its list), and the choice is kept on the
 device (`appearanceProvider`, `proframe.appearance`). The language has a
 button of its own beside it (`LanguageButton`), never the same one — see
 *Simple prices, the factory's rates, and two controls*.
@@ -1158,7 +1159,8 @@ Customers  →  a customer  →  their designs, as cards  →  the one picked
   is named*.
 - **New Design on the first screen asks who the design is for**, and needs
   it — **Continue** waits for a name; an existing customer is found by it
-  and a new one made. Then the design's own name (`DesignNameScreen`),
+  and a new one made. The customers kept are offered under the field as
+  it is typed, a letter at a time (see *After Phase 35*). Then the design's own name (`DesignNameScreen`),
   then **Choose your design** (`StartScreen`). Choosing keeps the design at
   once and goes into the workspace with the customers underneath it — back
   is to the customers, where that person now has one design more, not
@@ -6441,12 +6443,14 @@ Design ─ PriceReadiness ─ PricingEngine ─ PriceRecord? ─ DesignPriceStat
   and **Record payment** this section first described. `CustomerFinance`
   works out what is due or in credit from the total and the ledger.
 - **On the customer's page**, under the cards so it moves none of them:
-  - **FINANCIAL SUMMARY** (`CustomerFinancialSummary`): the designs and
-    how many are priced, the total price, the payments, refunds, net paid,
-    amount due and credit, the status, **Add payment**, **Refund** and the
-    payment history.
-  - Unfolded, each design's own price and the **CUSTOMER MATERIAL
-    SUMMARY**.
+  - **Money** (`CustomerFinancialSummary`): since the summary was made
+    simpler (see *After Phase 35*), three figures — the total, what was
+    paid, what is due or the credit — the status, **Add payment**,
+    **Refund** and **Discount**, then the payment history, the extras and
+    the quotations, each folded under its heading.
+  - Under **Price details**, each design's own price, the designs and
+    extras summed, the subtotal, the payments, refunds and net paid, and
+    the **CUSTOMER MATERIAL SUMMARY**.
   - On the bar beside the name, the money at a glance
     (`CustomerMoneyGlance`): *Due 1,350.00 USD*, *Credit 300.00 USD*,
     *Paid in full*, *Pricing incomplete*. It is on the bar because anything added to the
@@ -6678,8 +6682,9 @@ PriceList ─ RateField ──────┘            (owner-only, kept by Pr
   are the design's, edited by whoever edits the design — the same as the
   frame's own finish control has always allowed — so offering them only to
   the owner would be a lock with the inspector beside it open.
-- **The factory's prices** (`FactoryPricesScreen`, the price-tag icon on
-  the customers' header). Every figure of the list is a `RateField`
+- **The factory's prices** (`FactoryPricesScreen`, under **Factory
+  defaults** on the customers' header since it was given default
+  measurements beside it — see *After Phase 35*). Every figure of the list is a `RateField`
   (`price_list_fields.dart`): each material's normal and opening profile,
   what a colour the catalog does not name adds on each, a metre and as a
   share (the catalog's own colours are edited as colours since Phase 29 —
@@ -7536,10 +7541,11 @@ lib/app/l10n/app_ckb.arb ─┘                                          (screen
   `proframe.language`), read before the first frame in `main` so the app
   opens in it, English until chosen, and a code this version does not know
   is English. `MaterialApp` is given the locale outright, so the device's
-  own language never decides. **Settings** (`SettingsScreen`, the gear on
-  the customers' header) offers *English* and *کوردی (سۆرانی)*, each named
-  in itself and set in its own direction, beside the appearance; since
-  Phase 35 the language also has its own button (`LanguageButton`).
+  own language never decides. The language's own button on the customers'
+  header (`LanguageButton`) offers *English* and *کوردی (سۆرانی)*, each
+  named in itself and set in its own direction. There was a Settings
+  screen with both the language and the appearance; the user had it taken
+  out after Phase 35, and its two messages with it.
 - **Flutter has no Central Kurdish**, so
   `lib/app/l10n/kurdish_framework.dart` gives it Material, Widgets and
   Cupertino localizations: the widgets right to left, and the words the
@@ -7696,7 +7702,7 @@ editor, improved, not a second one:
   a job's extra is counted once, in `CustomerFinance`.
 
 **Two controls** — `LanguageButton` (a translate mark) and
-`AppearanceButton` (a sun, a moon or the device's mark) on the customers'
+`AppearanceButton` (a sun or a moon, as the screen is) on the customers'
 header, each with a tooltip and a screen-reader label saying what it is now
 (*Language — now English*), each opening its own short list with the one in
 use ticked, no flag. Choosing takes effect at once, is kept
@@ -7704,7 +7710,7 @@ use ticked, no flag. Choosing takes effect at once, is kept
 screen where they were. Under 1000 wide the customers' header is laid out
 as on a phone, its icons on the title's line, so a sixth icon never crowds
 the title; on a customer's page the two are on the bar from 600 wide.
-**Settings** still has both.
+(Settings, which also had both, was taken out afterwards.)
 
 **What Phase 34 left:**
 
@@ -7754,6 +7760,112 @@ Tests moved with it, each saying why: the pricing tests that price glass
 build their lists with `chargesGlass: true` (`glassCharged`, `zero`); one
 price-sheet test reads the new headings; one scrolls to the colour field,
 which now sits under the price.
+
+### After Phase 35: the header, Factory defaults, finding a customer, and a simpler summary
+
+The user's four screenshots, on 2026-10-13, and what each changed.
+
+**The header's icons stand on one line.** In Kurdish at a laptop's width
+the gear and the appearance icon stood higher than the others: the icons
+were menu buttons and plain buttons of different sizes, laid side by side
+by their feet. `HeaderIcons` (`customers_screen.dart`) puts each in a box
+of one size, centred, and on a wide screen the row of icons and the two
+buttons is one line, centred. **The gear is gone**: Settings held the
+language and the appearance, which each had a button of their own, so the
+user had it taken out — `settings_screen.dart` and its two messages with
+it. **The appearance icon is the appearance on the screen** — a sun or a
+moon, turning as it changes — and the device's mark is only in its list.
+**The Kurdish title** is تۆماری کڕیارەکان (*customer register*), not
+کڕیاران, which the user did not want there; the heading of the list says
+هەموو کڕیارەکان to match. Four icons now: who is at the device, **Factory
+defaults**, the language and the appearance.
+
+**New Design finds the customer as the name is typed.** `NewDesignScreen`
+asks `CustomerStore.page` — the first screen's own search, by name or by
+phone — on every letter, and lists up to six under the field, the latest
+answer winning. A tap goes on with that customer (`NewDesignSetup` with
+their id), so no second customer of the same name is made; a name typed
+exactly as a customer's goes on as them by **Continue** too; and where
+nobody is called that, *New customer “…”* goes on as before.
+
+**A size that moves a frame's side keeps the opening's mark in its
+region.** The user's *Overall width 260 — that does not fit the parts
+inside it*, on an angled design with a `<`: a size that moves a side of a
+frame that is not a rectangle (`FrameSides.reshaped`, under the overall
+size and each side's own) moved every line and left the mark where it was
+drawn; past the slope it was in no region, the opening was lost, and the
+size refused. `FrameSides._marksCarried` puts each mark at the same place
+in its region as it is now (`Polygon.sameIn`, else the box's proportion),
+and moves the mark's ink with it so the next reading finds it.
+`test/domain/a_size_keeps_the_opening_s_mark_test.dart` holds the
+screenshot's sizes at once, every size alone and together on three
+shapes with marks across them, with and without a line inside, and the
+sheet read again; without the fix 13 of its 18 tests fail.
+
+**Factory defaults: measurements apart from prices.** The user's words:
+*a button on the first page to fill the frame border, the bar thickness
+and the other things for each type, PVC or aluminium, and the default
+price for each type and each colour — separate from the default
+measurements — so we don't fill them every time; one design can still be
+changed in its own measurements.*
+
+- `FactoryButton` on the header opens `FactoryDefaultsScreen`: two parts,
+  each its own page — **Default measurements**
+  (`MeasurementDefaultsScreen`) and **Default prices**, which is the price
+  list (`FactoryPricesScreen`) with its rates for each kind of profile and
+  each colour of each, unchanged.
+- `MeasurementDefaults` (`lib/domain/dimensions/measurement_defaults.dart`)
+  is one `ProfileDefaults` a kind of profile the price list sells — the
+  frame's border, the bars' thickness and the depth, in millimetres, each
+  null until set. Kept by `MeasurementDefaultsStore`
+  (`proframe.measurement-defaults.v1`), **apart from the price list**, so
+  setting one reprices nothing; read by anybody, written only with
+  `pricing.edit`, which the store checks.
+- **A default fills nothing by itself.** The sizes form (`MeasureForm`)
+  offers **Fill from factory defaults** — a chip a kind of profile with
+  defaults — putting its border, bars and depth into the fields; a design
+  whose profile is chosen and has neither border nor bars yet gets its own
+  kind's put in as the form opens. Either way they are only in the fields:
+  the user can type over any of them for this design, and **Apply** is what
+  puts them in. Once applied they are the design's, and a later change to
+  the default changes no design. With none set, the form says where to set
+  them. The form has a **Depth** field now too, since the depth is one of
+  the defaults; it goes through `setDepth`, as the inspector's does.
+
+**The customer's money, simply.** The summary under the cards was a column
+of eleven figures and four headings, each empty part with a sentence
+saying so. Now (`CustomerFinancialSummary`):
+
+```
+Money                                     [ OUTSTANDING ]
+┌ Total price ┐ ┌ Paid ┐ ┌ Amount due ┐     (Credit, where there is one)
+[+ Add payment] [Refund] [Discount]
+Payment history  3   ⌄
+Extra charges — whole job  0        + Add extra
+Quotations  0                       New quotation
+Price details   ⌄   — each design, extras, subtotal, payments, refunds,
+                      net paid, due or credit, materials
+```
+
+Each part folds under its heading (`_Fold`) with how many it holds, open
+where it holds something; an empty one is one quiet line. Nothing was
+taken away and no figure is worked out differently: every key and figure
+the tests read is still there, the breakdown under **Price details**.
+
+Tests: `test/app/header_defaults_and_customer_search_test.dart` holds all
+four on the real app — the icons' middles on one line at four widths in
+Kurdish and dark, no gear, a moon and a sun, the new title; the matches
+narrowing letter by letter and a tap going on with that customer, none
+made; the defaults read-only for staff, refused when not a size, kept by
+the owner and touching no price list, filled into the form, overridden for
+one design and applied, offered by themselves for a chosen profile, and
+pointed to where none are set; and the summary's three figures with the
+rest folded, at a phone and a laptop. `test/domain/measurement_defaults_test.dart`
+holds the model and its store. Tests moved with it, each saying why: the
+Kurdish tests choose the language from its button; factory prices are
+reached through Factory defaults; the appearance button is a sun on a
+light screen; `toSummary` opens **Price details**, and `cardButton`
+scrolls from the top; and an empty history is a heading, not a sentence.
 
 ## Working on this repository
 

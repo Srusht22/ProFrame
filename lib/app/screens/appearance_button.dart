@@ -4,7 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/l10n.dart';
 import '../state/appearance.dart';
 
-/// Light, dark or the device's own: one button, the icon showing which.
+/// Light, dark or the device's own: one button.
+///
+/// **Its icon is the appearance on the screen now** — a sun when it is
+/// light, a moon when it is dark — turning from one to the other as it
+/// changes, whether the user chose it or the device did. Which of the three
+/// is chosen is said in its tooltip and ticked in its list.
 class AppearanceButton extends ConsumerWidget {
   /// The colour of the icon, for the ground it stands on.
   final Color colour;
@@ -61,7 +66,21 @@ class AppearanceButton extends ConsumerWidget {
             ),
         ],
         style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
-        icon: Icon(Appearance.icons[mode], color: colour, size: 22),
+        icon: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 260),
+          transitionBuilder: (child, turn) => RotationTransition(
+            turns: Tween(begin: 0.6, end: 1.0).animate(turn),
+            child: FadeTransition(opacity: turn, child: child),
+          ),
+          child: Icon(
+            Theme.of(context).brightness == Brightness.dark
+                ? Icons.dark_mode_outlined
+                : Icons.light_mode_outlined,
+            key: ValueKey(Theme.of(context).brightness),
+            color: colour,
+            size: 22,
+          ),
+        ),
       ),
     );
   }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:proframe/app/inspector/price_panel.dart';
 import 'package:proframe/app/screens/customer_finance.dart';
 import 'package:proframe/app/screens/customer_screen.dart';
 import 'package:proframe/app/screens/finance_documents.dart';
@@ -545,7 +544,11 @@ void main() {
       await closeSheets(tester);
       expect(overflowing(tester), isEmpty, reason: 'after');
       expect(tester.takeException(), isNull);
-      expect(find.text(PricePanel.money(0, 'USD')), findsWidgets);
+      // The summary's three figures are there: the total, what was paid and
+      // what is due.
+      expect(find.byKey(CustomerFinancialSummary.totalKey), findsOneWidget);
+      expect(find.byKey(CustomerFinancialSummary.paidKey), findsOneWidget);
+      expect(find.byKey(CustomerFinancialSummary.dueKey), findsOneWidget);
     });
   }
 }

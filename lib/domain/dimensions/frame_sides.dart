@@ -478,7 +478,7 @@ abstract final class FrameSides {
       );
     }
 
-    final placed = design.copyWith(
+    var placed = design.copyWith(
       frame: newFrame,
       dividers: [for (final d in design.dividers) bars[d.id]!],
       dimensions: [for (final d in design.dimensions) dimensions[d.id]!],
@@ -486,6 +486,7 @@ abstract final class FrameSides {
         strokes: [for (final s in design.sketch.strokes) inked(s)],
       ),
     );
+    placed = _marksCarried(design, placed);
     // What is inside a section that changed shape goes with it, carried
     // from the sides that bound it square: a raked light's sill moved down
     // takes its rail down with it, so the panel below keeps its height, and
@@ -498,6 +499,63 @@ abstract final class FrameSides {
       return null;
     }
     return rebuilt;
+  }
+
+  /// [placed] with every opening's mark — and the ink it was read from —
+  /// carried with the region it marks, from [design] as it was.
+  ///
+  /// **The mark goes with its region, never left behind.** An opening is the
+  /// region its mark is in (`SectionBuilder._openingsKept`), so a mark left
+  /// where it was drawn while the side above it moved — a slope brought down
+  /// by an overall height, a jamb made shorter — fell outside its own region,
+  /// the opening was lost, and the size the user typed was refused as not
+  /// fitting. The mark is put at the same place in the region as it is now
+  /// as it had in the region before, by the rule everything inside a region
+  /// is carried by (`Polygon.sameIn`), and failing that in proportion to the
+  /// region's box. The stroke it was read from moves with it, so the next
+  /// reading finds it there too.
+  static Design _marksCarried(Design design, Design placed) {
+    final marked = [
+      for (final o in placed.openings)
+        if (o.markAt != null) o,
+    ];
+    if (marked.isEmpty) return placed;
+    // The regions as they will be, without the openings deciding anything.
+    final regions = SectionBuilder.rebuild(placed.copyWith(openings: const []));
+    final moves = <String, Vec2>{};
+    final openings = [
+      for (final o in placed.openings)
+        if (o.markAt case final at?)
+          () {
+            final was = design.sectionById(o.sectionId)?.outline;
+            final now = regions.sectionById(o.sectionId)?.outline;
+            if (was == null || now == null || now.contains(at)) return o;
+            var to = was.sameIn(now, at);
+            if (!now.contains(to)) {
+              to = Vec2(
+                now.left + (at.x - was.left) / was.width * now.width,
+                now.top + (at.y - was.top) / was.height * now.height,
+              );
+            }
+            if (!now.contains(to)) return o;
+            if (o.id.startsWith('opening-')) {
+              moves[o.id.substring('opening-'.length)] = to - at;
+            }
+            return o.copyWith(markAt: to);
+          }()
+        else
+          o,
+    ];
+    if (moves.isEmpty) return placed.copyWith(openings: openings);
+    return placed.copyWith(
+      openings: openings,
+      sketch: Sketch(
+        strokes: [
+          for (final s in placed.sketch.strokes)
+            if (moves[s.id] case final by?) s.translated(by) else s,
+        ],
+      ),
+    );
   }
 
   /// Where the line through [bar] meets the side [side] — on the side, give

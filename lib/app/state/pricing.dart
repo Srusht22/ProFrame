@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/dimensions/measurement_defaults.dart';
 import '../../domain/model/customer.dart';
 import '../../domain/model/customer_discount.dart';
 import '../../domain/model/design.dart';
@@ -14,6 +15,7 @@ import '../../domain/pricing/pricing_access.dart';
 import '../../domain/pricing/pricing_engine.dart';
 import '../../domain/pricing/quotation.dart';
 import '../../infrastructure/extra_catalog_store.dart';
+import '../../infrastructure/measurement_defaults_store.dart';
 import '../../infrastructure/price_list_store.dart';
 import '../../infrastructure/price_record_store.dart';
 import '../../infrastructure/quotation_store.dart';
@@ -40,6 +42,17 @@ final extraCatalogStoreProvider = Provider<ExtraCatalogStore>(
 /// The factory's list of extras, as kept: what an extra can be added from.
 final extraCatalogProvider = FutureProvider<List<ExtraItem>>(
   (ref) => ref.watch(extraCatalogStoreProvider).load(),
+);
+
+/// Keeps the factory's usual sizes for each kind of profile.
+final measurementDefaultsStoreProvider = Provider<MeasurementDefaultsStore>(
+  (ref) => MeasurementDefaultsStore(),
+);
+
+/// The factory's usual sizes, as kept: what the sizes form offers to fill
+/// a new design's border, bars and depth from.
+final measurementDefaultsProvider = FutureProvider<MeasurementDefaults>(
+  (ref) => ref.watch(measurementDefaultsStoreProvider).load(),
 );
 
 /// Whether the device is in the owner's hands. Starts as staff — see
@@ -88,6 +101,17 @@ extension PriceListSaver on WidgetRef {
     final kept = await read(extraCatalogStoreProvider)
         .save(items, by: await actorNow());
     invalidate(extraCatalogProvider);
+    return kept;
+  }
+
+  /// Keeps the factory's usual sizes, as whoever is at the device — the
+  /// store refuses anybody without `pricing.edit`.
+  Future<MeasurementDefaults> saveMeasurementDefaults(
+    MeasurementDefaults defaults,
+  ) async {
+    final kept = await read(measurementDefaultsStoreProvider)
+        .save(defaults, by: await actorNow());
+    invalidate(measurementDefaultsProvider);
     return kept;
   }
 }

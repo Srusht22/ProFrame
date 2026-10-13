@@ -175,8 +175,10 @@ void main() {
     expect(total, greaterThan(150));
     await toSummary(tester);
     expect(textOf(tester, CustomerFinancialSummary.totalKey), money(total));
-    // Phase 31's wording for an empty history.
-    expect(find.text('No payment history yet.'), findsOneWidget);
+    // An empty history is one quiet heading with nothing under it — the
+    // sentence saying it was empty went when the summary was simplified.
+    expect(find.byKey(CustomerFinancialSummary.historyKey), findsOneWidget);
+    expect(find.byType(TransactionRow), findsNothing);
     expect(find.text('OUTSTANDING'), findsOneWidget);
     // Nothing paid: nothing to refund.
     expect(

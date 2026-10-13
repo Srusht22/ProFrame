@@ -65,7 +65,6 @@ class CustomerFinancialSummary extends ConsumerStatefulWidget {
   static const addPaymentKey = ValueKey('customer-finance-add-payment');
   static const refundKey = ValueKey('customer-finance-refund');
   static const historyKey = ValueKey('customer-finance-history');
-  static const emptyHistoryKey = ValueKey('customer-finance-history-empty');
   static const loadMoreKey = ValueKey('customer-finance-history-more');
   static const quotationsKey = ValueKey('customer-finance-quotations');
   static const newQuotationKey = ValueKey('customer-finance-new-quotation');
@@ -129,26 +128,6 @@ class _CustomerFinancialSummaryState
     final l = context.l10n;
     final w = context.words;
 
-    Widget heading(String words, {Key? key, Widget? trailing}) => Padding(
-      key: key,
-      padding: const EdgeInsets.only(top: 12, bottom: 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              words,
-              style: text.labelMedium?.copyWith(
-                letterSpacing: 0.8,
-                fontWeight: FontWeight.w700,
-                color: p.muted,
-              ),
-            ),
-          ),
-          ?trailing,
-        ],
-      ),
-    );
-
     final decoration = BoxDecoration(
       color: p.surface,
       borderRadius: BorderRadius.circular(16),
@@ -186,278 +165,320 @@ class _CustomerFinancialSummaryState
         (finance.netPaidCents > 0 ||
             finance.otherCurrencies.any((c) => c.netCents > 0));
 
+    final error = Theme.of(context).colorScheme.error;
+    final credit = finance.credit ?? 0;
+
     return Container(
       key: CustomerFinancialSummary.cardKey,
       decoration: decoration,
-      padding: const EdgeInsets.fromLTRB(18, 6, 18, 14),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          heading(l.finSummary),
-          PriceRow(
-            l.finDesigns,
-            l.finDesignsPriced(pricing.designs.length, pricing.priced.length),
+          // How they stand, in a word, beside the heading.
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l.finSummary,
+                  style: text.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              PaymentStatusChip(finance.status),
+            ],
           ),
-          if (customer.extras.isNotEmpty) ...[
-            PriceRow(
-              l.finDesignsTotal,
-              finance.designsCents == null
-                  ? l.finNotFinal
-                  : cents(finance.designsCents!),
-              valueKey: CustomerFinancialSummary.designsTotalKey,
-            ),
-            PriceRow(
-              l.finExtrasWholeJob,
-              cents(finance.extrasCents),
-              valueKey: CustomerFinancialSummary.extrasTotalKey,
-            ),
-          ],
-          if (discount != null || customer.extras.isNotEmpty)
-            PriceRow(
-              l.finSubtotal,
-              finance.subtotal == null
-                  ? l.finNotFinal
-                  : money(finance.subtotal!),
-              valueKey: CustomerFinancialSummary.subtotalKey,
-            ),
+          const SizedBox(height: 12),
+          // The three figures that matter, side by side: what it all comes
+          // to, what has been paid, and what is still due — or the credit.
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _Tile(
+                discount == null && customer.extras.isEmpty
+                    ? l.finTotalPrice
+                    : l.finFinalTotal,
+                finance.total == null ? l.finNotFinal : money(finance.total!),
+                valueKey: CustomerFinancialSummary.totalKey,
+              ),
+              _Tile(
+                l.finPaid,
+                money(finance.netPaid),
+                valueKey: CustomerFinancialSummary.paidKey,
+              ),
+              if (credit > 0)
+                _Tile(
+                  l.finCredit,
+                  money(credit),
+                  valueKey: CustomerFinancialSummary.creditKey,
+                  colour: p.primary,
+                )
+              else
+                _Tile(
+                  l.finAmountDue,
+                  finance.due == null ? '—' : money(finance.due!),
+                  valueKey: CustomerFinancialSummary.dueKey,
+                  colour: (finance.due ?? 0) > 0 ? error : null,
+                ),
+            ],
+          ),
           if (discount != null)
-            PriceRow(
-              l.finDiscountOf(discount.describe(cents, w)),
-              finance.discountCents == null
-                  ? l.finWhenFinal
-                  : '−${cents(finance.discountCents!)}',
-              valueKey: CustomerFinancialSummary.discountKey,
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: PriceRow(
+                l.finDiscountOf(discount.describe(cents, w)),
+                finance.discountCents == null
+                    ? l.finWhenFinal
+                    : '−${cents(finance.discountCents!)}',
+                valueKey: CustomerFinancialSummary.discountKey,
+              ),
             ),
-          _BigRow(
-            discount == null && customer.extras.isEmpty
-                ? l.finTotalPrice
-                : l.finFinalTotal,
-            finance.total == null ? l.finNotFinal : money(finance.total!),
-            valueKey: CustomerFinancialSummary.totalKey,
-          ),
           if (finance.discountExceedsSubtotal)
             Text(
               l.finDiscountExceeds(discount!.describe(cents, w)),
               key: CustomerFinancialSummary.discountExceedsKey,
-              style: text.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.error,
+              style: text.bodySmall?.copyWith(color: error),
+            ),
+          if (finance.total == null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                l.finCustomerNotFinal(finance.notFinalReasonIn(w)),
+                key: CustomerFinancialSummary.notFinalKey,
+                style: text.bodySmall?.copyWith(color: error),
               ),
             ),
-          if (finance.total == null) ...[
-            Text(
-              l.finCustomerNotFinal(finance.notFinalReasonIn(w)),
-              key: CustomerFinancialSummary.notFinalKey,
-              style: text.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.error,
+          if (credit > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                l.finCreditNote(money(credit)),
+                style: text.bodySmall?.copyWith(color: p.muted),
               ),
-            ),
-            PriceRow(
-              l.finPricedSoFar,
-              money(pricing.pricedSoFar),
-              valueKey: CustomerFinancialSummary.pricedSoFarKey,
-            ),
-          ],
-          PriceRow(
-            l.finTotalPayments,
-            money(finance.grossPayments),
-            valueKey: CustomerFinancialSummary.grossPaymentsKey,
-          ),
-          PriceRow(
-            l.finRefunds,
-            money(finance.grossRefunds),
-            valueKey: CustomerFinancialSummary.refundsKey,
-          ),
-          PriceRow(
-            l.finNetPaid,
-            money(finance.netPaid),
-            valueKey: CustomerFinancialSummary.paidKey,
-          ),
-          const SizedBox(height: 4),
-          PriceRow(
-            l.finAmountDue,
-            finance.due == null ? '—' : money(finance.due!),
-            strong: true,
-            valueKey: CustomerFinancialSummary.dueKey,
-          ),
-          PriceRow(
-            l.finCredit,
-            finance.credit == null ? '—' : money(finance.credit!),
-            strong: (finance.credit ?? 0) > 0,
-            valueKey: CustomerFinancialSummary.creditKey,
-          ),
-          if ((finance.credit ?? 0) > 0)
-            Text(
-              l.finCreditNote(money(finance.credit!)),
-              style: text.bodySmall?.copyWith(color: p.muted),
             ),
           if (finance.otherCurrencies.isNotEmpty)
             _OtherCurrencies(
               finance,
               key: CustomerFinancialSummary.otherCurrenciesKey,
             ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
             spacing: 8,
             runSpacing: 8,
             children: [
-              PaymentStatusChip(finance.status),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  if (actor.can(Capability.discountsApply))
-                    OutlinedButton.icon(
-                      key: CustomerFinancialSummary.discountButtonKey,
-                      onPressed: () =>
-                          editDiscount(context, ref, customer, finance),
-                      icon: const Icon(Icons.percent, size: 18),
-                      label: Text(l.finDiscount),
-                    ),
-                  FilledButton.tonalIcon(
-                    key: CustomerFinancialSummary.addPaymentKey,
-                    onPressed: actor.can(Capability.paymentsCreate)
-                        ? () => recordTransaction(
-                            context,
-                            ref,
-                            customer,
-                            finance,
-                            PaymentType.payment,
-                          )
-                        : null,
-                    icon: const Icon(Icons.add, size: 18),
-                    label: Text(l.finAddPayment),
-                  ),
-                  OutlinedButton.icon(
-                    key: CustomerFinancialSummary.refundKey,
-                    onPressed: canRefund
-                        ? () => recordTransaction(
-                            context,
-                            ref,
-                            customer,
-                            finance,
-                            PaymentType.refund,
-                          )
-                        : null,
-                    icon: const Icon(Icons.undo, size: 18),
-                    label: Text(l.finRefund),
-                  ),
-                ],
+              FilledButton.icon(
+                key: CustomerFinancialSummary.addPaymentKey,
+                onPressed: actor.can(Capability.paymentsCreate)
+                    ? () => recordTransaction(
+                        context,
+                        ref,
+                        customer,
+                        finance,
+                        PaymentType.payment,
+                      )
+                    : null,
+                icon: const Icon(Icons.add, size: 18),
+                label: Text(l.finAddPayment),
               ),
+              OutlinedButton.icon(
+                key: CustomerFinancialSummary.refundKey,
+                onPressed: canRefund
+                    ? () => recordTransaction(
+                        context,
+                        ref,
+                        customer,
+                        finance,
+                        PaymentType.refund,
+                      )
+                    : null,
+                icon: const Icon(Icons.undo, size: 18),
+                label: Text(l.finRefund),
+              ),
+              if (actor.can(Capability.discountsApply))
+                OutlinedButton.icon(
+                  key: CustomerFinancialSummary.discountButtonKey,
+                  onPressed: () =>
+                      editDiscount(context, ref, customer, finance),
+                  icon: const Icon(Icons.percent, size: 18),
+                  label: Text(l.finDiscount),
+                ),
             ],
           ),
+          const SizedBox(height: 4),
+          if (actor.can(Capability.paymentsView))
+            _Fold(
+              title: l.finHistory,
+              count: page.total,
+              key: CustomerFinancialSummary.historyKey,
+              children: [
+                for (final t in page.items)
+                  TransactionRow(
+                    t,
+                    currency: currency,
+                    receipt: customer.receiptFor(t.id),
+                    canSeeReceipt: actor.can(Capability.receiptsView),
+                    onReceipt: (r) => showReceipt(context, r, customer.name),
+                    onIssue:
+                        t.type == PaymentType.payment &&
+                            actor.can(Capability.receiptsCreate)
+                        ? () =>
+                              issueAndShowReceipt(context, ref, customer, t.id)
+                        : null,
+                  ),
+                if (page.hasMore)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TextButton.icon(
+                      key: CustomerFinancialSummary.loadMoreKey,
+                      onPressed: () => setState(
+                        () => _shown += CustomerFinancialSummary.pageSize,
+                      ),
+                      icon: const Icon(Icons.expand_more, size: 18),
+                      label: Text(
+                        l.finLoadMore(page.total - page.items.length),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           _CustomerExtras(
             customer: customer,
-            heading: heading,
             pricing: pricing,
             canAdd: ref.offers(Capability.extrasCreate),
             canEdit: ref.offers(Capability.extrasEdit),
             canRemove: ref.offers(Capability.extrasDelete),
           ),
-          if (actor.can(Capability.paymentsView)) ...[
-            heading(l.finHistory, key: CustomerFinancialSummary.historyKey),
-            if (page.total == 0)
-              Text(
-                l.finNoHistory,
-                key: CustomerFinancialSummary.emptyHistoryKey,
-                style: text.bodyMedium?.copyWith(color: p.muted),
-              ),
-            for (final t in page.items)
-              TransactionRow(
-                t,
-                currency: currency,
-                receipt: customer.receiptFor(t.id),
-                canSeeReceipt: actor.can(Capability.receiptsView),
-                onReceipt: (r) => showReceipt(context, r, customer.name),
-                onIssue:
-                    t.type == PaymentType.payment &&
-                        actor.can(Capability.receiptsCreate)
-                    ? () => issueAndShowReceipt(context, ref, customer, t.id)
-                    : null,
-              ),
-            if (page.hasMore)
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: TextButton.icon(
-                  key: CustomerFinancialSummary.loadMoreKey,
-                  onPressed: () => setState(
-                    () => _shown += CustomerFinancialSummary.pageSize,
-                  ),
-                  icon: const Icon(Icons.expand_more, size: 18),
-                  label: Text(l.finLoadMore(page.total - page.items.length)),
-                ),
-              ),
-          ],
           if (actor.can(Capability.quotationsView))
             _Quotations(
               customer: customer,
               limit: _quotes,
-              heading: heading,
               canCreate: actor.can(Capability.quotationsCreate),
               onMore: () => setState(
                 () => _quotes += CustomerFinancialSummary.quotationPage,
               ),
             ),
-          const Divider(height: 18),
-          InkWell(
-            key: CustomerFinancialSummary.toggleKey,
-            borderRadius: BorderRadius.circular(8),
-            onTap: () => setState(() => _open = !_open),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _open ? l.finHideDesigns : l.finShowDesigns,
-                      style: text.bodyMedium?.copyWith(color: p.primary),
-                    ),
-                  ),
-                  Icon(
-                    _open ? Icons.expand_less : Icons.expand_more,
-                    color: p.primary,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (_open) ...[
-            heading(l.finDesignsHeading),
-            for (final d in pricing.designs) ...[
+          // Everything the three figures are made of, folded away: each
+          // design's price, the extras and the discount, the payments and
+          // refunds, and what the designs measure together.
+          _Fold(
+            title: l.finDetails,
+            headerKey: CustomerFinancialSummary.toggleKey,
+            open: _open,
+            onToggle: (open) => setState(() => _open = open),
+            children: [
               PriceRow(
-                key: CustomerFinancialSummary.designKey(d.designId),
-                d.nameIn(w),
-                d.state.total == null
-                    ? d.state.noteIn(w)
-                    : money(d.state.total!),
+                l.finDesigns,
+                l.finDesignsPriced(
+                  pricing.designs.length,
+                  pricing.priced.length,
+                ),
               ),
-              // What it is and what it is made of: why two designs cost
-              // different amounts.
-              Padding(
-                padding: const EdgeInsetsDirectional.only(start: 12, bottom: 4),
-                child: Text(
-                  l.finDesignFacts(
-                    d.kind.labelIn(w),
-                    d.profile.materialNameIn(w),
-                    d.colourNameIn(w),
+              for (final d in pricing.designs) ...[
+                PriceRow(
+                  key: CustomerFinancialSummary.designKey(d.designId),
+                  d.nameIn(w),
+                  d.state.total == null
+                      ? d.state.noteIn(w)
+                      : money(d.state.total!),
+                ),
+                // What it is and what it is made of: why two designs cost
+                // different amounts.
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(
+                    start: 12,
+                    bottom: 4,
                   ),
-                  key: CustomerFinancialSummary.profileKey(d.designId),
-                  style: text.bodySmall?.copyWith(color: p.muted),
+                  child: Text(
+                    l.finDesignFacts(
+                      d.kind.labelIn(w),
+                      d.profile.materialNameIn(w),
+                      d.colourNameIn(w),
+                    ),
+                    key: CustomerFinancialSummary.profileKey(d.designId),
+                    style: text.bodySmall?.copyWith(color: p.muted),
+                  ),
                 ),
+              ],
+              const Divider(height: 14),
+              if (finance.total == null)
+                PriceRow(
+                  l.finPricedSoFar,
+                  money(pricing.pricedSoFar),
+                  valueKey: CustomerFinancialSummary.pricedSoFarKey,
+                ),
+              if (customer.extras.isNotEmpty) ...[
+                PriceRow(
+                  l.finDesignsTotal,
+                  finance.designsCents == null
+                      ? l.finNotFinal
+                      : cents(finance.designsCents!),
+                  valueKey: CustomerFinancialSummary.designsTotalKey,
+                ),
+                PriceRow(
+                  l.finExtrasWholeJob,
+                  cents(finance.extrasCents),
+                  valueKey: CustomerFinancialSummary.extrasTotalKey,
+                ),
+              ],
+              if (discount != null || customer.extras.isNotEmpty)
+                PriceRow(
+                  l.finSubtotal,
+                  finance.subtotal == null
+                      ? l.finNotFinal
+                      : money(finance.subtotal!),
+                  valueKey: CustomerFinancialSummary.subtotalKey,
+                ),
+              PriceRow(
+                l.finTotalPayments,
+                money(finance.grossPayments),
+                valueKey: CustomerFinancialSummary.grossPaymentsKey,
               ),
-            ],
-            heading(l.finMaterialSummary),
-            MeasurementRows(pricing.measurements),
-            if (pricing.priced.length < pricing.designs.length)
+              PriceRow(
+                l.finRefunds,
+                money(finance.grossRefunds),
+                valueKey: CustomerFinancialSummary.refundsKey,
+              ),
+              PriceRow(l.finNetPaid, money(finance.netPaid)),
+              // Whichever of what is due and the credit is not among the
+              // three figures above.
+              if (credit > 0)
+                PriceRow(
+                  l.finAmountDue,
+                  finance.due == null ? '—' : money(finance.due!),
+                  valueKey: CustomerFinancialSummary.dueKey,
+                )
+              else
+                PriceRow(
+                  l.finCredit,
+                  finance.credit == null ? '—' : money(finance.credit!),
+                  valueKey: CustomerFinancialSummary.creditKey,
+                ),
               Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: 10, bottom: 2),
                 child: Text(
-                  l.finOfPriced(pricing.priced.length, pricing.designs.length),
-                  style: text.bodySmall?.copyWith(color: p.muted),
+                  l.finMaterialSummary,
+                  style: text.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: p.muted,
+                  ),
                 ),
               ),
-          ],
+              MeasurementRows(pricing.measurements),
+              if (pricing.priced.length < pricing.designs.length)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    l.finOfPriced(
+                      pricing.priced.length,
+                      pricing.designs.length,
+                    ),
+                    style: text.bodySmall?.copyWith(color: p.muted),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -470,7 +491,6 @@ class _CustomerFinancialSummaryState
 class _CustomerExtras extends ConsumerWidget {
   final Customer customer;
   final CustomerPricing pricing;
-  final Widget Function(String words, {Key? key, Widget? trailing}) heading;
   final bool canAdd;
   final bool canEdit;
   final bool canRemove;
@@ -478,7 +498,6 @@ class _CustomerExtras extends ConsumerWidget {
   const _CustomerExtras({
     required this.customer,
     required this.pricing,
-    required this.heading,
     required this.canAdd,
     required this.canEdit,
     required this.canRemove,
@@ -544,28 +563,19 @@ class _CustomerExtras extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final text = Theme.of(context).textTheme;
-    final p = context.palette;
-    return Column(
+    return _Fold(
       key: CustomerFinancialSummary.extrasKey,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      title: context.l10n.finExtrasHeading,
+      count: customer.extras.length,
+      trailing: canAdd
+          ? TextButton.icon(
+              key: CustomerFinancialSummary.addExtraKey,
+              onPressed: () => _write(context, ref),
+              icon: const Icon(Icons.add, size: 18),
+              label: Text(context.l10n.finAddExtra),
+            )
+          : null,
       children: [
-        heading(
-          context.l10n.finExtrasHeading,
-          trailing: canAdd
-              ? TextButton.icon(
-                  key: CustomerFinancialSummary.addExtraKey,
-                  onPressed: () => _write(context, ref),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: Text(context.l10n.finAddExtra),
-                )
-              : null,
-        ),
-        if (customer.extras.isEmpty)
-          Text(
-            context.l10n.finNoExtras,
-            style: text.bodySmall?.copyWith(color: p.muted),
-          ),
         for (final e in customer.extras)
           ExtraRow(
             e,
@@ -638,14 +648,12 @@ class _Quotations extends ConsumerWidget {
   final int limit;
   final bool canCreate;
   final VoidCallback onMore;
-  final Widget Function(String words, {Key? key, Widget? trailing}) heading;
 
   const _Quotations({
     required this.customer,
     required this.limit,
     required this.canCreate,
     required this.onMore,
-    required this.heading,
   });
 
   @override
@@ -655,26 +663,19 @@ class _Quotations extends ConsumerWidget {
         .value;
     final text = Theme.of(context).textTheme;
     final p = context.palette;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return _Fold(
+      key: CustomerFinancialSummary.quotationsKey,
+      title: context.l10n.finQuotations,
+      count: page?.total ?? 0,
+      trailing: canCreate
+          ? TextButton.icon(
+              key: CustomerFinancialSummary.newQuotationKey,
+              onPressed: () => newQuotation(context, ref, customer),
+              icon: const Icon(Icons.request_quote_outlined, size: 18),
+              label: Text(context.l10n.finNewQuotation),
+            )
+          : null,
       children: [
-        heading(
-          context.l10n.finQuotations,
-          key: CustomerFinancialSummary.quotationsKey,
-          trailing: canCreate
-              ? TextButton.icon(
-                  key: CustomerFinancialSummary.newQuotationKey,
-                  onPressed: () => newQuotation(context, ref, customer),
-                  icon: const Icon(Icons.request_quote_outlined, size: 18),
-                  label: Text(context.l10n.finNewQuotation),
-                )
-              : null,
-        ),
-        if (page != null && page.total == 0)
-          Text(
-            context.l10n.finNoQuotations,
-            style: text.bodyMedium?.copyWith(color: p.muted),
-          ),
         for (final q in page?.items ?? const <Quotation>[])
           InkWell(
             key: CustomerFinancialSummary.quotationKey(q.id),
@@ -725,6 +726,166 @@ class _Quotations extends ConsumerWidget {
               ),
             ),
           ),
+      ],
+    );
+  }
+}
+
+/// One of the summary's three figures: what it is, small, over the figure.
+class _Tile extends StatelessWidget {
+  final String label;
+  final String value;
+  final Key? valueKey;
+  final Color? colour;
+
+  const _Tile(this.label, this.value, {this.valueKey, this.colour});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Container(
+      constraints: const BoxConstraints(minWidth: 140),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+      decoration: BoxDecoration(
+        color: p.shell,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12.5, color: p.muted)),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            key: valueKey,
+            textDirection: context.directionOf(value),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: colour ?? p.ink,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A part of the summary folded under its heading — with how many it holds
+/// and, where there is one, the button adding to it — open where it holds
+/// something and closed where it holds nothing, so an empty part is one
+/// quiet line rather than a heading and a sentence saying it is empty.
+class _Fold extends StatefulWidget {
+  final String title;
+  final int? count;
+  final Widget? trailing;
+  final List<Widget> children;
+
+  /// The heading's key, for tapping it.
+  final Key? headerKey;
+
+  /// Whether it is open, where the summary keeps that; otherwise it keeps
+  /// it itself, open where [count] is more than nothing.
+  final bool? open;
+  final ValueChanged<bool>? onToggle;
+
+  const _Fold({
+    super.key,
+    required this.title,
+    required this.children,
+    this.count,
+    this.trailing,
+    this.headerKey,
+    this.open,
+    this.onToggle,
+  });
+
+  @override
+  State<_Fold> createState() => _FoldState();
+}
+
+class _FoldState extends State<_Fold> {
+  bool? _open;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final count = widget.count;
+    final open = widget.open ?? _open ?? (count ?? 0) > 0;
+    final empty = count == 0;
+    void toggle() {
+      if (widget.onToggle != null) {
+        widget.onToggle!(!open);
+      } else {
+        setState(() => _open = !open);
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Divider(height: 14, color: p.hairline),
+        Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                key: widget.headerKey,
+                borderRadius: BorderRadius.circular(8),
+                onTap: empty ? null : toggle,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          widget.title,
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            color: empty ? p.muted : p.ink,
+                          ),
+                        ),
+                      ),
+                      if (count != null) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: p.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '$count',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: p.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (!empty) ...[
+                        const SizedBox(width: 4),
+                        Icon(
+                          open ? Icons.expand_less : Icons.expand_more,
+                          size: 20,
+                          color: p.muted,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            ?widget.trailing,
+          ],
+        ),
+        if (open && !empty) ...widget.children,
       ],
     );
   }
@@ -817,36 +978,6 @@ class CustomerMoneyGlance extends ConsumerWidget {
           color: AppTheme.accent,
           fontFeatures: [FontFeature.tabularFigures()],
         ),
-      ),
-    );
-  }
-}
-
-class _BigRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final Key? valueKey;
-
-  const _BigRow(this.label, this.value, {this.valueKey});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Expanded(child: Text(label, style: text.titleMedium)),
-          Text(
-            value,
-            key: valueKey,
-            textDirection: context.directionOf(value),
-            style: text.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ],
       ),
     );
   }

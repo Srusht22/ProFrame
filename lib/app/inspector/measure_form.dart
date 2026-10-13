@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/dimensions/measurement_defaults.dart';
 import '../../domain/dimensions/measurements.dart';
 import '../../domain/dimensions/units.dart';
 import '../../domain/model/design.dart';
+import '../../domain/model/materials.dart';
+import '../../domain/pricing/profile_selection.dart';
+import '../../domain/text/names.dart';
 import '../l10n/l10n.dart';
 import '../l10n/latin_digits.dart';
+import '../state/pricing.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 
@@ -19,6 +24,13 @@ import '../theme/app_theme.dart';
 /// bars, the overall size, then every light in the order the drawing reads
 /// and every pane drawn inside an opening.
 ///
+/// **The factory's usual sizes are offered, never put in by themselves.**
+/// Where the factory has set default measurements for a kind of profile
+/// (`MeasurementDefaults`), **Fill from factory defaults** puts its
+/// border, bar thickness and depth into the fields — at once for a design
+/// whose profile is already chosen and has none of them yet — and the user
+/// can type over any of them for this design before **Apply**.
+///
 /// **What follows from the rest is worked out, not asked.** The last light
 /// in a row is what is left of the width once the others are given, so it
 /// is shown as it comes out rather than asked for and then contradicted. A
@@ -29,6 +41,13 @@ class MeasureForm extends ConsumerStatefulWidget {
 
   /// The width below which it fills the screen.
   static const fullScreenBelow = 600.0;
+
+  /// The field for the frame's depth, which every design has.
+  static const depthKey = ValueKey('measure-depth');
+
+  /// The button filling the fields from the factory's defaults for [m].
+  static ValueKey<String> defaultsKey(MaterialKind m) =>
+      ValueKey('measure-defaults-${m.name}');
 
   static Future<void> show(BuildContext context) => showDialog<void>(
     context: context,
@@ -47,10 +66,23 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
   /// is drawn and read, the one new size can be anywhere down the list.
   String? _first;
 
+  /// The frame's depth, in centimetres as typed.
+  final _depth = TextEditingController();
+
+  /// The kind of profile whose factory defaults were last put in.
+  MaterialKind? _filledFrom;
+
+  /// Whether the defaults have been offered to a design whose profile is
+  /// chosen — once, the first time they are known.
+  bool _offered = false;
+
   @override
   void initState() {
     super.initState();
     final design = ref.read(workspaceProvider).design;
+    _depth
+      ..text = Units.format(design.depthMm)
+      ..addListener(() => setState(() {}));
     final all = Measurements.of(design);
     for (final m in all) {
       if (!m.asked) continue;
@@ -67,7 +99,32 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
     for (final field in _fields.values) {
       field.dispose();
     }
+    _depth.dispose();
     super.dispose();
+  }
+
+  /// [defaults] put into the fields they are for; nothing is applied until
+  /// **Apply**.
+  void _fill(MaterialKind material, ProfileDefaults defaults) {
+    setState(() {
+      _filledFrom = material;
+      if (defaults.borderMm case final mm?) {
+        _fields[Measurements.profileKey]?.text = Units.format(mm);
+      }
+      if (defaults.barMm case final mm?) {
+        _fields[Measurements.barsKey]?.text = Units.format(mm);
+      }
+      if (defaults.depthMm case final mm?) _depth.text = Units.format(mm);
+    });
+  }
+
+  /// The depth typed, in millimetres, where it is a size and not the
+  /// design's own.
+  double? _depthTyped(Design design) {
+    final value = Units.parse(_depth.text);
+    if (value == null || value <= 0) return null;
+    if ((value - design.depthMm).abs() < 0.05) return null;
+    return value;
   }
 
   /// What has been typed, in millimetres, leaving out what is blank, what
@@ -88,7 +145,9 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
 
   void _apply(Design design, List<Measure> all) {
     final values = _typed(design, all);
-    final problems = ref.read(workspaceProvider.notifier).measure(values);
+    final controller = ref.read(workspaceProvider.notifier);
+    if (_depthTyped(design) case final depth?) controller.setDepth(depth);
+    final problems = controller.measure(values);
     if (problems.isEmpty) {
       Navigator.of(context).pop();
       return;
@@ -100,6 +159,35 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
   Widget build(BuildContext context) {
     final design = ref.watch(workspaceProvider.select((s) => s.design));
     final all = Measurements.of(design);
+    final defaults = ref.watch(measurementDefaultsProvider).value;
+    final list = ref.watch(priceListProvider).value;
+    // The kinds of profile with defaults set, in the price list's order.
+    final offered = defaults == null
+        ? const <MaterialKind>[]
+        : defaults.said([
+            for (final m in MaterialKind.values)
+              if (list?.profiles.containsKey(m) ?? true) m,
+          ]);
+    // A design whose profile is chosen and has neither its border nor its
+    // bars yet is given its own kind's defaults the first time they are
+    // known — shown in the fields, still to be applied.
+    if (defaults != null && !_offered) {
+      _offered = true;
+      final chosen = ProfileSelection.of(design).material;
+      final unknown = [
+        for (final key in const [Measurements.profileKey, Measurements.barsKey])
+          if (all.where((m) => m.key == key).firstOrNull case final m?)
+            !Measurements.knows(design, m, all),
+      ];
+      if (chosen != null &&
+          offered.contains(chosen) &&
+          unknown.isNotEmpty &&
+          unknown.every((u) => u)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _fill(chosen, defaults.of(chosen));
+        });
+      }
+    }
     final typed = _typed(design, all);
     // What the sizes typed so far make of the design, so what follows from
     // them can be shown as it will come out.
@@ -124,6 +212,8 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
         groups,
         preview,
         previewAll,
+        defaults,
+        offered,
       ),
     );
   }
@@ -137,8 +227,11 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
     Map<String, List<Measure>> groups,
     Design preview,
     List<Measure> previewAll,
+    MeasurementDefaults? defaults,
+    List<MaterialKind> offered,
   ) {
     final full = room.maxWidth < MeasureForm.fullScreenBelow;
+    final depthChanged = _depthTyped(design) != null;
     final p = context.palette;
 
     final content = Column(
@@ -186,6 +279,12 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
                 context.l10n.mfIntro,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+              if (defaults != null)
+                _Defaults(
+                  offered: offered,
+                  filledFrom: _filledFrom,
+                  onFill: (m) => _fill(m, defaults.of(m)),
+                ),
               for (final entry in groups.entries) ...[
                 Padding(
                   padding: const EdgeInsets.only(top: 14, bottom: 6),
@@ -208,6 +307,14 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
                       label: m.labelIn(context.words),
                       value: _followed(preview, previewAll, m),
                     ),
+                // Every design has a depth; it is the frame's, so it is
+                // given with the frame's border and bars.
+                if (all.isNotEmpty && entry.key == all.first.group)
+                  _SizeField(
+                    key: MeasureForm.depthKey,
+                    label: context.l10n.mdDepth,
+                    controller: _depth,
+                  ),
               ],
             ],
           ),
@@ -229,7 +336,9 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
               ),
               const SizedBox(width: 8),
               FilledButton(
-                onPressed: typed.isEmpty ? null : () => _apply(design, all),
+                onPressed: typed.isEmpty && !depthChanged
+                    ? null
+                    : () => _apply(design, all),
                 style: FilledButton.styleFrom(minimumSize: const Size(0, 46)),
                 child: Text(context.l10n.actApply),
               ),
@@ -289,6 +398,75 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
         .length;
     if (left == 0) return l.mfAllGiven;
     return l.mfLeft(left);
+  }
+}
+
+/// **Fill from factory defaults**, one button a kind of profile the factory
+/// has set sizes for — or, where it has set none, where to set them.
+class _Defaults extends StatelessWidget {
+  final List<MaterialKind> offered;
+  final MaterialKind? filledFrom;
+  final ValueChanged<MaterialKind> onFill;
+
+  const _Defaults({
+    required this.offered,
+    required this.filledFrom,
+    required this.onFill,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final l = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        decoration: BoxDecoration(
+          color: p.primary.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: offered.isEmpty
+            ? Text(
+                l.mfDefaultsNone,
+                style: TextStyle(fontSize: 12.5, color: p.muted),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l.mfDefaultsFrom,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: p.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      for (final m in offered)
+                        ChoiceChip(
+                          key: MeasureForm.defaultsKey(m),
+                          label: Text(m.labelIn(context.words)),
+                          selected: m == filledFrom,
+                          onSelected: (_) => onFill(m),
+                        ),
+                    ],
+                  ),
+                  if (filledFrom case final m?) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      l.mfDefaultsUsed(m.labelIn(context.words)),
+                      style: TextStyle(fontSize: 12, color: p.muted),
+                    ),
+                  ],
+                ],
+              ),
+      ),
+    );
   }
 }
 

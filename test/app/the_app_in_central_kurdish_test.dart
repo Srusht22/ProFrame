@@ -12,7 +12,7 @@ import 'package:proframe/app/l10n/app_localizations.dart';
 import 'package:proframe/app/l10n/arb_words.dart';
 import 'package:proframe/app/screens/customer_screen.dart';
 import 'package:proframe/app/screens/customers_screen.dart';
-import 'package:proframe/app/screens/settings_screen.dart';
+import 'package:proframe/app/screens/language_button.dart';
 import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/app/state/language.dart';
 import 'package:proframe/app/state/tools.dart';
@@ -50,13 +50,14 @@ Future<Map<String, Object?>> storage() async {
   return {for (final k in prefs.getKeys()) k: prefs.get(k)};
 }
 
-/// Settings opened from the customers' header, and [language] chosen.
+/// [language] chosen from the language button on the customers' header.
+/// (There was a Settings screen for it; the user had it taken away, and the
+/// language has always had its own button beside the appearance.)
 Future<void> choose(WidgetTester tester, AppLanguage language) async {
-  await tester.tap(find.byKey(SettingsButton.buttonKey).first);
+  await tester.tap(find.byKey(LanguageButton.buttonKey).first);
   await tester.pumpAndSettle();
-  await tester.tap(find.byKey(SettingsScreen.languageOption(language)));
+  await tester.tap(find.byKey(LanguageButton.optionKey(language)).last);
   await tester.pumpAndSettle();
-  await back(tester);
 }
 
 /// Back a screen, as the bar's back arrow goes.
@@ -100,19 +101,23 @@ void main() {
     );
   });
 
-  testWidgets('Settings offers the two languages, each named in itself', (
+  testWidgets('the language button offers the two, each named in itself', (
     tester,
   ) async {
     await screen.openTheApp(tester);
-    await tester.tap(find.byKey(SettingsButton.buttonKey).first);
+    await tester.tap(find.byKey(LanguageButton.buttonKey).first);
     await tester.pumpAndSettle();
     expect(find.text('English'), findsOneWidget);
     expect(find.text('کوردی (سۆرانی)'), findsOneWidget);
-    // English is the one chosen.
-    final group = tester.widget<RadioGroup<AppLanguage>>(
-      find.byKey(SettingsScreen.languageKey),
+    // English is the one chosen: ticked, and the only one ticked.
+    expect(
+      find.descendant(
+        of: find.byKey(LanguageButton.optionKey(AppLanguage.english)),
+        matching: find.byIcon(Icons.check),
+      ),
+      findsOneWidget,
     );
-    expect(group.groupValue, AppLanguage.english);
+    expect(find.byIcon(Icons.check), findsOneWidget);
   });
 
   testWidgets('Kurdish takes effect at once, right to left, and is kept', (
@@ -235,10 +240,11 @@ void main() {
       final container = await screen.openTheApp(tester, size: size);
       expect(tester.takeException(), isNull, reason: 'customers');
 
-      await tester.tap(find.byKey(SettingsButton.buttonKey).first);
+      await tester.tap(find.byKey(LanguageButton.buttonKey).first);
       await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull, reason: 'settings');
-      await back(tester);
+      expect(tester.takeException(), isNull, reason: 'the language list');
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
 
       final window = kept.firstWhere((d) => d.kind == DesignKind.window);
       await screen.openCustomer(tester, 'Sara');

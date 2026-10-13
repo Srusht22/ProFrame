@@ -2,7 +2,7 @@
 
 **ProFrame Phase 34 — English and Central Kurdish localisation. Written 2026-10-11.**
 
-Every message the application shows, 1304 in all: 143 of low confidence, 544 of medium and 617 of high. The 1219 of Phase 34 are in the first table, low first; the 85 added for Phase 35 (2026-10-12) — the price summary, the factory's prices and list of extras, the language and appearance buttons, errors and Flutter's own words — are in the second, at the end. **None of the Sorani here has been checked by a native speaker.** It was written for these phases, and nothing in it is marked verified.
+Every message the application shows, 1316 in all: 143 of low confidence, 555 of medium and 618 of high. The 1211 of Phase 34 are in the first table, low first; the 85 added for Phase 35 (2026-10-12) — the price summary, the factory's prices and list of extras, the language and appearance buttons, errors and Flutter's own words — are in the second; and the 20 added on 2026-10-13 — Factory defaults, the sizes form's defaults, New Design's customer search and the simpler customer summary — in the third, at the end. On 2026-10-13 the customers' title was changed at the user's request from کڕیاران to تۆماری کڕیارەکان, and the messages of the Settings screen, which was taken out, were removed. **None of the Sorani here has been checked by a native speaker.** It was written for these phases, and nothing in it is marked verified.
 
 ## How to review
 
@@ -352,7 +352,6 @@ The glossary is for agreeing terms. Only the table below is read by the apply to
 | `fcRetireBody` | It will no longer be offered for new designs. Every design already in it keeps it, is still shown in it and is still priced at its rate. Nothing is deleted, and it can be brought back. | Confirmation. | ئیتر بۆ دیزاینی نوێ پێشکەش ناکرێت. هەموو دیزاینێک کە پێشتر بەم ڕەنگەیە هەر بەو ڕەنگە دەمێنێتەوە، هەر بەو ڕەنگە پیشان دەدرێت و هەر بە نرخی خۆی هەژمار دەکرێت. هیچ شتێک ناسڕدرێتەوە، و دەتوانرێت بگەڕێنرێتەوە. | Medium | Longer or technical sentence: check it reads naturally — awaiting review |  |
 | `finCreditNote` | The customer has paid {amount} more than their designs now come to. It is theirs: it can be refunded, or stand against a later design. | Under the credit. | کڕیارەکە ‎{amount}‎ زیاتر لەوەی دیزاینەکانی ئێستا دەکەن پارەی داوە. ئەمە هی خۆیەتی: دەتوانرێت بگەڕێنرێتەوە، یان بۆ دیزاینێکی دواتر بمێنێتەوە. | Medium | Built from a template: check the word order and suffixes with real values — awaiting review |  |
 | `finDiscountExceeds` | The discount of {amount} is more than the subtotal now, so it takes the whole subtotal and no more. | Warning under the total. | داشکاندنی ‎{amount}‎ ئێستا لە کۆی بەرایی زیاترە، بۆیە هەموو کۆی بەرایی دەبات و هیچی تر. | Medium | Longer or technical sentence: check it reads naturally — awaiting review |  |
-| `finNoExtras` | No extra charges for the whole job. A design's own extras are on its price. | The customer has no extras. | هیچ تێچوویەکی زیادە بۆ هەموو کارەکە نییە. تێچووە زیادەکانی هەر دیزاینێک لەسەر نرخی خۆیەتی. | Medium | Longer or technical sentence: check it reads naturally — awaiting review |  |
 | `finNoRate` | No exchange rate was recorded with these, so they are kept in their own currency and not added to the {currency} figures above. | Under money in other currencies. | هیچ نرخێکی گۆڕینەوە لەگەڵ ئەمانە تۆمار نەکراوە، بۆیە بە دراوی خۆیان هەڵدەگیرێن و ناخرێنە سەر ژمارەکانی {currency}ی سەرەوە. | Medium | Built from a template: check the word order and suffixes with real values — awaiting review |  |
 | `finQuoteLine` | {day} · {count, plural, =1{1 design} other{{count} designs}} | A quotation's day and how many designs. | {day} · {count, plural, other{{count} دیزاین}} | Medium | Built from a template: check the word order and suffixes with real values — awaiting review |  |
 | `finRateHelp` | With a rate it counts towards the {base} total, at this rate for good. Without one it is kept in {currency} and not added to the {base} total. | Help under the exchange rate. | بە نرخێکەوە دەخرێتە سەر کۆی {base}، بەم نرخە بۆ هەمیشە. بەبێ نرخ بە {currency} هەڵدەگیرێت و ناخرێتە سەر کۆی {base}. | Medium | Built from a template: check the word order and suffixes with real values — awaiting review |  |
@@ -655,7 +654,6 @@ The glossary is for agreeing terms. Only the table below is read by the apply to
 | `roleStaff` | Staff | Who is at the device: staff. | کارمەند | Medium | Longer or technical sentence: check it reads naturally — awaiting review |  |
 | `sectionDescribed` | The {place} section — {size} | A section named by where it is and its size. | بەشی {place} — ‎{size}‎ | Medium | Longer or technical sentence: check it reads naturally — awaiting review |  |
 | `sentenceStop` | . | The full stop that ends a sentence. | . | Medium | Longer or technical sentence: check it reads naturally — awaiting review |  |
-| `settingsLanguageNote` | The application changes language at once. Customers, designs, prices and records are not changed. | Under the language choice. | زمانی بەرنامەکە دەستبەجێ دەگۆڕێت. کڕیاران و دیزاینەکان و نرخەکان و تۆمارەکان ناگۆڕێن. | Medium | Longer or technical sentence: check it reads naturally — awaiting review |  |
 | `sideHeight` | {side} height | The height of one side of an angled frame. | بەرزیی {side} | Medium | Longer or technical sentence: check it reads naturally — awaiting review |  |
 | `sideWidth` | {side} width | The width of one side of an angled frame. | پانیی {side} | Medium | Longer or technical sentence: check it reads naturally — awaiting review |  |
 | `staffNameNeeded` | Enter a name. | A member of staff with no name. | ناوێک بنووسە. | Medium | Longer or technical sentence: check it reads naturally — awaiting review |  |
@@ -815,14 +813,14 @@ The glossary is for agreeing terms. Only the table below is read by the apply to
 | `customerDeleted` | {name} deleted. | Notice after a customer is deleted. | {name} سڕدرایەوە. | High | Common interface wording — awaiting review |  |
 | `customerGone` | This customer is no longer kept. | A customer page whose customer has been removed. | ئەم کڕیارە ئیتر هەڵنەگیراوە. | High | Common interface wording — awaiting review |  |
 | `customerInformation` | Customer information | Heading of a customer's details. | زانیاریی کڕیار | High | Common interface wording — awaiting review |  |
-| `customersAll` | All Customers | Heading over the list of customers. | هەموو کڕیاران | High | Common interface wording — awaiting review |  |
+| `customersAll` | All Customers | Heading over the list of customers. | هەموو کڕیارەکان | High | Common interface wording — awaiting review |  |
 | `customersEmptyLine` | Everyone you draw for is kept here. | Under the title when there are no customers. | هەموو ئەو کەسانەی بۆیان دیزاین دەکەیت لێرە هەڵدەگیرێن. | High | Common interface wording — awaiting review |  |
 | `customersNoAccess` | You do not have permission to view customers. | Customers screen, for somebody not allowed to see them. | مۆڵەتی بینینی کڕیارانت نییە. | High | Common interface wording — awaiting review |  |
 | `customersNoneYet` | No customers yet | Empty customers list heading. | هێشتا هیچ کڕیارێک نییە | High | Common interface wording — awaiting review |  |
 | `customersNoneYetLine` | Add the people you draw for, and keep their designs together. | Empty customers list explanation. | ئەو کەسانە زیاد بکە کە بۆیان دیزاین دەکەیت، و دیزاینەکانیان پێکەوە هەڵبگرە. | High | Common interface wording — awaiting review |  |
 | `customersResults` | Results | Heading over the customers a search found. | ئەنجامەکان | High | Common interface wording — awaiting review |  |
 | `customersSearchHint` | Search by name or phone... | Hint in the customers' search field. | گەڕان بە ناو یان ژمارەی مۆبایل... | High | Common interface wording — awaiting review |  |
-| `customersTitle` | Customers | The customers screen's title. | کڕیاران | High | Common interface wording — awaiting review |  |
+| `customersTitle` | Customers | The customers screen's title. | تۆماری کڕیارەکان | Medium | Changed at the user's request: the earlier کڕیاران was not wanted there; a customer register — awaiting review |  |
 | `dateAt` | {day} {month} {year}, {time} | When a design was last edited: a date and a time. | {day}ی {month}ی {year}، {time} | High | Common interface wording — awaiting review |  |
 | `deleteCustomer` | Delete customer | Button and menu item: delete this customer. | سڕینەوەی کڕیار | High | Common interface wording — awaiting review |  |
 | `deleteCustomerTitle` | Delete {name}? | Asked before a customer is deleted. | {name} بسڕدرێتەوە؟ | High | Common interface wording — awaiting review |  |
@@ -893,23 +891,19 @@ The glossary is for agreeing terms. Only the table below is read by the apply to
 | `finDescriptionOptional` | Description (optional) | Field: describe another payment method. | وەسف (ئارەزوومەندانە) | High | Common interface wording — awaiting review |  |
 | `finDesignFacts` | Category: {category} · Material: {material} · Colour: {colour} | What a design is and is made of. | جۆر: {category} · کەرەستە: {material} · ڕەنگ: {colour} | High | Common interface wording — awaiting review |  |
 | `finDesigns` | Designs | Row: how many designs. | دیزاینەکان | High | Common interface wording — awaiting review |  |
-| `finDesignsHeading` | DESIGNS | Heading over each design's price. | دیزاینەکان | High | Common interface wording — awaiting review |  |
 | `finDesignsPriced` | {count} · {priced} priced | How many designs, and how many have a price. | {count} · {priced} نرخیان بۆ دانراوە | High | Common interface wording — awaiting review |  |
 | `finDesignsTotal` | Designs total | Row: the designs' prices summed. | کۆی دیزاینەکان | High | Common interface wording — awaiting review |  |
 | `finDiscount` | Discount | Button: give a discount. | داشکاندن | High | Common interface wording — awaiting review |  |
 | `finDiscountOf` | Discount ({amount}) | Row: the discount in force. | داشکاندن (‎{amount}‎) | High | Common interface wording — awaiting review |  |
 | `finDue` | Due {amount} | Glance: what is due. | ماوە ‎{amount}‎ | High | Common interface wording — awaiting review |  |
-| `finExtrasHeading` | EXTRA CHARGES — WHOLE JOB | Heading over the customer's own extras. | تێچووە زیادەکان — هەموو کارەکە | High | Common interface wording — awaiting review |  |
+| `finExtrasHeading` | Extra charges — whole job | Heading over the customer's own extras. | تێچووە زیادەکان — هەموو کارەکە | High | Common interface wording — awaiting review |  |
 | `finExtrasWholeJob` | Extra charges (whole job) | Row: the customer's own extras. | تێچووە زیادەکان (هەموو کارەکە) | High | Common interface wording — awaiting review |  |
 | `finFinalTotal` | Final total | Row: the total after discount and extras. | کۆی کۆتایی | High | Common interface wording — awaiting review |  |
-| `finHideDesigns` | Hide each design and the materials | Fold the summary. | هەر دیزاینێک و کەرەستەکان بشارەوە | High | Common interface wording — awaiting review |  |
-| `finHistory` | PAYMENT HISTORY | Heading of the payment history. | مێژووی پارەدان | High | Common interface wording — awaiting review |  |
+| `finHistory` | Payment history | Heading of the payment history, folded where it is empty. | مێژووی پارەدان | High | Common interface wording — awaiting review |  |
 | `finLoadMore` | Load more ({count} more) | Button: show the next page. | زیاتر پیشان بدە ({count}ی تر) | High | Common interface wording — awaiting review |  |
 | `finMaterialSummary` | CUSTOMER MATERIAL SUMMARY | Heading over the customer's measurements. | پوختەی کەرەستەی کڕیار | High | Common interface wording — awaiting review |  |
 | `finNetPaid` | Net paid | Row: payments less refunds. | پارەی دراوی پوخت | High | Common interface wording — awaiting review |  |
 | `finNoAccess` | You do not have permission to view this customer's finances. | Customer's finances, without permission. | مۆڵەتت نییە بۆ بینینی دارایی ئەم کڕیارە. | High | Common interface wording — awaiting review |  |
-| `finNoHistory` | No payment history yet. | The history is empty. | هێشتا هیچ مێژوویەکی پارەدان نییە. | High | Common interface wording — awaiting review |  |
-| `finNoQuotations` | No quotations yet. | There are no quotations. | هێشتا هیچ پێشنیارێکی نرخ نییە. | High | Common interface wording — awaiting review |  |
 | `finNote` | Note | Field: a payment's note. | تێبینی | High | Common interface wording — awaiting review |  |
 | `finNotFinal` | Not final | A total that is not final. | کۆتایی نییە | High | Common interface wording — awaiting review |  |
 | `finNotFinalYet` | The total is not final yet: {reason} | In the payment dialog. | کۆی گشتی هێشتا کۆتایی نییە: {reason} | High | Common interface wording — awaiting review |  |
@@ -918,7 +912,7 @@ The glossary is for agreeing terms. Only the table below is read by the apply to
 | `finPaymentFrom` | Payment from {name} | Title of the payment dialog. | پارەدان لە {name}ەوە | High | Common interface wording — awaiting review |  |
 | `finPaymentMethod` | Payment method | Field. | شێوازی پارەدان | High | Common interface wording — awaiting review |  |
 | `finPricedSoFar` | Priced so far (not the total) | Row: what is priced so far. | ئەوەی تا ئێستا نرخی بۆ دانراوە (کۆی گشتی نییە) | High | Common interface wording — awaiting review |  |
-| `finQuotations` | QUOTATIONS | Heading over the quotations. | پێشنیارەکانی نرخ | High | Common interface wording — awaiting review |  |
+| `finQuotations` | Quotations | Heading over the quotations. | پێشنیارەکانی نرخ | High | Common interface wording — awaiting review |  |
 | `finRateOptional` | Exchange rate (optional) | Field. | نرخی گۆڕینەوە (ئارەزوومەندانە) | High | Common interface wording — awaiting review |  |
 | `finReasonNote` | Reason / note | Field: a refund's note. | هۆکار / تێبینی | High | Common interface wording — awaiting review |  |
 | `finRefund` | Refund | Button: record a refund. | گەڕاندنەوەی پارە | High | Common interface wording — awaiting review |  |
@@ -928,9 +922,8 @@ The glossary is for agreeing terms. Only the table below is read by the apply to
 | `finRefundTo` | Refund to {name} | Title of the refund dialog. | گەڕاندنەوەی پارە بۆ {name} | High | Common interface wording — awaiting review |  |
 | `finSavePayment` | Save payment | Button. | پاشەکەوتکردنی پارەدان | High | Common interface wording — awaiting review |  |
 | `finSaveRefund` | Save refund | Button. | پاشەکەوتکردنی گەڕاندنەوە | High | Common interface wording — awaiting review |  |
-| `finShowDesigns` | Show each design and the materials | Unfold the summary. | هەر دیزاینێک و کەرەستەکان پیشان بدە | High | Common interface wording — awaiting review |  |
 | `finSubtotal` | Subtotal | Row: before the discount. | کۆی بەرایی | High | Common interface wording — awaiting review |  |
-| `finSummary` | FINANCIAL SUMMARY | Heading of the customer's money. | پوختەی دارایی | High | Common interface wording — awaiting review |  |
+| `finSummary` | Money | Heading of the customer's money, beside how they stand. | پارە | High | Common interface wording — awaiting review |  |
 | `finTotalDue` | {label}: {total} · due {due} | In the payment dialog. | {label}: ‎{total}‎ · ماوە ‎{due}‎ | High | Common interface wording — awaiting review |  |
 | `finTotalPayments` | Total payments | Row: every payment. | کۆی پارەدانەکان | High | Common interface wording — awaiting review |  |
 | `finTotalPrice` | Total price | Row: the total price. | کۆی نرخ | High | Common interface wording — awaiting review |  |
@@ -1043,7 +1036,7 @@ The glossary is for agreeing terms. Only the table below is read by the apply to
 | `mdBottom` | Bottom | Named view. | خوارەوە | High | Common interface wording — awaiting review |  |
 | `mdCamera` | yaw {yaw}°  pitch {pitch}°  ×{zoom} | Camera readout. | سووڕانەوە {yaw}°  لاری {pitch}°  ×‎{zoom}‎ | High | Common interface wording — awaiting review |  |
 | `mdCounts` | {sections} sections · {bars} bars | Readout. | {sections} بەش · {bars} دابەشکەر | High | Common interface wording — awaiting review |  |
-| `mdDepth` | Depth | Field. | قووڵی | High | Common interface wording — awaiting review |  |
+| `mdDepth` | Depth | The frame's depth, front to back: in Default measurements and in the sizes form. | قووڵی | Medium | Trade wording — awaiting review |  |
 | `mdFit` | Fit the model to the view | Tooltip. | مۆدێلەکە لەگەڵ پیشاندانەکە بگونجێنە | High | Common interface wording — awaiting review |  |
 | `mdFront` | Front | Named view. | پێشەوە | High | Common interface wording — awaiting review |  |
 | `mdGround` | Ground plane | Tooltip. | زەوی | High | Common interface wording — awaiting review |  |
@@ -1196,7 +1189,6 @@ The glossary is for agreeing terms. Only the table below is read by the apply to
 | `secUpper` | Upper | Where a section is: the upper row. | سەرەوە | High | Common interface wording — awaiting review |  |
 | `settingsAppearance` | Appearance | Heading of the light or dark choice, and its button's tooltip. | ڕووکار | High | Common interface wording — awaiting review |  |
 | `settingsLanguage` | Language | Heading of the language choice. | زمان | High | Common interface wording — awaiting review |  |
-| `settingsTitle` | Settings | The settings screen's title, and the button that opens it. | ڕێکخستنەکان | High | Common interface wording — awaiting review |  |
 | `showAllDesigns` | Show all designs | Button: clear the search and filter. | پیشاندانی هەموو دیزاینەکان | High | Common interface wording — awaiting review |  |
 | `stageCompleted` | Completed | A design the user completed. | تەواوکراو | High | Common interface wording — awaiting review |  |
 | `stageDraft` | Draft | A design ready but not completed. | ڕەشنووس | High | Common interface wording — awaiting review |  |
@@ -1384,3 +1376,30 @@ Messages added on 2026-10-12 for Phase 35, reviewed the same way as the table ab
 | `fwDismissMenu` | Dismiss menu | Flutter: closing a menu, for a screen reader. | داخستنی لیست | High | Framework wording — awaiting review |  |
 | `fwClear` | Clear | Flutter (iPhone): clear a field. | سڕینەوە | High | Framework wording — awaiting review |  |
 | `psFinalTotal` | Final total | Price summary: what the design comes to, at the head of the summary and at the foot of its calculation. | کۆی کۆتایی | High | Common interface wording — awaiting review |  |
+
+## Added after Phase 35
+
+Messages added on 2026-10-13, after Phase 35 — the header, Factory defaults, the sizes form, New Design and the customer summary — reviewed the same way as the tables above. None is verified.
+
+| Key | English | Context | Proposed Sorani | Confidence | Reason / status | Approved Sorani |
+| --- | --- | --- | --- | --- | --- | --- |
+| `fdTitle` | Factory defaults | The button on the customers' header, and the screen it opens: the factory's default measurements and default prices. | بنەڕەتەکانی کارگە | Medium | Short interface wording — awaiting review |  |
+| `fdIntro` | Set these once and every new design starts from them. A design can still be given its own sizes. | Under the title of Factory defaults. | ئەمانە یەکجار دابنێ و هەموو دیزاینێکی نوێ لێیانەوە دەست پێدەکات. هێشتا دەتوانرێت پێوانەی تایبەت بە دیزاینێک بدرێت. | Medium | Longer or technical sentence: check it reads naturally — awaiting review |  |
+| `fdMeasurements` | Default measurements | The part of Factory defaults holding the usual border, bar thickness and depth of each kind of profile, and its screen's title. | پێوانە بنەڕەتییەکان | Medium | Short interface wording — awaiting review |  |
+| `fdMeasurementsLine` | Frame border, bar thickness and depth for each kind of profile — uPVC, aluminium | Under Default measurements. | پانی چوارچێوە، ئەستووری هێڵ و قووڵی بۆ هەر جۆرە پرۆفایلێک — uPVC، ئەلەمنیۆم | Medium | Trade wording: check it reads naturally — awaiting review |  |
+| `fdPrices` | Default prices | The part of Factory defaults holding the price list. | نرخە بنەڕەتییەکان | Medium | Short interface wording — awaiting review |  |
+| `fdPricesLine` | The rate of each kind of profile and each of its colours, glass, panels, hardware and extras | Under Default prices. | نرخی هەر جۆرە پرۆفایلێک و هەر ڕەنگێکی، شووشە، پانێڵ، ئامرازەکان و تێچووە زیادەکان | Medium | Trade wording: check it reads naturally — awaiting review |  |
+| `mdIntro` | The usual sizes for each kind of profile. The sizes form offers them for every design; typing over them there changes that design only, and changing them here changes no design already measured. | Under the title of Default measurements. | قەبارە ئاساییەکان بۆ هەر جۆرە پرۆفایلێک. فۆڕمی قەبارەکان بۆ هەموو دیزاینێک پێشکەشیان دەکات؛ گۆڕینیان لەوێ تەنها ئەو دیزاینە دەگۆڕێت، و گۆڕینیان لێرە هیچ دیزاینێکی پێوانەکراو ناگۆڕێت. | Medium | Longer or technical sentence: check it reads naturally — awaiting review |  |
+| `mdNotSet` | Not set | In an empty default measurement's field. | دانەنراوە | High | Common interface wording — awaiting review |  |
+| `mdInvalid` | Enter a size in centimetres, more than nothing. | Under a default measurement that is not a size. | قەبارەیەک بە سانتیمەتر بنووسە، لە سفر زیاتر. | High | Common interface wording — awaiting review |  |
+| `mdKeep` | Keep defaults | The button keeping the default measurements. | پاشەکەوتکردنی بنەڕەتەکان | High | Common interface wording — awaiting review |  |
+| `mdKept` | Default measurements kept. | Said once the default measurements are kept. | پێوانە بنەڕەتییەکان پاشەکەوت کران. | High | Common interface wording — awaiting review |  |
+| `mdOnlyOwner` | Only the workshop owner changes the default measurements. | On Default measurements, for somebody who may not change them. | تەنها خاوەنی کارگە پێوانە بنەڕەتییەکان دەگۆڕێت. | High | Common interface wording — awaiting review |  |
+| `mfDefaultsFrom` | Fill from factory defaults | In the sizes form, over a button for each kind of profile with default measurements. | پڕکردنەوە لە بنەڕەتەکانی کارگە | Medium | Short interface wording — awaiting review |  |
+| `mfDefaultsNone` | No factory defaults yet — set the usual border, bars and depth under Factory defaults on the first screen. | In the sizes form, where no default measurements are set. | هێشتا هیچ بنەڕەتێکی کارگە نییە — پانی چوارچێوە و هێڵەکان و قووڵی ئاسایی لە بنەڕەتەکانی کارگە لە پەڕەی یەکەم دابنێ. | Medium | Longer or technical sentence: check it reads naturally — awaiting review |  |
+| `mfDefaultsUsed` | {material} defaults filled in — change any of them for this design, then Apply. | In the sizes form, once a kind of profile's defaults are put into the fields. {material} is uPVC or Aluminium. | بنەڕەتەکانی {material} پڕکرانەوە — هەر کامێکیان بۆ ئەم دیزاینە بگۆڕە، پاشان جێبەجێ بکە. | Medium | Longer or technical sentence: check it reads naturally — awaiting review |  |
+| `finPaid` | Paid | One of the customer's three figures: what has been paid, less refunds. | دراوە | High | Common interface wording — awaiting review |  |
+| `finDetails` | Price details | Folded under the customer's money: each design's price, the extras, discount, payments and refunds, and the materials. | وردەکاری نرخ | High | Common interface wording — awaiting review |  |
+| `ndExisting` | Existing customers | Over the customers found as a name is typed for a new design. | کڕیارە هەبووەکان | High | Common interface wording — awaiting review |  |
+| `ndNewCustomer` | New customer “{name}” | Under the customers found, going on with a new customer of the name typed. | کڕیاری نوێ «{name}» | High | Common interface wording — awaiting review |  |
+| `ndNoneFound` | No customer called “{name}” yet — continue with a new customer | Where no kept customer matches the name typed for a new design. | هێشتا هیچ کڕیارێک بە ناوی «{name}» نییە — بەردەوام بە بە کڕیارێکی نوێ | Medium | Longer or technical sentence: check it reads naturally — awaiting review |  |

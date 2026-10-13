@@ -178,14 +178,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fwNarrowWeekdays => 'S,M,T,W,T,F,S';
 
   @override
-  String get settingsTitle => 'Settings';
-
-  @override
   String get settingsLanguage => 'Language';
-
-  @override
-  String get settingsLanguageNote =>
-      'The application changes language at once. Customers, designs, prices and records are not changed.';
 
   @override
   String get settingsAppearance => 'Appearance';
@@ -2578,7 +2571,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'You do not have permission to view this customer\'s finances.';
 
   @override
-  String get finSummary => 'FINANCIAL SUMMARY';
+  String get finSummary => 'Money';
 
   @override
   String get finDesigns => 'Designs';
@@ -2657,24 +2650,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get finRefund => 'Refund';
 
   @override
-  String get finHistory => 'PAYMENT HISTORY';
-
-  @override
-  String get finNoHistory => 'No payment history yet.';
+  String get finHistory => 'Payment history';
 
   @override
   String finLoadMore(int count) {
     return 'Load more ($count more)';
   }
-
-  @override
-  String get finShowDesigns => 'Show each design and the materials';
-
-  @override
-  String get finHideDesigns => 'Hide each design and the materials';
-
-  @override
-  String get finDesignsHeading => 'DESIGNS';
 
   @override
   String finDesignFacts(String category, String material, String colour) {
@@ -2700,14 +2681,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get finExtrasHeading => 'EXTRA CHARGES — WHOLE JOB';
+  String get finExtrasHeading => 'Extra charges — whole job';
 
   @override
   String get finAddExtra => 'Add extra';
-
-  @override
-  String get finNoExtras =>
-      'No extra charges for the whole job. A design\'s own extras are on its price.';
 
   @override
   String finOtherCurrencies(String currency) {
@@ -2730,13 +2707,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get finQuotations => 'QUOTATIONS';
+  String get finQuotations => 'Quotations';
 
   @override
   String get finNewQuotation => 'New quotation';
-
-  @override
-  String get finNoQuotations => 'No quotations yet.';
 
   @override
   String finQuoteLine(String day, int count) {
@@ -4599,4 +4573,76 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get psFinalTotal => 'Final total';
+
+  @override
+  String get fdTitle => 'Factory defaults';
+
+  @override
+  String get fdIntro =>
+      'Set these once and every new design starts from them. A design can still be given its own sizes.';
+
+  @override
+  String get fdMeasurements => 'Default measurements';
+
+  @override
+  String get fdMeasurementsLine =>
+      'Frame border, bar thickness and depth for each kind of profile — uPVC, aluminium';
+
+  @override
+  String get fdPrices => 'Default prices';
+
+  @override
+  String get fdPricesLine =>
+      'The rate of each kind of profile and each of its colours, glass, panels, hardware and extras';
+
+  @override
+  String get mdIntro =>
+      'The usual sizes for each kind of profile. The sizes form offers them for every design; typing over them there changes that design only, and changing them here changes no design already measured.';
+
+  @override
+  String get mdNotSet => 'Not set';
+
+  @override
+  String get mdInvalid => 'Enter a size in centimetres, more than nothing.';
+
+  @override
+  String get mdKeep => 'Keep defaults';
+
+  @override
+  String get mdKept => 'Default measurements kept.';
+
+  @override
+  String get mdOnlyOwner =>
+      'Only the workshop owner changes the default measurements.';
+
+  @override
+  String get mfDefaultsFrom => 'Fill from factory defaults';
+
+  @override
+  String get mfDefaultsNone =>
+      'No factory defaults yet — set the usual border, bars and depth under Factory defaults on the first screen.';
+
+  @override
+  String mfDefaultsUsed(String material) {
+    return '$material defaults filled in — change any of them for this design, then Apply.';
+  }
+
+  @override
+  String get finPaid => 'Paid';
+
+  @override
+  String get finDetails => 'Price details';
+
+  @override
+  String get ndExisting => 'Existing customers';
+
+  @override
+  String ndNewCustomer(String name) {
+    return 'New customer “$name”';
+  }
+
+  @override
+  String ndNoneFound(String name) {
+    return 'No customer called “$name” yet — continue with a new customer';
+  }
 }

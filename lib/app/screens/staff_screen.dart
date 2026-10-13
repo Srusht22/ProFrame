@@ -97,7 +97,9 @@ class AccountButton extends ConsumerWidget {
             ? Icons.badge_outlined
             : Icons.person_outline,
         color: colour,
+        size: 22,
       ),
+      style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
     );
   }
 }

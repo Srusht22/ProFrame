@@ -16,25 +16,6 @@ import '../theme/app_theme.dart';
 import 'factory_colours.dart';
 import 'factory_extras.dart';
 
-/// **Factory prices** on the customers' header: the workshop's price list.
-class FactoryPricesButton extends StatelessWidget {
-  final Color colour;
-
-  const FactoryPricesButton({super.key, required this.colour});
-
-  static const buttonKey = ValueKey('factory-prices');
-
-  @override
-  Widget build(BuildContext context) => IconButton(
-    key: buttonKey,
-    tooltip: context.l10n.fpTitle,
-    icon: Icon(Icons.price_change_outlined, color: colour),
-    onPressed: () => Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const FactoryPricesScreen()),
-    ),
-  );
-}
-
 /// The factory's price list — what it charges for each material, colour,
 /// glass, panel and piece of ironmongery — as the owner keeps it.
 ///

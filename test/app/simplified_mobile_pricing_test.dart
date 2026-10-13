@@ -6,6 +6,7 @@ import 'package:proframe/app/inspector/extra_charges.dart';
 import 'package:proframe/app/inspector/price_actions.dart';
 import 'package:proframe/app/inspector/price_panel.dart';
 import 'package:proframe/app/inspector/price_summary.dart';
+import 'package:proframe/app/screens/factory_defaults_screen.dart';
 import 'package:proframe/app/screens/factory_extras.dart';
 import 'package:proframe/app/screens/factory_prices_screen.dart';
 import 'package:proframe/app/state/language.dart';
@@ -45,7 +46,11 @@ Future<PriceResult> priceOf(
 
 /// Factory prices, opened from the customers' header.
 Future<void> toFactoryPrices(WidgetTester tester) async {
-  await tester.tap(find.byKey(FactoryPricesButton.buttonKey).first);
+  // Factory prices are under Factory defaults on the header now, beside
+  // the default measurements and kept apart from them.
+  await tester.tap(find.byKey(FactoryButton.buttonKey).first);
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(FactoryDefaultsScreen.pricesKey));
   await tester.pumpAndSettle();
   expect(find.byType(FactoryPricesScreen), findsOneWidget);
 }
@@ -427,7 +432,10 @@ void main() {
       final items = (await tester.runAsync(ExtraCatalogStore().load))!;
       expect(items.single.unitPriceCents, 300);
 
-      // Chosen on the design.
+      // Chosen on the design. Back past Factory defaults, which the prices
+      // are opened from, to the customers.
+      await tester.pageBack();
+      await tester.pumpAndSettle();
       await tester.pageBack();
       await tester.pumpAndSettle();
       await tester.tap(find.text('Adam').first);

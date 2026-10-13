@@ -121,9 +121,15 @@ Future<ProviderContainer> toAdam(WidgetTester tester) async {
   return c;
 }
 
-/// The card's **Price** for [id], scrolled into sight.
+/// The card's **Price** for [id], scrolled into sight — from the top of
+/// the page, since the summary under the cards may be where it is now.
 Future<Finder> cardButton(WidgetTester tester, String id) async {
   final button = find.byKey(CustomerDesignCard.priceKey(id));
+  tester
+      .state<ScrollableState>(find.byType(Scrollable).first)
+      .position
+      .jumpTo(0);
+  await tester.pump();
   await tester.scrollUntilVisible(
     button.hitTestable(),
     100,
@@ -138,6 +144,27 @@ Future<void> toSummary(WidgetTester tester) async {
     150,
     scrollable: find.byType(Scrollable).first,
   );
+  // The summary shows three figures — the total, what was paid and what is
+  // due — and folds the rest under *Price details*, where the user asked
+  // for it to be simpler. The tests read every figure, so it is opened here
+  // where it is closed, and the summary scrolled back to.
+  if (find
+      .byKey(CustomerFinancialSummary.grossPaymentsKey)
+      .evaluate()
+      .isEmpty) {
+    await tester.scrollUntilVisible(
+      find.byKey(CustomerFinancialSummary.toggleKey).hitTestable(),
+      150,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(CustomerFinancialSummary.toggleKey));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(CustomerFinancialSummary.addPaymentKey).hitTestable(),
+      -150,
+      scrollable: find.byType(Scrollable).first,
+    );
+  }
 }
 
 // Since Phase 32 the stores ask who is writing (`by:`) and refuse anybody
@@ -348,8 +375,7 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.byKey(CustomerFinancialSummary.toggleKey));
-    await tester.pumpAndSettle();
+    // *Price details* is open already: `toSummary` opens it.
     expect(find.text('CUSTOMER MATERIAL SUMMARY'), findsOneWidget);
     expect(textOf(tester, MeasurementRows.totalProfileKey), endsWith(' m'));
     expect(find.textContaining('m²', skipOffstage: false), findsWidgets);

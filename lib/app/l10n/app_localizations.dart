@@ -434,23 +434,11 @@ abstract class AppLocalizations {
   /// **'S,M,T,W,T,F,S'**
   String get fwNarrowWeekdays;
 
-  /// The settings screen's title, and the button that opens it.
-  ///
-  /// In en, this message translates to:
-  /// **'Settings'**
-  String get settingsTitle;
-
   /// Heading of the language choice.
   ///
   /// In en, this message translates to:
   /// **'Language'**
   String get settingsLanguage;
-
-  /// Under the language choice.
-  ///
-  /// In en, this message translates to:
-  /// **'The application changes language at once. Customers, designs, prices and records are not changed.'**
-  String get settingsLanguageNote;
 
   /// Heading of the light or dark choice, and its button's tooltip.
   ///
@@ -4478,10 +4466,10 @@ abstract class AppLocalizations {
   /// **'You do not have permission to view this customer\'s finances.'**
   String get finNoAccess;
 
-  /// Heading of the customer's money.
+  /// Heading of the customer's money, beside how they stand.
   ///
   /// In en, this message translates to:
-  /// **'FINANCIAL SUMMARY'**
+  /// **'Money'**
   String get finSummary;
 
   /// Row: how many designs.
@@ -4616,41 +4604,17 @@ abstract class AppLocalizations {
   /// **'Refund'**
   String get finRefund;
 
-  /// Heading of the payment history.
+  /// Heading of the payment history, folded where it is empty.
   ///
   /// In en, this message translates to:
-  /// **'PAYMENT HISTORY'**
+  /// **'Payment history'**
   String get finHistory;
-
-  /// The history is empty.
-  ///
-  /// In en, this message translates to:
-  /// **'No payment history yet.'**
-  String get finNoHistory;
 
   /// Button: show the next page.
   ///
   /// In en, this message translates to:
   /// **'Load more ({count} more)'**
   String finLoadMore(int count);
-
-  /// Unfold the summary.
-  ///
-  /// In en, this message translates to:
-  /// **'Show each design and the materials'**
-  String get finShowDesigns;
-
-  /// Fold the summary.
-  ///
-  /// In en, this message translates to:
-  /// **'Hide each design and the materials'**
-  String get finHideDesigns;
-
-  /// Heading over each design's price.
-  ///
-  /// In en, this message translates to:
-  /// **'DESIGNS'**
-  String get finDesignsHeading;
 
   /// What a design is and is made of.
   ///
@@ -4685,7 +4649,7 @@ abstract class AppLocalizations {
   /// Heading over the customer's own extras.
   ///
   /// In en, this message translates to:
-  /// **'EXTRA CHARGES — WHOLE JOB'**
+  /// **'Extra charges — whole job'**
   String get finExtrasHeading;
 
   /// Button: add an extra charge.
@@ -4693,12 +4657,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add extra'**
   String get finAddExtra;
-
-  /// The customer has no extras.
-  ///
-  /// In en, this message translates to:
-  /// **'No extra charges for the whole job. A design\'s own extras are on its price.'**
-  String get finNoExtras;
 
   /// Heading over money in other currencies.
   ///
@@ -4727,7 +4685,7 @@ abstract class AppLocalizations {
   /// Heading over the quotations.
   ///
   /// In en, this message translates to:
-  /// **'QUOTATIONS'**
+  /// **'Quotations'**
   String get finQuotations;
 
   /// Button: make a quotation.
@@ -4735,12 +4693,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New quotation'**
   String get finNewQuotation;
-
-  /// There are no quotations.
-  ///
-  /// In en, this message translates to:
-  /// **'No quotations yet.'**
-  String get finNoQuotations;
 
   /// A quotation's day and how many designs.
   ///
@@ -5978,7 +5930,7 @@ abstract class AppLocalizations {
   /// **'Fit the model to the view'**
   String get mdFit;
 
-  /// Field.
+  /// The frame's depth, front to back: in Default measurements and in the sizes form.
   ///
   /// In en, this message translates to:
   /// **'Depth'**
@@ -7921,6 +7873,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Final total'**
   String get psFinalTotal;
+
+  /// The button on the customers' header, and the screen it opens: the factory's default measurements and default prices.
+  ///
+  /// In en, this message translates to:
+  /// **'Factory defaults'**
+  String get fdTitle;
+
+  /// Under the title of Factory defaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Set these once and every new design starts from them. A design can still be given its own sizes.'**
+  String get fdIntro;
+
+  /// The part of Factory defaults holding the usual border, bar thickness and depth of each kind of profile, and its screen's title.
+  ///
+  /// In en, this message translates to:
+  /// **'Default measurements'**
+  String get fdMeasurements;
+
+  /// Under Default measurements.
+  ///
+  /// In en, this message translates to:
+  /// **'Frame border, bar thickness and depth for each kind of profile — uPVC, aluminium'**
+  String get fdMeasurementsLine;
+
+  /// The part of Factory defaults holding the price list.
+  ///
+  /// In en, this message translates to:
+  /// **'Default prices'**
+  String get fdPrices;
+
+  /// Under Default prices.
+  ///
+  /// In en, this message translates to:
+  /// **'The rate of each kind of profile and each of its colours, glass, panels, hardware and extras'**
+  String get fdPricesLine;
+
+  /// Under the title of Default measurements.
+  ///
+  /// In en, this message translates to:
+  /// **'The usual sizes for each kind of profile. The sizes form offers them for every design; typing over them there changes that design only, and changing them here changes no design already measured.'**
+  String get mdIntro;
+
+  /// In an empty default measurement's field.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get mdNotSet;
+
+  /// Under a default measurement that is not a size.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a size in centimetres, more than nothing.'**
+  String get mdInvalid;
+
+  /// The button keeping the default measurements.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep defaults'**
+  String get mdKeep;
+
+  /// Said once the default measurements are kept.
+  ///
+  /// In en, this message translates to:
+  /// **'Default measurements kept.'**
+  String get mdKept;
+
+  /// On Default measurements, for somebody who may not change them.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the workshop owner changes the default measurements.'**
+  String get mdOnlyOwner;
+
+  /// In the sizes form, over a button for each kind of profile with default measurements.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill from factory defaults'**
+  String get mfDefaultsFrom;
+
+  /// In the sizes form, where no default measurements are set.
+  ///
+  /// In en, this message translates to:
+  /// **'No factory defaults yet — set the usual border, bars and depth under Factory defaults on the first screen.'**
+  String get mfDefaultsNone;
+
+  /// In the sizes form, once a kind of profile's defaults are put into the fields. {material} is uPVC or Aluminium.
+  ///
+  /// In en, this message translates to:
+  /// **'{material} defaults filled in — change any of them for this design, then Apply.'**
+  String mfDefaultsUsed(String material);
+
+  /// One of the customer's three figures: what has been paid, less refunds.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid'**
+  String get finPaid;
+
+  /// Folded under the customer's money: each design's price, the extras, discount, payments and refunds, and the materials.
+  ///
+  /// In en, this message translates to:
+  /// **'Price details'**
+  String get finDetails;
+
+  /// Over the customers found as a name is typed for a new design.
+  ///
+  /// In en, this message translates to:
+  /// **'Existing customers'**
+  String get ndExisting;
+
+  /// Under the customers found, going on with a new customer of the name typed.
+  ///
+  /// In en, this message translates to:
+  /// **'New customer “{name}”'**
+  String ndNewCustomer(String name);
+
+  /// Where no kept customer matches the name typed for a new design.
+  ///
+  /// In en, this message translates to:
+  /// **'No customer called “{name}” yet — continue with a new customer'**
+  String ndNoneFound(String name);
 }
 
 class _AppLocalizationsDelegate

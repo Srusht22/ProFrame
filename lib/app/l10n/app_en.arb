@@ -224,17 +224,9 @@
   "@fwNarrowWeekdays": {
     "description": "The seven weekdays' initials, Sunday first, separated by commas, for a calendar's column heads."
   },
-  "settingsTitle": "Settings",
-  "@settingsTitle": {
-    "description": "The settings screen's title, and the button that opens it."
-  },
   "settingsLanguage": "Language",
   "@settingsLanguage": {
     "description": "Heading of the language choice."
-  },
-  "settingsLanguageNote": "The application changes language at once. Customers, designs, prices and records are not changed.",
-  "@settingsLanguageNote": {
-    "description": "Under the language choice."
   },
   "settingsAppearance": "Appearance",
   "@settingsAppearance": {
@@ -3668,9 +3660,9 @@
   "@finNoAccess": {
     "description": "Customer's finances, without permission."
   },
-  "finSummary": "FINANCIAL SUMMARY",
+  "finSummary": "Money",
   "@finSummary": {
-    "description": "Heading of the customer's money."
+    "description": "Heading of the customer's money, beside how they stand."
   },
   "finDesigns": "Designs",
   "@finDesigns": {
@@ -3788,13 +3780,9 @@
   "@finRefund": {
     "description": "Button: record a refund."
   },
-  "finHistory": "PAYMENT HISTORY",
+  "finHistory": "Payment history",
   "@finHistory": {
-    "description": "Heading of the payment history."
-  },
-  "finNoHistory": "No payment history yet.",
-  "@finNoHistory": {
-    "description": "The history is empty."
+    "description": "Heading of the payment history, folded where it is empty."
   },
   "finLoadMore": "Load more ({count} more)",
   "@finLoadMore": {
@@ -3804,18 +3792,6 @@
         "type": "int"
       }
     }
-  },
-  "finShowDesigns": "Show each design and the materials",
-  "@finShowDesigns": {
-    "description": "Unfold the summary."
-  },
-  "finHideDesigns": "Hide each design and the materials",
-  "@finHideDesigns": {
-    "description": "Fold the summary."
-  },
-  "finDesignsHeading": "DESIGNS",
-  "@finDesignsHeading": {
-    "description": "Heading over each design's price."
   },
   "finDesignFacts": "Category: {category} · Material: {material} · Colour: {colour}",
   "@finDesignFacts": {
@@ -3866,17 +3842,13 @@
       }
     }
   },
-  "finExtrasHeading": "EXTRA CHARGES — WHOLE JOB",
+  "finExtrasHeading": "Extra charges — whole job",
   "@finExtrasHeading": {
     "description": "Heading over the customer's own extras."
   },
   "finAddExtra": "Add extra",
   "@finAddExtra": {
     "description": "Button: add an extra charge."
-  },
-  "finNoExtras": "No extra charges for the whole job. A design's own extras are on its price.",
-  "@finNoExtras": {
-    "description": "The customer has no extras."
   },
   "finOtherCurrencies": "OTHER CURRENCIES — not included in the {currency} total",
   "@finOtherCurrencies": {
@@ -3914,17 +3886,13 @@
       }
     }
   },
-  "finQuotations": "QUOTATIONS",
+  "finQuotations": "Quotations",
   "@finQuotations": {
     "description": "Heading over the quotations."
   },
   "finNewQuotation": "New quotation",
   "@finNewQuotation": {
     "description": "Button: make a quotation."
-  },
-  "finNoQuotations": "No quotations yet.",
-  "@finNoQuotations": {
-    "description": "There are no quotations."
   },
   "finQuoteLine": "{day} · {count, plural, =1{1 design} other{{count} designs}}",
   "@finQuoteLine": {
@@ -5032,7 +5000,7 @@
   },
   "mdDepth": "Depth",
   "@mdDepth": {
-    "description": "Field."
+    "description": "The frame's depth, front to back: in Default measurements and in the sizes form."
   },
   "mdProfile": "Profile",
   "@mdProfile": {
@@ -6628,5 +6596,100 @@
   "psFinalTotal": "Final total",
   "@psFinalTotal": {
     "description": "Price summary: what the design comes to, at the head of the summary and at the foot of its calculation."
+  },
+  "fdTitle": "Factory defaults",
+  "@fdTitle": {
+    "description": "The button on the customers' header, and the screen it opens: the factory's default measurements and default prices."
+  },
+  "fdIntro": "Set these once and every new design starts from them. A design can still be given its own sizes.",
+  "@fdIntro": {
+    "description": "Under the title of Factory defaults."
+  },
+  "fdMeasurements": "Default measurements",
+  "@fdMeasurements": {
+    "description": "The part of Factory defaults holding the usual border, bar thickness and depth of each kind of profile, and its screen's title."
+  },
+  "fdMeasurementsLine": "Frame border, bar thickness and depth for each kind of profile — uPVC, aluminium",
+  "@fdMeasurementsLine": {
+    "description": "Under Default measurements."
+  },
+  "fdPrices": "Default prices",
+  "@fdPrices": {
+    "description": "The part of Factory defaults holding the price list."
+  },
+  "fdPricesLine": "The rate of each kind of profile and each of its colours, glass, panels, hardware and extras",
+  "@fdPricesLine": {
+    "description": "Under Default prices."
+  },
+  "mdIntro": "The usual sizes for each kind of profile. The sizes form offers them for every design; typing over them there changes that design only, and changing them here changes no design already measured.",
+  "@mdIntro": {
+    "description": "Under the title of Default measurements."
+  },
+  "mdNotSet": "Not set",
+  "@mdNotSet": {
+    "description": "In an empty default measurement's field."
+  },
+  "mdInvalid": "Enter a size in centimetres, more than nothing.",
+  "@mdInvalid": {
+    "description": "Under a default measurement that is not a size."
+  },
+  "mdKeep": "Keep defaults",
+  "@mdKeep": {
+    "description": "The button keeping the default measurements."
+  },
+  "mdKept": "Default measurements kept.",
+  "@mdKept": {
+    "description": "Said once the default measurements are kept."
+  },
+  "mdOnlyOwner": "Only the workshop owner changes the default measurements.",
+  "@mdOnlyOwner": {
+    "description": "On Default measurements, for somebody who may not change them."
+  },
+  "mfDefaultsFrom": "Fill from factory defaults",
+  "@mfDefaultsFrom": {
+    "description": "In the sizes form, over a button for each kind of profile with default measurements."
+  },
+  "mfDefaultsNone": "No factory defaults yet — set the usual border, bars and depth under Factory defaults on the first screen.",
+  "@mfDefaultsNone": {
+    "description": "In the sizes form, where no default measurements are set."
+  },
+  "mfDefaultsUsed": "{material} defaults filled in — change any of them for this design, then Apply.",
+  "@mfDefaultsUsed": {
+    "description": "In the sizes form, once a kind of profile's defaults are put into the fields. {material} is uPVC or Aluminium.",
+    "placeholders": {
+      "material": {
+        "type": "String"
+      }
+    }
+  },
+  "finPaid": "Paid",
+  "@finPaid": {
+    "description": "One of the customer's three figures: what has been paid, less refunds."
+  },
+  "finDetails": "Price details",
+  "@finDetails": {
+    "description": "Folded under the customer's money: each design's price, the extras, discount, payments and refunds, and the materials."
+  },
+  "ndExisting": "Existing customers",
+  "@ndExisting": {
+    "description": "Over the customers found as a name is typed for a new design."
+  },
+  "ndNewCustomer": "New customer “{name}”",
+  "@ndNewCustomer": {
+    "description": "Under the customers found, going on with a new customer of the name typed.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ndNoneFound": "No customer called “{name}” yet — continue with a new customer",
+  "@ndNoneFound": {
+    "description": "Where no kept customer matches the name typed for a new design.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

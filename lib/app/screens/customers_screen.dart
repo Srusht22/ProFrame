@@ -10,11 +10,10 @@ import '../state/workspace.dart';
 import '../theme/app_theme.dart';
 import 'appearance_button.dart';
 import 'customer_screen.dart';
-import 'factory_prices_screen.dart';
+import 'factory_defaults_screen.dart';
 import 'language_button.dart';
 import 'new_customer_screen.dart';
 import 'new_design_screen.dart';
-import 'settings_screen.dart';
 import 'staff_screen.dart';
 
 /// The two letters a customer is known by at a glance: the first letter of
@@ -300,8 +299,8 @@ class _Centred extends StatelessWidget {
 class _Header extends StatelessWidget {
   final bool phone;
 
-  /// Whether the icons — the account, the factory's prices, the language,
-  /// the appearance and Settings — stand on the title's line.
+  /// Whether the icons — the account, the factory's defaults, the language
+  /// and the appearance — stand on the title's line.
   final bool iconsOnTop;
   final double gutter;
   final int count;
@@ -384,13 +383,7 @@ class _Header extends StatelessWidget {
                 ),
               ),
             ),
-            if (phone || iconsOnTop) ...[
-              const AccountButton(colour: AppTheme.accent),
-              const FactoryPricesButton(colour: AppTheme.accent),
-              const LanguageButton(colour: AppTheme.accent),
-              const AppearanceButton(colour: AppTheme.accent),
-              const SettingsButton(colour: AppTheme.accent),
-            ],
+            if (phone || iconsOnTop) const HeaderIcons(),
           ],
         ),
         if (!phone) const SizedBox(height: 6),
@@ -485,34 +478,19 @@ class _Header extends StatelessWidget {
                         children: [
                           Expanded(child: title),
                           const SizedBox(width: 16),
-                          if (!iconsOnTop) ...[
-                            const Padding(
-                              padding: EdgeInsets.only(bottom: 6),
-                              child: AccountButton(colour: AppTheme.accent),
-                            ),
-                            const Padding(
-                              padding: EdgeInsets.only(bottom: 6),
-                              child: FactoryPricesButton(
-                                colour: AppTheme.accent,
-                              ),
-                            ),
-                            const Padding(
-                              padding: EdgeInsets.only(bottom: 6),
-                              child: LanguageButton(colour: AppTheme.accent),
-                            ),
-                            const Padding(
-                              padding: EdgeInsets.only(bottom: 6),
-                              child: AppearanceButton(colour: AppTheme.accent),
-                            ),
-                            const Padding(
-                              padding: EdgeInsets.only(bottom: 6),
-                              child: SettingsButton(colour: AppTheme.accent),
-                            ),
-                            const SizedBox(width: 8),
-                          ],
-                          newDesign,
-                          const SizedBox(width: 10),
-                          newCustomer,
+                          // The icons and the two buttons on one line, each
+                          // centred on it: icons of every kind stand in
+                          // boxes of one size, so none sits higher than
+                          // another.
+                          Row(
+                            children: [
+                              const HeaderIcons(),
+                              const SizedBox(width: 8),
+                              newDesign,
+                              const SizedBox(width: 10),
+                              newCustomer,
+                            ],
+                          ),
                         ],
                       ),
                       const SizedBox(height: 24),
@@ -524,6 +502,37 @@ class _Header extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The header's icons — who is at the device, the factory's defaults, the
+/// language and the appearance — on one line.
+///
+/// **Each stands in a box of the same size, centred in it.** They are of
+/// different kinds — a menu button, a plain button — whose own sizes
+/// differ, and laid side by side by their feet they stood at different
+/// heights; boxed alike, every icon's middle is on the same line.
+class HeaderIcons extends StatelessWidget {
+  const HeaderIcons({super.key});
+
+  /// The side of each icon's box.
+  static const side = 44.0;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      for (final icon in const [
+        AccountButton(colour: AppTheme.accent),
+        FactoryButton(colour: AppTheme.accent),
+        LanguageButton(colour: AppTheme.accent),
+        AppearanceButton(colour: AppTheme.accent),
+      ])
+        SizedBox.square(
+          dimension: side,
+          child: Center(child: icon),
+        ),
+    ],
+  );
 }
 
 class _SectionTitle extends StatelessWidget {

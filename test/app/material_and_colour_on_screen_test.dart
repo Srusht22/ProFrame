@@ -6,6 +6,7 @@ import 'package:proframe/app/inspector/price_panel.dart';
 import 'package:proframe/app/inspector/profile_chooser.dart';
 import 'package:proframe/app/screens/customer_finance.dart';
 import 'package:proframe/app/screens/customer_screen.dart';
+import 'package:proframe/app/screens/factory_defaults_screen.dart';
 import 'package:proframe/app/screens/factory_prices_screen.dart';
 import 'package:proframe/app/state/access.dart';
 import 'package:proframe/app/state/pricing.dart';
@@ -222,8 +223,8 @@ void main() {
       'Material: uPVC',
     );
     await toSummary(tester);
-    await tester.tap(find.text('Show each design and the materials'));
-    await tester.pumpAndSettle();
+    // Each design's facts are under *Price details* now, folded away so the
+    // summary shows three figures at a glance; `toSummary` opens it.
     expect(
       textOf(tester, CustomerFinancialSummary.profileKey('front')),
       'Category: Door · Material: uPVC · Colour: White',
@@ -312,7 +313,11 @@ void main() {
     await seed(tester, [kitchen]);
     final c = await screen.openTheApp(tester, size: const Size(1280, 900));
     await customers.toCustomers(tester);
-    await tester.tap(find.byKey(FactoryPricesButton.buttonKey).first);
+    // Factory prices are under Factory defaults on the header now, beside
+    // the default measurements and kept apart from them.
+    await tester.tap(find.byKey(FactoryButton.buttonKey).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(FactoryDefaultsScreen.pricesKey));
     await tester.pumpAndSettle();
 
     // Staff: every figure shown, none editable, no way to keep.
@@ -355,7 +360,11 @@ void main() {
     await customers.toCustomers(tester);
     final list = await again.read(priceListProvider.future);
     expect(list.profiles[MaterialKind.upvc]!.normalPerMetre, 9.5);
-    await tester.tap(find.byKey(FactoryPricesButton.buttonKey).first);
+    // Factory prices are under Factory defaults on the header now, beside
+    // the default measurements and kept apart from them.
+    await tester.tap(find.byKey(FactoryButton.buttonKey).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(FactoryDefaultsScreen.pricesKey));
     await tester.pumpAndSettle();
     expect(
       tester
@@ -394,7 +403,11 @@ void main() {
     await tester.runAsync(
       () => c.read(ownerAccessStoreProvider).setPin('2468'),
     );
-    await tester.tap(find.byKey(FactoryPricesButton.buttonKey).first);
+    // Factory prices are under Factory defaults on the header now, beside
+    // the default measurements and kept apart from them.
+    await tester.tap(find.byKey(FactoryButton.buttonKey).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(FactoryDefaultsScreen.pricesKey));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(FactoryPricesScreen.unlockKey));
     await tester.pumpAndSettle();

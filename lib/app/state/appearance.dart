@@ -15,9 +15,11 @@ class Appearance extends Notifier<ThemeMode> {
   static const key = 'proframe.appearance';
 
   /// Each choice's mark, in the order they are offered. What each is
-  /// called is the language's (`appearanceLabel`).
+  /// called is the language's (`appearanceLabel`). The button itself shows
+  /// the appearance on the screen now — a sun or a moon — and never the
+  /// device's mark (`AppearanceButton`).
   static const icons = {
-    ThemeMode.system: Icons.brightness_auto_outlined,
+    ThemeMode.system: Icons.devices_outlined,
     ThemeMode.light: Icons.light_mode_outlined,
     ThemeMode.dark: Icons.dark_mode_outlined,
   };

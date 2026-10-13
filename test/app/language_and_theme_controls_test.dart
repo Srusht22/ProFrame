@@ -80,10 +80,14 @@ void main() {
           ),
           findsNothing,
         );
+        // The button shows the appearance on the screen now — a sun here,
+        // where the device is light — and not the device's own mark, which
+        // the user asked to be shown differently; following the device is
+        // said in its label and ticked in its list.
         expect(
           find.descendant(
             of: appearance,
-            matching: find.byIcon(Appearance.icons[ThemeMode.system]!),
+            matching: find.byIcon(Icons.light_mode_outlined),
           ),
           findsOneWidget,
         );

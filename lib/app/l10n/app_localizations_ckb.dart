@@ -178,14 +178,7 @@ class AppLocalizationsCkb extends AppLocalizations {
   String get fwNarrowWeekdays => 'ی,د,س,چ,پ,ه,ش';
 
   @override
-  String get settingsTitle => 'ڕێکخستنەکان';
-
-  @override
   String get settingsLanguage => 'زمان';
-
-  @override
-  String get settingsLanguageNote =>
-      'زمانی بەرنامەکە دەستبەجێ دەگۆڕێت. کڕیاران و دیزاینەکان و نرخەکان و تۆمارەکان ناگۆڕێن.';
 
   @override
   String get settingsAppearance => 'ڕووکار';
@@ -603,7 +596,7 @@ class AppLocalizationsCkb extends AppLocalizations {
   String get customersNoAccess => 'مۆڵەتی بینینی کڕیارانت نییە.';
 
   @override
-  String get customersAll => 'هەموو کڕیاران';
+  String get customersAll => 'هەموو کڕیارەکان';
 
   @override
   String get customersResults => 'ئەنجامەکان';
@@ -618,7 +611,7 @@ class AppLocalizationsCkb extends AppLocalizations {
   String get brandWordmark => 'PROFRAME';
 
   @override
-  String get customersTitle => 'کڕیاران';
+  String get customersTitle => 'تۆماری کڕیارەکان';
 
   @override
   String get customersEmptyLine =>
@@ -2569,7 +2562,7 @@ class AppLocalizationsCkb extends AppLocalizations {
   String get finNoAccess => 'مۆڵەتت نییە بۆ بینینی دارایی ئەم کڕیارە.';
 
   @override
-  String get finSummary => 'پوختەی دارایی';
+  String get finSummary => 'پارە';
 
   @override
   String get finDesigns => 'دیزاینەکان';
@@ -2651,21 +2644,9 @@ class AppLocalizationsCkb extends AppLocalizations {
   String get finHistory => 'مێژووی پارەدان';
 
   @override
-  String get finNoHistory => 'هێشتا هیچ مێژوویەکی پارەدان نییە.';
-
-  @override
   String finLoadMore(int count) {
     return 'زیاتر پیشان بدە ($countی تر)';
   }
-
-  @override
-  String get finShowDesigns => 'هەر دیزاینێک و کەرەستەکان پیشان بدە';
-
-  @override
-  String get finHideDesigns => 'هەر دیزاینێک و کەرەستەکان بشارەوە';
-
-  @override
-  String get finDesignsHeading => 'دیزاینەکان';
 
   @override
   String finDesignFacts(String category, String material, String colour) {
@@ -2697,10 +2678,6 @@ class AppLocalizationsCkb extends AppLocalizations {
   String get finAddExtra => 'زیادکردنی تێچوو';
 
   @override
-  String get finNoExtras =>
-      'هیچ تێچوویەکی زیادە بۆ هەموو کارەکە نییە. تێچووە زیادەکانی هەر دیزاینێک لەسەر نرخی خۆیەتی.';
-
-  @override
   String finOtherCurrencies(String currency) {
     return 'دراوی تر — لە کۆی $currency نەژمێردراوە';
   }
@@ -2725,9 +2702,6 @@ class AppLocalizationsCkb extends AppLocalizations {
 
   @override
   String get finNewQuotation => 'پێشنیاری نرخی نوێ';
-
-  @override
-  String get finNoQuotations => 'هێشتا هیچ پێشنیارێکی نرخ نییە.';
 
   @override
   String finQuoteLine(String day, int count) {
@@ -4593,4 +4567,75 @@ class AppLocalizationsCkb extends AppLocalizations {
 
   @override
   String get psFinalTotal => 'کۆی کۆتایی';
+
+  @override
+  String get fdTitle => 'بنەڕەتەکانی کارگە';
+
+  @override
+  String get fdIntro =>
+      'ئەمانە یەکجار دابنێ و هەموو دیزاینێکی نوێ لێیانەوە دەست پێدەکات. هێشتا دەتوانرێت پێوانەی تایبەت بە دیزاینێک بدرێت.';
+
+  @override
+  String get fdMeasurements => 'پێوانە بنەڕەتییەکان';
+
+  @override
+  String get fdMeasurementsLine =>
+      'پانی چوارچێوە، ئەستووری هێڵ و قووڵی بۆ هەر جۆرە پرۆفایلێک — uPVC، ئەلەمنیۆم';
+
+  @override
+  String get fdPrices => 'نرخە بنەڕەتییەکان';
+
+  @override
+  String get fdPricesLine =>
+      'نرخی هەر جۆرە پرۆفایلێک و هەر ڕەنگێکی، شووشە، پانێڵ، ئامرازەکان و تێچووە زیادەکان';
+
+  @override
+  String get mdIntro =>
+      'قەبارە ئاساییەکان بۆ هەر جۆرە پرۆفایلێک. فۆڕمی قەبارەکان بۆ هەموو دیزاینێک پێشکەشیان دەکات؛ گۆڕینیان لەوێ تەنها ئەو دیزاینە دەگۆڕێت، و گۆڕینیان لێرە هیچ دیزاینێکی پێوانەکراو ناگۆڕێت.';
+
+  @override
+  String get mdNotSet => 'دانەنراوە';
+
+  @override
+  String get mdInvalid => 'قەبارەیەک بە سانتیمەتر بنووسە، لە سفر زیاتر.';
+
+  @override
+  String get mdKeep => 'پاشەکەوتکردنی بنەڕەتەکان';
+
+  @override
+  String get mdKept => 'پێوانە بنەڕەتییەکان پاشەکەوت کران.';
+
+  @override
+  String get mdOnlyOwner => 'تەنها خاوەنی کارگە پێوانە بنەڕەتییەکان دەگۆڕێت.';
+
+  @override
+  String get mfDefaultsFrom => 'پڕکردنەوە لە بنەڕەتەکانی کارگە';
+
+  @override
+  String get mfDefaultsNone =>
+      'هێشتا هیچ بنەڕەتێکی کارگە نییە — پانی چوارچێوە و هێڵەکان و قووڵی ئاسایی لە بنەڕەتەکانی کارگە لە پەڕەی یەکەم دابنێ.';
+
+  @override
+  String mfDefaultsUsed(String material) {
+    return 'بنەڕەتەکانی $material پڕکرانەوە — هەر کامێکیان بۆ ئەم دیزاینە بگۆڕە، پاشان جێبەجێ بکە.';
+  }
+
+  @override
+  String get finPaid => 'دراوە';
+
+  @override
+  String get finDetails => 'وردەکاری نرخ';
+
+  @override
+  String get ndExisting => 'کڕیارە هەبووەکان';
+
+  @override
+  String ndNewCustomer(String name) {
+    return 'کڕیاری نوێ «$name»';
+  }
+
+  @override
+  String ndNoneFound(String name) {
+    return 'هێشتا هیچ کڕیارێک بە ناوی «$name» نییە — بەردەوام بە بە کڕیارێکی نوێ';
+  }
 }

@@ -7,6 +7,7 @@ import 'package:proframe/app/inspector/profile_chooser.dart';
 import 'package:proframe/app/screens/customer_finance.dart';
 import 'package:proframe/app/screens/customer_screen.dart';
 import 'package:proframe/app/screens/factory_colours.dart';
+import 'package:proframe/app/screens/factory_defaults_screen.dart';
 import 'package:proframe/app/screens/factory_prices_screen.dart';
 import 'package:proframe/app/state/access.dart';
 import 'package:proframe/app/state/pricing.dart';
@@ -41,7 +42,11 @@ Future<ProviderContainer> toFactory(
 }) async {
   final c = await screen.openTheApp(tester, size: size);
   await customers.toCustomers(tester);
-  await tester.tap(find.byKey(FactoryPricesButton.buttonKey).first);
+  // Factory prices are under Factory defaults on the header now, beside
+  // the default measurements and kept apart from them.
+  await tester.tap(find.byKey(FactoryButton.buttonKey).first);
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(FactoryDefaultsScreen.pricesKey));
   await tester.pumpAndSettle();
   return c;
 }
@@ -491,8 +496,8 @@ void main() {
       'Colour: Anthracite Grey',
     );
     await toSummary(tester);
-    await tester.tap(find.text('Show each design and the materials'));
-    await tester.pumpAndSettle();
+    // Each design's facts are under *Price details* now, folded away so the
+    // summary shows three figures at a glance; `toSummary` opens it.
     expect(
       textOf(tester, CustomerFinancialSummary.profileKey('front')),
       'Category: Door · Material: Aluminium · Colour: Anthracite Grey',
