@@ -306,6 +306,68 @@ class Polygon {
     );
   }
 
+  /// [point], inside this shape, at the same place in [other] — this shape
+  /// with its corners moved — by where it stands among the corners
+  /// themselves (Floater's mean value coordinates), or null when [other]
+  /// does not have the same number of corners.
+  ///
+  /// [sameIn] keeps a point at its distance from the sides that bound a
+  /// shape square, which is right for a line drawn in it and can put a
+  /// point near a slope out past the slope once the slope is turned. This
+  /// keeps it among the same corners in the same proportions, so a point
+  /// inside a shape that stays convex is inside it still. Corners are
+  /// paired by the turn of [other]'s that lies nearest this one's.
+  Vec2? amongCornersIn(Polygon other, Vec2 point) {
+    final n = corners.length;
+    if (n < 3 || other.corners.length != n) return null;
+    final to = other.signedArea.sign == signedArea.sign
+        ? other.corners
+        : other.corners.reversed.toList();
+    var shift = 0;
+    var least = double.infinity;
+    for (var s = 0; s < n; s++) {
+      var sum = 0.0;
+      for (var i = 0; i < n; i++) {
+        sum += (corners[i] - to[(i + s) % n]).lengthSquared;
+      }
+      if (sum < least) {
+        least = sum;
+        shift = s;
+      }
+    }
+    Vec2 target(int i) => to[(i + shift) % n];
+    final span = math.max(width, height);
+    final r = [for (final c in corners) (c - point).length];
+    for (var i = 0; i < n; i++) {
+      if (r[i] <= 1e-9 * span) return target(i);
+    }
+    final half = List<double>.filled(n, 0);
+    for (var i = 0; i < n; i++) {
+      final j = (i + 1) % n;
+      final a = corners[i] - point, b = corners[j] - point;
+      final cross = a.cross(b);
+      final dot = a.dot(b);
+      if (cross.abs() <= 1e-12 * r[i] * r[j]) {
+        if (dot < 0) {
+          // On this side: the same share along the side it is on.
+          final t = r[i] / (r[i] + r[j]);
+          return target(i) + (target(j) - target(i)) * t;
+        }
+        return null;
+      }
+      half[i] = (r[i] * r[j] - dot) / cross;
+    }
+    var total = 0.0;
+    var at = Vec2.zero;
+    for (var i = 0; i < n; i++) {
+      final weight = (half[(i - 1 + n) % n] + half[i]) / r[i];
+      total += weight;
+      at = at + target(i) * weight;
+    }
+    if (total.abs() <= 1e-12 || !total.isFinite) return null;
+    return at * (1 / total);
+  }
+
   double _alongIn(Polygon other, double v, {required bool across}) {
     final (lo, hi) = _squareBounds(across: across);
     final (toLo, toHi) = other._squareBounds(across: across);

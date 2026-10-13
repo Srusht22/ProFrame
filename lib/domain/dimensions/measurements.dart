@@ -115,10 +115,21 @@ class Measure {
 class MeasureOutcome {
   final Design design;
 
-  /// By [Measure.key].
+  /// By [Measure.key]: what keeps that size from being made, said as what
+  /// it would do to the design and, where there is one, the nearest size
+  /// that fits.
   final Map<String, String> problems;
 
-  const MeasureOutcome(this.design, this.problems);
+  /// By [Measure.key]: the nearest size, in millimetres, between the one
+  /// the design has and the one asked for, that fits — offered to the user
+  /// in place of the size refused, never put in for them.
+  final Map<String, double> suggestions;
+
+  const MeasureOutcome(
+    this.design,
+    this.problems, [
+    this.suggestions = const {},
+  ]);
 
   bool get ok => problems.isEmpty;
 }
@@ -466,7 +477,26 @@ abstract final class Measurements {
   ]) {
     var d = design;
     final problems = <String, String>{};
+    final suggestions = <String, double>{};
     final said = <String>{...?design.measured};
+
+    // What a refusal says: what the size would do, and the nearest size
+    // between the one the design has and the one asked for that does fit.
+    void refuse(
+      String key,
+      String cause,
+      double from,
+      double to,
+      bool Function(double) fits,
+    ) {
+      final nearest = nearestFitting(from, to, fits);
+      if (nearest == null) {
+        problems[key] = cause;
+        return;
+      }
+      suggestions[key] = nearest;
+      problems[key] = '$cause ${w.msHintNearest(Units.label(nearest))}';
+    }
 
     final profile = values[profileKey];
     if (profile != null && d.frame != null) {
@@ -506,21 +536,27 @@ abstract final class Measurements {
       final box = frame.outline;
       final start = axis == MeasureAxis.across ? box.left : box.top;
       final end = axis == MeasureAxis.across ? box.right : box.bottom;
+      final rectangle = FrameSides.isRectangle(box);
+      final current = end - start;
+      final before = d;
+      bool fits(double v) =>
+          v > frame.profileMm * 2 &&
+          (rectangle || FrameSides.overallTried(before, axis, v).ok);
       if (value <= (frame.profileMm * 2)) {
-        problems[key] = w.msSmallerThanFrame;
+        refuse(key, w.msSmallerThanFrame, current, value, fits);
         continue;
       }
-      if (FrameSides.isRectangle(box)) {
+      if (rectangle) {
         d = stretch(d, axis, [start, end], [start, start + value]);
       } else {
         // A frame that is not a rectangle: its far side moves, and each
         // side standing on it keeps its own size.
-        final moved = FrameSides.overall(d, axis, value);
-        if (moved == null) {
-          problems[key] = w.msNotFitInside;
+        final moved = FrameSides.overallTried(d, axis, value);
+        if (moved.design == null) {
+          refuse(key, _blocked(d, moved, w), current, value, fits);
           continue;
         }
-        d = moved;
+        d = moved.design!;
       }
       said.add(key);
     }
@@ -532,14 +568,19 @@ abstract final class Measurements {
       if (edge == null || value == null) continue;
       final side = FrameSides.of(d).where((s) => s.edge == edge).firstOrNull;
       if (side == null) continue;
-      final moved = value <= d.frame!.profileMm * 2
-          ? null
-          : FrameSides.sized(d, side, value);
-      if (moved == null) {
-        problems[first.key] = w.msNotFitInside;
+      final before = d;
+      final moved = FrameSides.sizedTried(d, side, value);
+      if (moved.design == null) {
+        refuse(
+          first.key,
+          _blocked(d, moved, w),
+          side.lengthOn(d.frame!.outline),
+          value,
+          (v) => FrameSides.sizedTried(before, side, v).ok,
+        );
         continue;
       }
-      d = moved;
+      d = moved.design!;
       if (first.asked) said.add(first.key);
     }
 
@@ -553,14 +594,70 @@ abstract final class Measurements {
       if (measure == null) continue;
       final result = _moveBarFor(d, measure, value);
       if (result == null) {
-        problems[measure.key] = w.msNotFitBeside;
+        final before = d;
+        refuse(
+          measure.key,
+          w.msNotFitBeside,
+          measure.currentMm(d),
+          value,
+          (v) => _moveBarFor(before, measure, v) != null,
+        );
         continue;
       }
       d = result;
       said.add(measure.key);
     }
 
-    return MeasureOutcome(d.copyWith(measured: said), problems);
+    return MeasureOutcome(d.copyWith(measured: said), problems, suggestions);
+  }
+
+  /// What [reshaped] would have done to [design], in [w]: the frame
+  /// crossing itself, a side shorter than its border, a light or an
+  /// opening's region squeezed out, a pane lost — so the user is told what
+  /// is in the way, not only that something is.
+  static String _blocked(Design design, Reshaped reshaped, Words w) {
+    final opening = design.openings
+        .where((o) => o.id == reshaped.openingId)
+        .firstOrNull;
+    final name = opening == null ? null : design.plainNameOfIn(w, opening);
+    return switch (reshaped.block) {
+      ReshapeBlock.crosses => w.msHintCrosses,
+      ReshapeBlock.border => w.msHintBorder,
+      ReshapeBlock.light => w.msHintLight,
+      ReshapeBlock.opening when name != null => w.msHintOpening(name),
+      ReshapeBlock.pane when name != null => w.msHintPaneIn(name),
+      ReshapeBlock.pane => w.msHintPane,
+      _ => w.msNotFitInside,
+    };
+  }
+
+  /// The size nearest [to] — refused — on the way from [from], which
+  /// fits, that [fits] says fits too: halved towards it until it is known
+  /// to the millimetre, then a whole millimetre on [from]'s side of it.
+  /// Null where nothing moves from [from] at all.
+  ///
+  /// Every size this answers was tried and fitted: it is the nearest the
+  /// design itself allows, worked out from the design, never a figure
+  /// chosen to be on the safe side.
+  static double? nearestFitting(
+    double from,
+    double to,
+    bool Function(double) fits,
+  ) {
+    if (!from.isFinite || !to.isFinite || (to - from).abs() < 1) return null;
+    var good = from, bad = to;
+    for (var i = 0; i < 40 && (bad - good).abs() > 0.5; i++) {
+      final mid = (good + bad) / 2;
+      if (fits(mid)) {
+        good = mid;
+      } else {
+        bad = mid;
+      }
+    }
+    final whole = to > from ? good.floorToDouble() : good.ceilToDouble();
+    final nearest = fits(whole) ? whole : good;
+    if ((nearest - from).abs() < 1 || !fits(nearest)) return null;
+    return nearest;
   }
 
   static Design? _moveBarFor(Design design, Measure measure, double value) {

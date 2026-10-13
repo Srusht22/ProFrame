@@ -62,6 +62,13 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
   final _fields = <String, TextEditingController>{};
   Map<String, String> _problems = const {};
 
+  /// The nearest size that fits, by key, for each size that did not.
+  Map<String, double> _suggestions = const {};
+
+  /// What the drawing itself warns about, said beside a size that did not
+  /// fit, since it may be what is in the way.
+  String? _alsoCheck;
+
   /// The first size still to give, which the form opens on — after a line
   /// is drawn and read, the one new size can be anywhere down the list.
   String? _first;
@@ -147,12 +154,27 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
     final values = _typed(design, all);
     final controller = ref.read(workspaceProvider.notifier);
     if (_depthTyped(design) case final depth?) controller.setDepth(depth);
-    final problems = controller.measure(values);
-    if (problems.isEmpty) {
+    final outcome = controller.measured(values);
+    if (outcome.problems.isEmpty) {
       Navigator.of(context).pop();
       return;
     }
-    setState(() => _problems = problems);
+    final feedback = ref.read(workspaceProvider).geometryFeedback;
+    setState(() {
+      _problems = outcome.problems;
+      _suggestions = outcome.suggestions;
+      _alsoCheck = feedback.notices.firstOrNull?.messageIn(context.words);
+    });
+  }
+
+  /// [key]'s field given the size suggested for it, and its suggestion put
+  /// away: the user still presses **Apply**.
+  void _use(String key, double mm) {
+    _fields[key]?.text = Units.format(mm);
+    setState(() {
+      _problems = {..._problems}..remove(key);
+      _suggestions = {..._suggestions}..remove(key);
+    });
   }
 
   @override
@@ -301,6 +323,9 @@ class _MeasureFormState extends ConsumerState<MeasureForm> {
                       controller: _fields[m.key]!,
                       first: m.key == _first,
                       problem: _problems[m.key],
+                      suggestion: _suggestions[m.key],
+                      alsoCheck: _alsoCheck,
+                      onUse: (mm) => _use(m.key, mm),
                     )
                   else
                     _Follows(
@@ -473,7 +498,19 @@ class _Defaults extends StatelessWidget {
 class _SizeField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
+
+  /// What keeps the size typed here from being made, said as a suggestion
+  /// under the field rather than as an error on it.
   final String? problem;
+
+  /// The nearest size that fits, offered as a button.
+  final double? suggestion;
+
+  /// The drawing's own warning, said with [problem] as what may be in the
+  /// way.
+  final String? alsoCheck;
+
+  final ValueChanged<double>? onUse;
 
   /// Whether the form opens with the cursor here.
   final bool first;
@@ -483,45 +520,134 @@ class _SizeField extends StatelessWidget {
     required this.label,
     required this.controller,
     this.problem,
+    this.suggestion,
+    this.alsoCheck,
+    this.onUse,
     this.first = false,
   });
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 13),
-            child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          ),
-        ),
-        const SizedBox(width: 12),
-        SizedBox(
-          width: 150,
-          child: TextField(
-            controller: controller,
-            autofocus: first,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              const LatinDigits(),
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-            ],
-            textInputAction: TextInputAction.next,
-            textAlign: TextAlign.right,
-            decoration: InputDecoration(
-              hintText: '?',
-              suffixText: Units.symbol,
-              errorText: problem,
-              errorMaxLines: 3,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 13),
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
             ),
-          ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 150,
+              child: TextField(
+                controller: controller,
+                autofocus: first,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  const LatinDigits(),
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                ],
+                textInputAction: TextInputAction.next,
+                textAlign: TextAlign.right,
+                decoration: const InputDecoration(
+                  hintText: '?',
+                  suffixText: Units.symbol,
+                ),
+              ),
+            ),
+          ],
         ),
+        if (problem case final said?)
+          SizeSuggestion(
+            message: said,
+            suggestion: suggestion,
+            alsoCheck: alsoCheck,
+            onUse: onUse,
+          ),
       ],
     ),
   );
+}
+
+/// What a size that did not fit would have done, said as a suggestion: the
+/// cause, the drawing's own warning where it has one, and the nearest size
+/// that fits as a button that puts it in the field — never an error, and
+/// never a size put in for the user.
+class SizeSuggestion extends StatelessWidget {
+  static const useKey = Key('size-suggestion-use');
+
+  final String message;
+  final double? suggestion;
+  final String? alsoCheck;
+  final ValueChanged<double>? onUse;
+
+  const SizeSuggestion({
+    super.key,
+    required this.message,
+    this.suggestion,
+    this.alsoCheck,
+    this.onUse,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final text = Theme.of(context).textTheme;
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsetsDirectional.fromSTEB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: p.notice,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.lightbulb_outline, size: 18, color: p.onNotice),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message,
+                  style: text.bodySmall?.copyWith(color: p.onNotice),
+                ),
+                if (alsoCheck case final check?)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      context.l10n.mfAlsoCheck(check),
+                      style: text.bodySmall?.copyWith(color: p.onNotice),
+                    ),
+                  ),
+                if (suggestion case final mm? when onUse != null)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TextButton.icon(
+                      key: useKey,
+                      onPressed: () => onUse!(mm),
+                      icon: const Icon(Icons.check, size: 16),
+                      label: Text(context.l10n.mfUseSize(Units.label(mm))),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Follows extends StatelessWidget {

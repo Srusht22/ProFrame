@@ -4645,4 +4645,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String ndNoneFound(String name) {
     return 'No customer called “$name” yet — continue with a new customer';
   }
+
+  @override
+  String get msHintCrosses => 'At this size the frame would cross itself.';
+
+  @override
+  String get msHintBorder =>
+      'At this size a side of the frame would be shorter than its border.';
+
+  @override
+  String get msHintLight =>
+      'At this size a part of the design would be squeezed out between the frame and a line.';
+
+  @override
+  String msHintOpening(String opening) {
+    return 'At this size there would be no room left for $opening.';
+  }
+
+  @override
+  String msHintPaneIn(String opening) {
+    return 'At this size a pane inside $opening would be squeezed out.';
+  }
+
+  @override
+  String get msHintPane => 'At this size a pane would be squeezed out.';
+
+  @override
+  String msHintNearest(String size) {
+    return 'The nearest size that fits is $size.';
+  }
+
+  @override
+  String mfUseSize(String size) {
+    return 'Use $size';
+  }
+
+  @override
+  String mfAlsoCheck(String problem) {
+    return 'Something in the drawing may be in the way: $problem';
+  }
 }

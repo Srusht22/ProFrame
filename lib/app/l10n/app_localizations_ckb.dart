@@ -4638,4 +4638,43 @@ class AppLocalizationsCkb extends AppLocalizations {
   String ndNoneFound(String name) {
     return 'هێشتا هیچ کڕیارێک بە ناوی «$name» نییە — بەردەوام بە بە کڕیارێکی نوێ';
   }
+
+  @override
+  String get msHintCrosses => 'بەم قەبارەیە چوارچێوەکە بەسەر خۆیدا دەبڕێت.';
+
+  @override
+  String get msHintBorder =>
+      'بەم قەبارەیە لایەکی چوارچێوەکە لە پانیی لێوارەکەی کورتتر دەبێت.';
+
+  @override
+  String get msHintLight =>
+      'بەم قەبارەیە بەشێکی دیزاینەکە لە نێوان چوارچێوە و هێڵێکدا نامێنێت.';
+
+  @override
+  String msHintOpening(String opening) {
+    return 'بەم قەبارەیە شوێن بۆ $opening نامێنێت.';
+  }
+
+  @override
+  String msHintPaneIn(String opening) {
+    return 'بەم قەبارەیە پارچەیەک لەناو $openingدا نامێنێت.';
+  }
+
+  @override
+  String get msHintPane => 'بەم قەبارەیە پارچەیەک نامێنێت.';
+
+  @override
+  String msHintNearest(String size) {
+    return 'نزیکترین قەبارەی گونجاو: ‎$size‎.';
+  }
+
+  @override
+  String mfUseSize(String size) {
+    return '‎$size‎ بەکاربهێنە';
+  }
+
+  @override
+  String mfAlsoCheck(String problem) {
+    return 'لەوانەیە شتێک لە وێنەکەدا ڕێگر بێت: $problem';
+  }
 }

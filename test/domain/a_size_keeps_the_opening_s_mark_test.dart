@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/domain/dimensions/measurements.dart';
 import 'package:proframe/domain/editing/design_edits.dart';
+import 'package:proframe/domain/geometry/polygon.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
 import 'package:proframe/domain/model/design.dart';
 import 'package:proframe/domain/recognition/interpreter.dart';
@@ -240,5 +241,185 @@ void main() {
     });
     expect(out.problems, isEmpty);
     expect(out.design.openings, hasLength(1));
+  });
+
+  // The user's next screenshot: the width still refused, the form saying
+  // only *That does not fit the parts inside it*. A mark drawn just under
+  // the slope stays where it was while the frame is made taller — it is
+  // still inside — and then a width turns the slope, and both ways of
+  // carrying it left it above the slope, outside its own region. It is
+  // carried among the region's own corners now, or to its middle where the
+  // region gained or lost one; and where a size truly cannot be made, the
+  // form is told why and the nearest size that fits.
+  group('a mark just under a slope, and what a refusal says', () {
+    // A short left jamb, a stair's slope up to a level head, a tall right
+    // side; a mullion; the mark under the slope.
+    Design stair({double? mullion}) => read(
+      Design.empty(id: 'a', kind: DesignKind.angled).copyWith(
+        sketch: Sketch(
+          strokes: [
+            pen('outline', const [
+              Vec2(0, 900),
+              Vec2(0, 700),
+              Vec2(400, 300),
+              Vec2(1600, 300),
+              Vec2(1600, 900),
+              Vec2(0, 900),
+            ]),
+            if (mullion case final x?) pen('m', [Vec2(x, 0), Vec2(x, 900)]),
+            pen('mark', chevron(const Vec2(640, 495))),
+          ],
+        ),
+      ),
+    ).copyWith(measured: {});
+
+    for (final mullion in [null, 800.0, 480.0]) {
+      for (final height in [1800.0, 2400.0]) {
+        for (final width in [2000.0, 2800.0, 4000.0]) {
+          test('mullion $mullion, $height high, then $width wide', () {
+            var d = stair(mullion: mullion);
+            expect(d.openings, hasLength(1));
+            final opening = d.openings.single.id;
+            d = Measurements.apply(d, {
+              Measurements.profileKey: 45,
+              Measurements.barsKey: 45,
+              Measurements.heightKey: height,
+            }).design;
+            final out = Measurements.apply(d, {Measurements.widthKey: width});
+            expect(out.problems, isEmpty);
+            expect(out.design.widthMm, closeTo(width, 0.5));
+            final o = out.design.openings.single;
+            expect(o.id, opening);
+            expect(
+              out.design.sectionById(o.sectionId)!.outline.contains(o.markAt!),
+              isTrue,
+            );
+          });
+        }
+      }
+    }
+
+    // A triangle with a mullion near its low end: made very wide, the slope
+    // runs down onto the sill beside the mullion and the opening there has
+    // no room left. That is right to refuse — and the user is told so, with
+    // the widest that does fit.
+    Design triangle() => read(
+      Design.empty(id: 'a', kind: DesignKind.angled).copyWith(
+        sketch: Sketch(
+          strokes: [
+            pen('outline', const [
+              Vec2(0, 1000),
+              Vec2(0, 900),
+              Vec2(1400, 0),
+              Vec2(1400, 1000),
+              Vec2(0, 1000),
+            ]),
+            pen('m', const [Vec2(420, 0), Vec2(420, 1000)]),
+            pen('mark', chevron(const Vec2(560, 850))),
+          ],
+        ),
+      ),
+    ).copyWith(measured: {});
+
+    test('a size that cannot be made says why, and the nearest that fits', () {
+      final d = triangle();
+      expect(d.openings, hasLength(1));
+      final out = Measurements.apply(d, {Measurements.widthKey: 4000});
+      final said = out.problems[Measurements.widthKey];
+      expect(said, isNotNull);
+      expect(said, contains('Opening 1'));
+      expect(said, contains('The nearest size that fits is'));
+      final nearest = out.suggestions[Measurements.widthKey]!;
+      expect(nearest, greaterThan(d.widthMm));
+      expect(nearest, lessThan(4000));
+      // It is whole millimetres, it fits, and a centimetre more does not.
+      expect(nearest, nearest.roundToDouble());
+      final taken = Measurements.apply(d, {Measurements.widthKey: nearest});
+      expect(taken.problems, isEmpty);
+      expect(taken.design.widthMm, closeTo(nearest, 0.5));
+      expect(taken.design.openings, hasLength(1));
+      expect(
+        Measurements.apply(d, {Measurements.widthKey: nearest + 10}).problems,
+        isNotEmpty,
+      );
+      // The size refused changed nothing.
+      expect(out.design.widthMm, d.widthMm);
+    });
+
+    test(
+      'a size smaller than the border says so, with the smallest that fits',
+      () {
+        final d = Measurements.apply(triangle(), {
+          Measurements.profileKey: 45,
+        }).design;
+        final out = Measurements.apply(d, {Measurements.heightKey: 50});
+        expect(out.problems[Measurements.heightKey], isNotNull);
+        final nearest = out.suggestions[Measurements.heightKey];
+        if (nearest != null) {
+          expect(
+            Measurements.apply(d, {Measurements.heightKey: nearest}).problems,
+            isEmpty,
+          );
+        }
+      },
+    );
+
+    test(
+      'the nearest that fits is between the size had and the size asked',
+      () {
+        expect(
+          Measurements.nearestFitting(1000, 2000, (v) => v <= 1500.4),
+          1500,
+        );
+        expect(Measurements.nearestFitting(1000, 500, (v) => v >= 712.2), 713);
+        // Nothing moves at all: nothing to suggest.
+        expect(
+          Measurements.nearestFitting(1000, 2000, (v) => v <= 1000),
+          isNull,
+        );
+      },
+    );
+
+    test('among the corners: a point keeps its place as the corners move', () {
+      final square = Polygon(const [
+        Vec2(0, 0),
+        Vec2(100, 0),
+        Vec2(100, 100),
+        Vec2(0, 100),
+      ]);
+      final wide = Polygon(const [
+        Vec2(0, 0),
+        Vec2(300, 0),
+        Vec2(300, 100),
+        Vec2(0, 100),
+      ]);
+      final at = square.amongCornersIn(wide, const Vec2(25, 50))!;
+      expect(at.x, closeTo(75, 1e-6));
+      expect(at.y, closeTo(50, 1e-6));
+      expect(
+        square.amongCornersIn(square, const Vec2(13, 77))!.x,
+        closeTo(13, 1e-6),
+      );
+      // A point just under a slope stays under it once the slope is turned.
+      final raked = Polygon(const [
+        Vec2(0, 400),
+        Vec2(400, 0),
+        Vec2(800, 0),
+        Vec2(800, 600),
+        Vec2(0, 600),
+      ]);
+      final turned = Polygon(const [
+        Vec2(0, 400),
+        Vec2(1600, 0),
+        Vec2(2000, 0),
+        Vec2(2000, 600),
+        Vec2(0, 600),
+      ]);
+      const under = Vec2(300, 130);
+      expect(raked.contains(under), isTrue);
+      expect(turned.contains(raked.amongCornersIn(turned, under)!), isTrue);
+      // Corners that do not pair: nothing said.
+      expect(square.amongCornersIn(raked, const Vec2(50, 50)), isNull);
+    });
   });
 }

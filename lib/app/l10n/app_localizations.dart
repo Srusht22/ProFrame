@@ -7993,6 +7993,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No customer called “{name}” yet — continue with a new customer'**
   String ndNoneFound(String name);
+
+  /// [domain] Size suggestion: why an overall or side size cannot be made.
+  ///
+  /// In en, this message translates to:
+  /// **'At this size the frame would cross itself.'**
+  String get msHintCrosses;
+
+  /// [domain] Size suggestion: a side would be shorter than the frame's border.
+  ///
+  /// In en, this message translates to:
+  /// **'At this size a side of the frame would be shorter than its border.'**
+  String get msHintBorder;
+
+  /// [domain] Size suggestion: a light would disappear.
+  ///
+  /// In en, this message translates to:
+  /// **'At this size a part of the design would be squeezed out between the frame and a line.'**
+  String get msHintLight;
+
+  /// [domain] Size suggestion: an opening would lose its region. {opening} is its name, such as Opening 1.
+  ///
+  /// In en, this message translates to:
+  /// **'At this size there would be no room left for {opening}.'**
+  String msHintOpening(String opening);
+
+  /// [domain] Size suggestion: a pane inside an opening would disappear.
+  ///
+  /// In en, this message translates to:
+  /// **'At this size a pane inside {opening} would be squeezed out.'**
+  String msHintPaneIn(String opening);
+
+  /// [domain] Size suggestion: a pane would disappear.
+  ///
+  /// In en, this message translates to:
+  /// **'At this size a pane would be squeezed out.'**
+  String get msHintPane;
+
+  /// [domain] Size suggestion: the nearest size that fits. {size} is a figure with its unit.
+  ///
+  /// In en, this message translates to:
+  /// **'The nearest size that fits is {size}.'**
+  String msHintNearest(String size);
+
+  /// Sizes form: button putting the suggested size into the field. {size} is a figure with its unit.
+  ///
+  /// In en, this message translates to:
+  /// **'Use {size}'**
+  String mfUseSize(String size);
+
+  /// Sizes form: under a size that does not fit, the drawing's own warning that may be the cause. {problem} is that warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Something in the drawing may be in the way: {problem}'**
+  String mfAlsoCheck(String problem);
 }
 
 class _AppLocalizationsDelegate

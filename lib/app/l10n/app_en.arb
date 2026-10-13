@@ -6691,5 +6691,66 @@
         "type": "String"
       }
     }
+  },
+  "msHintCrosses": "At this size the frame would cross itself.",
+  "@msHintCrosses": {
+    "description": "[domain] Size suggestion: why an overall or side size cannot be made."
+  },
+  "msHintBorder": "At this size a side of the frame would be shorter than its border.",
+  "@msHintBorder": {
+    "description": "[domain] Size suggestion: a side would be shorter than the frame's border."
+  },
+  "msHintLight": "At this size a part of the design would be squeezed out between the frame and a line.",
+  "@msHintLight": {
+    "description": "[domain] Size suggestion: a light would disappear."
+  },
+  "msHintOpening": "At this size there would be no room left for {opening}.",
+  "@msHintOpening": {
+    "description": "[domain] Size suggestion: an opening would lose its region. {opening} is its name, such as Opening 1.",
+    "placeholders": {
+      "opening": {
+        "type": "String"
+      }
+    }
+  },
+  "msHintPaneIn": "At this size a pane inside {opening} would be squeezed out.",
+  "@msHintPaneIn": {
+    "description": "[domain] Size suggestion: a pane inside an opening would disappear.",
+    "placeholders": {
+      "opening": {
+        "type": "String"
+      }
+    }
+  },
+  "msHintPane": "At this size a pane would be squeezed out.",
+  "@msHintPane": {
+    "description": "[domain] Size suggestion: a pane would disappear."
+  },
+  "msHintNearest": "The nearest size that fits is {size}.",
+  "@msHintNearest": {
+    "description": "[domain] Size suggestion: the nearest size that fits. {size} is a figure with its unit.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "mfUseSize": "Use {size}",
+  "@mfUseSize": {
+    "description": "Sizes form: button putting the suggested size into the field. {size} is a figure with its unit.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "mfAlsoCheck": "Something in the drawing may be in the way: {problem}",
+  "@mfAlsoCheck": {
+    "description": "Sizes form: under a size that does not fit, the drawing's own warning that may be the cause. {problem} is that warning.",
+    "placeholders": {
+      "problem": {
+        "type": "String"
+      }
+    }
   }
 }

@@ -1338,12 +1338,16 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   /// so a size moves the ink with the line it measures and outlasts the
   /// next reading of the sheet, and the overall width and height are two
   /// separate figures: giving one never changes the other.
-  Map<String, String> measure(Map<String, double> values) {
-    if (values.isEmpty) return const {};
+  Map<String, String> measure(Map<String, double> values) =>
+      measured(values).problems;
+
+  /// [measure], with the nearest size that fits for each one that does not.
+  MeasureOutcome measured(Map<String, double> values) {
+    if (values.isEmpty) return MeasureOutcome(state.design, const {});
     final outcome = Measurements.apply(state.design, values, ref.words);
     _remember();
     state = state.copyWith(design: outcome.design);
-    return outcome.problems;
+    return outcome;
   }
 
   void _setSize(String sectionId, MeasureAxis axis, double valueMm) {

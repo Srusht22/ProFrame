@@ -1557,6 +1557,27 @@ abstract interface class Words {
   /// Factory prices: what the labour rates apply to.
   String get rfAboutLabour;
 
+  /// Size suggestion: why an overall or side size cannot be made.
+  String get msHintCrosses;
+
+  /// Size suggestion: a side would be shorter than the frame's border.
+  String get msHintBorder;
+
+  /// Size suggestion: a light would disappear.
+  String get msHintLight;
+
+  /// Size suggestion: an opening would lose its region. {opening} is its name, such as Opening 1.
+  String msHintOpening(String opening);
+
+  /// Size suggestion: a pane inside an opening would disappear.
+  String msHintPaneIn(String opening);
+
+  /// Size suggestion: a pane would disappear.
+  String get msHintPane;
+
+  /// Size suggestion: the nearest size that fits. {size} is a figure with its unit.
+  String msHintNearest(String size);
+
 }
 
 /// The domain in English.
@@ -3626,5 +3647,33 @@ class EnglishWords implements Words {
   @override
   String get rfAboutLabour =>
       'Labour for every design of this category: a fixed figure, so much a square metre, and a share of the materials.';
+
+  @override
+  String get msHintCrosses =>
+      'At this size the frame would cross itself.';
+
+  @override
+  String get msHintBorder =>
+      'At this size a side of the frame would be shorter than its border.';
+
+  @override
+  String get msHintLight =>
+      'At this size a part of the design would be squeezed out between the frame and a line.';
+
+  @override
+  String msHintOpening(String opening) =>
+      'At this size there would be no room left for $opening.';
+
+  @override
+  String msHintPaneIn(String opening) =>
+      'At this size a pane inside $opening would be squeezed out.';
+
+  @override
+  String get msHintPane =>
+      'At this size a pane would be squeezed out.';
+
+  @override
+  String msHintNearest(String size) =>
+      'The nearest size that fits is $size.';
 
 }

@@ -1568,4 +1568,25 @@ class ArbWords implements Words {
   @override
   String get rfAboutLabour => l.rfAboutLabour;
 
+  @override
+  String get msHintCrosses => l.msHintCrosses;
+
+  @override
+  String get msHintBorder => l.msHintBorder;
+
+  @override
+  String get msHintLight => l.msHintLight;
+
+  @override
+  String msHintOpening(String opening) => l.msHintOpening(opening);
+
+  @override
+  String msHintPaneIn(String opening) => l.msHintPaneIn(opening);
+
+  @override
+  String get msHintPane => l.msHintPane;
+
+  @override
+  String msHintNearest(String size) => l.msHintNearest(size);
+
 }

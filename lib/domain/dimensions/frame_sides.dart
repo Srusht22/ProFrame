@@ -12,6 +12,45 @@ import '../text/names.dart';
 import '../text/words.dart';
 import 'measurements.dart' show MeasureAxis;
 
+/// Why a frame cannot be given a size: what the new outline would do to
+/// the design, so the sizes form can say it and suggest a size that fits
+/// rather than only refusing.
+enum ReshapeBlock {
+  /// The outline would cross itself or turn over.
+  crosses,
+
+  /// A side would be shorter than the frame's own border.
+  border,
+
+  /// A light of the design would be squeezed out between the frame and a
+  /// line.
+  light,
+
+  /// An opening would lose its region.
+  opening,
+
+  /// A pane inside a part would be squeezed out.
+  pane,
+}
+
+/// What reshaping a frame gave: the design, or why there is none.
+class Reshaped {
+  /// The design reshaped, or null where it could not be.
+  final Design? design;
+
+  /// Why not, where [design] is null.
+  final ReshapeBlock? block;
+
+  /// The opening the [block] is about, where it is about one.
+  final String? openingId;
+
+  const Reshaped(Design this.design) : block = null, openingId = null;
+  const Reshaped.blocked(ReshapeBlock this.block, {this.openingId})
+    : design = null;
+
+  bool get ok => design != null;
+}
+
 /// One side of a frame that is not a rectangle, with a size of its own.
 ///
 /// A window under a stair has a short jamb and a tall one; a frame with a
@@ -220,15 +259,21 @@ abstract final class FrameSides {
   /// it, and nothing else of the frame — the slope that joins it to the
   /// next side follows, and stays a straight slope. Null when that is not
   /// a frame any more or the parts inside it no longer fit.
-  static Design? sized(Design design, FrameSide side, double valueMm) {
+  static Design? sized(Design design, FrameSide side, double valueMm) =>
+      sizedTried(design, side, valueMm).design;
+
+  /// [sized], saying why where it cannot be.
+  static Reshaped sizedTried(Design design, FrameSide side, double valueMm) {
     final frame = design.frame;
-    if (frame == null || valueMm <= 0) return null;
+    if (frame == null || valueMm <= frame.profileMm * 2) {
+      return const Reshaped.blocked(ReshapeBlock.border);
+    }
     final corners = frame.outline.corners;
     final a = corners[side.anchor], b = corners[side.free];
     final away = side.axis == MeasureAxis.down ? b.y - a.y : b.x - a.x;
     final by = away.sign * (valueMm - side.lengthOn(frame.outline));
-    if (by.abs() < 1e-9) return design;
-    return reshaped(design, _carried(corners, {side.free}, side.axis, by));
+    if (by.abs() < 1e-9) return Reshaped(design);
+    return reshape(design, _carried(corners, {side.free}, side.axis, by));
   }
 
   /// [design] with its overall size along [axis] made [valueMm], on a frame
@@ -239,13 +284,21 @@ abstract final class FrameSides {
   /// right side of 150 cm is still 150 cm when the window is made taller,
   /// and it is the slope between the sides that takes the difference. On a
   /// rectangle the whole sheet is stretched instead (`Measurements.stretch`).
-  static Design? overall(Design design, MeasureAxis axis, double valueMm) {
+  static Design? overall(Design design, MeasureAxis axis, double valueMm) =>
+      overallTried(design, axis, valueMm).design;
+
+  /// [overall], saying why where it cannot be.
+  static Reshaped overallTried(
+    Design design,
+    MeasureAxis axis,
+    double valueMm,
+  ) {
     final frame = design.frame;
-    if (frame == null) return null;
+    if (frame == null) return const Reshaped.blocked(ReshapeBlock.crosses);
     final outline = frame.outline;
     final down = axis == MeasureAxis.down;
     final by = valueMm - (down ? outline.height : outline.width);
-    if (by.abs() < 1e-9) return design;
+    if (by.abs() < 1e-9) return Reshaped(design);
     final corners = outline.corners;
     final far = down ? outline.bottom : outline.right;
     final start = <int>{
@@ -260,7 +313,7 @@ abstract final class FrameSides {
         start.add(side.free);
       }
     }
-    return reshaped(design, _carried(corners, start, axis, by));
+    return reshape(design, _carried(corners, start, axis, by));
   }
 
   /// [corners] with [start] moved [by] along [axis], and every corner
@@ -320,23 +373,30 @@ abstract final class FrameSides {
   ///
   /// Null when the new outline is not a frame — crossing itself, or too
   /// small for its border — or when a light or an opening it held is lost.
-  static Design? reshaped(Design design, List<Vec2> corners) {
+  static Design? reshaped(Design design, List<Vec2> corners) =>
+      reshape(design, corners).design;
+
+  /// [reshaped], saying why where it cannot be.
+  static Reshaped reshape(Design design, List<Vec2> corners) {
     final frame = design.frame;
-    if (frame == null) return null;
+    if (frame == null) return const Reshaped.blocked(ReshapeBlock.crosses);
     final was = frame.outline;
-    if (corners.length != was.corners.length) return null;
+    if (corners.length != was.corners.length) {
+      return const Reshaped.blocked(ReshapeBlock.crosses);
+    }
     final now = Polygon(corners);
-    if (!now.isSimple ||
-        now.area < frame.profileMm * frame.profileMm * 4 ||
-        now.signedArea.sign != was.signedArea.sign) {
-      return null;
+    if (!now.isSimple || now.signedArea.sign != was.signedArea.sign) {
+      return const Reshaped.blocked(ReshapeBlock.crosses);
+    }
+    if (now.area < frame.profileMm * frame.profileMm * 4) {
+      return const Reshaped.blocked(ReshapeBlock.border);
     }
     final newFrame = frame.copyWith(outline: now);
     final wasInner = frame.innerOutline;
     final nowInner = newFrame.innerOutline;
     if (wasInner.corners.length != was.corners.length ||
         nowInner.corners.length != was.corners.length) {
-      return null;
+      return const Reshaped.blocked(ReshapeBlock.border);
     }
 
     final n = corners.length;
@@ -526,12 +586,27 @@ abstract final class FrameSides {
     // its slope moved takes nothing of the rail, which met no slope.
     final rebuilt = SectionBuilder.rebuild(placed);
 
-    if (rebuilt.topLevelSections.length != design.topLevelSections.length ||
-        rebuilt.sections.length != design.sections.length ||
-        rebuilt.openings.length != design.openings.length) {
-      return null;
+    for (final opening in design.openings) {
+      if (!rebuilt.openings.any((o) => o.id == opening.id)) {
+        return Reshaped.blocked(ReshapeBlock.opening, openingId: opening.id);
+      }
     }
-    return rebuilt;
+    if (rebuilt.topLevelSections.length != design.topLevelSections.length) {
+      return const Reshaped.blocked(ReshapeBlock.light);
+    }
+    if (rebuilt.sections.length != design.sections.length ||
+        rebuilt.openings.length != design.openings.length) {
+      // The opening whose panes changed, where it is one.
+      String? inside;
+      for (final opening in design.openings) {
+        int panes(Design d) => d.sections
+            .where((s) => d.openingHolding(s.parentId)?.id == opening.id)
+            .length;
+        if (panes(rebuilt) != panes(design)) inside = opening.id;
+      }
+      return Reshaped.blocked(ReshapeBlock.pane, openingId: inside);
+    }
+    return Reshaped(rebuilt);
   }
 
   /// [placed] with every opening's mark — and the ink it was read from —
@@ -545,8 +620,12 @@ abstract final class FrameSides {
   /// fitting. The mark is put at the same place in the region as it is now
   /// as it had in the region before, by the rule everything inside a region
   /// is carried by (`Polygon.sameIn`), and failing that in proportion to the
-  /// region's box. The stroke it was read from moves with it, so the next
-  /// reading finds it there too.
+  /// region's box, and failing both among the region's own corners
+  /// (`Polygon.amongCornersIn`) — a mark just under a slope is left above it
+  /// by the first two once the slope is turned — and where the region has
+  /// gained or lost a corner, at its middle, since the mark says which
+  /// region opens and nothing about where in it the hand was. The stroke it was read from
+  /// moves with it, so the next reading finds it there too.
   static Design _marksCarried(Design design, Design placed) {
     final marked = [
       for (final o in placed.openings)
@@ -570,6 +649,18 @@ abstract final class FrameSides {
                 now.top + (at.y - was.top) / was.height * now.height,
               );
             }
+            if (!now.contains(to)) {
+              // Neither keeps it inside — a mark just under a slope whose
+              // angle the size has changed, left above it by both. Among
+              // the region's own corners it is inside a region that is
+              // still convex, whatever the slope did.
+              to = was.amongCornersIn(now, at) ?? to;
+            }
+            // And where the region has gained or lost a corner — the slope
+            // now running straight into the bar beside it — the middle of
+            // the region: the mark says which region opens and which way,
+            // and nothing about where in it the hand happened to draw it.
+            if (!now.contains(to)) to = now.centroid;
             if (!now.contains(to)) return o;
             if (o.id.startsWith('opening-')) {
               moves[o.id.substring('opening-'.length)] = to - at;

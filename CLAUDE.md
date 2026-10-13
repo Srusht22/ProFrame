@@ -7827,6 +7827,45 @@ test says so: a diagonal ending on the right jamb beside a mullion cannot
 follow that jamb 150 cm out, because the slope then passes below both its
 ends.
 
+**And a size that cannot be made is suggested, never an error.** The
+user's words, over the sizes form saying *That does not fit the parts
+inside it* under a width of 200 cm: *don't show me the error, just suggest
+what the thing is.* Two changes:
+
+- **A mark just under a slope stays in its region.** A mark drawn high in
+  a light under a slope stays where it is when the frame is made taller —
+  it is still inside — and then a width turns the slope, and both ways of
+  carrying it (`Polygon.sameIn`, the box's proportion) left it above the
+  slope: the opening was lost and the width refused. `_marksCarried` now
+  carries it among the region's own corners where both fail
+  (`Polygon.amongCornersIn`, Floater's mean value coordinates, which keep a
+  point inside a shape that stays convex), and where the region has gained
+  or lost a corner — the slope now running straight into the mullion — to
+  the region's middle, since the mark says which region opens and which
+  way, and nothing about where in it the hand was.
+- **A refusal says why, and the nearest size that fits.**
+  `FrameSides.reshape` (`reshaped`, `overallTried` and `sizedTried` beside
+  it) answers a `Reshaped`: the design, or a `ReshapeBlock` — the frame
+  crossing itself, a side shorter than its border, a light, an opening's
+  region or a pane squeezed out — with the opening it is about.
+  `Measurements.apply` says that in words (*At this size there would be no
+  room left for Opening 1.*) and finds the nearest size between the one
+  the design has and the one asked for that fits
+  (`Measurements.nearestFitting`: halved to the millimetre, every answer
+  tried), kept in `MeasureOutcome.suggestions`. The sizes form shows it
+  under the field as a suggestion (`SizeSuggestion`) — a light bulb, the
+  cause, the drawing's own warning where it has one, and **Use 325.6 cm**,
+  which puts that figure in the field and nothing in the design until
+  **Apply**. No size field shows an error any more.
+
+`test/domain/a_size_keeps_the_opening_s_mark_test.dart` holds the mark
+under a stair's slope with and without a mullion, made taller and then
+wider (17 of the 18 fail without the carry), a refused width saying why
+with the nearest that fits taken and a centimetre more refused, and the
+corners' carry itself; `test/app/a_size_that_does_not_fit_is_suggested_test.dart`
+holds the form at a phone and a laptop: no error text, the suggestion, and
+**Use** then **Apply** making it.
+
 **Factory defaults: measurements apart from prices.** The user's words:
 *a button on the first page to fill the frame border, the bar thickness
 and the other things for each type, PVC or aluminium, and the default
