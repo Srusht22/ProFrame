@@ -369,6 +369,13 @@ class Polygon {
         final slack = 1e-6 / math.max(s.length, 1e-9);
         if (u < -slack || u > 1 + slack) continue;
         final at = edge.pointAt(u.clamp(0.0, 1.0));
+        // Only where the line reaches out of the shape on this end's side:
+        // the far end lies on the boundary too, and a meeting there would
+        // fold the line onto its own other end. A raked light made much
+        // taller carries an upright's head far below the slope it met,
+        // and nearest to the head was the sill its foot stands on — the
+        // line came out as nothing, and the panes either side of it went.
+        if ((at - far).dot(r) <= 1e-6 * r.length * r.length) continue;
         final d = at.distanceTo(now);
         if (d < nearest) {
           best = at;

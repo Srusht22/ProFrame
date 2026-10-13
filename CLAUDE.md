@@ -7802,6 +7802,31 @@ screenshot's sizes at once, every size alone and together on three
 shapes with marks across them, with and without a line inside, and the
 sheet read again; without the fix 13 of its 18 tests fail.
 
+**And a frame made much taller keeps every line's ends on what they met.**
+The user's next screenshot, the same design, the width still refused, found
+two more relationships lost when the frame changes a lot:
+
+- `Polygon.lineIn` put an end that had met its region's edge back on the
+  edge nearest the carried end. An upright from a slope to a sill, its
+  head carried far below the slope, was nearest the sill **its own foot
+  stands on**: the line folded to nothing and the opening's panes went.
+  Only a crossing beyond the other end, on this end's side, counts now.
+- `FrameSides.reshaped` put a bar's end on whichever new side was nearest
+  it. A mullion's foot on the sill went up to the slope, which had come
+  nearer than the sill had moved. An end now goes to where its own line
+  meets **the same side** it stood on — a side being its member, outside
+  face to daylight, so a hand's end stopped inside the border counts — and
+  only where that side no longer reaches its line (a transom whose jamb
+  drew back below it) to the nearest other side, ahead of its other end.
+
+The same test file holds both, on six lines — level, short, past the
+mullion, upright slope to sill, upright short, diagonal — with and without
+a mullion, the mark either side, and the user's sizes then the width; 16
+of them fail without these. One combination is refused, rightly, and the
+test says so: a diagonal ending on the right jamb beside a mullion cannot
+follow that jamb 150 cm out, because the slope then passes below both its
+ends.
+
 **Factory defaults: measurements apart from prices.** The user's words:
 *a button on the first page to fill the frame border, the bar thickness
 and the other things for each type, PVC or aluminium, and the default

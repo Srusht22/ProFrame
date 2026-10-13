@@ -379,21 +379,54 @@ abstract final class FrameSides {
         }
       }
       // An end on a side that moved goes to where its own line now meets
-      // the frame — the same face of it, outside or daylight — nearest to
-      // where it was: on that side, usually, and on the slope beyond it
-      // when the side has drawn back past the bar's line.
+      // that same side — the same face of it, outside or daylight: a
+      // mullion standing on the sill still stands on the sill when the
+      // sill goes down. Only where its line no longer reaches that side —
+      // a transom whose jamb has drawn back below it — does it go to the
+      // nearest of the frame's other sides, the slope beyond it. Nearest
+      // alone was the rule once, and a frame made much taller brought its
+      // slope nearer a mullion's foot than its own sill: the foot went up
+      // to the slope, the mullion to nothing, and the size was refused.
+      // The slope beyond is taken only on this end's side of the bar's
+      // other end, so a bar is never folded onto itself.
+      final other = end == bar.a ? bar.b : bar.a;
+      // A side is the frame's member, its outside face to its daylight:
+      // an end the hand stopped anywhere in that band stands on it.
+      final band = frame.profileMm + reach;
       Vec2? best;
+      var closest = double.infinity;
       var nearest = double.infinity;
+      for (final (from, to) in [(was, now), (wasInner, nowInner)]) {
+        for (final k in changed) {
+          final old = Segment(from.corners[k], from.corners[(k + 1) % n]);
+          final away = old.distanceTo(end);
+          if (away > band || away > still) continue;
+          final at = _meeting(
+            bar,
+            Segment(to.corners[k], to.corners[(k + 1) % n]),
+          );
+          if (at == null) continue;
+          final d = at.distanceTo(end);
+          if (away < closest - 1e-9 ||
+              (away - closest).abs() <= 1e-9 && d < nearest) {
+            best = at;
+            closest = away;
+            nearest = d;
+          }
+        }
+      }
+      if (best != null) return best;
+      bool ahead(Vec2 at) => (at - other).dot(end - other) > 0;
       for (final (from, to) in [(was, now), (wasInner, nowInner)]) {
         final onIt = changed.any((k) {
           final old = Segment(from.corners[k], from.corners[(k + 1) % n]);
           final away = old.distanceTo(end);
-          return away <= reach && away <= still;
+          return away <= band && away <= still;
         });
         if (!onIt) continue;
         for (final side in to.edges) {
           final at = _meeting(bar, side);
-          if (at == null) continue;
+          if (at == null || !ahead(at)) continue;
           final d = at.distanceTo(end);
           if (d < nearest) {
             best = at;

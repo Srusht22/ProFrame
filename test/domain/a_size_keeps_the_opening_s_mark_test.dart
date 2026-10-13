@@ -148,6 +148,84 @@ void main() {
     }
   }
 
+  // The user's second screenshot: the same design, the width still refused.
+  // Made much taller, a raked frame took two more things apart. An upright
+  // line inside the opening, carried with its region, was put back on the
+  // edge it had met by the nearest crossing — and nearest its head, far
+  // below the slope, was the sill its own foot stands on: the line folded
+  // to nothing and the opening's two panes went. And a mullion's foot on
+  // the sill went to the slope, which had come nearer than the sill had:
+  // the mullion folded, a light went, and the size was refused.
+  group('made much taller, every line keeps its own ends', () {
+    const lines = {
+      'level': [Vec2(820, 520), Vec2(1250, 520)],
+      'level, short of both sides': [Vec2(900, 520), Vec2(1150, 520)],
+      'level, past the mullion': [Vec2(700, 520), Vec2(1290, 520)],
+      'upright, slope to sill': [Vec2(1000, 300), Vec2(1000, 690)],
+      'upright, short of both': [Vec2(1000, 400), Vec2(1000, 650)],
+      'diagonal': [Vec2(850, 650), Vec2(1250, 350)],
+    };
+    for (final mullion in [false, true]) {
+      for (final markX in [400.0, 900.0]) {
+        for (final line in lines.entries) {
+          test('${mullion ? 'a mullion, ' : ''}the mark at $markX, a line '
+              '${line.key}', () {
+            var d = read(
+              Design.empty(id: 'a', kind: DesignKind.angled).copyWith(
+                sketch: Sketch(
+                  strokes: [
+                    pen('outline', shapes['left low']!),
+                    if (mullion)
+                      pen('mullion', const [Vec2(700, 300), Vec2(700, 700)]),
+                    pen('mark', chevron(Vec2(markX, 600))),
+                  ],
+                ),
+              ),
+            ).copyWith(measured: {});
+            expect(d.openings, hasLength(1));
+            // Drawn on the sheet afterwards: inside the opening it joins it.
+            d = read(
+              d.copyWith(
+                sketch: Sketch(
+                  strokes: [...d.sketch.strokes, pen('line', line.value)],
+                ),
+              ),
+            );
+            final sides = [
+              for (final m in Measurements.of(d))
+                if (m.asked && m.key.startsWith('side:')) m.key,
+            ];
+            final sections = d.sections.length;
+            // The sizes the user gave, then the width alone, as they did.
+            var out = Measurements.apply(d, {
+              Measurements.profileKey: 45,
+              Measurements.barsKey: 45,
+              Measurements.heightKey: 1800,
+              for (final k in sides) k: 350,
+            });
+            expect(out.problems, isEmpty);
+            expect(out.design.sections, hasLength(sections));
+            expect(out.design.openings, hasLength(1));
+            // A diagonal ending on the right jamb, with a mullion beside it,
+            // cannot follow that jamb 150 cm out: the slope then passes
+            // below both its ends. That is the one size refused, rightly.
+            if (mullion && markX == 400 && line.key == 'diagonal') return;
+            out = Measurements.apply(out.design, {Measurements.widthKey: 2800});
+            expect(out.problems, isEmpty);
+            expect(out.design.widthMm, closeTo(2800, 0.5));
+            expect(out.design.heightMm, closeTo(1800, 0.5));
+            expect(out.design.sections, hasLength(sections));
+            expect(read(out.design).openings, hasLength(1));
+            // Every bar of the design still has its length.
+            for (final b in out.design.dividers) {
+              expect(b.segment.length, greaterThan(100), reason: b.id);
+            }
+          });
+        }
+      }
+    }
+  });
+
   test('a rectangle is unchanged: its mark was never in the way', () {
     final d = drawn(const [
       Vec2(0, 0),
