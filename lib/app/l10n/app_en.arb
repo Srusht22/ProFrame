@@ -6761,5 +6761,872 @@
         "type": "String"
       }
     }
+  },
+  "clSignIn": "Sign in",
+  "@clSignIn": {
+    "description": "Button: sign in to an account"
+  },
+  "clSignInHeading": "Sign in to ProFrame",
+  "@clSignInHeading": {
+    "description": "Heading of the sign-in screen"
+  },
+  "clSignInLead": "Owners and workers sign in here. Your account says which you are.",
+  "@clSignInLead": {
+    "description": "Sign-in screen: under the heading"
+  },
+  "clEmail": "Email",
+  "@clEmail": {
+    "description": "Field label: email address"
+  },
+  "clPassword": "Password",
+  "@clPassword": {
+    "description": "Field label: password"
+  },
+  "clPasswordAgain": "Password again",
+  "@clPasswordAgain": {
+    "description": "Field label: the password typed a second time"
+  },
+  "clShowPassword": "Show password",
+  "@clShowPassword": {
+    "description": "Tooltip: show the password typed"
+  },
+  "clHidePassword": "Hide password",
+  "@clHidePassword": {
+    "description": "Tooltip: hide the password typed"
+  },
+  "clForgotPassword": "Forgot password?",
+  "@clForgotPassword": {
+    "description": "Link and title: password recovery"
+  },
+  "clCreateOwner": "Create an owner account",
+  "@clCreateOwner": {
+    "description": "Button and title: public sign-up of a factory owner"
+  },
+  "clJoinWithInvite": "Join with an invitation",
+  "@clJoinWithInvite": {
+    "description": "Button and title: a worker joining by an owner's invitation code"
+  },
+  "clEmailInvalid": "Enter a valid email address.",
+  "@clEmailInvalid": {
+    "description": "Form problem"
+  },
+  "clPasswordNeeded": "Enter your password.",
+  "@clPasswordNeeded": {
+    "description": "Form problem"
+  },
+  "clNameNeeded": "Enter a name.",
+  "@clNameNeeded": {
+    "description": "Form problem"
+  },
+  "clPasswordShort": "{count, plural, other{At least {count} characters.}}",
+  "@clPasswordShort": {
+    "description": "Password rule and helper text",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "clPasswordsDiffer": "The two passwords are not the same.",
+  "@clPasswordsDiffer": {
+    "description": "Form problem"
+  },
+  "clFactoryNeeded": "Enter your factory's name.",
+  "@clFactoryNeeded": {
+    "description": "Form problem on sign-up"
+  },
+  "clFactoryName": "Factory name",
+  "@clFactoryName": {
+    "description": "Field label on sign-up"
+  },
+  "clYourName": "Your name",
+  "@clYourName": {
+    "description": "Field label on sign-up"
+  },
+  "clSignUpLead": "A new factory, with you as its owner. You can invite up to three workers afterwards.",
+  "@clSignUpLead": {
+    "description": "Sign-up screen: under the heading"
+  },
+  "clCreateAccount": "Create account",
+  "@clCreateAccount": {
+    "description": "Button: submit sign-up"
+  },
+  "clConfirmTitle": "Confirm your email",
+  "@clConfirmTitle": {
+    "description": "Dialog title after sign-up"
+  },
+  "clConfirmBody": "We sent a link to {email}. Open it, then sign in.",
+  "@clConfirmBody": {
+    "description": "Dialog after sign-up when the address must be confirmed",
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "clJoinLead": "Use the code your factory owner gave you, with the email address it was made for.",
+  "@clJoinLead": {
+    "description": "Join screen: under the heading"
+  },
+  "clInviteCode": "Invitation code",
+  "@clInviteCode": {
+    "description": "Field label"
+  },
+  "clCodeNeeded": "Enter the invitation code.",
+  "@clCodeNeeded": {
+    "description": "Form problem"
+  },
+  "clJoin": "Join",
+  "@clJoin": {
+    "description": "Button: submit joining"
+  },
+  "clRecoverLead": "We will email you a link to set a new password.",
+  "@clRecoverLead": {
+    "description": "Recovery screen: under the heading"
+  },
+  "clRecoverSent": "If an account uses {email}, a link to set a new password is on its way.",
+  "@clRecoverSent": {
+    "description": "Recovery screen once sent",
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "clSendLink": "Send link",
+  "@clSendLink": {
+    "description": "Button: ask for a recovery link"
+  },
+  "clNewPassword": "Set a new password",
+  "@clNewPassword": {
+    "description": "Title: after a recovery link"
+  },
+  "clSavePassword": "Save password",
+  "@clSavePassword": {
+    "description": "Button"
+  },
+  "clUnclaimedTitle": "Records on this device",
+  "@clUnclaimedTitle": {
+    "description": "Title: records made before accounts"
+  },
+  "clUnclaimedBody": "This device holds customers and designs made before accounts. Bring them into {factory}, or keep them aside on this device. Nothing is deleted either way.",
+  "@clUnclaimedBody": {
+    "description": "First owner sign-in on a device with local records",
+    "placeholders": {
+      "factory": {
+        "type": "String"
+      }
+    }
+  },
+  "clUnclaimedBring": "Bring them into {factory}",
+  "@clUnclaimedBring": {
+    "description": "Button",
+    "placeholders": {
+      "factory": {
+        "type": "String"
+      }
+    }
+  },
+  "clUnclaimedKeep": "Keep them aside on this device",
+  "@clUnclaimedKeep": {
+    "description": "Button"
+  },
+  "clSigningIn": "Signing in…",
+  "@clSigningIn": {
+    "description": "Shown while a session is restored"
+  },
+  "clSuspendedTitle": "Account suspended",
+  "@clSuspendedTitle": {
+    "description": "Title for a suspended worker"
+  },
+  "clSuspendedBody": "{name}, your factory owner has suspended your account. Ask them to reactivate it.",
+  "@clSuspendedBody": {
+    "description": "Suspended worker screen",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "clSignOut": "Sign out",
+  "@clSignOut": {
+    "description": "Button and menu item"
+  },
+  "clRoleOwner": "Owner",
+  "@clRoleOwner": {
+    "description": "Role name"
+  },
+  "clRoleLabour": "Worker",
+  "@clRoleLabour": {
+    "description": "Role name of a labour account"
+  },
+  "clSignedInAs": "{name} ({role})",
+  "@clSignedInAs": {
+    "description": "Tooltip: who is signed in",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "clWorkers": "Workers",
+  "@clWorkers": {
+    "description": "Title and menu item: the owner's workers"
+  },
+  "clApprovals": "Approvals",
+  "@clApprovals": {
+    "description": "Title and menu item: the approval center"
+  },
+  "clApprovalsWaiting": "{count, plural, =0{No requests waiting} =1{1 request waiting} other{{count} requests waiting}}",
+  "@clApprovalsWaiting": {
+    "description": "Tooltip on the approvals button",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "clNotificationsUnread": "{count, plural, =0{No unread notifications} =1{1 unread notification} other{{count} unread notifications}}",
+  "@clNotificationsUnread": {
+    "description": "Tooltip on the notifications button",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "clNotifications": "Notifications",
+  "@clNotifications": {
+    "description": "Sheet title"
+  },
+  "clNoNotifications": "No notifications yet.",
+  "@clNoNotifications": {
+    "description": "Empty state"
+  },
+  "clNoteSubmitted": "{name} sent a request: {what}",
+  "@clNoteSubmitted": {
+    "description": "Notification to the owner",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "clNoteApproved": "Your request was approved: {what}",
+  "@clNoteApproved": {
+    "description": "Notification to a worker",
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "clNoteRejected": "Your request was rejected: {what}",
+  "@clNoteRejected": {
+    "description": "Notification to a worker",
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "clNoteRejectedWhy": "Your request was rejected: {what} — {note}",
+  "@clNoteRejectedWhy": {
+    "description": "Notification to a worker, with the owner's note",
+    "placeholders": {
+      "what": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "clNoteAssigned": "A design was assigned to you.",
+  "@clNoteAssigned": {
+    "description": "Notification to a worker"
+  },
+  "clNoteJoined": "{name} joined your factory.",
+  "@clNoteJoined": {
+    "description": "Notification to the owner",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "clNoteOther": "Something changed.",
+  "@clNoteOther": {
+    "description": "Notification of a kind this version does not know"
+  },
+  "clStatusPending": "Pending",
+  "@clStatusPending": {
+    "description": "Request status"
+  },
+  "clStatusApproved": "Approved",
+  "@clStatusApproved": {
+    "description": "Request status and tab"
+  },
+  "clStatusRejected": "Rejected",
+  "@clStatusRejected": {
+    "description": "Request status and tab"
+  },
+  "clStatusCancelled": "Cancelled",
+  "@clStatusCancelled": {
+    "description": "Request status"
+  },
+  "clStatusFailed": "Needs attention",
+  "@clStatusFailed": {
+    "description": "Request status: failed or awaiting recovery"
+  },
+  "clWorkerActive": "Active",
+  "@clWorkerActive": {
+    "description": "Worker status"
+  },
+  "clWorkerSuspended": "Suspended",
+  "@clWorkerSuspended": {
+    "description": "Worker status"
+  },
+  "clKindNewDesign": "New design",
+  "@clKindNewDesign": {
+    "description": "Request kind"
+  },
+  "clKindNewCustomer": "New customer and design",
+  "@clKindNewCustomer": {
+    "description": "Request kind"
+  },
+  "clKindChange": "Design change",
+  "@clKindChange": {
+    "description": "Request kind"
+  },
+  "clOwnerOnly": "Only the factory owner can open this.",
+  "@clOwnerOnly": {
+    "description": "A worker reaching an owner's screen"
+  },
+  "clInviteWorker": "Invite worker",
+  "@clInviteWorker": {
+    "description": "Button and dialog title"
+  },
+  "clSeatsUsed": "{used} of {total} worker places used",
+  "@clSeatsUsed": {
+    "description": "Workers screen: seats taken",
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "clSeatsFull": "All three places are taken. Suspend a worker or withdraw an invitation to free one.",
+  "@clSeatsFull": {
+    "description": "Workers screen when full"
+  },
+  "clWorkersLead": "Each worker sees only the designs you give them, and asks you for everything else.",
+  "@clWorkersLead": {
+    "description": "Workers screen lead"
+  },
+  "clNoWorkers": "No workers yet.",
+  "@clNoWorkers": {
+    "description": "Empty state"
+  },
+  "clOpenInvites": "Invitations not yet used",
+  "@clOpenInvites": {
+    "description": "Section heading"
+  },
+  "clInviteUntil": "Valid until {date}",
+  "@clInviteUntil": {
+    "description": "Invitation expiry",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "clRevoke": "Withdraw",
+  "@clRevoke": {
+    "description": "Button: withdraw an invitation"
+  },
+  "clAssignedCount": "{count, plural, =0{No designs} =1{1 design} other{{count} designs}}",
+  "@clAssignedCount": {
+    "description": "How many designs a worker may see",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "clPendingCount": "{count, plural, =0{no requests waiting} =1{1 request waiting} other{{count} requests waiting}}",
+  "@clPendingCount": {
+    "description": "How many of a worker's requests wait",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "clManageAccess": "Manage access",
+  "@clManageAccess": {
+    "description": "Button: a worker's designs"
+  },
+  "clSuspend": "Suspend",
+  "@clSuspend": {
+    "description": "Button: suspend a worker"
+  },
+  "clReactivate": "Reactivate",
+  "@clReactivate": {
+    "description": "Button: reactivate a worker"
+  },
+  "clSuspendTitle": "Suspend {name}?",
+  "@clSuspendTitle": {
+    "description": "Confirm dialog title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "clSuspendBody": "They can no longer sign in or see any design. Their requests, and every customer and design, are kept.",
+  "@clSuspendBody": {
+    "description": "Confirm dialog"
+  },
+  "clSuspended": "{name} is suspended.",
+  "@clSuspended": {
+    "description": "Notice after suspending",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "clReactivated": "{name} is active again.",
+  "@clReactivated": {
+    "description": "Notice after reactivating",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "clInviteLead": "The worker sets their own password. You give them the code.",
+  "@clInviteLead": {
+    "description": "Invite dialog"
+  },
+  "clWorkerName": "Worker's name",
+  "@clWorkerName": {
+    "description": "Field label"
+  },
+  "clInvite": "Invite",
+  "@clInvite": {
+    "description": "Button"
+  },
+  "clInviteMade": "Give this code to {name}. They choose “Join with an invitation” on the sign-in screen and use {email}. It works once, until {date}.",
+  "@clInviteMade": {
+    "description": "Invite dialog once the code is made",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "email": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "clCopyCode": "Copy code",
+  "@clCopyCode": {
+    "description": "Button"
+  },
+  "clCopied": "Copied.",
+  "@clCopied": {
+    "description": "Notice"
+  },
+  "clInviteOnce": "This code is not shown again.",
+  "@clInviteOnce": {
+    "description": "Invite dialog warning"
+  },
+  "clDesignsAccess": "Designs this worker can see",
+  "@clDesignsAccess": {
+    "description": "Worker page section"
+  },
+  "clDesignsAccessLead": "A new worker sees none until you give them one.",
+  "@clDesignsAccessLead": {
+    "description": "Worker page section lead"
+  },
+  "clNoDesignsAssigned": "None yet.",
+  "@clNoDesignsAssigned": {
+    "description": "Empty state"
+  },
+  "clAssignDesign": "Give a design",
+  "@clAssignDesign": {
+    "description": "Button and dialog title: assign a design to a worker"
+  },
+  "clTheirRequests": "Their requests",
+  "@clTheirRequests": {
+    "description": "Worker page section"
+  },
+  "clNoRequests": "No requests.",
+  "@clNoRequests": {
+    "description": "Empty state"
+  },
+  "clRemoveAccess": "Take away",
+  "@clRemoveAccess": {
+    "description": "Button: remove an assignment"
+  },
+  "clSearchDesigns": "Search designs",
+  "@clSearchDesigns": {
+    "description": "Search hint"
+  },
+  "clNothingToAssign": "No other designs to give.",
+  "@clNothingToAssign": {
+    "description": "Empty state"
+  },
+  "clPendingTab": "{count, plural, other{Pending ({count})}}",
+  "@clPendingTab": {
+    "description": "Approval center tab",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "clApprovedDone": "Approved.",
+  "@clApprovedDone": {
+    "description": "Notice after an approval succeeded"
+  },
+  "clRejectTitle": "Reject this request?",
+  "@clRejectTitle": {
+    "description": "Confirm dialog"
+  },
+  "clRejectBody": "Nothing is made or changed. The worker is told, with your note.",
+  "@clRejectBody": {
+    "description": "Confirm dialog"
+  },
+  "clReject": "Reject",
+  "@clReject": {
+    "description": "Button"
+  },
+  "clRejectedDone": "Rejected.",
+  "@clRejectedDone": {
+    "description": "Notice after a rejection"
+  },
+  "clCancelledDone": "Request cancelled.",
+  "@clCancelledDone": {
+    "description": "Notice"
+  },
+  "clRequestedBy": "Asked by",
+  "@clRequestedBy": {
+    "description": "Request detail label"
+  },
+  "clRequestedOn": "Asked on",
+  "@clRequestedOn": {
+    "description": "Request detail label"
+  },
+  "clCustomer": "Customer",
+  "@clCustomer": {
+    "description": "Label"
+  },
+  "clPhone": "Phone",
+  "@clPhone": {
+    "description": "Label"
+  },
+  "clAddress": "Address",
+  "@clAddress": {
+    "description": "Label"
+  },
+  "clNotes": "Notes",
+  "@clNotes": {
+    "description": "Label"
+  },
+  "clDesignName": "Design name",
+  "@clDesignName": {
+    "description": "Label"
+  },
+  "clCategory": "Category",
+  "@clCategory": {
+    "description": "Label"
+  },
+  "clDescription": "Description",
+  "@clDescription": {
+    "description": "Label"
+  },
+  "clDecidedOn": "Decided on",
+  "@clDecidedOn": {
+    "description": "Request detail label"
+  },
+  "clDecisionNote": "Owner's note",
+  "@clDecisionNote": {
+    "description": "Request detail label"
+  },
+  "clNoteForWorker": "Note for the worker (optional)",
+  "@clNoteForWorker": {
+    "description": "Field label when deciding"
+  },
+  "clGiveAccess": "Give {name} access to the new design",
+  "@clGiveAccess": {
+    "description": "Checkbox when approving; off by default",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "clApprove": "Approve",
+  "@clApprove": {
+    "description": "Button"
+  },
+  "clCancelRequest": "Cancel request",
+  "@clCancelRequest": {
+    "description": "Button"
+  },
+  "clPossibleDuplicate": "A customer like this is already kept",
+  "@clPossibleDuplicate": {
+    "description": "Duplicate warning"
+  },
+  "clDuplicateNoMerge": "Approving makes a new customer. Nothing is merged — reject it if it is the same person.",
+  "@clDuplicateNoMerge": {
+    "description": "Duplicate warning"
+  },
+  "clProposalUnreadable": "This proposal cannot be read by this version of ProFrame, so it cannot be approved.",
+  "@clProposalUnreadable": {
+    "description": "Change request that cannot be read"
+  },
+  "clComparison": "As it is, and as proposed",
+  "@clComparison": {
+    "description": "Section heading: geometry comparison"
+  },
+  "clOriginal": "As it is",
+  "@clOriginal": {
+    "description": "Column: the design as it is"
+  },
+  "clProposed": "Proposed",
+  "@clProposed": {
+    "description": "Column: the proposed design"
+  },
+  "clMeasureWidth": "Width",
+  "@clMeasureWidth": {
+    "description": "Comparison row"
+  },
+  "clMeasureHeight": "Height",
+  "@clMeasureHeight": {
+    "description": "Comparison row"
+  },
+  "clMeasureDepth": "Depth",
+  "@clMeasureDepth": {
+    "description": "Comparison row"
+  },
+  "clMeasureBars": "Lines",
+  "@clMeasureBars": {
+    "description": "Comparison row: bars of the design"
+  },
+  "clMeasureLights": "Parts",
+  "@clMeasureLights": {
+    "description": "Comparison row: sections"
+  },
+  "clMeasureOpenings": "Openings",
+  "@clMeasureOpenings": {
+    "description": "Comparison row: openings"
+  },
+  "clHello": "Hello, {name}",
+  "@clHello": {
+    "description": "Worker home greeting",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "clLabourLead": "Your designs, and what you have asked for.",
+  "@clLabourLead": {
+    "description": "Worker home lead"
+  },
+  "clAskNewDesign": "Ask for a new design",
+  "@clAskNewDesign": {
+    "description": "Button and title"
+  },
+  "clAskNewCustomer": "Ask for a new customer",
+  "@clAskNewCustomer": {
+    "description": "Button and title"
+  },
+  "clMyDesigns": "My assigned designs",
+  "@clMyDesigns": {
+    "description": "Worker home section"
+  },
+  "clNoAssignedDesigns": "No designs are assigned to you yet.",
+  "@clNoAssignedDesigns": {
+    "description": "Empty state"
+  },
+  "clMyRequests": "My requests",
+  "@clMyRequests": {
+    "description": "Worker home section"
+  },
+  "clOpen": "Open",
+  "@clOpen": {
+    "description": "Button"
+  },
+  "clRefresh": "Refresh",
+  "@clRefresh": {
+    "description": "Tooltip"
+  },
+  "clRequestLead": "The owner approves or rejects it. Nothing is made until then.",
+  "@clRequestLead": {
+    "description": "Request forms lead"
+  },
+  "clChooseCustomer": "Choose the customer.",
+  "@clChooseCustomer": {
+    "description": "Form problem"
+  },
+  "clDesignNameNeeded": "Enter a name for the design.",
+  "@clDesignNameNeeded": {
+    "description": "Form problem"
+  },
+  "clChooseCategory": "Choose the category.",
+  "@clChooseCategory": {
+    "description": "Form problem"
+  },
+  "clRequestSent": "Request sent to the owner.",
+  "@clRequestSent": {
+    "description": "Notice"
+  },
+  "clNoScopedCustomers": "You have no customers yet. Ask for a new customer instead.",
+  "@clNoScopedCustomers": {
+    "description": "Request form with no customers in scope"
+  },
+  "clSendRequest": "Send request",
+  "@clSendRequest": {
+    "description": "Button"
+  },
+  "clCustomerName": "Customer's name",
+  "@clCustomerName": {
+    "description": "Field label"
+  },
+  "clCustomerNameNeeded": "Enter the customer's name.",
+  "@clCustomerNameNeeded": {
+    "description": "Form problem"
+  },
+  "clViewingAssigned": "You can look at this design. To change it, propose a change for the owner to approve.",
+  "@clViewingAssigned": {
+    "description": "Bar under an assigned design"
+  },
+  "clProposing": "Proposing a change. The design stays as it is until the owner approves.",
+  "@clProposing": {
+    "description": "Bar while proposing"
+  },
+  "clProposeChange": "Propose a change",
+  "@clProposeChange": {
+    "description": "Button"
+  },
+  "clDiscard": "Discard",
+  "@clDiscard": {
+    "description": "Button: drop a proposal"
+  },
+  "clSubmitForApproval": "Send for approval",
+  "@clSubmitForApproval": {
+    "description": "Button and dialog title"
+  },
+  "clWhatChanged": "What did you change, and why?",
+  "@clWhatChanged": {
+    "description": "Field label: change description"
+  },
+  "clWhatChangedNeeded": "Say what you changed.",
+  "@clWhatChangedNeeded": {
+    "description": "Form problem"
+  },
+  "clChangeSent": "Change sent to the owner for approval.",
+  "@clChangeSent": {
+    "description": "Notice"
+  },
+  "authInvalidCredentials": "That email and password do not match an account.",
+  "@authInvalidCredentials": {
+    "description": "[domain] Sign-in refused"
+  },
+  "authEmailNotConfirmed": "Confirm your email address first — open the link we sent you.",
+  "@authEmailNotConfirmed": {
+    "description": "[domain] Sign-in before confirming"
+  },
+  "authEmailTaken": "An account already uses this email address.",
+  "@authEmailTaken": {
+    "description": "[domain] Sign-up refused"
+  },
+  "authWeakPassword": "That password is too weak. Use a longer one.",
+  "@authWeakPassword": {
+    "description": "[domain] Sign-up refused"
+  },
+  "authInviteInvalid": "That invitation code is not valid for this email address — it may be used, withdrawn or expired.",
+  "@authInviteInvalid": {
+    "description": "[domain] Joining refused"
+  },
+  "authNameRequired": "A name is needed.",
+  "@authNameRequired": {
+    "description": "[domain] Refused for a missing name"
+  },
+  "authEmailInvalid": "That email address is not valid.",
+  "@authEmailInvalid": {
+    "description": "[domain] Refused for an address"
+  },
+  "authSuspended": "This account is suspended. Ask your factory owner.",
+  "@authSuspended": {
+    "description": "[domain] A suspended account"
+  },
+  "authNoAccount": "This sign-in has no ProFrame account.",
+  "@authNoAccount": {
+    "description": "[domain] A session with no account"
+  },
+  "authNotSignedIn": "You are signed out. Sign in again.",
+  "@authNotSignedIn": {
+    "description": "[domain] Session ended"
+  },
+  "authRateLimited": "Too many tries. Wait a little and try again.",
+  "@authRateLimited": {
+    "description": "[domain] Provider rate limit"
+  },
+  "backendNotOwner": "Only the factory owner can do that.",
+  "@backendNotOwner": {
+    "description": "[domain] Backend refusal"
+  },
+  "backendNotAssigned": "That design is not assigned to you.",
+  "@backendNotAssigned": {
+    "description": "[domain] Backend refusal"
+  },
+  "backendCustomerMissing": "That customer is not on the server yet. Wait a moment and try again.",
+  "@backendCustomerMissing": {
+    "description": "[domain] Backend refusal"
+  },
+  "backendCustomerHasDesigns": "That customer still has designs.",
+  "@backendCustomerHasDesigns": {
+    "description": "[domain] Backend refusal"
+  },
+  "backendNetwork": "Could not reach the server. Check the connection and try again.",
+  "@backendNetwork": {
+    "description": "[domain] Network failure"
+  },
+  "backendFailed": "That did not work. Nothing was changed. Try again.",
+  "@backendFailed": {
+    "description": "[domain] Unknown backend failure"
+  },
+  "workersLimit": "A factory can have three active workers. Suspend one or withdraw an invitation first.",
+  "@workersLimit": {
+    "description": "[domain] Fourth worker refused"
+  },
+  "workersAlreadyInvited": "That address already has an invitation waiting.",
+  "@workersAlreadyInvited": {
+    "description": "[domain] Invitation refused"
+  },
+  "requestConflict": "The design changed after this was proposed. Reject it, and the worker can propose again from the design as it is now.",
+  "@requestConflict": {
+    "description": "[domain] Change approval conflict"
+  },
+  "requestAlreadyDecided": "This request has already been decided.",
+  "@requestAlreadyDecided": {
+    "description": "[domain] Approval refused"
   }
 }

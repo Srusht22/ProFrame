@@ -17,11 +17,13 @@ import '../inspector/measure_form.dart';
 import '../inspector/opening_kind_alert.dart';
 import '../inspector/outline_gap_alert.dart';
 import '../inspector/price_panel.dart';
+import '../inspector/proposal_bar.dart';
 import '../inspector/questions_panel.dart';
 import '../inspector/unsupported_category_note.dart';
 import '../inspector/view_only_note.dart';
 import '../l10n/l10n.dart';
 import '../l10n/name_text.dart';
+import '../state/cloud.dart';
 import '../state/everything_shown.dart';
 import '../state/tools.dart';
 import '../state/workspace.dart';
@@ -179,6 +181,9 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
     final phone = layout == WorkspaceLayout.phone;
     // Simple unless the user asked for everything: see `EverythingShown`.
     final everything = ref.watch(everythingShownProvider);
+    // A worker with an assigned design open: looking at it, or proposing a
+    // change — never pricing, saving or completing it.
+    final proposing = ref.watch(proposalProvider) != null;
 
     return Scaffold(
       key: _scaffold,
@@ -254,28 +259,30 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
             ),
           // The price, beside Save: there in every design, and enabled only
           // while the design can be priced.
-          BarArrival(
-            order: 3,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: WorkspacePriceButton(
-                compact: phone,
-                colour: AppTheme.accent,
+          if (!proposing)
+            BarArrival(
+              order: 3,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: WorkspacePriceButton(
+                  compact: phone,
+                  colour: AppTheme.accent,
+                ),
               ),
             ),
-          ),
-          BarArrival(
-            order: 3,
-            child: SaveIcon(
-              onSave: () async {
-                await controller.save();
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(context.l10n.wsSaved)),
-                );
-              },
+          if (!proposing)
+            BarArrival(
+              order: 3,
+              child: SaveIcon(
+                onSave: () async {
+                  await controller.save();
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(context.l10n.wsSaved)));
+                },
+              ),
             ),
-          ),
           if (everything)
             BarArrival(
               order: 4,
@@ -341,8 +348,12 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                             // A design of a category this version does
                             // not know: shown as saved, and said so.
                             const UnsupportedCategoryNote(),
-                            // Somebody who may look and not change it.
-                            const ViewOnlyNote(),
+                            // Somebody who may look and not change it — or a
+                            // worker, who may propose a change to it.
+                            if (proposing)
+                              ProposalBar(narrow: phone)
+                            else
+                              const ViewOnlyNote(),
                             // What is wrong with an angled design's
                             // geometry: said, never mended.
                             GeometryCheckPanel(
@@ -379,7 +390,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                               ),
                             // Whether the design is a draft or completed,
                             // and **Complete!** — where the work is.
-                            CompleteBar(narrow: phone),
+                            if (!proposing) CompleteBar(narrow: phone),
                           ],
                         ),
                       ),
@@ -602,7 +613,11 @@ class _PickedBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 4, 4, 4),
       child: Row(
         children: [
-          Icon(Icons.touch_app_outlined, size: 18, color: context.palette.muted),
+          Icon(
+            Icons.touch_app_outlined,
+            size: 18,
+            color: context.palette.muted,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -651,9 +666,7 @@ class _ReadBar extends StatelessWidget {
       children: [
         Expanded(
           child: Text(
-            narrow
-                ? context.l10n.wsChanged
-                : context.l10n.wsChangesNotRead,
+            narrow ? context.l10n.wsChanged : context.l10n.wsChangesNotRead,
             style: Theme.of(context).textTheme.bodyMedium
                 ?.copyWith(color: context.palette.onNotice),
           ),

@@ -8053,6 +8053,1092 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{size} is applied, as you typed it.'**
   String mfAppliedAnyway(String size);
+
+  /// Button: sign in to an account
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get clSignIn;
+
+  /// Heading of the sign-in screen
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to ProFrame'**
+  String get clSignInHeading;
+
+  /// Sign-in screen: under the heading
+  ///
+  /// In en, this message translates to:
+  /// **'Owners and workers sign in here. Your account says which you are.'**
+  String get clSignInLead;
+
+  /// Field label: email address
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get clEmail;
+
+  /// Field label: password
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get clPassword;
+
+  /// Field label: the password typed a second time
+  ///
+  /// In en, this message translates to:
+  /// **'Password again'**
+  String get clPasswordAgain;
+
+  /// Tooltip: show the password typed
+  ///
+  /// In en, this message translates to:
+  /// **'Show password'**
+  String get clShowPassword;
+
+  /// Tooltip: hide the password typed
+  ///
+  /// In en, this message translates to:
+  /// **'Hide password'**
+  String get clHidePassword;
+
+  /// Link and title: password recovery
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get clForgotPassword;
+
+  /// Button and title: public sign-up of a factory owner
+  ///
+  /// In en, this message translates to:
+  /// **'Create an owner account'**
+  String get clCreateOwner;
+
+  /// Button and title: a worker joining by an owner's invitation code
+  ///
+  /// In en, this message translates to:
+  /// **'Join with an invitation'**
+  String get clJoinWithInvite;
+
+  /// Form problem
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email address.'**
+  String get clEmailInvalid;
+
+  /// Form problem
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your password.'**
+  String get clPasswordNeeded;
+
+  /// Form problem
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name.'**
+  String get clNameNeeded;
+
+  /// Password rule and helper text
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, other{At least {count} characters.}}'**
+  String clPasswordShort(num count);
+
+  /// Form problem
+  ///
+  /// In en, this message translates to:
+  /// **'The two passwords are not the same.'**
+  String get clPasswordsDiffer;
+
+  /// Form problem on sign-up
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your factory\'s name.'**
+  String get clFactoryNeeded;
+
+  /// Field label on sign-up
+  ///
+  /// In en, this message translates to:
+  /// **'Factory name'**
+  String get clFactoryName;
+
+  /// Field label on sign-up
+  ///
+  /// In en, this message translates to:
+  /// **'Your name'**
+  String get clYourName;
+
+  /// Sign-up screen: under the heading
+  ///
+  /// In en, this message translates to:
+  /// **'A new factory, with you as its owner. You can invite up to three workers afterwards.'**
+  String get clSignUpLead;
+
+  /// Button: submit sign-up
+  ///
+  /// In en, this message translates to:
+  /// **'Create account'**
+  String get clCreateAccount;
+
+  /// Dialog title after sign-up
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm your email'**
+  String get clConfirmTitle;
+
+  /// Dialog after sign-up when the address must be confirmed
+  ///
+  /// In en, this message translates to:
+  /// **'We sent a link to {email}. Open it, then sign in.'**
+  String clConfirmBody(String email);
+
+  /// Join screen: under the heading
+  ///
+  /// In en, this message translates to:
+  /// **'Use the code your factory owner gave you, with the email address it was made for.'**
+  String get clJoinLead;
+
+  /// Field label
+  ///
+  /// In en, this message translates to:
+  /// **'Invitation code'**
+  String get clInviteCode;
+
+  /// Form problem
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the invitation code.'**
+  String get clCodeNeeded;
+
+  /// Button: submit joining
+  ///
+  /// In en, this message translates to:
+  /// **'Join'**
+  String get clJoin;
+
+  /// Recovery screen: under the heading
+  ///
+  /// In en, this message translates to:
+  /// **'We will email you a link to set a new password.'**
+  String get clRecoverLead;
+
+  /// Recovery screen once sent
+  ///
+  /// In en, this message translates to:
+  /// **'If an account uses {email}, a link to set a new password is on its way.'**
+  String clRecoverSent(String email);
+
+  /// Button: ask for a recovery link
+  ///
+  /// In en, this message translates to:
+  /// **'Send link'**
+  String get clSendLink;
+
+  /// Title: after a recovery link
+  ///
+  /// In en, this message translates to:
+  /// **'Set a new password'**
+  String get clNewPassword;
+
+  /// Button
+  ///
+  /// In en, this message translates to:
+  /// **'Save password'**
+  String get clSavePassword;
+
+  /// Title: records made before accounts
+  ///
+  /// In en, this message translates to:
+  /// **'Records on this device'**
+  String get clUnclaimedTitle;
+
+  /// First owner sign-in on a device with local records
+  ///
+  /// In en, this message translates to:
+  /// **'This device holds customers and designs made before accounts. Bring them into {factory}, or keep them aside on this device. Nothing is deleted either way.'**
+  String clUnclaimedBody(String factory);
+
+  /// Button
+  ///
+  /// In en, this message translates to:
+  /// **'Bring them into {factory}'**
+  String clUnclaimedBring(String factory);
+
+  /// Button
+  ///
+  /// In en, this message translates to:
+  /// **'Keep them aside on this device'**
+  String get clUnclaimedKeep;
+
+  /// Shown while a session is restored
+  ///
+  /// In en, this message translates to:
+  /// **'Signing in…'**
+  String get clSigningIn;
+
+  /// Title for a suspended worker
+  ///
+  /// In en, this message translates to:
+  /// **'Account suspended'**
+  String get clSuspendedTitle;
+
+  /// Suspended worker screen
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, your factory owner has suspended your account. Ask them to reactivate it.'**
+  String clSuspendedBody(String name);
+
+  /// Button and menu item
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get clSignOut;
+
+  /// Role name
+  ///
+  /// In en, this message translates to:
+  /// **'Owner'**
+  String get clRoleOwner;
+
+  /// Role name of a labour account
+  ///
+  /// In en, this message translates to:
+  /// **'Worker'**
+  String get clRoleLabour;
+
+  /// Tooltip: who is signed in
+  ///
+  /// In en, this message translates to:
+  /// **'{name} ({role})'**
+  String clSignedInAs(String name, String role);
+
+  /// Title and menu item: the owner's workers
+  ///
+  /// In en, this message translates to:
+  /// **'Workers'**
+  String get clWorkers;
+
+  /// Title and menu item: the approval center
+  ///
+  /// In en, this message translates to:
+  /// **'Approvals'**
+  String get clApprovals;
+
+  /// Tooltip on the approvals button
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No requests waiting} =1{1 request waiting} other{{count} requests waiting}}'**
+  String clApprovalsWaiting(num count);
+
+  /// Tooltip on the notifications button
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No unread notifications} =1{1 unread notification} other{{count} unread notifications}}'**
+  String clNotificationsUnread(num count);
+
+  /// Sheet title
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get clNotifications;
+
+  /// Empty state
+  ///
+  /// In en, this message translates to:
+  /// **'No notifications yet.'**
+  String get clNoNotifications;
+
+  /// Notification to the owner
+  ///
+  /// In en, this message translates to:
+  /// **'{name} sent a request: {what}'**
+  String clNoteSubmitted(String name, String what);
+
+  /// Notification to a worker
+  ///
+  /// In en, this message translates to:
+  /// **'Your request was approved: {what}'**
+  String clNoteApproved(String what);
+
+  /// Notification to a worker
+  ///
+  /// In en, this message translates to:
+  /// **'Your request was rejected: {what}'**
+  String clNoteRejected(String what);
+
+  /// Notification to a worker, with the owner's note
+  ///
+  /// In en, this message translates to:
+  /// **'Your request was rejected: {what} — {note}'**
+  String clNoteRejectedWhy(String what, String note);
+
+  /// Notification to a worker
+  ///
+  /// In en, this message translates to:
+  /// **'A design was assigned to you.'**
+  String get clNoteAssigned;
+
+  /// Notification to the owner
+  ///
+  /// In en, this message translates to:
+  /// **'{name} joined your factory.'**
+  String clNoteJoined(String name);
+
+  /// Notification of a kind this version does not know
+  ///
+  /// In en, this message translates to:
+  /// **'Something changed.'**
+  String get clNoteOther;
+
+  /// Request status
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get clStatusPending;
+
+  /// Request status and tab
+  ///
+  /// In en, this message translates to:
+  /// **'Approved'**
+  String get clStatusApproved;
+
+  /// Request status and tab
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get clStatusRejected;
+
+  /// Request status
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get clStatusCancelled;
+
+  /// Request status: failed or awaiting recovery
+  ///
+  /// In en, this message translates to:
+  /// **'Needs attention'**
+  String get clStatusFailed;
+
+  /// Worker status
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get clWorkerActive;
+
+  /// Worker status
+  ///
+  /// In en, this message translates to:
+  /// **'Suspended'**
+  String get clWorkerSuspended;
+
+  /// Request kind
+  ///
+  /// In en, this message translates to:
+  /// **'New design'**
+  String get clKindNewDesign;
+
+  /// Request kind
+  ///
+  /// In en, this message translates to:
+  /// **'New customer and design'**
+  String get clKindNewCustomer;
+
+  /// Request kind
+  ///
+  /// In en, this message translates to:
+  /// **'Design change'**
+  String get clKindChange;
+
+  /// A worker reaching an owner's screen
+  ///
+  /// In en, this message translates to:
+  /// **'Only the factory owner can open this.'**
+  String get clOwnerOnly;
+
+  /// Button and dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Invite worker'**
+  String get clInviteWorker;
+
+  /// Workers screen: seats taken
+  ///
+  /// In en, this message translates to:
+  /// **'{used} of {total} worker places used'**
+  String clSeatsUsed(String used, String total);
+
+  /// Workers screen when full
+  ///
+  /// In en, this message translates to:
+  /// **'All three places are taken. Suspend a worker or withdraw an invitation to free one.'**
+  String get clSeatsFull;
+
+  /// Workers screen lead
+  ///
+  /// In en, this message translates to:
+  /// **'Each worker sees only the designs you give them, and asks you for everything else.'**
+  String get clWorkersLead;
+
+  /// Empty state
+  ///
+  /// In en, this message translates to:
+  /// **'No workers yet.'**
+  String get clNoWorkers;
+
+  /// Section heading
+  ///
+  /// In en, this message translates to:
+  /// **'Invitations not yet used'**
+  String get clOpenInvites;
+
+  /// Invitation expiry
+  ///
+  /// In en, this message translates to:
+  /// **'Valid until {date}'**
+  String clInviteUntil(String date);
+
+  /// Button: withdraw an invitation
+  ///
+  /// In en, this message translates to:
+  /// **'Withdraw'**
+  String get clRevoke;
+
+  /// How many designs a worker may see
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No designs} =1{1 design} other{{count} designs}}'**
+  String clAssignedCount(num count);
+
+  /// How many of a worker's requests wait
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{no requests waiting} =1{1 request waiting} other{{count} requests waiting}}'**
+  String clPendingCount(num count);
+
+  /// Button: a worker's designs
+  ///
+  /// In en, this message translates to:
+  /// **'Manage access'**
+  String get clManageAccess;
+
+  /// Button: suspend a worker
+  ///
+  /// In en, this message translates to:
+  /// **'Suspend'**
+  String get clSuspend;
+
+  /// Button: reactivate a worker
+  ///
+  /// In en, this message translates to:
+  /// **'Reactivate'**
+  String get clReactivate;
+
+  /// Confirm dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Suspend {name}?'**
+  String clSuspendTitle(String name);
+
+  /// Confirm dialog
+  ///
+  /// In en, this message translates to:
+  /// **'They can no longer sign in or see any design. Their requests, and every customer and design, are kept.'**
+  String get clSuspendBody;
+
+  /// Notice after suspending
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is suspended.'**
+  String clSuspended(String name);
+
+  /// Notice after reactivating
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is active again.'**
+  String clReactivated(String name);
+
+  /// Invite dialog
+  ///
+  /// In en, this message translates to:
+  /// **'The worker sets their own password. You give them the code.'**
+  String get clInviteLead;
+
+  /// Field label
+  ///
+  /// In en, this message translates to:
+  /// **'Worker\'s name'**
+  String get clWorkerName;
+
+  /// Button
+  ///
+  /// In en, this message translates to:
+  /// **'Invite'**
+  String get clInvite;
+
+  /// Invite dialog once the code is made
+  ///
+  /// In en, this message translates to:
+  /// **'Give this code to {name}. They choose “Join with an invitation” on the sign-in screen and use {email}. It works once, until {date}.'**
+  String clInviteMade(String name, String email, String date);
+
+  /// Button
+  ///
+  /// In en, this message translates to:
+  /// **'Copy code'**
+  String get clCopyCode;
+
+  /// Notice
+  ///
+  /// In en, this message translates to:
+  /// **'Copied.'**
+  String get clCopied;
+
+  /// Invite dialog warning
+  ///
+  /// In en, this message translates to:
+  /// **'This code is not shown again.'**
+  String get clInviteOnce;
+
+  /// Worker page section
+  ///
+  /// In en, this message translates to:
+  /// **'Designs this worker can see'**
+  String get clDesignsAccess;
+
+  /// Worker page section lead
+  ///
+  /// In en, this message translates to:
+  /// **'A new worker sees none until you give them one.'**
+  String get clDesignsAccessLead;
+
+  /// Empty state
+  ///
+  /// In en, this message translates to:
+  /// **'None yet.'**
+  String get clNoDesignsAssigned;
+
+  /// Button and dialog title: assign a design to a worker
+  ///
+  /// In en, this message translates to:
+  /// **'Give a design'**
+  String get clAssignDesign;
+
+  /// Worker page section
+  ///
+  /// In en, this message translates to:
+  /// **'Their requests'**
+  String get clTheirRequests;
+
+  /// Empty state
+  ///
+  /// In en, this message translates to:
+  /// **'No requests.'**
+  String get clNoRequests;
+
+  /// Button: remove an assignment
+  ///
+  /// In en, this message translates to:
+  /// **'Take away'**
+  String get clRemoveAccess;
+
+  /// Search hint
+  ///
+  /// In en, this message translates to:
+  /// **'Search designs'**
+  String get clSearchDesigns;
+
+  /// Empty state
+  ///
+  /// In en, this message translates to:
+  /// **'No other designs to give.'**
+  String get clNothingToAssign;
+
+  /// Approval center tab
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, other{Pending ({count})}}'**
+  String clPendingTab(num count);
+
+  /// Notice after an approval succeeded
+  ///
+  /// In en, this message translates to:
+  /// **'Approved.'**
+  String get clApprovedDone;
+
+  /// Confirm dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Reject this request?'**
+  String get clRejectTitle;
+
+  /// Confirm dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is made or changed. The worker is told, with your note.'**
+  String get clRejectBody;
+
+  /// Button
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get clReject;
+
+  /// Notice after a rejection
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected.'**
+  String get clRejectedDone;
+
+  /// Notice
+  ///
+  /// In en, this message translates to:
+  /// **'Request cancelled.'**
+  String get clCancelledDone;
+
+  /// Request detail label
+  ///
+  /// In en, this message translates to:
+  /// **'Asked by'**
+  String get clRequestedBy;
+
+  /// Request detail label
+  ///
+  /// In en, this message translates to:
+  /// **'Asked on'**
+  String get clRequestedOn;
+
+  /// Label
+  ///
+  /// In en, this message translates to:
+  /// **'Customer'**
+  String get clCustomer;
+
+  /// Label
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get clPhone;
+
+  /// Label
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get clAddress;
+
+  /// Label
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get clNotes;
+
+  /// Label
+  ///
+  /// In en, this message translates to:
+  /// **'Design name'**
+  String get clDesignName;
+
+  /// Label
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get clCategory;
+
+  /// Label
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get clDescription;
+
+  /// Request detail label
+  ///
+  /// In en, this message translates to:
+  /// **'Decided on'**
+  String get clDecidedOn;
+
+  /// Request detail label
+  ///
+  /// In en, this message translates to:
+  /// **'Owner\'s note'**
+  String get clDecisionNote;
+
+  /// Field label when deciding
+  ///
+  /// In en, this message translates to:
+  /// **'Note for the worker (optional)'**
+  String get clNoteForWorker;
+
+  /// Checkbox when approving; off by default
+  ///
+  /// In en, this message translates to:
+  /// **'Give {name} access to the new design'**
+  String clGiveAccess(String name);
+
+  /// Button
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get clApprove;
+
+  /// Button
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel request'**
+  String get clCancelRequest;
+
+  /// Duplicate warning
+  ///
+  /// In en, this message translates to:
+  /// **'A customer like this is already kept'**
+  String get clPossibleDuplicate;
+
+  /// Duplicate warning
+  ///
+  /// In en, this message translates to:
+  /// **'Approving makes a new customer. Nothing is merged — reject it if it is the same person.'**
+  String get clDuplicateNoMerge;
+
+  /// Change request that cannot be read
+  ///
+  /// In en, this message translates to:
+  /// **'This proposal cannot be read by this version of ProFrame, so it cannot be approved.'**
+  String get clProposalUnreadable;
+
+  /// Section heading: geometry comparison
+  ///
+  /// In en, this message translates to:
+  /// **'As it is, and as proposed'**
+  String get clComparison;
+
+  /// Column: the design as it is
+  ///
+  /// In en, this message translates to:
+  /// **'As it is'**
+  String get clOriginal;
+
+  /// Column: the proposed design
+  ///
+  /// In en, this message translates to:
+  /// **'Proposed'**
+  String get clProposed;
+
+  /// Comparison row
+  ///
+  /// In en, this message translates to:
+  /// **'Width'**
+  String get clMeasureWidth;
+
+  /// Comparison row
+  ///
+  /// In en, this message translates to:
+  /// **'Height'**
+  String get clMeasureHeight;
+
+  /// Comparison row
+  ///
+  /// In en, this message translates to:
+  /// **'Depth'**
+  String get clMeasureDepth;
+
+  /// Comparison row: bars of the design
+  ///
+  /// In en, this message translates to:
+  /// **'Lines'**
+  String get clMeasureBars;
+
+  /// Comparison row: sections
+  ///
+  /// In en, this message translates to:
+  /// **'Parts'**
+  String get clMeasureLights;
+
+  /// Comparison row: openings
+  ///
+  /// In en, this message translates to:
+  /// **'Openings'**
+  String get clMeasureOpenings;
+
+  /// Worker home greeting
+  ///
+  /// In en, this message translates to:
+  /// **'Hello, {name}'**
+  String clHello(String name);
+
+  /// Worker home lead
+  ///
+  /// In en, this message translates to:
+  /// **'Your designs, and what you have asked for.'**
+  String get clLabourLead;
+
+  /// Button and title
+  ///
+  /// In en, this message translates to:
+  /// **'Ask for a new design'**
+  String get clAskNewDesign;
+
+  /// Button and title
+  ///
+  /// In en, this message translates to:
+  /// **'Ask for a new customer'**
+  String get clAskNewCustomer;
+
+  /// Worker home section
+  ///
+  /// In en, this message translates to:
+  /// **'My assigned designs'**
+  String get clMyDesigns;
+
+  /// Empty state
+  ///
+  /// In en, this message translates to:
+  /// **'No designs are assigned to you yet.'**
+  String get clNoAssignedDesigns;
+
+  /// Worker home section
+  ///
+  /// In en, this message translates to:
+  /// **'My requests'**
+  String get clMyRequests;
+
+  /// Button
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get clOpen;
+
+  /// Tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get clRefresh;
+
+  /// Request forms lead
+  ///
+  /// In en, this message translates to:
+  /// **'The owner approves or rejects it. Nothing is made until then.'**
+  String get clRequestLead;
+
+  /// Form problem
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the customer.'**
+  String get clChooseCustomer;
+
+  /// Form problem
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name for the design.'**
+  String get clDesignNameNeeded;
+
+  /// Form problem
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the category.'**
+  String get clChooseCategory;
+
+  /// Notice
+  ///
+  /// In en, this message translates to:
+  /// **'Request sent to the owner.'**
+  String get clRequestSent;
+
+  /// Request form with no customers in scope
+  ///
+  /// In en, this message translates to:
+  /// **'You have no customers yet. Ask for a new customer instead.'**
+  String get clNoScopedCustomers;
+
+  /// Button
+  ///
+  /// In en, this message translates to:
+  /// **'Send request'**
+  String get clSendRequest;
+
+  /// Field label
+  ///
+  /// In en, this message translates to:
+  /// **'Customer\'s name'**
+  String get clCustomerName;
+
+  /// Form problem
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the customer\'s name.'**
+  String get clCustomerNameNeeded;
+
+  /// Bar under an assigned design
+  ///
+  /// In en, this message translates to:
+  /// **'You can look at this design. To change it, propose a change for the owner to approve.'**
+  String get clViewingAssigned;
+
+  /// Bar while proposing
+  ///
+  /// In en, this message translates to:
+  /// **'Proposing a change. The design stays as it is until the owner approves.'**
+  String get clProposing;
+
+  /// Button
+  ///
+  /// In en, this message translates to:
+  /// **'Propose a change'**
+  String get clProposeChange;
+
+  /// Button: drop a proposal
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get clDiscard;
+
+  /// Button and dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Send for approval'**
+  String get clSubmitForApproval;
+
+  /// Field label: change description
+  ///
+  /// In en, this message translates to:
+  /// **'What did you change, and why?'**
+  String get clWhatChanged;
+
+  /// Form problem
+  ///
+  /// In en, this message translates to:
+  /// **'Say what you changed.'**
+  String get clWhatChangedNeeded;
+
+  /// Notice
+  ///
+  /// In en, this message translates to:
+  /// **'Change sent to the owner for approval.'**
+  String get clChangeSent;
+
+  /// [domain] Sign-in refused
+  ///
+  /// In en, this message translates to:
+  /// **'That email and password do not match an account.'**
+  String get authInvalidCredentials;
+
+  /// [domain] Sign-in before confirming
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm your email address first — open the link we sent you.'**
+  String get authEmailNotConfirmed;
+
+  /// [domain] Sign-up refused
+  ///
+  /// In en, this message translates to:
+  /// **'An account already uses this email address.'**
+  String get authEmailTaken;
+
+  /// [domain] Sign-up refused
+  ///
+  /// In en, this message translates to:
+  /// **'That password is too weak. Use a longer one.'**
+  String get authWeakPassword;
+
+  /// [domain] Joining refused
+  ///
+  /// In en, this message translates to:
+  /// **'That invitation code is not valid for this email address — it may be used, withdrawn or expired.'**
+  String get authInviteInvalid;
+
+  /// [domain] Refused for a missing name
+  ///
+  /// In en, this message translates to:
+  /// **'A name is needed.'**
+  String get authNameRequired;
+
+  /// [domain] Refused for an address
+  ///
+  /// In en, this message translates to:
+  /// **'That email address is not valid.'**
+  String get authEmailInvalid;
+
+  /// [domain] A suspended account
+  ///
+  /// In en, this message translates to:
+  /// **'This account is suspended. Ask your factory owner.'**
+  String get authSuspended;
+
+  /// [domain] A session with no account
+  ///
+  /// In en, this message translates to:
+  /// **'This sign-in has no ProFrame account.'**
+  String get authNoAccount;
+
+  /// [domain] Session ended
+  ///
+  /// In en, this message translates to:
+  /// **'You are signed out. Sign in again.'**
+  String get authNotSignedIn;
+
+  /// [domain] Provider rate limit
+  ///
+  /// In en, this message translates to:
+  /// **'Too many tries. Wait a little and try again.'**
+  String get authRateLimited;
+
+  /// [domain] Backend refusal
+  ///
+  /// In en, this message translates to:
+  /// **'Only the factory owner can do that.'**
+  String get backendNotOwner;
+
+  /// [domain] Backend refusal
+  ///
+  /// In en, this message translates to:
+  /// **'That design is not assigned to you.'**
+  String get backendNotAssigned;
+
+  /// [domain] Backend refusal
+  ///
+  /// In en, this message translates to:
+  /// **'That customer is not on the server yet. Wait a moment and try again.'**
+  String get backendCustomerMissing;
+
+  /// [domain] Backend refusal
+  ///
+  /// In en, this message translates to:
+  /// **'That customer still has designs.'**
+  String get backendCustomerHasDesigns;
+
+  /// [domain] Network failure
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the server. Check the connection and try again.'**
+  String get backendNetwork;
+
+  /// [domain] Unknown backend failure
+  ///
+  /// In en, this message translates to:
+  /// **'That did not work. Nothing was changed. Try again.'**
+  String get backendFailed;
+
+  /// [domain] Fourth worker refused
+  ///
+  /// In en, this message translates to:
+  /// **'A factory can have three active workers. Suspend one or withdraw an invitation first.'**
+  String get workersLimit;
+
+  /// [domain] Invitation refused
+  ///
+  /// In en, this message translates to:
+  /// **'That address already has an invitation waiting.'**
+  String get workersAlreadyInvited;
+
+  /// [domain] Change approval conflict
+  ///
+  /// In en, this message translates to:
+  /// **'The design changed after this was proposed. Reject it, and the worker can propose again from the design as it is now.'**
+  String get requestConflict;
+
+  /// [domain] Approval refused
+  ///
+  /// In en, this message translates to:
+  /// **'This request has already been decided.'**
+  String get requestAlreadyDecided;
 }
 
 class _AppLocalizationsDelegate

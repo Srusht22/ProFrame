@@ -32,6 +32,7 @@ import '../../infrastructure/design_store.dart';
 import '../canvas/cad_layers.dart';
 import '../viewer/view_mode.dart';
 import 'access.dart';
+import 'cloud.dart';
 import 'language.dart';
 import 'tools.dart';
 
@@ -484,8 +485,17 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   bool _pricingOnly = false;
 
   bool _mayEdit(Design design) {
+    if (_proposing(design)) return true;
     final actor = ref.actorKnown();
     return actor == null || actor.can(Capability.designsEdit);
+  }
+
+  /// Whether [design] is a worker's proposal in the making: changed here,
+  /// in the workspace, and never kept on the device or the backend until
+  /// it is submitted and the owner approves it.
+  bool _proposing(Design design) {
+    final p = ref.read(proposalProvider);
+    return p != null && p.active && p.designId == design.id;
   }
 
   /// Whether the person at the device may change the design in hand, as
@@ -1655,6 +1665,8 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   Future<void> save() async {
     // Kept exactly as it was saved, and so never written again here.
     if (state.design.isUnsupported) return;
+    // A worker's proposal is sent as a request, never kept as the design.
+    if (ref.read(proposalProvider) != null) return;
     final kept = await ref
         .read(designStoreProvider)
         .save(state.design, by: await ref.actorNow());
@@ -1710,6 +1722,12 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         return Completion(
           CompletionResult.failed,
           message: ref.l10n.completeUnsupported,
+        );
+      }
+      if (ref.read(proposalProvider) != null) {
+        return Completion(
+          CompletionResult.failed,
+          message: ref.l10n.completeNoPermission,
         );
       }
       if (state.needsReading) readDrawing();

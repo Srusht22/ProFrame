@@ -5,9 +5,11 @@ import '../../domain/pricing/pricing_access.dart';
 import '../../infrastructure/customer_store.dart';
 import '../l10n/l10n.dart';
 import '../state/access.dart';
+import '../state/cloud.dart';
 import '../state/pricing.dart';
 import '../state/workspace.dart';
 import '../theme/app_theme.dart';
+import 'accounts/cloud_header.dart';
 import 'appearance_button.dart';
 import 'customer_screen.dart';
 import 'factory_defaults_screen.dart';
@@ -511,21 +513,28 @@ class _Header extends StatelessWidget {
 /// different kinds — a menu button, a plain button — whose own sizes
 /// differ, and laid side by side by their feet they stood at different
 /// heights; boxed alike, every icon's middle is on the same line.
-class HeaderIcons extends StatelessWidget {
+class HeaderIcons extends ConsumerWidget {
   const HeaderIcons({super.key});
 
   /// The side of each icon's box.
   static const side = 44.0;
 
   @override
-  Widget build(BuildContext context) => Row(
+  Widget build(BuildContext context, WidgetRef ref) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      for (final icon in const [
-        AccountButton(colour: AppTheme.accent),
-        FactoryButton(colour: AppTheme.accent),
-        LanguageButton(colour: AppTheme.accent),
-        AppearanceButton(colour: AppTheme.accent),
+      for (final icon in [
+        // With accounts: who is signed in, and the owner's approvals;
+        // without, the device's own lock, as before.
+        if (ref.watch(cloudModeProvider)) ...const [
+          CloudAccountButton(colour: AppTheme.accent),
+          ApprovalsButton(colour: AppTheme.accent),
+          NotificationsButton(colour: AppTheme.accent),
+        ] else
+          const AccountButton(colour: AppTheme.accent),
+        const FactoryButton(colour: AppTheme.accent),
+        const LanguageButton(colour: AppTheme.accent),
+        const AppearanceButton(colour: AppTheme.accent),
       ])
         SizedBox.square(
           dimension: side,

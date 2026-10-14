@@ -5,6 +5,7 @@ import '../../domain/model/staff.dart';
 import '../../domain/pricing/pricing_access.dart';
 import '../../infrastructure/owner_access_store.dart';
 import '../../infrastructure/staff_store.dart';
+import 'cloud.dart';
 import 'pricing.dart';
 import 'workspace.dart';
 
@@ -52,7 +53,14 @@ class SignedInStaff extends Notifier<StaffMember?> {
 ///
 /// While the staff are still being read, nobody signed in may only look —
 /// never more than the device turns out to allow.
+///
+/// **With accounts, it is the account signed in** — an owner may do
+/// everything, a worker only look — and nobody signed in may only look. The
+/// backend decides again on every call; this decides what is offered.
 final actorProvider = Provider<Authority>((ref) {
+  if (ref.watch(cloudModeProvider)) {
+    return ref.watch(sessionProvider).value ?? const NobodySignedIn();
+  }
   if (ref.watch(workshopRoleProvider) == WorkshopRole.owner) {
     return WorkshopRole.owner;
   }
@@ -72,7 +80,11 @@ extension Signing on WidgetRef {
   /// Who is at the device, once the staff have been read — what an action
   /// hands the store it writes to.
   Future<Authority> actorNow() async {
-    await read(staffMembersProvider.future);
+    if (read(cloudModeProvider)) {
+      await read(sessionProvider.future);
+    } else {
+      await read(staffMembersProvider.future);
+    }
     return read(actorProvider);
   }
 
@@ -103,7 +115,11 @@ extension Signing on WidgetRef {
 extension ActorOfRef on Ref {
   /// Who is at the device, once the staff have been read.
   Future<Authority> actorNow() async {
-    await read(staffMembersProvider.future);
+    if (read(cloudModeProvider)) {
+      await read(sessionProvider.future);
+    } else {
+      await read(staffMembersProvider.future);
+    }
     return read(actorProvider);
   }
 
@@ -113,6 +129,7 @@ extension ActorOfRef on Ref {
   /// only what it knows is not allowed; whatever is then kept is asked of
   /// the store by [actorNow], which waits.
   Authority? actorKnown() {
+    if (read(cloudModeProvider)) return read(actorProvider);
     if (read(workshopRoleProvider) == WorkshopRole.owner) {
       return WorkshopRole.owner;
     }
@@ -136,6 +153,7 @@ extension Offering on WidgetRef {
 
   /// Whether who is at the device, and so what they may do, is known yet.
   bool get permissionsKnown {
+    if (watch(cloudModeProvider)) return !watch(sessionProvider).isLoading;
     if (watch(workshopRoleProvider) == WorkshopRole.owner) return true;
     if (watch(signedInStaffProvider) != null) return true;
     final staff = watch(staffMembersProvider);

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'l10n/kurdish_framework.dart';
 import 'l10n/l10n.dart';
-import 'screens/customers_screen.dart';
+import 'screens/accounts/account_gate.dart';
 import 'screens/launch_screen.dart';
 import 'state/appearance.dart';
 import 'state/language.dart';
@@ -35,7 +35,8 @@ class ProFrameApp extends ConsumerWidget {
       GlobalCupertinoLocalizations.delegate,
     ],
     // The workshop's mark plays once as the app opens, and then hands
-    // over to the customers: a customer, then their designs.
-    home: LaunchScreen(next: (_) => const CustomersScreen()),
+    // over to the customers: a customer, then their designs — or, with
+    // accounts, to whoever is signed in (`AccountGate`).
+    home: LaunchScreen(next: (_) => const AccountGate()),
   );
 }

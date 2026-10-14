@@ -262,6 +262,23 @@ class CustomerStore {
     return null;
   }
 
+  /// A customer not kept yet — a new id and the details given, trimmed —
+  /// for something that keeps it elsewhere: the owner approving a worker's
+  /// request for a new customer, which the backend makes.
+  Customer fresh({
+    required String name,
+    String phone = '',
+    String address = '',
+    String notes = '',
+    DateTime? now,
+  }) => _newCustomer(
+    name: name,
+    phone: phone,
+    address: address,
+    notes: notes,
+    now: now,
+  );
+
   Customer _newCustomer({
     required String name,
     String phone = '',

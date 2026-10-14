@@ -1589,4 +1589,67 @@ class ArbWords implements Words {
   @override
   String msHintNearest(String size) => l.msHintNearest(size);
 
+  @override
+  String get authInvalidCredentials => l.authInvalidCredentials;
+
+  @override
+  String get authEmailNotConfirmed => l.authEmailNotConfirmed;
+
+  @override
+  String get authEmailTaken => l.authEmailTaken;
+
+  @override
+  String get authWeakPassword => l.authWeakPassword;
+
+  @override
+  String get authInviteInvalid => l.authInviteInvalid;
+
+  @override
+  String get authNameRequired => l.authNameRequired;
+
+  @override
+  String get authEmailInvalid => l.authEmailInvalid;
+
+  @override
+  String get authSuspended => l.authSuspended;
+
+  @override
+  String get authNoAccount => l.authNoAccount;
+
+  @override
+  String get authNotSignedIn => l.authNotSignedIn;
+
+  @override
+  String get authRateLimited => l.authRateLimited;
+
+  @override
+  String get backendNotOwner => l.backendNotOwner;
+
+  @override
+  String get backendNotAssigned => l.backendNotAssigned;
+
+  @override
+  String get backendCustomerMissing => l.backendCustomerMissing;
+
+  @override
+  String get backendCustomerHasDesigns => l.backendCustomerHasDesigns;
+
+  @override
+  String get backendNetwork => l.backendNetwork;
+
+  @override
+  String get backendFailed => l.backendFailed;
+
+  @override
+  String get workersLimit => l.workersLimit;
+
+  @override
+  String get workersAlreadyInvited => l.workersAlreadyInvited;
+
+  @override
+  String get requestConflict => l.requestConflict;
+
+  @override
+  String get requestAlreadyDecided => l.requestAlreadyDecided;
+
 }

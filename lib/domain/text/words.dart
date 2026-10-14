@@ -1578,6 +1578,69 @@ abstract interface class Words {
   /// Size suggestion: the nearest size at which every part still fits. {size} is a figure with its unit.
   String msHintNearest(String size);
 
+  /// Sign-in refused
+  String get authInvalidCredentials;
+
+  /// Sign-in before confirming
+  String get authEmailNotConfirmed;
+
+  /// Sign-up refused
+  String get authEmailTaken;
+
+  /// Sign-up refused
+  String get authWeakPassword;
+
+  /// Joining refused
+  String get authInviteInvalid;
+
+  /// Refused for a missing name
+  String get authNameRequired;
+
+  /// Refused for an address
+  String get authEmailInvalid;
+
+  /// A suspended account
+  String get authSuspended;
+
+  /// A session with no account
+  String get authNoAccount;
+
+  /// Session ended
+  String get authNotSignedIn;
+
+  /// Provider rate limit
+  String get authRateLimited;
+
+  /// Backend refusal
+  String get backendNotOwner;
+
+  /// Backend refusal
+  String get backendNotAssigned;
+
+  /// Backend refusal
+  String get backendCustomerMissing;
+
+  /// Backend refusal
+  String get backendCustomerHasDesigns;
+
+  /// Network failure
+  String get backendNetwork;
+
+  /// Unknown backend failure
+  String get backendFailed;
+
+  /// Fourth worker refused
+  String get workersLimit;
+
+  /// Invitation refused
+  String get workersAlreadyInvited;
+
+  /// Change approval conflict
+  String get requestConflict;
+
+  /// Approval refused
+  String get requestAlreadyDecided;
+
 }
 
 /// The domain in English.
@@ -3675,5 +3738,89 @@ class EnglishWords implements Words {
   @override
   String msHintNearest(String size) =>
       'The nearest size that keeps every part is $size.';
+
+  @override
+  String get authInvalidCredentials =>
+      'That email and password do not match an account.';
+
+  @override
+  String get authEmailNotConfirmed =>
+      'Confirm your email address first — open the link we sent you.';
+
+  @override
+  String get authEmailTaken =>
+      'An account already uses this email address.';
+
+  @override
+  String get authWeakPassword =>
+      'That password is too weak. Use a longer one.';
+
+  @override
+  String get authInviteInvalid =>
+      'That invitation code is not valid for this email address — it may be used, withdrawn or expired.';
+
+  @override
+  String get authNameRequired =>
+      'A name is needed.';
+
+  @override
+  String get authEmailInvalid =>
+      'That email address is not valid.';
+
+  @override
+  String get authSuspended =>
+      'This account is suspended. Ask your factory owner.';
+
+  @override
+  String get authNoAccount =>
+      'This sign-in has no ProFrame account.';
+
+  @override
+  String get authNotSignedIn =>
+      'You are signed out. Sign in again.';
+
+  @override
+  String get authRateLimited =>
+      'Too many tries. Wait a little and try again.';
+
+  @override
+  String get backendNotOwner =>
+      'Only the factory owner can do that.';
+
+  @override
+  String get backendNotAssigned =>
+      'That design is not assigned to you.';
+
+  @override
+  String get backendCustomerMissing =>
+      'That customer is not on the server yet. Wait a moment and try again.';
+
+  @override
+  String get backendCustomerHasDesigns =>
+      'That customer still has designs.';
+
+  @override
+  String get backendNetwork =>
+      'Could not reach the server. Check the connection and try again.';
+
+  @override
+  String get backendFailed =>
+      'That did not work. Nothing was changed. Try again.';
+
+  @override
+  String get workersLimit =>
+      'A factory can have three active workers. Suspend one or withdraw an invitation first.';
+
+  @override
+  String get workersAlreadyInvited =>
+      'That address already has an invitation waiting.';
+
+  @override
+  String get requestConflict =>
+      'The design changed after this was proposed. Reject it, and the worker can propose again from the design as it is now.';
+
+  @override
+  String get requestAlreadyDecided =>
+      'This request has already been decided.';
 
 }

@@ -26,6 +26,8 @@ dependencies:
 
   # The workshop owner's PIN is kept only as a salted hash.
   crypto: ^3.0.7
+  http: ^1.6.0
+  shared_preferences_platform_interface: ^2.4.2
 
 dev_dependencies:
   flutter_test:

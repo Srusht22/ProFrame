@@ -4682,4 +4682,660 @@ class AppLocalizationsCkb extends AppLocalizations {
   String mfAppliedAnyway(String size) {
     return '‎$size‎ جێبەجێکرا، وەک خۆت نووسیت.';
   }
+
+  @override
+  String get clSignIn => 'چوونەژوورەوە';
+
+  @override
+  String get clSignInHeading => 'چوونەژوورەوە بۆ ProFrame';
+
+  @override
+  String get clSignInLead =>
+      'خاوەنکار و کرێکاران لێرەوە دەچنە ژوورەوە. هەژمارەکەت دیاری دەکات کە کامیانیت.';
+
+  @override
+  String get clEmail => 'ئیمەیڵ';
+
+  @override
+  String get clPassword => 'وشەی نهێنی';
+
+  @override
+  String get clPasswordAgain => 'دووبارەکردنەوەی وشەی نهێنی';
+
+  @override
+  String get clShowPassword => 'پیشاندانی وشەی نهێنی';
+
+  @override
+  String get clHidePassword => 'شاردنەوەی وشەی نهێنی';
+
+  @override
+  String get clForgotPassword => 'وشەی نهێنیت لەبیرچووە؟';
+
+  @override
+  String get clCreateOwner => 'دروستکردنی هەژماری خاوەنکار';
+
+  @override
+  String get clJoinWithInvite => 'بەشداربوون بە بانگهێشتنامە';
+
+  @override
+  String get clEmailInvalid => 'ئیمەیڵێکی دروست بنووسە.';
+
+  @override
+  String get clPasswordNeeded => 'وشەی نهێنییەکەت بنووسە.';
+
+  @override
+  String get clNameNeeded => 'ناوێک بنووسە.';
+
+  @override
+  String clPasswordShort(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'لانیکەم $count پیت.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get clPasswordsDiffer => 'هەردوو وشە نهێنییەکە وەک یەک نین.';
+
+  @override
+  String get clFactoryNeeded => 'ناوی کارگەکەت بنووسە.';
+
+  @override
+  String get clFactoryName => 'ناوی کارگە';
+
+  @override
+  String get clYourName => 'ناوی خۆت';
+
+  @override
+  String get clSignUpLead =>
+      'کارگەیەکی نوێ، کە تۆ خاوەنەکەیت. دواتر دەتوانیت تا سێ کرێکار بانگهێشت بکەیت.';
+
+  @override
+  String get clCreateAccount => 'دروستکردنی هەژمار';
+
+  @override
+  String get clConfirmTitle => 'ئیمەیڵەکەت پشتڕاست بکەرەوە';
+
+  @override
+  String clConfirmBody(String email) {
+    return 'بەستەرێکمان بۆ $email نارد. بیکەرەوە، پاشان بچۆ ژوورەوە.';
+  }
+
+  @override
+  String get clJoinLead =>
+      'ئەو کۆدە بەکاربهێنە کە خاوەنی کارگەکەت پێی داویت، لەگەڵ ئەو ئیمەیڵەی کە بۆی دروستکراوە.';
+
+  @override
+  String get clInviteCode => 'کۆدی بانگهێشتنامە';
+
+  @override
+  String get clCodeNeeded => 'کۆدی بانگهێشتنامە بنووسە.';
+
+  @override
+  String get clJoin => 'بەشداربوون';
+
+  @override
+  String get clRecoverLead =>
+      'بەستەرێکت بۆ دەنێرین بە ئیمەیڵ بۆ دانانی وشەی نهێنیی نوێ.';
+
+  @override
+  String clRecoverSent(String email) {
+    return 'ئەگەر هەژمارێک $email بەکاربهێنێت، بەستەرێک بۆ دانانی وشەی نهێنیی نوێ لە ڕێگادایە.';
+  }
+
+  @override
+  String get clSendLink => 'ناردنی بەستەر';
+
+  @override
+  String get clNewPassword => 'دانانی وشەی نهێنیی نوێ';
+
+  @override
+  String get clSavePassword => 'پاشەکەوتکردنی وشەی نهێنی';
+
+  @override
+  String get clUnclaimedTitle => 'تۆمارەکانی سەر ئەم ئامێرە';
+
+  @override
+  String clUnclaimedBody(String factory) {
+    return 'ئەم ئامێرە کڕیار و دیزاینی تێدایە کە پێش هەژمارەکان دروستکراون. بیانهێنە ناو $factory، یان لەسەر ئەم ئامێرە بە جیا بیانپارێزە. لە هەردوو حاڵەتدا هیچ شتێک ناسڕدرێتەوە.';
+  }
+
+  @override
+  String clUnclaimedBring(String factory) {
+    return 'هێنانیان بۆ ناو $factory';
+  }
+
+  @override
+  String get clUnclaimedKeep => 'پاراستنیان بە جیا لەسەر ئەم ئامێرە';
+
+  @override
+  String get clSigningIn => 'چوونەژوورەوە…';
+
+  @override
+  String get clSuspendedTitle => 'هەژمار ڕاگیراوە';
+
+  @override
+  String clSuspendedBody(String name) {
+    return '$name، خاوەنی کارگەکەت هەژمارەکەتی ڕاگرتووە. داوای لێبکە دووبارە چالاکی بکاتەوە.';
+  }
+
+  @override
+  String get clSignOut => 'چوونەدەرەوە';
+
+  @override
+  String get clRoleOwner => 'خاوەنکار';
+
+  @override
+  String get clRoleLabour => 'کرێکار';
+
+  @override
+  String clSignedInAs(String name, String role) {
+    return '$name ($role)';
+  }
+
+  @override
+  String get clWorkers => 'کرێکاران';
+
+  @override
+  String get clApprovals => 'پەسەندکردنەکان';
+
+  @override
+  String clApprovalsWaiting(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count داوا چاوەڕێن',
+      zero: 'هیچ داوایەک چاوەڕێ ناکات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String clNotificationsUnread(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'ئاگادارکردنەوەکان، $count نەخوێندراوە',
+      zero: 'هیچ ئاگادارکردنەوەیەکی نەخوێندراو نییە',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get clNotifications => 'ئاگادارکردنەوەکان';
+
+  @override
+  String get clNoNotifications => 'هێشتا هیچ ئاگادارکردنەوەیەک نییە.';
+
+  @override
+  String clNoteSubmitted(String name, String what) {
+    return '$name داوایەکی نارد: $what';
+  }
+
+  @override
+  String clNoteApproved(String what) {
+    return 'داواکەت پەسەندکرا: $what';
+  }
+
+  @override
+  String clNoteRejected(String what) {
+    return 'داواکەت ڕەتکرایەوە: $what';
+  }
+
+  @override
+  String clNoteRejectedWhy(String what, String note) {
+    return 'داواکەت ڕەتکرایەوە: $what — $note';
+  }
+
+  @override
+  String get clNoteAssigned => 'دیزاینێک دراوە بە تۆ.';
+
+  @override
+  String clNoteJoined(String name) {
+    return '$name بەشداری کارگەکەت بوو.';
+  }
+
+  @override
+  String get clNoteOther => 'شتێک گۆڕا.';
+
+  @override
+  String get clStatusPending => 'چاوەڕوان';
+
+  @override
+  String get clStatusApproved => 'پەسەندکراو';
+
+  @override
+  String get clStatusRejected => 'ڕەتکراوە';
+
+  @override
+  String get clStatusCancelled => 'هەڵوەشێنراوە';
+
+  @override
+  String get clStatusFailed => 'پێویستی بە سەرنجە';
+
+  @override
+  String get clWorkerActive => 'چالاک';
+
+  @override
+  String get clWorkerSuspended => 'ڕاگیراو';
+
+  @override
+  String get clKindNewDesign => 'دیزاینی نوێ';
+
+  @override
+  String get clKindNewCustomer => 'کڕیار و دیزاینی نوێ';
+
+  @override
+  String get clKindChange => 'گۆڕانکاری لە دیزاین';
+
+  @override
+  String get clOwnerOnly => 'تەنها خاوەنی کارگە دەتوانێت ئەمە بکاتەوە.';
+
+  @override
+  String get clInviteWorker => 'بانگهێشتکردنی کرێکار';
+
+  @override
+  String clSeatsUsed(String used, String total) {
+    return '$used لە ‎$total‎ شوێنی کرێکار بەکارهاتووە';
+  }
+
+  @override
+  String get clSeatsFull =>
+      'هەر سێ شوێنەکە گیراون. کرێکارێک ڕابگرە یان بانگهێشتنامەیەک بکشێنەوە بۆ ئەوەی یەکێکیان بەتاڵ بێتەوە.';
+
+  @override
+  String get clWorkersLead =>
+      'هەر کرێکارێک تەنها ئەو دیزاینانە دەبینێت کە تۆ پێیان دەدەیت، و بۆ هەموو شتێکی تر داوا لە تۆ دەکات.';
+
+  @override
+  String get clNoWorkers => 'هێشتا هیچ کرێکارێک نییە.';
+
+  @override
+  String get clOpenInvites => 'بانگهێشتنامە بەکارنەهاتووەکان';
+
+  @override
+  String clInviteUntil(String date) {
+    return 'تا $date کارا دەبێت';
+  }
+
+  @override
+  String get clRevoke => 'کشاندنەوە';
+
+  @override
+  String clAssignedCount(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count دیزاین',
+      zero: 'هیچ دیزاینێک',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String clPendingCount(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count داوا چاوەڕێن',
+      zero: 'هیچ داوایەک چاوەڕێ ناکات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get clManageAccess => 'بەڕێوەبردنی دەستپێگەیشتن';
+
+  @override
+  String get clSuspend => 'ڕاگرتن';
+
+  @override
+  String get clReactivate => 'چالاککردنەوە';
+
+  @override
+  String clSuspendTitle(String name) {
+    return '$name ڕابگیرێت؟';
+  }
+
+  @override
+  String get clSuspendBody =>
+      'ئیتر ناتوانێت بچێتە ژوورەوە یان هیچ دیزاینێک ببینێت. داواکانی، و هەموو کڕیار و دیزاینێک، دەپارێزرێن.';
+
+  @override
+  String clSuspended(String name) {
+    return '$name ڕاگیرا.';
+  }
+
+  @override
+  String clReactivated(String name) {
+    return '$name دووبارە چالاک بووەوە.';
+  }
+
+  @override
+  String get clInviteLead =>
+      'کرێکارەکە خۆی وشەی نهێنییەکەی دادەنێت. تۆ کۆدەکەی پێدەدەیت.';
+
+  @override
+  String get clWorkerName => 'ناوی کرێکار';
+
+  @override
+  String get clInvite => 'بانگهێشتکردن';
+
+  @override
+  String clInviteMade(String name, String email, String date) {
+    return 'ئەم کۆدە بدە بە $name. لە پەڕەی چوونەژوورەوە «بەشداربوون بە بانگهێشتنامە» هەڵدەبژێرێت و $email بەکاردەهێنێت. تەنها یەکجار کار دەکات، تا $date.';
+  }
+
+  @override
+  String get clCopyCode => 'لەبەرگرتنەوەی کۆد';
+
+  @override
+  String get clCopied => 'لەبەرگیرایەوە.';
+
+  @override
+  String get clInviteOnce => 'ئەم کۆدە دووبارە پیشان نادرێتەوە.';
+
+  @override
+  String get clDesignsAccess => 'ئەو دیزاینانەی ئەم کرێکارە دەیانبینێت';
+
+  @override
+  String get clDesignsAccessLead =>
+      'کرێکارێکی نوێ هیچ نابینێت تا تۆ یەکێکی پێ نەدەیت.';
+
+  @override
+  String get clNoDesignsAssigned => 'هێشتا هیچ.';
+
+  @override
+  String get clAssignDesign => 'دانی دیزاینێک';
+
+  @override
+  String get clTheirRequests => 'داواکانی';
+
+  @override
+  String get clNoRequests => 'هیچ داوایەک نییە.';
+
+  @override
+  String get clRemoveAccess => 'لێسەندنەوە';
+
+  @override
+  String get clSearchDesigns => 'گەڕان بەدوای دیزایندا';
+
+  @override
+  String get clNothingToAssign => 'هیچ دیزاینێکی تر نییە بۆ دان.';
+
+  @override
+  String clPendingTab(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'چاوەڕوان ($count)',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get clApprovedDone => 'پەسەندکرا.';
+
+  @override
+  String get clRejectTitle => 'ئەم داوایە ڕەتبکرێتەوە؟';
+
+  @override
+  String get clRejectBody =>
+      'هیچ شتێک دروست ناکرێت یان ناگۆڕدرێت. کرێکارەکە ئاگادار دەکرێتەوە، لەگەڵ تێبینییەکەت.';
+
+  @override
+  String get clReject => 'ڕەتکردنەوە';
+
+  @override
+  String get clRejectedDone => 'ڕەتکرایەوە.';
+
+  @override
+  String get clCancelledDone => 'داواکە هەڵوەشێنرایەوە.';
+
+  @override
+  String get clRequestedBy => 'داواکراوە لەلایەن';
+
+  @override
+  String get clRequestedOn => 'ڕێکەوتی داواکردن';
+
+  @override
+  String get clCustomer => 'کڕیار';
+
+  @override
+  String get clPhone => 'تەلەفۆن';
+
+  @override
+  String get clAddress => 'ناونیشان';
+
+  @override
+  String get clNotes => 'تێبینییەکان';
+
+  @override
+  String get clDesignName => 'ناوی دیزاین';
+
+  @override
+  String get clCategory => 'جۆر';
+
+  @override
+  String get clDescription => 'وەسف';
+
+  @override
+  String get clDecidedOn => 'ڕێکەوتی بڕیاردان';
+
+  @override
+  String get clDecisionNote => 'تێبینیی خاوەنکار';
+
+  @override
+  String get clNoteForWorker => 'تێبینی بۆ کرێکار (ئارەزوومەندانە)';
+
+  @override
+  String clGiveAccess(String name) {
+    return 'دەستپێگەیشتن بە دیزاینە نوێیەکە بدە بە $name';
+  }
+
+  @override
+  String get clApprove => 'پەسەندکردن';
+
+  @override
+  String get clCancelRequest => 'هەڵوەشاندنەوەی داوا';
+
+  @override
+  String get clPossibleDuplicate => 'کڕیارێکی لەم شێوەیە پێشتر هەیە';
+
+  @override
+  String get clDuplicateNoMerge =>
+      'پەسەندکردن کڕیارێکی نوێ دروست دەکات. هیچ شتێک تێکەڵ ناکرێت — ئەگەر هەمان کەس بێت ڕەتی بکەرەوە.';
+
+  @override
+  String get clProposalUnreadable =>
+      'ئەم پێشنیارە ناتوانرێت لەلایەن ئەم وەشانەی ProFrame بخوێندرێتەوە، بۆیە ناتوانرێت پەسەند بکرێت.';
+
+  @override
+  String get clComparison => 'وەک خۆی، و وەک پێشنیارکراو';
+
+  @override
+  String get clOriginal => 'وەک خۆی';
+
+  @override
+  String get clProposed => 'پێشنیارکراو';
+
+  @override
+  String get clMeasureWidth => 'پانی';
+
+  @override
+  String get clMeasureHeight => 'بەرزی';
+
+  @override
+  String get clMeasureDepth => 'قووڵی';
+
+  @override
+  String get clMeasureBars => 'هێڵەکان';
+
+  @override
+  String get clMeasureLights => 'بەشەکان';
+
+  @override
+  String get clMeasureOpenings => 'کراوەکان';
+
+  @override
+  String clHello(String name) {
+    return 'سڵاو، $name';
+  }
+
+  @override
+  String get clLabourLead => 'دیزاینەکانت، و ئەوەی داوات کردووە.';
+
+  @override
+  String get clAskNewDesign => 'داواکردنی دیزاینی نوێ';
+
+  @override
+  String get clAskNewCustomer => 'داواکردنی کڕیاری نوێ';
+
+  @override
+  String get clMyDesigns => 'ئەو دیزاینانەی دراون بە من';
+
+  @override
+  String get clNoAssignedDesigns => 'هێشتا هیچ دیزاینێک نەدراوە بە تۆ.';
+
+  @override
+  String get clMyRequests => 'داواکانم';
+
+  @override
+  String get clOpen => 'کردنەوە';
+
+  @override
+  String get clRefresh => 'نوێکردنەوە';
+
+  @override
+  String get clRequestLead =>
+      'خاوەنکار پەسەندی دەکات یان ڕەتی دەکاتەوە. تا ئەو کاتە هیچ شتێک دروست ناکرێت.';
+
+  @override
+  String get clChooseCustomer => 'کڕیارەکە هەڵبژێرە.';
+
+  @override
+  String get clDesignNameNeeded => 'ناوێک بۆ دیزاینەکە بنووسە.';
+
+  @override
+  String get clChooseCategory => 'جۆرەکە هەڵبژێرە.';
+
+  @override
+  String get clRequestSent => 'داواکە بۆ خاوەنکار نێردرا.';
+
+  @override
+  String get clNoScopedCustomers =>
+      'هێشتا هیچ کڕیارێکت نییە. لە جیاتی ئەوە داوای کڕیارێکی نوێ بکە.';
+
+  @override
+  String get clSendRequest => 'ناردنی داوا';
+
+  @override
+  String get clCustomerName => 'ناوی کڕیار';
+
+  @override
+  String get clCustomerNameNeeded => 'ناوی کڕیارەکە بنووسە.';
+
+  @override
+  String get clViewingAssigned =>
+      'دەتوانیت سەیری ئەم دیزاینە بکەیت. بۆ گۆڕینی، گۆڕانکارییەک پێشنیار بکە تا خاوەنکار پەسەندی بکات.';
+
+  @override
+  String get clProposing =>
+      'پێشنیارکردنی گۆڕانکاری. دیزاینەکە وەک خۆی دەمێنێتەوە تا خاوەنکار پەسەندی دەکات.';
+
+  @override
+  String get clProposeChange => 'پێشنیارکردنی گۆڕانکاری';
+
+  @override
+  String get clDiscard => 'فڕێدان';
+
+  @override
+  String get clSubmitForApproval => 'ناردن بۆ پەسەندکردن';
+
+  @override
+  String get clWhatChanged => 'چیت گۆڕی، و بۆچی؟';
+
+  @override
+  String get clWhatChangedNeeded => 'بڵێ چیت گۆڕیوە.';
+
+  @override
+  String get clChangeSent => 'گۆڕانکارییەکە بۆ پەسەندکردن نێردرا بۆ خاوەنکار.';
+
+  @override
+  String get authInvalidCredentials =>
+      'ئەو ئیمەیڵ و وشە نهێنییە لەگەڵ هیچ هەژمارێک ناگونجێن.';
+
+  @override
+  String get authEmailNotConfirmed =>
+      'سەرەتا ئیمەیڵەکەت پشتڕاست بکەرەوە — ئەو بەستەرە بکەرەوە کە بۆمان ناردیت.';
+
+  @override
+  String get authEmailTaken => 'هەژمارێک پێشتر ئەم ئیمەیڵە بەکاردەهێنێت.';
+
+  @override
+  String get authWeakPassword =>
+      'ئەو وشە نهێنییە زۆر لاوازە. یەکێکی درێژتر بەکاربهێنە.';
+
+  @override
+  String get authInviteInvalid =>
+      'ئەو کۆدی بانگهێشتنامەیە بۆ ئەم ئیمەیڵە دروست نییە — لەوانەیە بەکارهاتبێت، کشێنرابێتەوە یان بەسەرچووبێت.';
+
+  @override
+  String get authNameRequired => 'ناوێک پێویستە.';
+
+  @override
+  String get authEmailInvalid => 'ئەو ئیمەیڵە دروست نییە.';
+
+  @override
+  String get authSuspended =>
+      'ئەم هەژمارە ڕاگیراوە. پرسیار لە خاوەنی کارگەکەت بکە.';
+
+  @override
+  String get authNoAccount =>
+      'ئەم چوونەژوورەوەیە هیچ هەژمارێکی ProFrameی نییە.';
+
+  @override
+  String get authNotSignedIn => 'تۆ چوویتە دەرەوە. دووبارە بچۆ ژوورەوە.';
+
+  @override
+  String get authRateLimited =>
+      'هەوڵدانی زۆر. کەمێک چاوەڕێ بکە و دووبارە هەوڵ بدەرەوە.';
+
+  @override
+  String get backendNotOwner => 'تەنها خاوەنی کارگە دەتوانێت ئەوە بکات.';
+
+  @override
+  String get backendNotAssigned => 'ئەو دیزاینە نەدراوە بە تۆ.';
+
+  @override
+  String get backendCustomerMissing =>
+      'ئەو کڕیارە هێشتا لەسەر سێرڤەر نییە. کەمێک چاوەڕێ بکە و دووبارە هەوڵ بدەرەوە.';
+
+  @override
+  String get backendCustomerHasDesigns => 'ئەو کڕیارە هێشتا دیزاینی هەیە.';
+
+  @override
+  String get backendNetwork =>
+      'نەتوانرا بگاتە سێرڤەر. پەیوەندییەکە بپشکنە و دووبارە هەوڵ بدەرەوە.';
+
+  @override
+  String get backendFailed =>
+      'ئەوە سەرکەوتوو نەبوو. هیچ شتێک نەگۆڕدرا. دووبارە هەوڵ بدەرەوە.';
+
+  @override
+  String get workersLimit =>
+      'کارگەیەک دەتوانێت سێ کرێکاری چالاکی هەبێت. سەرەتا یەکێک ڕابگرە یان بانگهێشتنامەیەک بکشێنەوە.';
+
+  @override
+  String get workersAlreadyInvited =>
+      'ئەو ئیمەیڵە پێشتر بانگهێشتنامەیەکی چاوەڕوانی هەیە.';
+
+  @override
+  String get requestConflict =>
+      'دیزاینەکە دوای ئەم پێشنیارە گۆڕاوە. ڕەتی بکەرەوە، و کرێکارەکە دەتوانێت لە دیزاینەکەی ئێستاوە دووبارە پێشنیار بکات.';
+
+  @override
+  String get requestAlreadyDecided => 'ئەم داوایە پێشتر بڕیاری لەسەر دراوە.';
 }

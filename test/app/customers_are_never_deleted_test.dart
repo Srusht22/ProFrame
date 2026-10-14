@@ -72,6 +72,11 @@ void main() {
     final found = removals();
     expect(found, isNotEmpty, reason: 'the scan reads the code');
     for (final (path, line) in found) {
+      // Since Phase 36, signed in, the device's records are a cache of what
+      // the backend holds, and the backend never deletes a customer (it
+      // keeps them, marked). What the cache's own code removes is held
+      // below, in `the device's cache removes only what it may`.
+      if (path.contains('/infrastructure/cloud/')) continue;
       if (path.endsWith('customer_store.dart')) {
         // The one way a customer goes: their own record, by
         // `deleteCustomer` (held below).
@@ -116,6 +121,63 @@ void main() {
     ]) {
       expect(body, contains(kept));
     }
+  });
+
+  test('the device\'s cache removes only what it may: a cache, only once it '
+      'is a cache; a record from before accounts, only once it is copied '
+      'aside; a record the backend no longer has, only if unchanged here; '
+      'and the session', () {
+    String read(String name) =>
+        File('lib/infrastructure/cloud/$name').readAsStringSync();
+    final lines = [
+      for (final (path, line) in removals())
+        if (path.contains('/infrastructure/cloud/')) (path, line),
+    ];
+    expect(lines, isNotEmpty, reason: 'the scan reads the cache\'s code');
+    for (final (path, line) in lines) {
+      expect(
+        path.endsWith('device_data.dart') ||
+            path.endsWith('owner_sync.dart') ||
+            path.endsWith('supabase_backend.dart'),
+        isTrue,
+        reason: '$path: $line',
+      );
+    }
+    final device = read('device_data.dart');
+    // Clearing is only of a cache: with no marker naming whose it is, the
+    // records were made before accounts, and nothing is cleared.
+    final clear = device.substring(device.indexOf('clearCache()'));
+    expect(
+      clear.indexOf('if (prefs.getString(markerKey) == null) return;'),
+      lessThan(clear.indexOf('prefs.remove(')),
+    );
+    // Archiving removes a record only where its copy was kept.
+    expect(device, contains('if (ok) await prefs.remove(key);'));
+    // Bringing an archive back removes the archive only after every record
+    // is back.
+    final back = device.substring(device.indexOf('bringBack('));
+    expect(
+      back.indexOf('await _put(prefs, key.substring'),
+      lessThan(back.indexOf('await prefs.remove(key);')),
+    );
+    // The sync removes a record only where the backend no longer has it and
+    // the device had not changed it since.
+    final sync = read('owner_sync.dart');
+    final gone = sync.substring(
+      sync.indexOf('if (server.containsKey(key)) continue;'),
+    );
+    expect(
+      gone.indexOf('_hash(local) == synced[key]!.hash'),
+      lessThan(gone.indexOf('prefs.remove(key)')),
+    );
+    // The session is the only thing the client removes of its own.
+    expect(
+      [
+        for (final (p, l) in lines)
+          if (p.endsWith('supabase_backend.dart')) l,
+      ],
+      ['await prefs.remove(sessionKey);'],
+    );
   });
 
   testWidgets('the customers list and a customer\'s page offer no way to '

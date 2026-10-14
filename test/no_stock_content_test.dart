@@ -86,10 +86,17 @@ void main() {
         r'WebSocket': 'a network request',
       };
 
+      // Since Phase 36 the application talks to one backend, for accounts
+      // and records, and that is the one file allowed a network request —
+      // held below to the backend's own two services and nothing else.
+      const backend = 'lib/infrastructure/cloud/supabase_backend.dart';
       final offences = <String>[];
       for (final file in filesUnder('lib')) {
         final source = file.readAsStringSync();
         for (final entry in forbidden.entries) {
+          if (file.path.endsWith(backend) && entry.key == r'package:http') {
+            continue;
+          }
           if (RegExp(entry.key).hasMatch(source)) {
             offences.add('${file.path}: ${entry.value} (${entry.key})');
           }
@@ -99,6 +106,27 @@ void main() {
       expect(offences, isEmpty,
           reason: 'the design is drawn from its own geometry, never from a '
               'picture:\n${offences.join('\n')}');
+    });
+
+    test('the one file that talks to the network asks only the backend\'s '
+        'sign-in and records, for words and figures, never a picture', () {
+      final source = File('lib/infrastructure/cloud/supabase_backend.dart')
+          .readAsStringSync();
+      final addresses =
+          RegExp(r"Uri\.parse\(\s*'([^']*)").allMatches(source).toList();
+      expect(addresses, isNotEmpty);
+      for (final a in addresses) {
+        expect(a.group(1), matches(RegExp(r'^\$\{config\.url\}/(auth|rest)/v1/')),
+            reason: 'only the backend\'s Auth and REST services');
+      }
+      // What comes back is read as JSON, and as nothing else.
+      expect(
+          RegExp(r'bodyBytes').allMatches(source).length,
+          RegExp(r'jsonDecode\(utf8\.decode\(r\.bodyBytes\)\)')
+              .allMatches(source)
+              .length,
+          reason: 'the bytes are only ever decoded as JSON');
+      expect(source, contains("'Content-Type': 'application/json'"));
     });
 
     test('no ready-made model file is anywhere in the source', () {

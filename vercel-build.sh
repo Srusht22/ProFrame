@@ -38,6 +38,19 @@ export PATH="$SDK_DIR/bin:$PATH"
 flutter config --no-analytics >/dev/null
 flutter --version
 flutter pub get
-flutter build web --release
+
+# Accounts (Phase 36): built against the backend only when its address and
+# public anon key are given as environment variables of the Vercel project.
+# Without them the app is built as it always was — on one device, with no
+# accounts. See docs/accounts_and_backend.md.
+DEFINES=()
+if [ -n "${PROFRAME_SUPABASE_URL:-}" ] && [ -n "${PROFRAME_SUPABASE_ANON_KEY:-}" ]; then
+  echo "Building with accounts, against $PROFRAME_SUPABASE_URL"
+  DEFINES+=("--dart-define=PROFRAME_SUPABASE_URL=$PROFRAME_SUPABASE_URL")
+  DEFINES+=("--dart-define=PROFRAME_SUPABASE_ANON_KEY=$PROFRAME_SUPABASE_ANON_KEY")
+else
+  echo "Building without accounts (no PROFRAME_SUPABASE_URL / _ANON_KEY)"
+fi
+flutter build web --release ${DEFINES[@]+"${DEFINES[@]}"}
 
 echo "Built build/web"

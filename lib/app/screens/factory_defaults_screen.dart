@@ -13,6 +13,7 @@ import '../l10n/latin_digits.dart';
 import '../state/access.dart';
 import '../state/pricing.dart';
 import '../theme/app_theme.dart';
+import 'accounts/account_ui.dart';
 import 'factory_prices_screen.dart';
 
 /// The factory's own figures, on the first screen: one button, opening
@@ -47,8 +48,12 @@ class FactoryDefaultsScreen extends StatelessWidget {
   static const measurementsKey = ValueKey('factory-defaults-measurements');
   static const pricesKey = ValueKey('factory-defaults-prices');
 
+  /// A worker is refused it, by whatever route they reach it; the backend
+  /// refuses them the factory's records whatever this shows.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => OwnerOnly(child: _content(context));
+
+  Widget _content(BuildContext context) {
     final l = context.l10n;
     final p = context.palette;
     return Scaffold(

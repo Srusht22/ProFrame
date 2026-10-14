@@ -7951,6 +7951,126 @@ reached through Factory defaults; the appearance button is a sun on a
 light screen; `toSummary` opens **Price details**, and `cardButton`
 scrolls from the top; and an empty history is a heading, not a sentence.
 
+## Accounts, access and approvals (Phase 36)
+
+The brief: *secure sign-in and sign-up, owner and labour accounts, design
+access, and approval workflows — with the rules kept by a backend, never by
+the client alone; and if the backend cannot be finished, finish what can be
+done safely and say exactly what is blocked.* `docs/phase_36_audit.md` is
+the audit written first; `docs/accounts_and_backend.md` is how to switch it
+on.
+
+**Nothing the application does on its own can be secure**, and the code says
+so: everything it held — the PINs, the roles, the records — was in storage
+the person at the device controls. So the rules are the database's:
+
+```
+Supabase Auth ── passwords, sessions, email confirmation, password reset
+      │ auth.uid()
+PostgreSQL  ── supabase/migrations/20261013000000_accounts_and_approvals.sql
+      │ row-level security: select only, on the caller's own rows
+      │ SECURITY DEFINER functions: every write, the caller checked first
+      ▼
+SupabaseBackend (lib/infrastructure/cloud/) ── the one client of it
+      ▼
+Session (lib/app/state/cloud.dart) ── Account is the Authority
+```
+
+- **Roles are the database's.** A sign-up with no invitation code is an
+  owner with a factory of their own; one with a code is labour in the
+  inviting factory — if the code is open, unexpired, for that address, and a
+  place is free (`private.handle_new_user`). A role sent by the client is
+  never read. `accounts` has no client grant at all: no route changes a role,
+  a factory or a status but the owner's functions.
+- **Three places, held under a lock.** Active labour accounts and open
+  invitations together never pass three: inviting and reactivating lock the
+  factory's row and count. Eight invitations at once take exactly three, and
+  taking the lock out fails that test.
+- **A worker sees their assigned designs and nothing else** — read through
+  `my_assigned_designs` / `assigned_design`, which check the assignment on
+  every call and return the design **without its prices**. The tables
+  themselves are the owner's (`designs_owner`, `customers_owner`). A new
+  worker has none; removing an assignment ends it at once.
+- **A worker never writes the factory's records.** They make requests:
+  a new design for a customer in their scope (the customers of their
+  assigned designs, names only), a new customer and design, and a change to
+  an assigned design — the whole proposed design and the revision it was
+  drawn from. In the workspace a worker's design is view only until
+  **Propose a change** (`ProposalBar`, `proposalProvider`); the workspace's
+  gate then lets edits through, `save` keeps nothing and **Complete!** is
+  refused, and **Send for approval** sends the request. The design is the
+  same until the owner approves.
+- **The owner decides, once.** `approve_*` lock the request, refuse anybody
+  but the factory's owner and a request already decided, and answer a retry
+  with what the first call made. A new design is made by the owner's
+  application through `NewDesignSetup.begin` — the existing creation rules —
+  and inserted by the database once; a new customer and design go in one
+  transaction or not at all. A change is applied only against the revision
+  it was drawn from (`conflict` otherwise), keeps the design's id, name,
+  customer, category, pricing and completion (`private.kept_keys`), bumps
+  the revision and keeps the old one in `design_revisions`. A price kept
+  before is then stale by `PriceInputs`, as any edit makes it; quotations
+  and receipts are snapshots and are untouched. Approving offers to give the
+  worker access, **off by default**. Rejecting makes nothing. Every decision
+  is audited and the worker notified in the app.
+- **One factory never sees another**, for reads as much as writes: every
+  policy and function goes by the caller's own account, never by a factory
+  id, owner id or worker id the client sends.
+
+**The application is a client of it, and keeps nothing between accounts.**
+With a backend (`BackendConfig.fromBuild`: `PROFRAME_SUPABASE_URL` and
+`PROFRAME_SUPABASE_ANON_KEY` as `--dart-define`s, from Vercel's environment
+by `vercel-build.sh`) the app opens on `AccountGate`: sign-in, then the
+owner's customers or the worker's own home (`LabourHomeScreen`). Without one
+it is exactly what it was, and every older test runs in that mode.
+
+- **The stores are unchanged, and signed in they are a cache.** An owner's
+  records are brought down at sign-in and every write to them is sent back
+  (`OwnerSync`, which watches the device's storage through
+  `WatchedPreferences`), each with the revision it was based on; a record
+  changed in both places takes the backend's and keeps the device's under
+  `proframe.cloud.kept-local.v1.`. The indexes are worked out again, never
+  sent. A worker's device keeps nothing of the factory's: their home reads
+  the backend. Signing out sends the owner's last changes and clears the
+  cache (`DeviceData.clearCache`).
+- **What was on a device before accounts is never deleted or sent unasked.**
+  An owner chooses to bring it into their factory or keep it aside
+  (`UnclaimedDataScreen`); kept aside, and on a worker's sign-in, it is moved
+  under `proframe.device-archive.v1.<when>.` exactly as it was.
+- **`Account` is the `Authority`.** An owner may do everything, as before;
+  labour only `designs.view`; a suspended account nothing. The existing
+  stores and the workspace's gate ask it as they asked the PIN roles, and the
+  backend asks again. Owner-only screens are wrapped in `OwnerOnly`, so a
+  worker reaching one by any route is told so and shown nothing of it.
+- **Every financial action is the owner's** — prices, payments, refunds,
+  receipts, discounts, quotations, extras, factory prices and defaults. No
+  rule was found that would give any of it to a worker.
+
+The words are in both languages (181 messages, `cl…` and the backend's
+refusals as `[domain]` words), right to left in Kurdish, with the separate
+language and appearance controls on every account screen.
+
+`test/backend/backend_security_test.dart` holds the rules on a real
+PostgreSQL 16 (`test/backend/local_postgres.dart` makes a cluster of its own
+and applies `supabase_stub.sql` — the parts of Supabase the migration needs
+— and the migration): sign-up roles, invitation codes, the limit at once and
+in sequence, suspension, assignments, all three request workflows with
+retries and races, conflicts, self-approval, and every cross-factory read
+and write. They skip, saying why, where PostgreSQL is not installed.
+`test/app/accounts_and_approvals_on_screen_test.dart` holds the screens
+against `test/app/fake_backend.dart` — the same contract in memory, which
+proves nothing about security — and `test/infrastructure/owner_sync_test.dart`
+the cache and the sync.
+
+**What is not done, stated:** there is no Supabase project — supabase.com
+was not reachable and there were no credentials — so nothing has run
+against Supabase's Auth service or REST API; the client follows their
+documented endpoints and is tested through the stand-in. A suspended
+worker's password still opens a session at the Auth service (every call is
+then refused and the app signs it out); blocking that needs the admin API.
+Proposed geometry is validated by the owner's application, which is where
+the canonical geometry is. See `docs/accounts_and_backend.md`.
+
 ## Working on this repository
 
 - Tolerances live in `lib/domain/geometry/tolerances.dart`, each with the

@@ -2,7 +2,7 @@
 
 **ProFrame Phase 34 — English and Central Kurdish localisation. Written 2026-10-11.**
 
-Every message the application shows, 1326 in all: 143 of low confidence, 563 of medium and 620 of high. The 1211 of Phase 34 are in the first table, low first; the 85 added for Phase 35 (2026-10-12) — the price summary, the factory's prices and list of extras, the language and appearance buttons, errors and Flutter's own words — are in the second; and the 20 added on 2026-10-13 — Factory defaults, the sizes form's defaults, New Design's customer search and the simpler customer summary — in the third, at the end, with the 10 added later that day for the sizes form's suggestions (what a size that does not fit would do, and the nearest that fits). On 2026-10-13 the customers' title was changed at the user's request from کڕیاران to تۆماری کڕیارەکان, and the messages of the Settings screen, which was taken out, were removed. **None of the Sorani here has been checked by a native speaker.** It was written for these phases, and nothing in it is marked verified.
+Every message the application shows, 1507 in all: 143 of low confidence, 632 of medium and 732 of high. The 1211 of Phase 34 are in the first table, low first; the 85 added for Phase 35 (2026-10-12) — the price summary, the factory's prices and list of extras, the language and appearance buttons, errors and Flutter's own words — are in the second; and the 20 added on 2026-10-13 — Factory defaults, the sizes form's defaults, New Design's customer search and the simpler customer summary — in the third, with the 10 added later that day for the sizes form's suggestions (what a size that does not fit would do, and the nearest that fits); and the 181 of Phase 36 — sign-in, sign-up, password recovery, workers and invitations, design access, the workers' requests, the approval center and notifications — in the fourth, at the end. On 2026-10-13 the customers' title was changed at the user's request from کڕیاران to تۆماری کڕیارەکان, and the messages of the Settings screen, which was taken out, were removed. **None of the Sorani here has been checked by a native speaker.** It was written for these phases, and nothing in it is marked verified.
 
 ## How to review
 
@@ -1413,3 +1413,191 @@ Messages added on 2026-10-13, after Phase 35 — the header, Factory defaults, t
 | `mfUseSize` | Use {size} | Sizes form: button putting the suggested size into the field. {size} is a figure with its unit. | ‎{size}‎ بەکاربهێنە | High | Plain imperative — awaiting review |  |
 | `mfAlsoCheck` | Something in the drawing may be in the way: {problem} | Sizes form: under a size that does not fit, the drawing's own warning that may be the cause. {problem} is that warning. | لەوانەیە شتێک لە وێنەکەدا ڕێگر بێت: {problem} | Medium | 'in the way' as 'an obstacle' — awaiting review |  |
 | `mfAppliedAnyway` | {size} is applied, as you typed it. | Sizes form: above a suggestion, saying the size typed was still applied. {size} is a figure with its unit. | ‎{size}‎ جێبەجێکرا، وەک خۆت نووسیت. | High | Plain statement — awaiting review |  |
+
+## Added in Phase 36
+
+Messages added in Phase 36 — sign-in, sign-up, recovery, workers, assignments, requests, approvals and notifications — reviewed the same way as the tables above. None is verified.
+
+| Key | English | Context | Proposed Sorani | Confidence | Reason / status | Approved Sorani |
+| --- | --- | --- | --- | --- | --- | --- |
+| `clSignIn` | Sign in | Button: sign in to an account | چوونەژوورەوە | High | Plain, common wording — awaiting review |  |
+| `clSignInHeading` | Sign in to ProFrame | Heading of the sign-in screen | چوونەژوورەوە بۆ ProFrame | High | Plain, common wording — awaiting review |  |
+| `clSignInLead` | Owners and workers sign in here. Your account says which you are. | Sign-in screen: under the heading | خاوەنکار و کرێکاران لێرەوە دەچنە ژوورەوە. هەژمارەکەت دیاری دەکات کە کامیانیت. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clEmail` | Email | Field label: email address | ئیمەیڵ | High | Plain, common wording — awaiting review |  |
+| `clPassword` | Password | Field label: password | وشەی نهێنی | High | Plain, common wording — awaiting review |  |
+| `clPasswordAgain` | Password again | Field label: the password typed a second time | دووبارەکردنەوەی وشەی نهێنی | High | Plain, common wording — awaiting review |  |
+| `clShowPassword` | Show password | Tooltip: show the password typed | پیشاندانی وشەی نهێنی | High | Plain, common wording — awaiting review |  |
+| `clHidePassword` | Hide password | Tooltip: hide the password typed | شاردنەوەی وشەی نهێنی | High | Plain, common wording — awaiting review |  |
+| `clForgotPassword` | Forgot password? | Link and title: password recovery | وشەی نهێنیت لەبیرچووە؟ | High | Plain, common wording — awaiting review |  |
+| `clCreateOwner` | Create an owner account | Button and title: public sign-up of a factory owner | دروستکردنی هەژماری خاوەنکار | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clJoinWithInvite` | Join with an invitation | Button and title: a worker joining by an owner's invitation code | بەشداربوون بە بانگهێشتنامە | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clEmailInvalid` | Enter a valid email address. | Form problem | ئیمەیڵێکی دروست بنووسە. | High | Plain, common wording — awaiting review |  |
+| `clPasswordNeeded` | Enter your password. | Form problem | وشەی نهێنییەکەت بنووسە. | High | Plain, common wording — awaiting review |  |
+| `clNameNeeded` | Enter a name. | Form problem | ناوێک بنووسە. | High | Plain, common wording — awaiting review |  |
+| `clPasswordShort` | {count, plural, other{At least {count} characters.}} | Password rule and helper text | {count, plural, other{لانیکەم {count} پیت.}} | High | Plain, common wording — awaiting review |  |
+| `clPasswordsDiffer` | The two passwords are not the same. | Form problem | هەردوو وشە نهێنییەکە وەک یەک نین. | High | Plain, common wording — awaiting review |  |
+| `clFactoryNeeded` | Enter your factory's name. | Form problem on sign-up | ناوی کارگەکەت بنووسە. | High | Plain, common wording — awaiting review |  |
+| `clFactoryName` | Factory name | Field label on sign-up | ناوی کارگە | High | Plain, common wording — awaiting review |  |
+| `clYourName` | Your name | Field label on sign-up | ناوی خۆت | High | Plain, common wording — awaiting review |  |
+| `clSignUpLead` | A new factory, with you as its owner. You can invite up to three workers afterwards. | Sign-up screen: under the heading | کارگەیەکی نوێ، کە تۆ خاوەنەکەیت. دواتر دەتوانیت تا سێ کرێکار بانگهێشت بکەیت. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clCreateAccount` | Create account | Button: submit sign-up | دروستکردنی هەژمار | High | Plain, common wording — awaiting review |  |
+| `clConfirmTitle` | Confirm your email | Dialog title after sign-up | ئیمەیڵەکەت پشتڕاست بکەرەوە | High | Plain, common wording — awaiting review |  |
+| `clConfirmBody` | We sent a link to {email}. Open it, then sign in. | Dialog after sign-up when the address must be confirmed | بەستەرێکمان بۆ {email} نارد. بیکەرەوە، پاشان بچۆ ژوورەوە. | High | Plain, common wording — awaiting review |  |
+| `clJoinLead` | Use the code your factory owner gave you, with the email address it was made for. | Join screen: under the heading | ئەو کۆدە بەکاربهێنە کە خاوەنی کارگەکەت پێی داویت، لەگەڵ ئەو ئیمەیڵەی کە بۆی دروستکراوە. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clInviteCode` | Invitation code | Field label | کۆدی بانگهێشتنامە | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clCodeNeeded` | Enter the invitation code. | Form problem | کۆدی بانگهێشتنامە بنووسە. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clJoin` | Join | Button: submit joining | بەشداربوون | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clRecoverLead` | We will email you a link to set a new password. | Recovery screen: under the heading | بەستەرێکت بۆ دەنێرین بە ئیمەیڵ بۆ دانانی وشەی نهێنیی نوێ. | High | Plain, common wording — awaiting review |  |
+| `clRecoverSent` | If an account uses {email}, a link to set a new password is on its way. | Recovery screen once sent | ئەگەر هەژمارێک {email} بەکاربهێنێت، بەستەرێک بۆ دانانی وشەی نهێنیی نوێ لە ڕێگادایە. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clSendLink` | Send link | Button: ask for a recovery link | ناردنی بەستەر | High | Plain, common wording — awaiting review |  |
+| `clNewPassword` | Set a new password | Title: after a recovery link | دانانی وشەی نهێنیی نوێ | High | Plain, common wording — awaiting review |  |
+| `clSavePassword` | Save password | Button | پاشەکەوتکردنی وشەی نهێنی | High | Plain, common wording — awaiting review |  |
+| `clUnclaimedTitle` | Records on this device | Title: records made before accounts | تۆمارەکانی سەر ئەم ئامێرە | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clUnclaimedBody` | This device holds customers and designs made before accounts. Bring them into {factory}, or keep them aside on this device. Nothing is deleted either way. | First owner sign-in on a device with local records | ئەم ئامێرە کڕیار و دیزاینی تێدایە کە پێش هەژمارەکان دروستکراون. بیانهێنە ناو {factory}، یان لەسەر ئەم ئامێرە بە جیا بیانپارێزە. لە هەردوو حاڵەتدا هیچ شتێک ناسڕدرێتەوە. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clUnclaimedBring` | Bring them into {factory} | Button | هێنانیان بۆ ناو {factory} | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clUnclaimedKeep` | Keep them aside on this device | Button | پاراستنیان بە جیا لەسەر ئەم ئامێرە | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clSigningIn` | Signing in… | Shown while a session is restored | چوونەژوورەوە… | High | Plain, common wording — awaiting review |  |
+| `clSuspendedTitle` | Account suspended | Title for a suspended worker | هەژمار ڕاگیراوە | High | Plain, common wording — awaiting review |  |
+| `clSuspendedBody` | {name}, your factory owner has suspended your account. Ask them to reactivate it. | Suspended worker screen | {name}، خاوەنی کارگەکەت هەژمارەکەتی ڕاگرتووە. داوای لێبکە دووبارە چالاکی بکاتەوە. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clSignOut` | Sign out | Button and menu item | چوونەدەرەوە | High | Plain, common wording — awaiting review |  |
+| `clRoleOwner` | Owner | Role name | خاوەنکار | High | Plain, common wording — awaiting review |  |
+| `clRoleLabour` | Worker | Role name of a labour account | کرێکار | High | Plain, common wording — awaiting review |  |
+| `clSignedInAs` | {name} ({role}) | Tooltip: who is signed in | {name} ({role}) | High | Plain, common wording — awaiting review |  |
+| `clWorkers` | Workers | Title and menu item: the owner's workers | کرێکاران | High | Plain, common wording — awaiting review |  |
+| `clApprovals` | Approvals | Title and menu item: the approval center | پەسەندکردنەکان | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clApprovalsWaiting` | {count, plural, =0{No requests waiting} =1{1 request waiting} other{{count} requests waiting}} | Tooltip on the approvals button | {count, plural, =0{هیچ داوایەک چاوەڕێ ناکات} other{{count} داوا چاوەڕێن}} | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clNotificationsUnread` | {count, plural, =0{No unread notifications} =1{1 unread notification} other{{count} unread notifications}} | Tooltip on the notifications button | {count, plural, =0{هیچ ئاگادارکردنەوەیەکی نەخوێندراو نییە} other{ئاگادارکردنەوەکان، {count} نەخوێندراوە}} | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clNotifications` | Notifications | Sheet title | ئاگادارکردنەوەکان | High | Plain, common wording — awaiting review |  |
+| `clNoNotifications` | No notifications yet. | Empty state | هێشتا هیچ ئاگادارکردنەوەیەک نییە. | High | Plain, common wording — awaiting review |  |
+| `clNoteSubmitted` | {name} sent a request: {what} | Notification to the owner | {name} داوایەکی نارد: {what} | High | Plain, common wording — awaiting review |  |
+| `clNoteApproved` | Your request was approved: {what} | Notification to a worker | داواکەت پەسەندکرا: {what} | High | Plain, common wording — awaiting review |  |
+| `clNoteRejected` | Your request was rejected: {what} | Notification to a worker | داواکەت ڕەتکرایەوە: {what} | High | Plain, common wording — awaiting review |  |
+| `clNoteRejectedWhy` | Your request was rejected: {what} — {note} | Notification to a worker, with the owner's note | داواکەت ڕەتکرایەوە: {what} — {note} | High | Plain, common wording — awaiting review |  |
+| `clNoteAssigned` | A design was assigned to you. | Notification to a worker | دیزاینێک دراوە بە تۆ. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clNoteJoined` | {name} joined your factory. | Notification to the owner | {name} بەشداری کارگەکەت بوو. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clNoteOther` | Something changed. | Notification of a kind this version does not know | شتێک گۆڕا. | High | Plain, common wording — awaiting review |  |
+| `clStatusPending` | Pending | Request status | چاوەڕوان | High | Plain, common wording — awaiting review |  |
+| `clStatusApproved` | Approved | Request status and tab | پەسەندکراو | High | Plain, common wording — awaiting review |  |
+| `clStatusRejected` | Rejected | Request status and tab | ڕەتکراوە | High | Plain, common wording — awaiting review |  |
+| `clStatusCancelled` | Cancelled | Request status | هەڵوەشێنراوە | High | Plain, common wording — awaiting review |  |
+| `clStatusFailed` | Needs attention | Request status: failed or awaiting recovery | پێویستی بە سەرنجە | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clWorkerActive` | Active | Worker status | چالاک | High | Plain, common wording — awaiting review |  |
+| `clWorkerSuspended` | Suspended | Worker status | ڕاگیراو | High | Plain, common wording — awaiting review |  |
+| `clKindNewDesign` | New design | Request kind | دیزاینی نوێ | High | Plain, common wording — awaiting review |  |
+| `clKindNewCustomer` | New customer and design | Request kind | کڕیار و دیزاینی نوێ | High | Plain, common wording — awaiting review |  |
+| `clKindChange` | Design change | Request kind | گۆڕانکاری لە دیزاین | High | Plain, common wording — awaiting review |  |
+| `clOwnerOnly` | Only the factory owner can open this. | A worker reaching an owner's screen | تەنها خاوەنی کارگە دەتوانێت ئەمە بکاتەوە. | High | Plain, common wording — awaiting review |  |
+| `clInviteWorker` | Invite worker | Button and dialog title | بانگهێشتکردنی کرێکار | High | Plain, common wording — awaiting review |  |
+| `clSeatsUsed` | {used} of {total} worker places used | Workers screen: seats taken | {used} لە ‎{total}‎ شوێنی کرێکار بەکارهاتووە | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clSeatsFull` | All three places are taken. Suspend a worker or withdraw an invitation to free one. | Workers screen when full | هەر سێ شوێنەکە گیراون. کرێکارێک ڕابگرە یان بانگهێشتنامەیەک بکشێنەوە بۆ ئەوەی یەکێکیان بەتاڵ بێتەوە. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clWorkersLead` | Each worker sees only the designs you give them, and asks you for everything else. | Workers screen lead | هەر کرێکارێک تەنها ئەو دیزاینانە دەبینێت کە تۆ پێیان دەدەیت، و بۆ هەموو شتێکی تر داوا لە تۆ دەکات. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clNoWorkers` | No workers yet. | Empty state | هێشتا هیچ کرێکارێک نییە. | High | Plain, common wording — awaiting review |  |
+| `clOpenInvites` | Invitations not yet used | Section heading | بانگهێشتنامە بەکارنەهاتووەکان | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clInviteUntil` | Valid until {date} | Invitation expiry | تا {date} کارا دەبێت | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clRevoke` | Withdraw | Button: withdraw an invitation | کشاندنەوە | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clAssignedCount` | {count, plural, =0{No designs} =1{1 design} other{{count} designs}} | How many designs a worker may see | {count, plural, =0{هیچ دیزاینێک} other{{count} دیزاین}} | High | Plain, common wording — awaiting review |  |
+| `clPendingCount` | {count, plural, =0{no requests waiting} =1{1 request waiting} other{{count} requests waiting}} | How many of a worker's requests wait | {count, plural, =0{هیچ داوایەک چاوەڕێ ناکات} other{{count} داوا چاوەڕێن}} | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clManageAccess` | Manage access | Button: a worker's designs | بەڕێوەبردنی دەستپێگەیشتن | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clSuspend` | Suspend | Button: suspend a worker | ڕاگرتن | High | Plain, common wording — awaiting review |  |
+| `clReactivate` | Reactivate | Button: reactivate a worker | چالاککردنەوە | High | Plain, common wording — awaiting review |  |
+| `clSuspendTitle` | Suspend {name}? | Confirm dialog title | {name} ڕابگیرێت؟ | High | Plain, common wording — awaiting review |  |
+| `clSuspendBody` | They can no longer sign in or see any design. Their requests, and every customer and design, are kept. | Confirm dialog | ئیتر ناتوانێت بچێتە ژوورەوە یان هیچ دیزاینێک ببینێت. داواکانی، و هەموو کڕیار و دیزاینێک، دەپارێزرێن. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clSuspended` | {name} is suspended. | Notice after suspending | {name} ڕاگیرا. | High | Plain, common wording — awaiting review |  |
+| `clReactivated` | {name} is active again. | Notice after reactivating | {name} دووبارە چالاک بووەوە. | High | Plain, common wording — awaiting review |  |
+| `clInviteLead` | The worker sets their own password. You give them the code. | Invite dialog | کرێکارەکە خۆی وشەی نهێنییەکەی دادەنێت. تۆ کۆدەکەی پێدەدەیت. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clWorkerName` | Worker's name | Field label | ناوی کرێکار | High | Plain, common wording — awaiting review |  |
+| `clInvite` | Invite | Button | بانگهێشتکردن | High | Plain, common wording — awaiting review |  |
+| `clInviteMade` | Give this code to {name}. They choose “Join with an invitation” on the sign-in screen and use {email}. It works once, until {date}. | Invite dialog once the code is made | ئەم کۆدە بدە بە {name}. لە پەڕەی چوونەژوورەوە «بەشداربوون بە بانگهێشتنامە» هەڵدەبژێرێت و {email} بەکاردەهێنێت. تەنها یەکجار کار دەکات، تا {date}. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clCopyCode` | Copy code | Button | لەبەرگرتنەوەی کۆد | High | Plain, common wording — awaiting review |  |
+| `clCopied` | Copied. | Notice | لەبەرگیرایەوە. | High | Plain, common wording — awaiting review |  |
+| `clInviteOnce` | This code is not shown again. | Invite dialog warning | ئەم کۆدە دووبارە پیشان نادرێتەوە. | High | Plain, common wording — awaiting review |  |
+| `clDesignsAccess` | Designs this worker can see | Worker page section | ئەو دیزاینانەی ئەم کرێکارە دەیانبینێت | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clDesignsAccessLead` | A new worker sees none until you give them one. | Worker page section lead | کرێکارێکی نوێ هیچ نابینێت تا تۆ یەکێکی پێ نەدەیت. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clNoDesignsAssigned` | None yet. | Empty state | هێشتا هیچ. | High | Plain, common wording — awaiting review |  |
+| `clAssignDesign` | Give a design | Button and dialog title: assign a design to a worker | دانی دیزاینێک | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clTheirRequests` | Their requests | Worker page section | داواکانی | High | Plain, common wording — awaiting review |  |
+| `clNoRequests` | No requests. | Empty state | هیچ داوایەک نییە. | High | Plain, common wording — awaiting review |  |
+| `clRemoveAccess` | Take away | Button: remove an assignment | لێسەندنەوە | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clSearchDesigns` | Search designs | Search hint | گەڕان بەدوای دیزایندا | High | Plain, common wording — awaiting review |  |
+| `clNothingToAssign` | No other designs to give. | Empty state | هیچ دیزاینێکی تر نییە بۆ دان. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clPendingTab` | {count, plural, other{Pending ({count})}} | Approval center tab | {count, plural, other{چاوەڕوان ({count})}} | High | Plain, common wording — awaiting review |  |
+| `clApprovedDone` | Approved. | Notice after an approval succeeded | پەسەندکرا. | High | Plain, common wording — awaiting review |  |
+| `clRejectTitle` | Reject this request? | Confirm dialog | ئەم داوایە ڕەتبکرێتەوە؟ | High | Plain, common wording — awaiting review |  |
+| `clRejectBody` | Nothing is made or changed. The worker is told, with your note. | Confirm dialog | هیچ شتێک دروست ناکرێت یان ناگۆڕدرێت. کرێکارەکە ئاگادار دەکرێتەوە، لەگەڵ تێبینییەکەت. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clReject` | Reject | Button | ڕەتکردنەوە | High | Plain, common wording — awaiting review |  |
+| `clRejectedDone` | Rejected. | Notice after a rejection | ڕەتکرایەوە. | High | Plain, common wording — awaiting review |  |
+| `clCancelledDone` | Request cancelled. | Notice | داواکە هەڵوەشێنرایەوە. | High | Plain, common wording — awaiting review |  |
+| `clRequestedBy` | Asked by | Request detail label | داواکراوە لەلایەن | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clRequestedOn` | Asked on | Request detail label | ڕێکەوتی داواکردن | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clCustomer` | Customer | Label | کڕیار | High | Plain, common wording — awaiting review |  |
+| `clPhone` | Phone | Label | تەلەفۆن | High | Plain, common wording — awaiting review |  |
+| `clAddress` | Address | Label | ناونیشان | High | Plain, common wording — awaiting review |  |
+| `clNotes` | Notes | Label | تێبینییەکان | High | Plain, common wording — awaiting review |  |
+| `clDesignName` | Design name | Label | ناوی دیزاین | High | Plain, common wording — awaiting review |  |
+| `clCategory` | Category | Label | جۆر | High | Plain, common wording — awaiting review |  |
+| `clDescription` | Description | Label | وەسف | High | Plain, common wording — awaiting review |  |
+| `clDecidedOn` | Decided on | Request detail label | ڕێکەوتی بڕیاردان | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clDecisionNote` | Owner's note | Request detail label | تێبینیی خاوەنکار | High | Plain, common wording — awaiting review |  |
+| `clNoteForWorker` | Note for the worker (optional) | Field label when deciding | تێبینی بۆ کرێکار (ئارەزوومەندانە) | High | Plain, common wording — awaiting review |  |
+| `clGiveAccess` | Give {name} access to the new design | Checkbox when approving; off by default | دەستپێگەیشتن بە دیزاینە نوێیەکە بدە بە {name} | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clApprove` | Approve | Button | پەسەندکردن | High | Plain, common wording — awaiting review |  |
+| `clCancelRequest` | Cancel request | Button | هەڵوەشاندنەوەی داوا | High | Plain, common wording — awaiting review |  |
+| `clPossibleDuplicate` | A customer like this is already kept | Duplicate warning | کڕیارێکی لەم شێوەیە پێشتر هەیە | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clDuplicateNoMerge` | Approving makes a new customer. Nothing is merged — reject it if it is the same person. | Duplicate warning | پەسەندکردن کڕیارێکی نوێ دروست دەکات. هیچ شتێک تێکەڵ ناکرێت — ئەگەر هەمان کەس بێت ڕەتی بکەرەوە. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clProposalUnreadable` | This proposal cannot be read by this version of ProFrame, so it cannot be approved. | Change request that cannot be read | ئەم پێشنیارە ناتوانرێت لەلایەن ئەم وەشانەی ProFrame بخوێندرێتەوە، بۆیە ناتوانرێت پەسەند بکرێت. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clComparison` | As it is, and as proposed | Section heading: geometry comparison | وەک خۆی، و وەک پێشنیارکراو | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clOriginal` | As it is | Column: the design as it is | وەک خۆی | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clProposed` | Proposed | Column: the proposed design | پێشنیارکراو | High | Plain, common wording — awaiting review |  |
+| `clMeasureWidth` | Width | Comparison row | پانی | High | Plain, common wording — awaiting review |  |
+| `clMeasureHeight` | Height | Comparison row | بەرزی | High | Plain, common wording — awaiting review |  |
+| `clMeasureDepth` | Depth | Comparison row | قووڵی | High | Plain, common wording — awaiting review |  |
+| `clMeasureBars` | Lines | Comparison row: bars of the design | هێڵەکان | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clMeasureLights` | Parts | Comparison row: sections | بەشەکان | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clMeasureOpenings` | Openings | Comparison row: openings | کراوەکان | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clHello` | Hello, {name} | Worker home greeting | سڵاو، {name} | High | Plain, common wording — awaiting review |  |
+| `clLabourLead` | Your designs, and what you have asked for. | Worker home lead | دیزاینەکانت، و ئەوەی داوات کردووە. | High | Plain, common wording — awaiting review |  |
+| `clAskNewDesign` | Ask for a new design | Button and title | داواکردنی دیزاینی نوێ | High | Plain, common wording — awaiting review |  |
+| `clAskNewCustomer` | Ask for a new customer | Button and title | داواکردنی کڕیاری نوێ | High | Plain, common wording — awaiting review |  |
+| `clMyDesigns` | My assigned designs | Worker home section | ئەو دیزاینانەی دراون بە من | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clNoAssignedDesigns` | No designs are assigned to you yet. | Empty state | هێشتا هیچ دیزاینێک نەدراوە بە تۆ. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clMyRequests` | My requests | Worker home section | داواکانم | High | Plain, common wording — awaiting review |  |
+| `clOpen` | Open | Button | کردنەوە | High | Plain, common wording — awaiting review |  |
+| `clRefresh` | Refresh | Tooltip | نوێکردنەوە | High | Plain, common wording — awaiting review |  |
+| `clRequestLead` | The owner approves or rejects it. Nothing is made until then. | Request forms lead | خاوەنکار پەسەندی دەکات یان ڕەتی دەکاتەوە. تا ئەو کاتە هیچ شتێک دروست ناکرێت. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clChooseCustomer` | Choose the customer. | Form problem | کڕیارەکە هەڵبژێرە. | High | Plain, common wording — awaiting review |  |
+| `clDesignNameNeeded` | Enter a name for the design. | Form problem | ناوێک بۆ دیزاینەکە بنووسە. | High | Plain, common wording — awaiting review |  |
+| `clChooseCategory` | Choose the category. | Form problem | جۆرەکە هەڵبژێرە. | High | Plain, common wording — awaiting review |  |
+| `clRequestSent` | Request sent to the owner. | Notice | داواکە بۆ خاوەنکار نێردرا. | High | Plain, common wording — awaiting review |  |
+| `clNoScopedCustomers` | You have no customers yet. Ask for a new customer instead. | Request form with no customers in scope | هێشتا هیچ کڕیارێکت نییە. لە جیاتی ئەوە داوای کڕیارێکی نوێ بکە. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clSendRequest` | Send request | Button | ناردنی داوا | High | Plain, common wording — awaiting review |  |
+| `clCustomerName` | Customer's name | Field label | ناوی کڕیار | High | Plain, common wording — awaiting review |  |
+| `clCustomerNameNeeded` | Enter the customer's name. | Form problem | ناوی کڕیارەکە بنووسە. | High | Plain, common wording — awaiting review |  |
+| `clViewingAssigned` | You can look at this design. To change it, propose a change for the owner to approve. | Bar under an assigned design | دەتوانیت سەیری ئەم دیزاینە بکەیت. بۆ گۆڕینی، گۆڕانکارییەک پێشنیار بکە تا خاوەنکار پەسەندی بکات. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clProposing` | Proposing a change. The design stays as it is until the owner approves. | Bar while proposing | پێشنیارکردنی گۆڕانکاری. دیزاینەکە وەک خۆی دەمێنێتەوە تا خاوەنکار پەسەندی دەکات. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clProposeChange` | Propose a change | Button | پێشنیارکردنی گۆڕانکاری | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clDiscard` | Discard | Button: drop a proposal | فڕێدان | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clSubmitForApproval` | Send for approval | Button and dialog title | ناردن بۆ پەسەندکردن | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `clWhatChanged` | What did you change, and why? | Field label: change description | چیت گۆڕی، و بۆچی؟ | High | Plain, common wording — awaiting review |  |
+| `clWhatChangedNeeded` | Say what you changed. | Form problem | بڵێ چیت گۆڕیوە. | High | Plain, common wording — awaiting review |  |
+| `clChangeSent` | Change sent to the owner for approval. | Notice | گۆڕانکارییەکە بۆ پەسەندکردن نێردرا بۆ خاوەنکار. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `authInvalidCredentials` | That email and password do not match an account. | Sign-in refused | ئەو ئیمەیڵ و وشە نهێنییە لەگەڵ هیچ هەژمارێک ناگونجێن. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `authEmailNotConfirmed` | Confirm your email address first — open the link we sent you. | Sign-in before confirming | سەرەتا ئیمەیڵەکەت پشتڕاست بکەرەوە — ئەو بەستەرە بکەرەوە کە بۆمان ناردیت. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `authEmailTaken` | An account already uses this email address. | Sign-up refused | هەژمارێک پێشتر ئەم ئیمەیڵە بەکاردەهێنێت. | High | Plain, common wording — awaiting review |  |
+| `authWeakPassword` | That password is too weak. Use a longer one. | Sign-up refused | ئەو وشە نهێنییە زۆر لاوازە. یەکێکی درێژتر بەکاربهێنە. | High | Plain, common wording — awaiting review |  |
+| `authInviteInvalid` | That invitation code is not valid for this email address — it may be used, withdrawn or expired. | Joining refused | ئەو کۆدی بانگهێشتنامەیە بۆ ئەم ئیمەیڵە دروست نییە — لەوانەیە بەکارهاتبێت، کشێنرابێتەوە یان بەسەرچووبێت. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `authNameRequired` | A name is needed. | Refused for a missing name | ناوێک پێویستە. | High | Plain, common wording — awaiting review |  |
+| `authEmailInvalid` | That email address is not valid. | Refused for an address | ئەو ئیمەیڵە دروست نییە. | High | Plain, common wording — awaiting review |  |
+| `authSuspended` | This account is suspended. Ask your factory owner. | A suspended account | ئەم هەژمارە ڕاگیراوە. پرسیار لە خاوەنی کارگەکەت بکە. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `authNoAccount` | This sign-in has no ProFrame account. | A session with no account | ئەم چوونەژوورەوەیە هیچ هەژمارێکی ProFrameی نییە. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `authNotSignedIn` | You are signed out. Sign in again. | Session ended | تۆ چوویتە دەرەوە. دووبارە بچۆ ژوورەوە. | High | Plain, common wording — awaiting review |  |
+| `authRateLimited` | Too many tries. Wait a little and try again. | Provider rate limit | هەوڵدانی زۆر. کەمێک چاوەڕێ بکە و دووبارە هەوڵ بدەرەوە. | High | Plain, common wording — awaiting review |  |
+| `backendNotOwner` | Only the factory owner can do that. | Backend refusal | تەنها خاوەنی کارگە دەتوانێت ئەوە بکات. | High | Plain, common wording — awaiting review |  |
+| `backendNotAssigned` | That design is not assigned to you. | Backend refusal | ئەو دیزاینە نەدراوە بە تۆ. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `backendCustomerMissing` | That customer is not on the server yet. Wait a moment and try again. | Backend refusal | ئەو کڕیارە هێشتا لەسەر سێرڤەر نییە. کەمێک چاوەڕێ بکە و دووبارە هەوڵ بدەرەوە. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `backendCustomerHasDesigns` | That customer still has designs. | Backend refusal | ئەو کڕیارە هێشتا دیزاینی هەیە. | High | Plain, common wording — awaiting review |  |
+| `backendNetwork` | Could not reach the server. Check the connection and try again. | Network failure | نەتوانرا بگاتە سێرڤەر. پەیوەندییەکە بپشکنە و دووبارە هەوڵ بدەرەوە. | High | Plain, common wording — awaiting review |  |
+| `backendFailed` | That did not work. Nothing was changed. Try again. | Unknown backend failure | ئەوە سەرکەوتوو نەبوو. هیچ شتێک نەگۆڕدرا. دووبارە هەوڵ بدەرەوە. | High | Plain, common wording — awaiting review |  |
+| `workersLimit` | A factory can have three active workers. Suspend one or withdraw an invitation first. | Fourth worker refused | کارگەیەک دەتوانێت سێ کرێکاری چالاکی هەبێت. سەرەتا یەکێک ڕابگرە یان بانگهێشتنامەیەک بکشێنەوە. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `workersAlreadyInvited` | That address already has an invitation waiting. | Invitation refused | ئەو ئیمەیڵە پێشتر بانگهێشتنامەیەکی چاوەڕوانی هەیە. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `requestConflict` | The design changed after this was proposed. Reject it, and the worker can propose again from the design as it is now. | Change approval conflict | دیزاینەکە دوای ئەم پێشنیارە گۆڕاوە. ڕەتی بکەرەوە، و کرێکارەکە دەتوانێت لە دیزاینەکەی ئێستاوە دووبارە پێشنیار بکات. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
+| `requestAlreadyDecided` | This request has already been decided. | Approval refused | ئەم داوایە پێشتر بڕیاری لەسەر دراوە. | High | Plain, common wording — awaiting review |  |

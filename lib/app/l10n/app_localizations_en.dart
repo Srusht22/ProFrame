@@ -4689,4 +4689,660 @@ class AppLocalizationsEn extends AppLocalizations {
   String mfAppliedAnyway(String size) {
     return '$size is applied, as you typed it.';
   }
+
+  @override
+  String get clSignIn => 'Sign in';
+
+  @override
+  String get clSignInHeading => 'Sign in to ProFrame';
+
+  @override
+  String get clSignInLead =>
+      'Owners and workers sign in here. Your account says which you are.';
+
+  @override
+  String get clEmail => 'Email';
+
+  @override
+  String get clPassword => 'Password';
+
+  @override
+  String get clPasswordAgain => 'Password again';
+
+  @override
+  String get clShowPassword => 'Show password';
+
+  @override
+  String get clHidePassword => 'Hide password';
+
+  @override
+  String get clForgotPassword => 'Forgot password?';
+
+  @override
+  String get clCreateOwner => 'Create an owner account';
+
+  @override
+  String get clJoinWithInvite => 'Join with an invitation';
+
+  @override
+  String get clEmailInvalid => 'Enter a valid email address.';
+
+  @override
+  String get clPasswordNeeded => 'Enter your password.';
+
+  @override
+  String get clNameNeeded => 'Enter a name.';
+
+  @override
+  String clPasswordShort(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'At least $count characters.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get clPasswordsDiffer => 'The two passwords are not the same.';
+
+  @override
+  String get clFactoryNeeded => 'Enter your factory\'s name.';
+
+  @override
+  String get clFactoryName => 'Factory name';
+
+  @override
+  String get clYourName => 'Your name';
+
+  @override
+  String get clSignUpLead =>
+      'A new factory, with you as its owner. You can invite up to three workers afterwards.';
+
+  @override
+  String get clCreateAccount => 'Create account';
+
+  @override
+  String get clConfirmTitle => 'Confirm your email';
+
+  @override
+  String clConfirmBody(String email) {
+    return 'We sent a link to $email. Open it, then sign in.';
+  }
+
+  @override
+  String get clJoinLead =>
+      'Use the code your factory owner gave you, with the email address it was made for.';
+
+  @override
+  String get clInviteCode => 'Invitation code';
+
+  @override
+  String get clCodeNeeded => 'Enter the invitation code.';
+
+  @override
+  String get clJoin => 'Join';
+
+  @override
+  String get clRecoverLead => 'We will email you a link to set a new password.';
+
+  @override
+  String clRecoverSent(String email) {
+    return 'If an account uses $email, a link to set a new password is on its way.';
+  }
+
+  @override
+  String get clSendLink => 'Send link';
+
+  @override
+  String get clNewPassword => 'Set a new password';
+
+  @override
+  String get clSavePassword => 'Save password';
+
+  @override
+  String get clUnclaimedTitle => 'Records on this device';
+
+  @override
+  String clUnclaimedBody(String factory) {
+    return 'This device holds customers and designs made before accounts. Bring them into $factory, or keep them aside on this device. Nothing is deleted either way.';
+  }
+
+  @override
+  String clUnclaimedBring(String factory) {
+    return 'Bring them into $factory';
+  }
+
+  @override
+  String get clUnclaimedKeep => 'Keep them aside on this device';
+
+  @override
+  String get clSigningIn => 'Signing in…';
+
+  @override
+  String get clSuspendedTitle => 'Account suspended';
+
+  @override
+  String clSuspendedBody(String name) {
+    return '$name, your factory owner has suspended your account. Ask them to reactivate it.';
+  }
+
+  @override
+  String get clSignOut => 'Sign out';
+
+  @override
+  String get clRoleOwner => 'Owner';
+
+  @override
+  String get clRoleLabour => 'Worker';
+
+  @override
+  String clSignedInAs(String name, String role) {
+    return '$name ($role)';
+  }
+
+  @override
+  String get clWorkers => 'Workers';
+
+  @override
+  String get clApprovals => 'Approvals';
+
+  @override
+  String clApprovalsWaiting(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count requests waiting',
+      one: '1 request waiting',
+      zero: 'No requests waiting',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String clNotificationsUnread(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count unread notifications',
+      one: '1 unread notification',
+      zero: 'No unread notifications',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get clNotifications => 'Notifications';
+
+  @override
+  String get clNoNotifications => 'No notifications yet.';
+
+  @override
+  String clNoteSubmitted(String name, String what) {
+    return '$name sent a request: $what';
+  }
+
+  @override
+  String clNoteApproved(String what) {
+    return 'Your request was approved: $what';
+  }
+
+  @override
+  String clNoteRejected(String what) {
+    return 'Your request was rejected: $what';
+  }
+
+  @override
+  String clNoteRejectedWhy(String what, String note) {
+    return 'Your request was rejected: $what — $note';
+  }
+
+  @override
+  String get clNoteAssigned => 'A design was assigned to you.';
+
+  @override
+  String clNoteJoined(String name) {
+    return '$name joined your factory.';
+  }
+
+  @override
+  String get clNoteOther => 'Something changed.';
+
+  @override
+  String get clStatusPending => 'Pending';
+
+  @override
+  String get clStatusApproved => 'Approved';
+
+  @override
+  String get clStatusRejected => 'Rejected';
+
+  @override
+  String get clStatusCancelled => 'Cancelled';
+
+  @override
+  String get clStatusFailed => 'Needs attention';
+
+  @override
+  String get clWorkerActive => 'Active';
+
+  @override
+  String get clWorkerSuspended => 'Suspended';
+
+  @override
+  String get clKindNewDesign => 'New design';
+
+  @override
+  String get clKindNewCustomer => 'New customer and design';
+
+  @override
+  String get clKindChange => 'Design change';
+
+  @override
+  String get clOwnerOnly => 'Only the factory owner can open this.';
+
+  @override
+  String get clInviteWorker => 'Invite worker';
+
+  @override
+  String clSeatsUsed(String used, String total) {
+    return '$used of $total worker places used';
+  }
+
+  @override
+  String get clSeatsFull =>
+      'All three places are taken. Suspend a worker or withdraw an invitation to free one.';
+
+  @override
+  String get clWorkersLead =>
+      'Each worker sees only the designs you give them, and asks you for everything else.';
+
+  @override
+  String get clNoWorkers => 'No workers yet.';
+
+  @override
+  String get clOpenInvites => 'Invitations not yet used';
+
+  @override
+  String clInviteUntil(String date) {
+    return 'Valid until $date';
+  }
+
+  @override
+  String get clRevoke => 'Withdraw';
+
+  @override
+  String clAssignedCount(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count designs',
+      one: '1 design',
+      zero: 'No designs',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String clPendingCount(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count requests waiting',
+      one: '1 request waiting',
+      zero: 'no requests waiting',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get clManageAccess => 'Manage access';
+
+  @override
+  String get clSuspend => 'Suspend';
+
+  @override
+  String get clReactivate => 'Reactivate';
+
+  @override
+  String clSuspendTitle(String name) {
+    return 'Suspend $name?';
+  }
+
+  @override
+  String get clSuspendBody =>
+      'They can no longer sign in or see any design. Their requests, and every customer and design, are kept.';
+
+  @override
+  String clSuspended(String name) {
+    return '$name is suspended.';
+  }
+
+  @override
+  String clReactivated(String name) {
+    return '$name is active again.';
+  }
+
+  @override
+  String get clInviteLead =>
+      'The worker sets their own password. You give them the code.';
+
+  @override
+  String get clWorkerName => 'Worker\'s name';
+
+  @override
+  String get clInvite => 'Invite';
+
+  @override
+  String clInviteMade(String name, String email, String date) {
+    return 'Give this code to $name. They choose “Join with an invitation” on the sign-in screen and use $email. It works once, until $date.';
+  }
+
+  @override
+  String get clCopyCode => 'Copy code';
+
+  @override
+  String get clCopied => 'Copied.';
+
+  @override
+  String get clInviteOnce => 'This code is not shown again.';
+
+  @override
+  String get clDesignsAccess => 'Designs this worker can see';
+
+  @override
+  String get clDesignsAccessLead =>
+      'A new worker sees none until you give them one.';
+
+  @override
+  String get clNoDesignsAssigned => 'None yet.';
+
+  @override
+  String get clAssignDesign => 'Give a design';
+
+  @override
+  String get clTheirRequests => 'Their requests';
+
+  @override
+  String get clNoRequests => 'No requests.';
+
+  @override
+  String get clRemoveAccess => 'Take away';
+
+  @override
+  String get clSearchDesigns => 'Search designs';
+
+  @override
+  String get clNothingToAssign => 'No other designs to give.';
+
+  @override
+  String clPendingTab(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Pending ($count)',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get clApprovedDone => 'Approved.';
+
+  @override
+  String get clRejectTitle => 'Reject this request?';
+
+  @override
+  String get clRejectBody =>
+      'Nothing is made or changed. The worker is told, with your note.';
+
+  @override
+  String get clReject => 'Reject';
+
+  @override
+  String get clRejectedDone => 'Rejected.';
+
+  @override
+  String get clCancelledDone => 'Request cancelled.';
+
+  @override
+  String get clRequestedBy => 'Asked by';
+
+  @override
+  String get clRequestedOn => 'Asked on';
+
+  @override
+  String get clCustomer => 'Customer';
+
+  @override
+  String get clPhone => 'Phone';
+
+  @override
+  String get clAddress => 'Address';
+
+  @override
+  String get clNotes => 'Notes';
+
+  @override
+  String get clDesignName => 'Design name';
+
+  @override
+  String get clCategory => 'Category';
+
+  @override
+  String get clDescription => 'Description';
+
+  @override
+  String get clDecidedOn => 'Decided on';
+
+  @override
+  String get clDecisionNote => 'Owner\'s note';
+
+  @override
+  String get clNoteForWorker => 'Note for the worker (optional)';
+
+  @override
+  String clGiveAccess(String name) {
+    return 'Give $name access to the new design';
+  }
+
+  @override
+  String get clApprove => 'Approve';
+
+  @override
+  String get clCancelRequest => 'Cancel request';
+
+  @override
+  String get clPossibleDuplicate => 'A customer like this is already kept';
+
+  @override
+  String get clDuplicateNoMerge =>
+      'Approving makes a new customer. Nothing is merged — reject it if it is the same person.';
+
+  @override
+  String get clProposalUnreadable =>
+      'This proposal cannot be read by this version of ProFrame, so it cannot be approved.';
+
+  @override
+  String get clComparison => 'As it is, and as proposed';
+
+  @override
+  String get clOriginal => 'As it is';
+
+  @override
+  String get clProposed => 'Proposed';
+
+  @override
+  String get clMeasureWidth => 'Width';
+
+  @override
+  String get clMeasureHeight => 'Height';
+
+  @override
+  String get clMeasureDepth => 'Depth';
+
+  @override
+  String get clMeasureBars => 'Lines';
+
+  @override
+  String get clMeasureLights => 'Parts';
+
+  @override
+  String get clMeasureOpenings => 'Openings';
+
+  @override
+  String clHello(String name) {
+    return 'Hello, $name';
+  }
+
+  @override
+  String get clLabourLead => 'Your designs, and what you have asked for.';
+
+  @override
+  String get clAskNewDesign => 'Ask for a new design';
+
+  @override
+  String get clAskNewCustomer => 'Ask for a new customer';
+
+  @override
+  String get clMyDesigns => 'My assigned designs';
+
+  @override
+  String get clNoAssignedDesigns => 'No designs are assigned to you yet.';
+
+  @override
+  String get clMyRequests => 'My requests';
+
+  @override
+  String get clOpen => 'Open';
+
+  @override
+  String get clRefresh => 'Refresh';
+
+  @override
+  String get clRequestLead =>
+      'The owner approves or rejects it. Nothing is made until then.';
+
+  @override
+  String get clChooseCustomer => 'Choose the customer.';
+
+  @override
+  String get clDesignNameNeeded => 'Enter a name for the design.';
+
+  @override
+  String get clChooseCategory => 'Choose the category.';
+
+  @override
+  String get clRequestSent => 'Request sent to the owner.';
+
+  @override
+  String get clNoScopedCustomers =>
+      'You have no customers yet. Ask for a new customer instead.';
+
+  @override
+  String get clSendRequest => 'Send request';
+
+  @override
+  String get clCustomerName => 'Customer\'s name';
+
+  @override
+  String get clCustomerNameNeeded => 'Enter the customer\'s name.';
+
+  @override
+  String get clViewingAssigned =>
+      'You can look at this design. To change it, propose a change for the owner to approve.';
+
+  @override
+  String get clProposing =>
+      'Proposing a change. The design stays as it is until the owner approves.';
+
+  @override
+  String get clProposeChange => 'Propose a change';
+
+  @override
+  String get clDiscard => 'Discard';
+
+  @override
+  String get clSubmitForApproval => 'Send for approval';
+
+  @override
+  String get clWhatChanged => 'What did you change, and why?';
+
+  @override
+  String get clWhatChangedNeeded => 'Say what you changed.';
+
+  @override
+  String get clChangeSent => 'Change sent to the owner for approval.';
+
+  @override
+  String get authInvalidCredentials =>
+      'That email and password do not match an account.';
+
+  @override
+  String get authEmailNotConfirmed =>
+      'Confirm your email address first — open the link we sent you.';
+
+  @override
+  String get authEmailTaken => 'An account already uses this email address.';
+
+  @override
+  String get authWeakPassword => 'That password is too weak. Use a longer one.';
+
+  @override
+  String get authInviteInvalid =>
+      'That invitation code is not valid for this email address — it may be used, withdrawn or expired.';
+
+  @override
+  String get authNameRequired => 'A name is needed.';
+
+  @override
+  String get authEmailInvalid => 'That email address is not valid.';
+
+  @override
+  String get authSuspended =>
+      'This account is suspended. Ask your factory owner.';
+
+  @override
+  String get authNoAccount => 'This sign-in has no ProFrame account.';
+
+  @override
+  String get authNotSignedIn => 'You are signed out. Sign in again.';
+
+  @override
+  String get authRateLimited => 'Too many tries. Wait a little and try again.';
+
+  @override
+  String get backendNotOwner => 'Only the factory owner can do that.';
+
+  @override
+  String get backendNotAssigned => 'That design is not assigned to you.';
+
+  @override
+  String get backendCustomerMissing =>
+      'That customer is not on the server yet. Wait a moment and try again.';
+
+  @override
+  String get backendCustomerHasDesigns => 'That customer still has designs.';
+
+  @override
+  String get backendNetwork =>
+      'Could not reach the server. Check the connection and try again.';
+
+  @override
+  String get backendFailed =>
+      'That did not work. Nothing was changed. Try again.';
+
+  @override
+  String get workersLimit =>
+      'A factory can have three active workers. Suspend one or withdraw an invitation first.';
+
+  @override
+  String get workersAlreadyInvited =>
+      'That address already has an invitation waiting.';
+
+  @override
+  String get requestConflict =>
+      'The design changed after this was proposed. Reject it, and the worker can propose again from the design as it is now.';
+
+  @override
+  String get requestAlreadyDecided => 'This request has already been decided.';
 }
