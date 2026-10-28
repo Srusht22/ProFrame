@@ -5,7 +5,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/app.dart';
+import 'package:proframe/app/inspector/edit_menu.dart';
 import 'package:proframe/app/inspector/material_form.dart';
+import 'package:proframe/app/screens/workspace_screen.dart';
 import 'package:proframe/app/state/tools.dart';
 import 'package:proframe/app/state/workspace.dart';
 import 'package:proframe/domain/geometry/vec2.dart';
@@ -424,8 +426,18 @@ void main() {
       await tester.pumpAndSettle();
       expect(designOf(c).partsAsked, isTrue);
       await notNowToSizes(tester);
-      await tester.tap(find.byTooltip('Material'));
+      // Its own icon beside the panel on a laptop; under the one **Edit**
+      // where the panel is in a drawer.
+      if (WorkspaceLayout.of(size.width) == WorkspaceLayout.desktop) {
+        await tester.tap(find.byTooltip('Material'));
+      } else {
+        await tester.tap(find.byKey(EditMenu.buttonKey));
+        await tester.pumpAndSettle();
+        expect(overflowing(tester), isEmpty);
+        await tester.tap(find.byKey(EditMenu.materialKey));
+      }
       await tester.pumpAndSettle();
+      expect(find.byType(MaterialForm), findsOneWidget);
       expect(overflowing(tester), isEmpty);
       expect(tester.takeException(), isNull);
     });

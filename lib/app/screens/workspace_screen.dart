@@ -10,6 +10,7 @@ import '../canvas/cad_view.dart';
 import '../canvas/drawing_surface.dart';
 import '../inspector/component_tree.dart';
 import '../inspector/construction_alert.dart';
+import '../inspector/edit_menu.dart';
 import '../inspector/geometry_check_panel.dart';
 import '../inspector/inspector_panel.dart';
 import '../inspector/material_form.dart';
@@ -144,6 +145,13 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
     super.dispose();
   }
 
+  /// Glass or panel, with the part picked first.
+  void _showMaterial(BuildContext context, WorkspaceState state) =>
+      MaterialForm.show(
+        context,
+        focusId: MaterialForm.partFor(state.design, state.selectedId),
+      );
+
   /// Opens the drawer on what is picked, or on the list of parts.
   void _openDrawer({required bool parts}) {
     setState(() => _showTree = parts);
@@ -214,7 +222,13 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                 isLabelVisible: !Measurements.complete(state.design),
                 smallSize: 8,
                 backgroundColor: AppTheme.accent,
-                offset: const Offset(-6, 6),
+                // Inward, over the ruler, in either direction: `Badge` does
+                // not turn its offset round for a right-to-left screen, and
+                // the dot read as the next icon's.
+                offset: Offset(
+                  Directionality.of(context) == TextDirection.rtl ? 6 : -6,
+                  6,
+                ),
                 child: BarIcon(
                   tooltip: context.l10n.wsSizes,
                   icon: Icons.straighten,
@@ -222,21 +236,39 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                 ),
               ),
             ),
-          // Glass or panel, for any part: in every kind of design, and
-          // never under More — it is how a window or a sliding set is given
-          // its glass and its panels.
-          if (state.design.frame != null)
+          // Glass or panel, for any part, and the panel of what is picked:
+          // one **Edit** button, whose sheet says each in words — two icons
+          // side by side were more than a person could tell apart. In every
+          // kind of design, and never under More: it is how a window or a
+          // sliding set is given its glass and its panels. Beside a panel
+          // that is always shown there is nothing to choose between, and it
+          // is the Material tool itself.
+          if (layout == WorkspaceLayout.desktop &&
+              state.design.frame != null)
             BarArrival(
               order: 1,
               child: BarIcon(
                 tooltip: context.l10n.wsMaterial,
                 icon: Icons.format_paint_outlined,
-                onPressed: () => MaterialForm.show(
+                onPressed: () => _showMaterial(context, state),
+              ),
+            )
+          else if (layout != WorkspaceLayout.desktop)
+            BarArrival(
+              order: 1,
+              child: BarIcon(
+                key: EditMenu.buttonKey,
+                tooltip: context.l10n.wsEdit,
+                icon: Icons.edit_outlined,
+                onPressed: () => EditMenu.show(
                   context,
-                  focusId: MaterialForm.partFor(
-                    state.design,
-                    state.selectedId,
-                  ),
+                  picked: state.selected == null
+                      ? null
+                      : _pickedName(context, state),
+                  onMaterial: state.design.frame == null
+                      ? null
+                      : () => _showMaterial(context, state),
+                  onDetails: () => _openDrawer(parts: false),
                 ),
               ),
             ),
@@ -318,7 +350,6 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                   onTree: () => layout == WorkspaceLayout.desktop
                       ? setState(() => _showTree = !_showTree)
                       : _openDrawer(parts: true),
-                  onDetails: () => _openDrawer(parts: false),
                 ),
                 const Divider(height: 1),
                 Expanded(
@@ -455,7 +486,6 @@ class _ViewBar extends StatelessWidget {
   final WorkspaceController controller;
   final WorkspaceLayout layout;
   final VoidCallback onTree;
-  final VoidCallback onDetails;
   final bool treeOpen;
 
   /// Whether every control is shown, and the button that says so.
@@ -467,7 +497,6 @@ class _ViewBar extends StatelessWidget {
     required this.controller,
     required this.layout,
     required this.onTree,
-    required this.onDetails,
     required this.treeOpen,
     required this.everything,
     required this.onMore,
@@ -509,20 +538,14 @@ class _ViewBar extends StatelessWidget {
                 onPressed: controller.readDrawing,
                 icon: const Icon(Icons.auto_fix_high_outlined, size: 20),
               ),
-            if (everything) ...[
+            // Details is under **Edit**, on the bar at the top.
+            if (everything)
               IconButton(
                 tooltip: context.l10n.wsParts,
                 visualDensity: VisualDensity.compact,
                 onPressed: onTree,
                 icon: const Icon(Icons.list_alt_outlined, size: 20),
               ),
-              IconButton(
-                tooltip: context.l10n.wsDetails,
-                visualDensity: VisualDensity.compact,
-                onPressed: onDetails,
-                icon: const Icon(Icons.tune, size: 20),
-              ),
-            ],
           ],
         ),
       );
@@ -562,23 +585,27 @@ class _ViewBar extends StatelessWidget {
               ),
               label: Text(context.l10n.wsParts),
             )
-          else ...[
+          else
             IconButton(
               tooltip: context.l10n.wsParts,
               onPressed: onTree,
               icon: const Icon(Icons.list_alt_outlined, size: 20),
             ),
-            IconButton(
-              tooltip: context.l10n.wsDetails,
-              onPressed: onDetails,
-              icon: const Icon(Icons.tune, size: 20),
-            ),
-          ],
         ],
       ),
     );
   }
 }
+
+/// What is picked, by name: an opening by its place in the design.
+String _pickedName(BuildContext context, WorkspaceState state) =>
+    switch (state.selected!) {
+      final OpeningElement opening => state.design.nameOfIn(
+        context.words,
+        opening,
+      ),
+      final selected => elementLabelIn(context.words, selected),
+    };
 
 /// What is picked, where the panel beside the drawing is not shown: its
 /// name, and one tap to open it or to let it go.
@@ -599,14 +626,7 @@ class _PickedBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final selected = state.selected!;
-    final name = switch (selected) {
-      final OpeningElement opening => state.design.nameOfIn(
-        context.words,
-        opening,
-      ),
-      _ => elementLabelIn(context.words, selected),
-    };
+    final name = _pickedName(context, state);
     return Container(
       width: double.infinity,
       color: context.palette.shell,

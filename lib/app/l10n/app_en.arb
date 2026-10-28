@@ -7628,5 +7628,26 @@
   "requestAlreadyDecided": "This request has already been decided.",
   "@requestAlreadyDecided": {
     "description": "[domain] Approval refused"
+  },
+  "wsEditPicked": "Picked: {name}",
+  "@wsEditPicked": {
+    "description": "Edit menu: under its heading, naming what is picked",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "wsEditWhole": "Nothing is picked, so this is for the whole design.",
+  "@wsEditWhole": {
+    "description": "Edit menu: under its heading, when nothing is picked"
+  },
+  "wsGlassOrPanelHint": "Choose glass or panel, and its colour, for each part.",
+  "@wsGlassOrPanelHint": {
+    "description": "Edit menu: what Glass or panel does"
+  },
+  "wsDetailsHint": "Change the settings of the part you picked, or of the whole design.",
+  "@wsDetailsHint": {
+    "description": "Edit menu: what Details does"
   }
 }

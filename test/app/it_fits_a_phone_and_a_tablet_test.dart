@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proframe/app/app.dart';
 import 'package:proframe/app/inspector/component_tree.dart';
+import 'package:proframe/app/inspector/edit_menu.dart';
 import 'package:proframe/app/inspector/inspector_panel.dart';
 import 'package:proframe/app/screens/tool_bar.dart';
 import 'package:proframe/app/screens/workspace_bars.dart';
@@ -137,8 +138,9 @@ void main() {
       for (final view in WorkspaceView.values) {
         expect(find.text(view.shortLabel), findsOneWidget);
       }
-      // Nothing of the bar is off the screen.
-      for (final tip in ['Read again', 'Parts', 'Details']) {
+      // Nothing of the bar is off the screen. Details is under the one
+      // **Edit** on the bar at the top since the two icons were merged.
+      for (final tip in ['Read again', 'Parts', 'Edit']) {
         final button = find.byTooltip(tip);
         expect(button, findsOneWidget);
         expect(tester.getRect(button).right, lessThanOrEqualTo(360));
@@ -187,7 +189,10 @@ void main() {
     await twoLeavesAt(tester, const Size(820, 1180));
     // Not in a panel narrowing the drawing.
     expect(find.byType(InspectorPanel), findsNothing);
-    await tester.tap(find.byTooltip('Details'));
+    // Under **Edit**, since Details and Material became one button.
+    await tester.tap(find.byKey(EditMenu.buttonKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(EditMenu.detailsKey));
     await tester.pumpAndSettle();
     expect(find.byType(InspectorPanel), findsOneWidget);
   });

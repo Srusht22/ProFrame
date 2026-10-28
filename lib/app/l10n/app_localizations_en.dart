@@ -5345,4 +5345,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get requestAlreadyDecided => 'This request has already been decided.';
+
+  @override
+  String wsEditPicked(String name) {
+    return 'Picked: $name';
+  }
+
+  @override
+  String get wsEditWhole =>
+      'Nothing is picked, so this is for the whole design.';
+
+  @override
+  String get wsGlassOrPanelHint =>
+      'Choose glass or panel, and its colour, for each part.';
+
+  @override
+  String get wsDetailsHint =>
+      'Change the settings of the part you picked, or of the whole design.';
 }

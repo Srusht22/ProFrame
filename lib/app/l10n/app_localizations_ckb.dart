@@ -5338,4 +5338,21 @@ class AppLocalizationsCkb extends AppLocalizations {
 
   @override
   String get requestAlreadyDecided => 'ئەم داوایە پێشتر بڕیاری لەسەر دراوە.';
+
+  @override
+  String wsEditPicked(String name) {
+    return 'هەڵبژێردراو: $name';
+  }
+
+  @override
+  String get wsEditWhole =>
+      'هیچ شتێک هەڵنەبژێردراوە، بۆیە ئەمە بۆ هەموو دیزاینەکەیە.';
+
+  @override
+  String get wsGlassOrPanelHint =>
+      'بۆ هەر بەشێک شووشە یان پانێڵ و ڕەنگەکەی هەڵبژێرە.';
+
+  @override
+  String get wsDetailsHint =>
+      'ڕێکخستنەکانی ئەو بەشەی هەڵتبژاردووە، یان هی هەموو دیزاینەکە، بگۆڕە.';
 }

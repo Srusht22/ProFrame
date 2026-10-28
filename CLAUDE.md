@@ -921,8 +921,25 @@ not `MediaQuery`, so a phone-sized browser window on a laptop is a phone:
 | --- | --- | --- | --- |
 | Tools | the navigation bar along the bottom, scrolling | the same, spread out | the same, spread out |
 | Views | Draw / CAD / 3D sharing the width | full names | full names |
-| Read again, Parts, Details — under **More** | icons | icons | words |
+| Read again, Parts — under **More** | icons | icons | words |
+| Glass or panel, and Details | one **Edit** on the bar at the top | the same | the Material tool's own icon; the panel is beside the drawing |
 | What is picked | `_PickedBar` under the drawing, **Edit** opens a drawer | the same | the panel beside it |
+
+**One Edit, not two icons.** The user's words, over a phone screenshot
+in Kurdish with the paint roller and the sliders ringed: *they are
+crowded, normal people cannot understand what is going on, so those two
+icons should open in one icon.* Where the panel is not beside the drawing,
+the Material tool and Details are one pencil on the bar at the top
+(`EditMenu`, `edit_menu.dart`). It opens a short sheet that names what is
+picked — or says it is for the whole design — and offers **Glass or
+panel** and **Details**, each with a line saying what it does; each opens
+exactly what its icon opened, and the sheet changes nothing. It is always
+there, never under More, as the Material tool always was. On a laptop the
+panel is always beside the drawing, so there is nothing to choose between
+and the paint roller stays the Material tool itself. The **Sizes** dot
+sits on the ruler in either direction: `Badge` does not turn its offset
+round for a right-to-left screen, and in Kurdish the dot had drifted onto
+the next icon. `test/app/one_edit_button_test.dart` holds it.
 
 **Two navigation bars, one design.** The user asked for a bottom
 navigation bar with an active tab indicator for the tools, and a top one
@@ -962,7 +979,7 @@ the rest; it reads **Less** while they are shown.
 
 | Always | Under More |
 | --- | --- |
-| Back, the design's name, **Sizes**, Undo, Save | Redo, Show my drawing, Read again, Parts, Details |
+| Back, the design's name, **Sizes**, **Edit** (Glass or panel, Details), Undo, Save | Redo, Show my drawing, Read again, Parts |
 | Draw / CAD / 3D | The technical drawing's layers, the strip of tools inside an opening, the status bar |
 | Select, Freehand, Straight line, Rectangle, Eraser (`ToolBar.simple`) | Polyline, Dimension, Arrow, Note, the pen's colour |
 | The model, **Open** and Play where there is a leaf, how it is shown — Technical, Shaded, Material, Realistic — and the camera's own controls — Perspective \| Orthographic, zoom, **Fit**, **Reset** | The named views, the wireframe, Depth, Profile, the readout |
@@ -3037,9 +3054,9 @@ New Door / New Door & window                New Window / New Sliding
   division nobody drew inside, or a pane of one somebody did — inside an
   opening as much as outside, so an opening's glass over its panel is said
   the same way and stays the opening's.
-- **The Material tool is in every kind of design** — the paint-roller on
-  the bar at the top, never under More, and the same button on the bar
-  under a picked part — and `MaterialForm` lists every part, the one picked
+- **The Material tool is in every kind of design** — under **Edit** on
+  the bar at the top (the paint-roller itself on a laptop), never under
+  More, and the same button on the bar under a picked part — and `MaterialForm` lists every part, the one picked
   first. It is also how anything said at the start is changed later.
 - **The looks are real materials in real colours**: `GlassLook` (clear,
   tinted, frosted, dark, blue-grey) and `PanelColour` (white, black, grey,

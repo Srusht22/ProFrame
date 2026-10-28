@@ -2,7 +2,7 @@
 
 **ProFrame Phase 34 — English and Central Kurdish localisation. Written 2026-10-11.**
 
-Every message the application shows, 1507 in all: 143 of low confidence, 632 of medium and 732 of high. The 1211 of Phase 34 are in the first table, low first; the 85 added for Phase 35 (2026-10-12) — the price summary, the factory's prices and list of extras, the language and appearance buttons, errors and Flutter's own words — are in the second; and the 20 added on 2026-10-13 — Factory defaults, the sizes form's defaults, New Design's customer search and the simpler customer summary — in the third, with the 10 added later that day for the sizes form's suggestions (what a size that does not fit would do, and the nearest that fits); and the 181 of Phase 36 — sign-in, sign-up, password recovery, workers and invitations, design access, the workers' requests, the approval center and notifications — in the fourth, at the end. On 2026-10-13 the customers' title was changed at the user's request from کڕیاران to تۆماری کڕیارەکان, and the messages of the Settings screen, which was taken out, were removed. **None of the Sorani here has been checked by a native speaker.** It was written for these phases, and nothing in it is marked verified.
+Every message the application shows, 1511 in all: 143 of low confidence, 636 of medium and 732 of high. The 1211 of Phase 34 are in the first table, low first; the 85 added for Phase 35 (2026-10-12) — the price summary, the factory's prices and list of extras, the language and appearance buttons, errors and Flutter's own words — are in the second; and the 20 added on 2026-10-13 — Factory defaults, the sizes form's defaults, New Design's customer search and the simpler customer summary — in the third, with the 10 added later that day for the sizes form's suggestions (what a size that does not fit would do, and the nearest that fits); and the 181 of Phase 36 — sign-in, sign-up, password recovery, workers and invitations, design access, the workers' requests, the approval center and notifications — in the fourth; and the 4 added on 2026-10-28 for the workspace's one **Edit** menu, which took the place of the separate Material and Details icons, in the fifth, at the end. On 2026-10-13 the customers' title was changed at the user's request from کڕیاران to تۆماری کڕیارەکان, and the messages of the Settings screen, which was taken out, were removed. **None of the Sorani here has been checked by a native speaker.** It was written for these phases, and nothing in it is marked verified.
 
 ## How to review
 
@@ -1601,3 +1601,14 @@ Messages added in Phase 36 — sign-in, sign-up, recovery, workers, assignments,
 | `workersAlreadyInvited` | That address already has an invitation waiting. | Invitation refused | ئەو ئیمەیڵە پێشتر بانگهێشتنامەیەکی چاوەڕوانی هەیە. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
 | `requestConflict` | The design changed after this was proposed. Reject it, and the worker can propose again from the design as it is now. | Change approval conflict | دیزاینەکە دوای ئەم پێشنیارە گۆڕاوە. ڕەتی بکەرەوە، و کرێکارەکە دەتوانێت لە دیزاینەکەی ئێستاوە دووبارە پێشنیار بکات. | Medium | Wording for a new account or approval concept; check the term — awaiting review |  |
 | `requestAlreadyDecided` | This request has already been decided. | Approval refused | ئەم داوایە پێشتر بڕیاری لەسەر دراوە. | High | Plain, common wording — awaiting review |  |
+
+## Added after Phase 36
+
+Messages added after Phase 36 — the workspace’s one Edit menu — reviewed the same way as the tables above. None is verified.
+
+| Key | English | Context | Proposed Sorani | Confidence | Reason / status | Approved Sorani |
+| --- | --- | --- | --- | --- | --- | --- |
+| `wsEditPicked` | Picked: {name} | Edit menu: under its heading, naming what is picked | هەڵبژێردراو: {name} | Medium | Plain wording; check the word for a picked part — awaiting review |  |
+| `wsEditWhole` | Nothing is picked, so this is for the whole design. | Edit menu: under its heading, when nothing is picked | هیچ شتێک هەڵنەبژێردراوە، بۆیە ئەمە بۆ هەموو دیزاینەکەیە. | Medium | Plain wording; check the word for a picked part — awaiting review |  |
+| `wsGlassOrPanelHint` | Choose glass or panel, and its colour, for each part. | Edit menu: what Glass or panel does | بۆ هەر بەشێک شووشە یان پانێڵ و ڕەنگەکەی هەڵبژێرە. | Medium | Trade term panel kept as پانێڵ, as elsewhere — awaiting review |  |
+| `wsDetailsHint` | Change the settings of the part you picked, or of the whole design. | Edit menu: what Details does | ڕێکخستنەکانی ئەو بەشەی هەڵتبژاردووە، یان هی هەموو دیزاینەکە، بگۆڕە. | Medium | Plain wording; check the word for settings — awaiting review |  |

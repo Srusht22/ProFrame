@@ -9139,6 +9139,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This request has already been decided.'**
   String get requestAlreadyDecided;
+
+  /// Edit menu: under its heading, naming what is picked
+  ///
+  /// In en, this message translates to:
+  /// **'Picked: {name}'**
+  String wsEditPicked(String name);
+
+  /// Edit menu: under its heading, when nothing is picked
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is picked, so this is for the whole design.'**
+  String get wsEditWhole;
+
+  /// Edit menu: what Glass or panel does
+  ///
+  /// In en, this message translates to:
+  /// **'Choose glass or panel, and its colour, for each part.'**
+  String get wsGlassOrPanelHint;
+
+  /// Edit menu: what Details does
+  ///
+  /// In en, this message translates to:
+  /// **'Change the settings of the part you picked, or of the whole design.'**
+  String get wsDetailsHint;
 }
 
 class _AppLocalizationsDelegate
